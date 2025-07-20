@@ -1,0 +1,15 @@
+{
+  "name": "nvrc-scraper",
+  "version": "1.0.0",
+  "description": "Web scraper for NVRC camps and programs",
+  "main": "scraper.js",
+  "scripts": {
+    "start": "node scraper.js",
+    "test": "node test-scraper.js"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cheerio": "^1.1.0",
+    "puppeteer-core": "^22.8.2"
+  }
+}

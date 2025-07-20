@@ -1,0 +1,15 @@
+✅ NVRC Interactive scraper loaded successfully
+Kids Camp Tracker API running on http://localhost:3000
+
+Available endpoints:
+- GET /api/scrape/nvrc (main endpoint - uses interactive scraper)
+- GET /api/scrape/nvrc-interactive (test interactive scraper directly)
+- GET /api/camps/search?activityTypes=swimming,camps&maxCost=300
+- GET /api/camps/:id
+- POST /api/register
+
+✅ Server is ready to receive requests!
+📝 Note: First scrape may take 30-60 seconds to load all results
+🔍 Checking for cached data...
+🎲 Generated 38 sample camps
+Returning cached camps data

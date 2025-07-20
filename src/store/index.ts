@@ -1,0 +1,166 @@
+import { create } from 'zustand';
+import { MMKV } from 'react-native-mmkv';
+import { Camp, User, Filter, Child, SiteAccount } from '../types';
+
+const storage = new MMKV();
+
+interface AppState {
+  // User data
+  user: User | null;
+  setUser: (user: User | null) => void;
+  
+  // Camps data
+  camps: Camp[];
+  setCamps: (camps: Camp[]) => void;
+  favoriteCamps: string[];
+  toggleFavorite: (campId: string) => void;
+  
+  // Filters
+  activeFilter: Filter;
+  setFilter: (filter: Filter) => void;
+  
+  // Children management
+  addChild: (child: Child) => void;
+  updateChild: (childId: string, child: Partial<Child>) => void;
+  deleteChild: (childId: string) => void;
+  
+  // Site accounts
+  addSiteAccount: (account: SiteAccount) => void;
+  updateSiteAccount: (accountId: string, account: Partial<SiteAccount>) => void;
+  deleteSiteAccount: (accountId: string) => void;
+  
+  // Loading states
+  isLoading: boolean;
+  setLoading: (loading: boolean) => void;
+  
+  // Persistence
+  hydrate: () => void;
+  persist: () => void;
+}
+
+export const useStore = create<AppState>((set, get) => ({
+  user: null,
+  camps: [],
+  favoriteCamps: [],
+  activeFilter: {},
+  isLoading: false,
+
+  setUser: (user) => {
+    set({ user });
+    get().persist();
+  },
+
+  setCamps: (camps) => set({ camps }),
+
+  toggleFavorite: (campId) => {
+    const { favoriteCamps } = get();
+    const updated = favoriteCamps.includes(campId)
+      ? favoriteCamps.filter(id => id !== campId)
+      : [...favoriteCamps, campId];
+    set({ favoriteCamps: updated });
+    get().persist();
+  },
+
+  setFilter: (filter) => set({ activeFilter: filter }),
+
+  addChild: (child) => {
+    const { user } = get();
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      children: [...user.children, child]
+    };
+    set({ user: updatedUser });
+    get().persist();
+  },
+
+  updateChild: (childId, childUpdate) => {
+    const { user } = get();
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      children: user.children.map(child => 
+        child.id === childId ? { ...child, ...childUpdate } : child
+      )
+    };
+    set({ user: updatedUser });
+    get().persist();
+  },
+
+  deleteChild: (childId) => {
+    const { user } = get();
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      children: user.children.filter(child => child.id !== childId)
+    };
+    set({ user: updatedUser });
+    get().persist();
+  },
+
+  addSiteAccount: (account) => {
+    const { user } = get();
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      siteAccounts: [...user.siteAccounts, account]
+    };
+    set({ user: updatedUser });
+    get().persist();
+  },
+
+  updateSiteAccount: (accountId, accountUpdate) => {
+    const { user } = get();
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      siteAccounts: user.siteAccounts.map(account => 
+        account.id === accountId ? { ...account, ...accountUpdate } : account
+      )
+    };
+    set({ user: updatedUser });
+    get().persist();
+  },
+
+  deleteSiteAccount: (accountId) => {
+    const { user } = get();
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      siteAccounts: user.siteAccounts.filter(account => account.id !== accountId)
+    };
+    set({ user: updatedUser });
+    get().persist();
+  },
+
+  setLoading: (loading) => set({ isLoading: loading }),
+
+  hydrate: () => {
+    const userString = storage.getString('user');
+    const favoritesString = storage.getString('favorites');
+    
+    if (userString) {
+      set({ user: JSON.parse(userString) });
+    }
+    
+    if (favoritesString) {
+      set({ favoriteCamps: JSON.parse(favoritesString) });
+    }
+  },
+
+  persist: () => {
+    const { user, favoriteCamps } = get();
+    
+    if (user) {
+      storage.set('user', JSON.stringify(user));
+    }
+    
+    storage.set('favorites', JSON.stringify(favoriteCamps));
+  }
+}));

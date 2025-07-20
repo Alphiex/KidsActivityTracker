@@ -1,0 +1,37 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3F51B5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#303F9F;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="1024" height="1024" fill="url(#bgGradient)" rx="230" />
+  
+  <!-- Tent -->
+  <g transform="translate(512, 614)">
+    <!-- Main tent triangle -->
+    <path d="M -200 0 L 0 -350 L 200 0 Z" fill="white" opacity="0.95" />
+    <!-- Tent opening -->
+    <path d="M -100 0 L 0 -175 L 100 0 Z" fill="#1A237E" />
+  </g>
+  
+  <!-- Stars -->
+  <g fill="#FFD700">
+    <!-- Top left star -->
+    <path d="M 205 205 l 20 60 h 60 l -50 35 l 20 60 l -50 -35 l -50 35 l 20 -60 l -50 -35 h 60 z" />
+    <!-- Top right star -->
+    <path d="M 819 164 l 15 45 h 45 l -37 26 l 15 45 l -37 -26 l -37 26 l 15 -45 l -37 -26 h 45 z" />
+    <!-- Bottom left star -->
+    <path d="M 166 819 l 15 45 h 45 l -37 26 l 15 45 l -37 -26 l -37 26 l 15 -45 l -37 -26 h 45 z" />
+    <!-- Bottom right star -->
+    <path d="M 858 858 l 20 60 h 60 l -50 35 l 20 60 l -50 -35 l -50 35 l 20 -60 l -50 -35 h 60 z" />
+  </g>
+  
+  <!-- Moon/crescent for night camping theme -->
+  <g fill="#FFD700" opacity="0.8">
+    <circle cx="750" cy="350" r="60" />
+    <circle cx="780" cy="340" r="65" fill="url(#bgGradient)" />
+  </g>
+</svg>
