@@ -1,15 +1,15 @@
-import axios from 'axios';
-import { Camp, Filter } from '../types';
-import API_CONFIG from '../config/api';
+import axios, { AxiosInstance } from 'axios';
+import { Activity, Filter } from '../types';
+import { API_CONFIG } from '../config/api';
 
-export class ScraperService {
+class ScraperService {
   private static instance: ScraperService;
-  private apiClient;
+  private api: AxiosInstance;
 
   private constructor() {
-    this.apiClient = axios.create({
+    this.api = axios.create({
       baseURL: API_CONFIG.BASE_URL,
-      timeout: API_CONFIG.TIMEOUT,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -23,31 +23,31 @@ export class ScraperService {
     return ScraperService.instance;
   }
 
-  async scrapeNVRC(): Promise<Camp[]> {
+  async scrapeNVRC(): Promise<Activity[]> {
     try {
-      console.log('Fetching camps from backend API...');
-      const response = await this.apiClient.get(API_CONFIG.ENDPOINTS.SCRAPE_NVRC);
+      console.log('Fetching activities from backend API...');
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.SCRAPE_NVRC);
       
-      if (response.data.success && response.data.camps) {
-        console.log(`Received ${response.data.camps.length} camps from API`);
+      if (response.data.success && response.data.activities) {
+        console.log(`Received ${response.data.activities.length} activities from API`);
         
         // Convert date strings to Date objects
-        const camps = response.data.camps.map((camp: any) => ({
-          ...camp,
+        const activities = response.data.activities.map((activity: any) => ({
+          ...activity,
           dateRange: {
-            start: new Date(camp.dateRange.start),
-            end: new Date(camp.dateRange.end),
+            start: new Date(activity.dateRange.start),
+            end: new Date(activity.dateRange.end),
           },
-          scrapedAt: new Date(camp.scrapedAt),
+          scrapedAt: new Date(activity.scrapedAt),
         }));
         
-        return camps;
+        return activities;
       }
       
-      console.log('No camps returned from API');
+      console.log('No activities returned from API');
       return [];
     } catch (error: any) {
-      console.error('Error fetching camps from API:', error);
+      console.error('Error fetching activities from API:', error);
       console.error('Error details:', {
         message: error.message,
         code: error.code,
@@ -57,103 +57,99 @@ export class ScraperService {
       
       if (error.code === 'ECONNREFUSED') {
         console.error('❌ Backend server not running! Please start the backend server.');
-        // Show a user-friendly error
-        throw new Error('Unable to connect to backend server. Please ensure the server is running.');
+        console.error('Run: npm run backend');
+        throw new Error('Backend server is not running. Please start the backend server.');
       }
       
-      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-        throw new Error('Network error. Please check your connection and ensure the backend server is running on http://127.0.0.1:3000');
+      if (error.response?.status === 404) {
+        console.error('❌ API endpoint not found. Make sure the backend is up to date.');
+        throw new Error('API endpoint not found. Please update the backend server.');
       }
       
-      throw error;
+      throw new Error(error.response?.data?.message || 'Failed to fetch activities');
     }
   }
 
-  async searchCamps(filter: Filter): Promise<Camp[]> {
+  async searchActivities(filter: Filter): Promise<Activity[]> {
     try {
-      // Try to use the search endpoint
-      const params = new URLSearchParams();
+      // Convert date objects to ISO strings
+      const searchParams = {
+        ...filter,
+        dateRange: filter.dateRange ? {
+          start: filter.dateRange.start.toISOString(),
+          end: filter.dateRange.end.toISOString(),
+        } : undefined,
+      };
+
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.SEARCH_ACTIVITIES, searchParams);
       
-      if (filter.activityTypes?.length) {
-        params.append('activityTypes', filter.activityTypes.join(','));
-      }
-      if (filter.ageRange?.min) {
-        params.append('minAge', filter.ageRange.min.toString());
-      }
-      if (filter.ageRange?.max) {
-        params.append('maxAge', filter.ageRange.max.toString());
-      }
-      if (filter.maxCost) {
-        params.append('maxCost', filter.maxCost.toString());
-      }
-      
-      const response = await this.apiClient.get(
-        `${API_CONFIG.ENDPOINTS.SEARCH_CAMPS}?${params.toString()}`
-      );
-      
-      if (response.data.success && response.data.camps) {
-        return response.data.camps.map((camp: any) => ({
-          ...camp,
+      if (response.data.success && response.data.activities) {
+        return response.data.activities.map((activity: any) => ({
+          ...activity,
           dateRange: {
-            start: new Date(camp.dateRange.start),
-            end: new Date(camp.dateRange.end),
+            start: new Date(activity.dateRange.start),
+            end: new Date(activity.dateRange.end),
           },
-          scrapedAt: new Date(camp.scrapedAt),
+          scrapedAt: new Date(activity.scrapedAt),
         }));
       }
-    } catch (error) {
-      console.error('Search API error:', error);
+      
+      return [];
+    } catch (error: any) {
+      console.error('Error searching activities:', error);
+      throw new Error(error.response?.data?.message || 'Failed to search activities');
     }
-    
-    // If API failed, return empty array
-    return [];
   }
 
-  async getCampDetails(campId: string): Promise<Camp | null> {
+  async getActivityDetails(activityId: string): Promise<Activity | null> {
     try {
-      const response = await this.apiClient.get(`${API_CONFIG.ENDPOINTS.CAMP_DETAILS}/${campId}`);
+      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.ACTIVITY_DETAILS}/${activityId}`);
       
-      if (response.data.success && response.data.camp) {
-        const camp = response.data.camp;
+      if (response.data.success && response.data.activity) {
+        const activity = response.data.activity;
         return {
-          ...camp,
+          ...activity,
           dateRange: {
-            start: new Date(camp.dateRange.start),
-            end: new Date(camp.dateRange.end),
+            start: new Date(activity.dateRange.start),
+            end: new Date(activity.dateRange.end),
           },
-          scrapedAt: new Date(camp.scrapedAt),
+          scrapedAt: new Date(activity.scrapedAt),
         };
       }
-    } catch (error) {
-      console.error('Error fetching camp details:', error);
+      
+      return null;
+    } catch (error: any) {
+      console.error('Error fetching activity details:', error);
+      
+      // Fallback to searching in all activities
+      const activities = await this.scrapeNVRC();
+      return activities.find(activity => activity.id === activityId) || null;
     }
-    
-    // Fallback to searching in all camps
-    const camps = await this.scrapeNVRC();
-    return camps.find(camp => camp.id === campId) || null;
   }
 
-  async refreshCamps(): Promise<Camp[]> {
-    // Force refresh by adding a timestamp to bypass cache
+  async refreshActivities(): Promise<Activity[]> {
     try {
-      const response = await this.apiClient.get(
-        `${API_CONFIG.ENDPOINTS.SCRAPE_NVRC}?refresh=${Date.now()}`
-      );
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.REFRESH, {
+        force: true
+      });
       
-      if (response.data.success && response.data.camps) {
-        return response.data.camps.map((camp: any) => ({
-          ...camp,
+      if (response.data.success && response.data.activities) {
+        return response.data.activities.map((activity: any) => ({
+          ...activity,
           dateRange: {
-            start: new Date(camp.dateRange.start),
-            end: new Date(camp.dateRange.end),
+            start: new Date(activity.dateRange.start),
+            end: new Date(activity.dateRange.end),
           },
-          scrapedAt: new Date(camp.scrapedAt),
+          scrapedAt: new Date(activity.scrapedAt),
         }));
       }
-    } catch (error) {
-      console.error('Error refreshing camps:', error);
+      
+      return [];
+    } catch (error: any) {
+      console.error('Error refreshing activities:', error);
+      throw new Error(error.response?.data?.message || 'Failed to refresh activities');
     }
-    
-    return this.scrapeNVRC();
   }
 }
+
+export default ScraperService;

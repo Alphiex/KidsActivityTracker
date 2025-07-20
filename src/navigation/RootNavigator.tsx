@@ -10,7 +10,7 @@ import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import CampDetailScreen from '../screens/CampDetailScreen';
+import ActivityDetailScreen from '../screens/ActivityDetailScreen';
 import FilterScreen from '../screens/FilterScreen';
 import ChildrenScreen from '../screens/ChildrenScreen';
 import SiteAccountsScreen from '../screens/SiteAccountsScreen';
@@ -24,28 +24,28 @@ const HomeStack = () => (
       name="HomeMain" 
       component={HomeScreen} 
       options={{ 
-        title: 'Kids Camp Tracker',
+        title: 'Kids Activity Tracker',
         headerLeft: () => (
           <Icon name="tent" size={24} color={Colors.white} style={{ marginLeft: 16 }} />
         ),
       }} 
     />
-    <Stack.Screen name="CampDetail" component={CampDetailScreen} options={{ title: 'Camp Details' }} />
+    <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ title: 'Activity Details' }} />
   </Stack.Navigator>
 );
 
 const SearchStack = () => (
   <Stack.Navigator screenOptions={screenOptions}>
-    <Stack.Screen name="SearchMain" component={SearchScreen} options={{ title: 'Search Camps' }} />
+    <Stack.Screen name="SearchMain" component={SearchScreen} options={{ title: 'Search Activities' }} />
     <Stack.Screen name="Filter" component={FilterScreen} options={{ title: 'Filters' }} />
-    <Stack.Screen name="CampDetail" component={CampDetailScreen} options={{ title: 'Camp Details' }} />
+    <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ title: 'Activity Details' }} />
   </Stack.Navigator>
 );
 
 const FavoritesStack = () => (
   <Stack.Navigator screenOptions={screenOptions}>
     <Stack.Screen name="FavoritesMain" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
-    <Stack.Screen name="CampDetail" component={CampDetailScreen} options={{ title: 'Camp Details' }} />
+    <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ title: 'Activity Details' }} />
   </Stack.Navigator>
 );
 

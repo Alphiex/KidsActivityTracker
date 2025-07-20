@@ -1,7 +1,7 @@
 {
-  "name": "kidscamptracker-backend",
+  "name": "kidsactivitytracker-backend",
   "version": "1.0.0",
-  "description": "Backend API for Kids Camp Tracker",
+  "description": "Backend API for Kids Activity Tracker",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

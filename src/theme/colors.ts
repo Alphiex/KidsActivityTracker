@@ -48,14 +48,11 @@ export const Colors = {
   // Activity type colors
   activities: {
     camps: '#4A90E2',
-    swimming: '#00BCD4',
-    martial_arts: '#FF5722',
-    dance: '#E91E63',
-    visual_arts: '#9C27B0',
-    learn_and_play: '#FFC107',
-    early_years: '#8BC34A',
     sports: '#FF9800',
-    music: '#3F51B5',
+    arts: '#9C27B0',
+    swimming: '#00BCD4',
+    education: '#8BC34A',
+    general: '#607D8B',
   },
   
   // Gradient colors

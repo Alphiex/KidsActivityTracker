@@ -1,7 +1,7 @@
-import { Camp, ActivityType } from '../types';
+import { Activity, ActivityType } from '../types';
 
-// Mock data based on NVRC's typical camps
-export const mockCamps: Camp[] = [
+// Mock data based on NVRC's typical activities
+export const mockActivities: Activity[] = [
   {
     id: '1',
     name: 'Summer Adventure Camp',
@@ -160,12 +160,12 @@ export const mockCamps: Camp[] = [
   }
 ];
 
-// Function to filter camps based on criteria
-export function filterCamps(camps: Camp[], filter: any): Camp[] {
-  return camps.filter(camp => {
+// Function to filter activities based on criteria
+export function filterActivities(activities: Activity[], filter: any): Activity[] {
+  return activities.filter(activity => {
     // Filter by activity types
     if (filter.activityTypes?.length > 0) {
-      const hasActivity = camp.activityType.some(type => 
+      const hasActivity = activity.activityType.some(type => 
         filter.activityTypes.includes(type)
       );
       if (!hasActivity) return false;
@@ -175,18 +175,18 @@ export function filterCamps(camps: Camp[], filter: any): Camp[] {
     if (filter.minAge !== undefined || filter.maxAge !== undefined) {
       const minAge = filter.minAge || 0;
       const maxAge = filter.maxAge || 100;
-      if (camp.ageRange.max < minAge || camp.ageRange.min > maxAge) {
+      if (activity.ageRange.max < minAge || activity.ageRange.min > maxAge) {
         return false;
       }
     }
 
     // Filter by cost
-    if (filter.maxCost && camp.cost > filter.maxCost) {
+    if (filter.maxCost && activity.cost > filter.maxCost) {
       return false;
     }
 
     // Filter by availability
-    if (filter.availableOnly && camp.spotsAvailable === 0) {
+    if (filter.availableOnly && activity.spotsAvailable === 0) {
       return false;
     }
 

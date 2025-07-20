@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { MMKV } from 'react-native-mmkv';
-import { Camp, User, Filter, Child, SiteAccount } from '../types';
+import { Activity, User, Filter, Child, SiteAccount } from '../types';
 
 const storage = new MMKV();
 
@@ -9,11 +9,11 @@ interface AppState {
   user: User | null;
   setUser: (user: User | null) => void;
   
-  // Camps data
-  camps: Camp[];
-  setCamps: (camps: Camp[]) => void;
-  favoriteCamps: string[];
-  toggleFavorite: (campId: string) => void;
+  // Activities data
+  activities: Activity[];
+  setActivities: (activities: Activity[]) => void;
+  favoriteActivities: string[];
+  toggleFavorite: (activityId: string) => void;
   
   // Filters
   activeFilter: Filter;
@@ -40,8 +40,8 @@ interface AppState {
 
 export const useStore = create<AppState>((set, get) => ({
   user: null,
-  camps: [],
-  favoriteCamps: [],
+  activities: [],
+  favoriteActivities: [],
   activeFilter: {},
   isLoading: false,
 
@@ -50,14 +50,14 @@ export const useStore = create<AppState>((set, get) => ({
     get().persist();
   },
 
-  setCamps: (camps) => set({ camps }),
+  setActivities: (activities) => set({ activities }),
 
-  toggleFavorite: (campId) => {
-    const { favoriteCamps } = get();
-    const updated = favoriteCamps.includes(campId)
-      ? favoriteCamps.filter(id => id !== campId)
-      : [...favoriteCamps, campId];
-    set({ favoriteCamps: updated });
+  toggleFavorite: (activityId) => {
+    const { favoriteActivities } = get();
+    const updated = favoriteActivities.includes(activityId)
+      ? favoriteActivities.filter(id => id !== activityId)
+      : [...favoriteActivities, activityId];
+    set({ favoriteActivities: updated });
     get().persist();
   },
 
@@ -150,17 +150,17 @@ export const useStore = create<AppState>((set, get) => ({
     }
     
     if (favoritesString) {
-      set({ favoriteCamps: JSON.parse(favoritesString) });
+      set({ favoriteActivities: JSON.parse(favoritesString) });
     }
   },
 
   persist: () => {
-    const { user, favoriteCamps } = get();
+    const { user, favoriteActivities } = get();
     
     if (user) {
       storage.set('user', JSON.stringify(user));
     }
     
-    storage.set('favorites', JSON.stringify(favoriteCamps));
+    storage.set('favorites', JSON.stringify(favoriteActivities));
   }
 }));

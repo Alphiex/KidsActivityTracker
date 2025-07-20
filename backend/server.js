@@ -26,7 +26,7 @@ try {
 }
 
 // Cache to avoid excessive scraping
-let cachedCamps = null;
+let cachedActivities = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
@@ -43,17 +43,17 @@ app.get('/api/scrape/nvrc-interactive', async (req, res) => {
 
   try {
     console.log('🚀 Running NVRC Interactive scraper...');
-    const camps = await nvrcInteractiveScraper.scrape();
+    const activities = await nvrcInteractiveScraper.scrape();
     
     // Update cache
-    cachedCamps = camps;
+    cachedActivities = activities;
     cacheTimestamp = Date.now();
     
     res.json({
       success: true,
-      camps: camps,
+      activities: activities,
       scrapedAt: new Date(),
-      totalFound: camps.length,
+      totalFound: activities.length,
       method: 'interactive'
     });
   } catch (error) {
@@ -66,16 +66,16 @@ app.get('/api/scrape/nvrc-interactive', async (req, res) => {
 });
 
 // Scrape NVRC endpoint
-app.get('/api/scrape/nvrc', async (req, res) => {
+app.post('/api/scrape/nvrc', async (req, res) => {
   try {
     // Check cache first
-    if (cachedCamps && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {
-      console.log('Returning cached camps data');
+    if (cachedActivities && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {
+      console.log('Returning cached activities data');
       return res.json({
         success: true,
-        camps: cachedCamps,
+        activities: cachedActivities,
         scrapedAt: new Date(cacheTimestamp),
-        totalFound: cachedCamps.length,
+        totalFound: cachedActivities.length,
         cached: true
       });
     }
@@ -83,26 +83,26 @@ app.get('/api/scrape/nvrc', async (req, res) => {
     console.log('🔍 Checking for cached data...');
     
     // If force refresh requested, clear cache
-    if (req.query.refresh === 'true') {
+    if (req.body.refresh === true) {
       console.log('  Force refresh requested, clearing cache');
-      cachedCamps = null;
+      cachedActivities = null;
       cacheTimestamp = null;
     }
     
-    let camps = [];
+    let activities = [];
     
     // First, try to get data from the camp data service
     try {
-      camps = await campDataService.getCamps(req.query.refresh === 'true');
+      activities = await campDataService.getCamps(req.body.refresh === true);
       
       // If we have good data, optionally try to update with fresh scraped data in background
-      if (camps.length > 0 && req.query.scrape === 'true' && nvrcInteractiveScraper) {
+      if (activities.length > 0 && req.body.scrape === true && nvrcInteractiveScraper) {
         console.log('🔄 Running background scrape for fresh data...');
         nvrcInteractiveScraper.scrape()
-          .then(scrapedCamps => {
-            if (scrapedCamps.length > 0) {
-              campDataService.saveScrapedData(scrapedCamps);
-              console.log(`✅ Background scrape found ${scrapedCamps.length} programs`);
+          .then(scrapedActivities => {
+            if (scrapedActivities.length > 0) {
+              campDataService.saveScrapedData(scrapedActivities);
+              console.log(`✅ Background scrape found ${scrapedActivities.length} activities`);
             }
           })
           .catch(err => {
@@ -110,108 +110,107 @@ app.get('/api/scrape/nvrc', async (req, res) => {
           });
       }
     } catch (error) {
-      console.error('❌ Error getting camp data:', error.message);
+      console.error('❌ Error getting activities data:', error.message);
       
       // Try the interactive scraper as last resort
       if (nvrcInteractiveScraper) {
         console.log('🚀 Attempting live scrape...');
         try {
-          camps = await nvrcInteractiveScraper.scrape();
-          if (camps.length > 0) {
-            await campDataService.saveScrapedData(camps);
+          activities = await nvrcInteractiveScraper.scrape();
+          if (activities.length > 0) {
+            await campDataService.saveScrapedData(activities);
           }
         } catch (scrapeError) {
           console.error('❌ Live scraping failed:', scrapeError.message);
           // Use generated sample data
-          camps = await campDataService.getCamps(true);
+          activities = await campDataService.getCamps(true);
         }
       }
     }
     
     // Update cache
-    cachedCamps = camps;
+    cachedActivities = activities;
     cacheTimestamp = Date.now();
     
     res.json({
       success: true,
-      camps: camps,
+      activities: activities,
       scrapedAt: new Date(),
-      totalFound: camps.length,
-      cached: cachedCamps === camps
+      totalFound: activities.length,
+      cached: cachedActivities === activities
     });
   } catch (error) {
     console.error('Scraping error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      camps: [],
+      activities: [],
       totalFound: 0
     });
   }
 });
 
-// Search endpoint
-app.get('/api/camps/search', async (req, res) => {
-  const { activityTypes, minAge, maxAge, maxCost } = req.query;
+// Search activities with filters
+app.post('/api/activities/search', async (req, res) => {
+  const { activityTypes, minAge, maxAge, maxCost } = req.body;
   
-  // Use cached camps or fetch new ones
-  let allCamps = cachedCamps || [];
+  // Use cached activities or fetch new ones
+  let allActivities = cachedActivities || [];
   
-  if (allCamps.length === 0) {
-    // Try to fetch camps if none cached
+  if (allActivities.length === 0) {
+    // Try to fetch activities if none cached
     try {
-      const response = await axios.get(`http://localhost:${PORT}/api/scrape/nvrc`);
+      const response = await axios.post(`http://localhost:${PORT}/api/scrape/nvrc`);
       if (response.data.success) {
-        allCamps = response.data.camps;
+        allActivities = response.data.activities;
       }
     } catch (error) {
-      console.error('Error fetching camps for search:', error);
+      console.error('Error fetching activities for search:', error);
     }
   }
   
-  let filtered = [...allCamps];
+  let filtered = [...allActivities];
   
-  if (activityTypes) {
-    const types = activityTypes.split(',');
-    filtered = filtered.filter(camp => 
-      camp.activityType.some(type => types.includes(type))
+  if (activityTypes && activityTypes.length > 0) {
+    filtered = filtered.filter(activity => 
+      activity.activityType.some(type => activityTypes.includes(type))
     );
   }
   
-  if (minAge || maxAge) {
-    filtered = filtered.filter(camp => {
-      const min = parseInt(minAge) || 0;
-      const max = parseInt(maxAge) || 100;
-      return camp.ageRange.min >= min && camp.ageRange.max <= max;
+  if (minAge !== undefined || maxAge !== undefined) {
+    filtered = filtered.filter(activity => {
+      const min = minAge || 0;
+      const max = maxAge || 100;
+      return activity.ageRange.min >= min && activity.ageRange.max <= max;
     });
   }
   
-  if (maxCost) {
-    filtered = filtered.filter(camp => camp.cost <= parseInt(maxCost));
+  if (maxCost !== undefined) {
+    filtered = filtered.filter(activity => activity.cost <= maxCost);
   }
   
   res.json({
     success: true,
-    camps: filtered,
+    activities: filtered,
     totalFound: filtered.length
   });
 });
 
-// Camp details endpoint
-app.get('/api/camps/:id', (req, res) => {
-  const allCamps = cachedCamps || [];
-  const camp = allCamps.find(c => c.id === req.params.id);
+// Get single activity details
+app.get('/api/activities/:id', (req, res) => {
+  const allActivities = cachedActivities || [];
+  const activity = allActivities.find(a => a.id === req.params.id);
   
-  if (camp) {
-    res.json({ success: true, camp });
+  if (activity) {
+    res.json({ success: true, activity });
   } else {
-    res.status(404).json({ success: false, error: 'Camp not found' });
+    res.status(404).json({ success: false, error: 'Activity not found' });
   }
 });
 
 // Register endpoint (mock)
 app.post('/api/register', (req, res) => {
-  const { campId, childId, siteAccount } = req.body;
+  const { activityId, childId, siteAccount } = req.body;
   
   // Mock registration response
   setTimeout(() => {
@@ -223,14 +222,63 @@ app.post('/api/register', (req, res) => {
   }, 1000);
 });
 
+// Refresh endpoint
+app.post('/api/refresh', async (req, res) => {
+  try {
+    console.log('🔄 Refreshing activities data...');
+    
+    // Clear cache
+    cachedActivities = null;
+    cacheTimestamp = null;
+    
+    // Fetch fresh data
+    let activities = [];
+    
+    if (nvrcInteractiveScraper) {
+      console.log('🚀 Running interactive scraper...');
+      try {
+        activities = await nvrcInteractiveScraper.scrape();
+        if (activities.length > 0) {
+          await campDataService.saveScrapedData(activities);
+          cachedActivities = activities;
+          cacheTimestamp = Date.now();
+        }
+      } catch (scrapeError) {
+        console.error('❌ Interactive scraping failed:', scrapeError.message);
+      }
+    }
+    
+    if (activities.length === 0) {
+      // Fallback to saved data
+      activities = await campDataService.getCamps(true);
+      cachedActivities = activities;
+      cacheTimestamp = Date.now();
+    }
+    
+    res.json({
+      success: true,
+      activities: activities,
+      totalFound: activities.length,
+      refreshedAt: new Date()
+    });
+  } catch (error) {
+    console.error('❌ Refresh error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 const server = app.listen(PORT, () => {
-  console.log(`Kids Camp Tracker API running on http://localhost:${PORT}`);
+  console.log(`Kids Activity Tracker API running on http://localhost:${PORT}`);
   console.log('\nAvailable endpoints:');
-  console.log('- GET /api/scrape/nvrc (main endpoint - uses interactive scraper)');
+  console.log('- POST /api/scrape/nvrc (main endpoint - uses interactive scraper)');
   console.log('- GET /api/scrape/nvrc-interactive (test interactive scraper directly)');
-  console.log('- GET /api/camps/search?activityTypes=swimming,camps&maxCost=300');
-  console.log('- GET /api/camps/:id');
+  console.log('- POST /api/activities/search');
+  console.log('- GET /api/activities/:id');
   console.log('- POST /api/register');
+  console.log('- POST /api/refresh');
   console.log('\n✅ Server is ready to receive requests!');
   console.log('📝 Note: First scrape may take 30-60 seconds to load all results');
 });

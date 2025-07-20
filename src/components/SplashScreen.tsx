@@ -104,7 +104,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
             },
           ]}
         >
-          <Text style={styles.title}>Kids Camp Tracker</Text>
+          <Text style={styles.title}>Kids Activity Tracker</Text>
           <Text style={styles.subtitle}>Discover Amazing Adventures</Text>
         </Animated.View>
 
@@ -129,7 +129,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
                 ]}
               />
             </View>
-            <Text style={styles.loadingText}>Loading camps...</Text>
+            <Text style={styles.loadingText}>Loading activities...</Text>
           </View>
         </Animated.View>
       </View>

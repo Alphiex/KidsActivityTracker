@@ -1,4 +1,4 @@
-export interface Camp {
+export interface Activity {
   id: string;
   name: string;
   provider: string;
@@ -37,14 +37,10 @@ export interface Location {
 
 export enum ActivityType {
   CAMPS = 'camps',
-  SWIMMING = 'swimming',
-  MARTIAL_ARTS = 'martial_arts',
-  DANCE = 'dance',
-  VISUAL_ARTS = 'visual_arts',
-  LEARN_AND_PLAY = 'learn_and_play',
-  EARLY_YEARS = 'early_years',
   SPORTS = 'sports',
-  MUSIC = 'music',
+  ARTS = 'arts',
+  SWIMMING = 'swimming',
+  EDUCATION = 'education',
   GENERAL = 'general',
 }
 

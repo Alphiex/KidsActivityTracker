@@ -11,13 +11,13 @@ const API_CONFIG = {
         ios: 'http://192.168.0.108:3000',  // Your Mac's IP address
         android: 'http://192.168.0.108:3000',
       })
-    : 'https://api.kidscamptracker.com',  // Production URL
+    : 'https://api.kidsactivitytracker.com',  // Production URL
   
   // Endpoints
   ENDPOINTS: {
     SCRAPE_NVRC: '/api/scrape/nvrc',
-    SEARCH_CAMPS: '/api/camps/search',
-    CAMP_DETAILS: '/api/camps',
+    SEARCH_ACTIVITIES: '/api/activities/search',
+    ACTIVITY_DETAILS: '/api/activities',
     REGISTER: '/api/register',
   },
   

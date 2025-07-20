@@ -9,20 +9,20 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { Camp } from '../types';
+import { Activity } from '../types';
 import { useStore } from '../store';
 import { Colors, Theme } from '../theme';
 import { getPrimaryActivityImage } from '../assets/images';
 
 const { width } = Dimensions.get('window');
 
-interface CampCardProps {
-  camp: Camp;
+interface ActivityCardProps {
+  activity: Activity;
 }
 
-const CampCard: React.FC<CampCardProps> = ({ camp }) => {
-  const { favoriteCamps, toggleFavorite } = useStore();
-  const isFavorite = favoriteCamps.includes(camp.id);
+const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
+  const { favoriteActivities, toggleFavorite } = useStore();
+  const isFavorite = favoriteActivities.includes(activity.id);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -34,14 +34,10 @@ const CampCard: React.FC<CampCardProps> = ({ camp }) => {
   const getActivityIcon = (type: string) => {
     const iconMap: { [key: string]: string } = {
       camps: 'tent',
-      swimming: 'swim',
-      martial_arts: 'karate',
-      dance: 'dance-ballroom',
-      visual_arts: 'palette',
-      learn_and_play: 'puzzle',
-      early_years: 'baby-carriage',
       sports: 'basketball',
-      music: 'music',
+      arts: 'palette',
+      swimming: 'swim',
+      education: 'school',
       general: 'star',
     };
     return iconMap[type] || 'star';
@@ -51,7 +47,7 @@ const CampCard: React.FC<CampCardProps> = ({ camp }) => {
     <View style={styles.card}>
       <View style={styles.imageContainer}>
         <Image 
-          source={getPrimaryActivityImage(camp.activityType || [])} 
+          source={getPrimaryActivityImage(activity.activityType || [])} 
           style={styles.image} 
           resizeMode="cover"
         />
@@ -61,12 +57,12 @@ const CampCard: React.FC<CampCardProps> = ({ camp }) => {
         />
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>${camp.cost}</Text>
+            <Text style={styles.priceText}>${activity.cost}</Text>
             <Text style={styles.priceLabel}>per child</Text>
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => toggleFavorite(camp.id)}
+          onPress={() => toggleFavorite(activity.id)}
           style={styles.favoriteButton}
         >
           <Icon
@@ -80,56 +76,56 @@ const CampCard: React.FC<CampCardProps> = ({ camp }) => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
-            {camp.name}
+            {activity.name}
           </Text>
         </View>
         
         <View style={styles.infoRow}>
           <Icon name="map-marker" size={16} color={Colors.primary} />
           <Text style={styles.infoText} numberOfLines={1}>
-            {camp.location.name}
+            {activity.location.name}
           </Text>
         </View>
 
         <View style={styles.infoRow}>
           <Icon name="calendar-range" size={16} color={Colors.primary} />
           <Text style={styles.infoText}>
-            {formatDate(camp.dateRange.start)} - {formatDate(camp.dateRange.end)}
+            {formatDate(activity.dateRange.start)} - {formatDate(activity.dateRange.end)}
           </Text>
         </View>
 
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />
           <Text style={styles.infoText}>
-            Ages {camp.ageRange.min} - {camp.ageRange.max} years
+            Ages {activity.ageRange.min} - {activity.ageRange.max} years
           </Text>
         </View>
 
         <View style={styles.bottomSection}>
           <View style={styles.spotsContainer}>
-            {camp.spotsAvailable === 0 ? (
+            {activity.spotsAvailable === 0 ? (
               <View style={styles.fullBadge}>
                 <Text style={styles.fullText}>FULL</Text>
               </View>
-            ) : camp.spotsAvailable <= 5 ? (
+            ) : activity.spotsAvailable <= 5 ? (
               <View style={styles.limitedBadge}>
                 <Icon name="alert-circle" size={14} color={Colors.warning} />
                 <Text style={styles.limitedText}>
-                  Only {camp.spotsAvailable} spots left!
+                  Only {activity.spotsAvailable} spots left!
                 </Text>
               </View>
             ) : (
               <View style={styles.availableBadge}>
                 <Icon name="check-circle" size={14} color={Colors.success} />
                 <Text style={styles.availableText}>
-                  {camp.spotsAvailable} spots available
+                  {activity.spotsAvailable} spots available
                 </Text>
               </View>
             )}
           </View>
 
           <View style={styles.activityIcons}>
-            {camp.activityType.slice(0, 3).map((type) => (
+            {activity.activityType.slice(0, 3).map((type) => (
               <View 
                 key={type} 
                 style={[
@@ -292,4 +288,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CampCard;
+export default ActivityCard;
