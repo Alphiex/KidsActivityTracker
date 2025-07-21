@@ -1,4 +1,4 @@
-package com.kidscamptracker
+package com.kidsactivitytracker
 
 import android.app.Application
 import com.facebook.react.PackageList

@@ -8,7 +8,7 @@ const API_CONFIG = {
   // For physical device testing, use your laptop's IP address
   BASE_URL: __DEV__ 
     ? Platform.select({
-        ios: 'http://localhost:3000',  // For iOS simulator
+        ios: 'http://127.0.0.1:3000',  // For iOS simulator (use 127.0.0.1 instead of localhost)
         android: 'http://10.0.2.2:3000',  // For Android emulator
       })
     : 'https://api.kidsactivitytracker.com',  // Production URL
