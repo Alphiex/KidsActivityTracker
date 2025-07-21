@@ -8,8 +8,8 @@ const API_CONFIG = {
   // For physical device testing, use your laptop's IP address
   BASE_URL: __DEV__ 
     ? Platform.select({
-        ios: 'http://192.168.0.108:3000',  // Your Mac's IP address
-        android: 'http://192.168.0.108:3000',
+        ios: 'http://localhost:3000',  // For iOS simulator
+        android: 'http://10.0.2.2:3000',  // For Android emulator
       })
     : 'https://api.kidsactivitytracker.com',  // Production URL
   
@@ -19,10 +19,11 @@ const API_CONFIG = {
     SEARCH_ACTIVITIES: '/api/activities/search',
     ACTIVITY_DETAILS: '/api/activities',
     REGISTER: '/api/register',
+    REFRESH: '/api/refresh',
   },
   
   // Request timeout
   TIMEOUT: 30000,
 };
 
-export default API_CONFIG;
+export { API_CONFIG };

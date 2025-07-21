@@ -13,7 +13,7 @@ function App() {
   useEffect(() => {
     // Load persisted data on app start
     hydrate();
-  }, []);
+  }, [hydrate]);
 
   const handleSplashFinish = () => {
     setIsLoading(false);
