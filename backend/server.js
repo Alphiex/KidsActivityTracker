@@ -98,16 +98,16 @@ app.get('/api/scrape/nvrc-hierarchical', async (req, res) => {
 
 // Test endpoint for interactive scraper
 app.get('/api/scrape/nvrc-interactive', async (req, res) => {
-  if (!nvrcInteractiveScraper) {
+  if (!nvrcRealDataScraper) {
     return res.status(500).json({
       success: false,
-      error: 'NVRC Interactive scraper not available'
+      error: 'NVRC Real Data scraper not available'
     });
   }
 
   try {
-    console.log('🚀 Running NVRC Interactive scraper...');
-    const activities = await nvrcInteractiveScraper.scrape();
+    console.log('🚀 Running NVRC Real Data scraper - NO SAMPLE DATA!');
+    const activities = await nvrcRealDataScraper.scrape();
     
     // Update cache
     cachedActivities = activities;

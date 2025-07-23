@@ -586,287 +586,52 @@ class NVRCRealDataScraper {
           tables: document.querySelectorAll('table').length,
           // Check for specific ActiveCommunities elements
           courseRows: document.querySelectorAll('[id*="course"], [class*="course"]').length,
-          activityCards: document.querySelectorAll('.activity-card, .program-card').length
+          activityCards: document.querySelectorAll('.activity-card, .program-card').length,
+          // Kendo grid specific elements
+          masterRows: document.querySelectorAll('tr.k-master-row').length,
+          detailRows: document.querySelectorAll('tr.k-detail-row').length,
+          expandedRows: document.querySelectorAll('tr.k-state-expanded').length
         };
       });
       
       console.log('\n📊 Results page structure:', pageInfo);
 
-      // First, expand all activity sections
-      console.log('\n📂 Expanding all activity sections on results page...');
-      const expanded = await page.evaluate(() => {
-        let count = 0;
-        // Look for collapsible panels
-        const collapsibleElements = document.querySelectorAll('[data-toggle="collapse"], .panel-heading a, .accordion-toggle');
-        collapsibleElements.forEach(el => {
-          if (el.getAttribute('aria-expanded') === 'false' || el.classList.contains('collapsed')) {
-            el.click();
-            count++;
-          }
-        });
-        return count;
+      // Check if we're on a category listing page
+      const pageType = await page.evaluate(() => {
+        // Check for category links on the left sidebar
+        const categoryLinks = document.querySelectorAll('a[href*="Activities/ActivitiesAdvSearch"]');
+        const hasDetailedActivities = document.querySelectorAll('.list-group-item, table tr').length > 20;
+        
+        return {
+          hasCategoryLinks: categoryLinks.length > 0,
+          categoryCount: categoryLinks.length,
+          hasDetailedActivities: hasDetailedActivities,
+          categories: Array.from(categoryLinks).map(link => link.textContent.trim())
+        };
       });
       
-      console.log(`  ✓ Expanded ${expanded} sections`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Extract activities from the ActiveCommunities platform
-      const extractedActivities = await page.evaluate(() => {
-        const activities = [];
+      console.log('\n📋 Page type analysis:', pageType);
+      
+      if (pageType.hasCategoryLinks && !pageType.hasDetailedActivities) {
+        console.log('\n🔗 Found category listing page with categories:', pageType.categories);
+        console.log('ℹ️ This appears to be a category selection page, not detailed results.');
+        console.log('ℹ️ You may need to click on individual categories to see activities.');
         
-        // Strategy 1: Look for activity list items (common in ActiveCommunities)
-        const activityItems = document.querySelectorAll('.list-group-item, .activity-item, .program-item');
-        console.log(`Found ${activityItems.length} activity items`);
-        
-        activityItems.forEach((item, index) => {
-          try {
-            const activity = {
-              id: `nvrc-${Date.now()}-${index}`,
-              name: '',
-              description: '',
-              ageRange: { min: 0, max: 18 },
-              cost: 0,
-              location: '',
-              schedule: '',
-              dates: '',
-              registrationUrl: '',
-              spotsAvailable: ''
-            };
-            
-            // Extract activity name/title
-            const titleEl = item.querySelector('h4, h5, .activity-name, .program-name, strong');
-            if (titleEl) {
-              activity.name = titleEl.textContent.trim();
-            }
-            
-            // Extract all text content
-            const fullText = item.textContent;
-            
-            // Extract cost
-            const costMatch = fullText.match(/\$(\d+(?:\.\d{2})?)/);
-            if (costMatch) {
-              activity.cost = parseFloat(costMatch[1]);
-            }
-            
-            // Extract dates/schedule
-            const dateMatch = fullText.match(/(\w{3} \d{1,2}(?:\s*-\s*\w{3} \d{1,2})?)/);
-            if (dateMatch) {
-              activity.dates = dateMatch[0];
-            }
-            
-            // Extract time
-            const timeMatch = fullText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?)/);
-            if (timeMatch) {
-              activity.schedule = timeMatch[0];
-            }
-            
-            // Extract location
-            const locationMatch = fullText.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena))/i);
-            if (locationMatch) {
-              activity.location = locationMatch[0].trim();
-            }
-            
-            // Extract age range
-            const ageMatch = fullText.match(/(\d+)\s*-\s*(\d+)\s*(?:years|yrs|yr)/i);
-            if (ageMatch) {
-              activity.ageRange.min = parseInt(ageMatch[1]);
-              activity.ageRange.max = parseInt(ageMatch[2]);
-            }
-            
-            // Extract spots available
-            const spotsMatch = fullText.match(/(\d+)\s*(?:spots?|spaces?)\s*(?:available|left)/i);
-            if (spotsMatch) {
-              activity.spotsAvailable = spotsMatch[1];
-            }
-            
-            // Look for registration link
-            const regLink = item.querySelector('a[href*="register"], a[href*="enroll"], button');
-            if (regLink && regLink.href) {
-              activity.registrationUrl = regLink.href;
-            }
-            
-            // Set description from remaining text
-            activity.description = fullText.substring(0, 200).replace(/\s+/g, ' ').trim();
-            
-            if (activity.name) {
-              activities.push(activity);
-            }
-          } catch (err) {
-            console.error('Error parsing activity item:', err);
-          }
-        });
-        
-        // Strategy 2: Look for table rows if no list items found
-        if (activities.length === 0) {
-          const tableRows = document.querySelectorAll('tr[class*="activity"], tr[class*="course"], tbody tr');
-          console.log(`Found ${tableRows.length} table rows`);
-          
-          tableRows.forEach((row, index) => {
-            if (row.querySelector('th')) return; // Skip header rows
-            
-            try {
-              const cells = Array.from(row.querySelectorAll('td'));
-              if (cells.length >= 3) {
-                const activity = {
-                  id: `nvrc-${Date.now()}-${index}`,
-                  name: cells[0]?.textContent.trim() || '',
-                  dates: cells[1]?.textContent.trim() || '',
-                  schedule: cells[2]?.textContent.trim() || '',
-                  location: cells[3]?.textContent.trim() || '',
-                  cost: 0,
-                  ageRange: { min: 0, max: 18 },
-                  description: '',
-                  registrationUrl: ''
-                };
-                
-                // Extract cost from any cell
-                cells.forEach(cell => {
-                  const text = cell.textContent;
-                  const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
-                  if (costMatch) {
-                    activity.cost = parseFloat(costMatch[1]);
-                  }
-                });
-                
-                // Get registration link
-                const regLink = row.querySelector('a[href*="register"], a[href*="enroll"]');
-                if (regLink) {
-                  activity.registrationUrl = regLink.href;
-                }
-                
-                if (activity.name) {
-                  activities.push(activity);
-                }
-              }
-            } catch (err) {
-              console.error('Error parsing table row:', err);
-            }
-          });
-        }
-        
-        // If no table rows, look for other activity containers
-        if (activities.length === 0) {
-          const panels = document.querySelectorAll('.panel-body');
-          panels.forEach((panel, index) => {
-            const titleEl = panel.previousElementSibling?.querySelector('.panel-title') || 
-                           panel.querySelector('h4, h5');
-            const title = titleEl ? titleEl.textContent.trim() : '';
-            
-            if (title) {
-              const activity = {
-                id: `nvrc-${Date.now()}-${index}`,
-                name: title,
-                description: panel.textContent.trim().substring(0, 200),
-                ageRange: { min: 0, max: 18 },
-                cost: 0,
-                location: 'North Vancouver',
-                schedule: 'See website for details',
-                registrationUrl: ''
-              };
-              
-              // Extract cost
-              const costMatch = panel.textContent.match(/\$(\d+(?:\.\d{2})?)/);
-              if (costMatch) {
-                activity.cost = parseFloat(costMatch[1]);
-              }
-              
-              activities.push(activity);
-            }
-          });
-        }
-        
-        // Strategy 3: Look for any element with activity/program keywords
-        if (activities.length === 0) {
-          console.log('Trying alternative extraction...');
-          
-          // Look for any divs or sections that might contain activities
-          const allElements = document.querySelectorAll('div, section, article, li');
-          
-          allElements.forEach((el, index) => {
-            const text = el.textContent;
-            
-            // Check if this element contains activity-like content
-            if (text && 
-                text.length > 50 && 
-                text.length < 1000 &&
-                (text.includes('$') || text.includes('Register')) &&
-                (text.includes('AM') || text.includes('PM') || text.includes('Centre') || text.includes('School'))) {
-              
-              // Avoid duplicates by checking if parent was already processed
-              if (el.parentElement && activities.some(a => el.parentElement.textContent.includes(a.name))) {
-                return;
-              }
-              
-              try {
-                const activity = {
-                  id: `nvrc-${Date.now()}-${index}`,
-                  name: '',
-                  description: text.substring(0, 200).trim(),
-                  ageRange: { min: 0, max: 18 },
-                  cost: 0,
-                  location: '',
-                  schedule: '',
-                  dates: '',
-                  registrationUrl: ''
-                };
-                
-                // Try to extract a title
-                const headingEl = el.querySelector('h1, h2, h3, h4, h5, h6, strong, b');
-                if (headingEl) {
-                  activity.name = headingEl.textContent.trim();
-                } else {
-                  // Use first line as name
-                  activity.name = text.split('\n')[0].substring(0, 100).trim();
-                }
-                
-                // Extract cost
-                const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
-                if (costMatch) {
-                  activity.cost = parseFloat(costMatch[1]);
-                }
-                
-                // Extract location
-                const locationMatch = text.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena))/i);
-                if (locationMatch) {
-                  activity.location = locationMatch[0].trim();
-                }
-                
-                // Extract time
-                const timeMatch = text.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))/);
-                if (timeMatch) {
-                  activity.schedule = timeMatch[0];
-                }
-                
-                if (activity.name && activity.name.length > 3) {
-                  activities.push(activity);
-                }
-              } catch (err) {
-                console.error('Error in alternative extraction:', err);
-              }
-            }
-          });
-          
-          // Remove obvious duplicates
-          const uniqueActivities = [];
-          const seenNames = new Set();
-          
-          activities.forEach(activity => {
-            if (!seenNames.has(activity.name)) {
-              seenNames.add(activity.name);
-              uniqueActivities.push(activity);
-            }
-          });
-          
-          return uniqueActivities;
-        }
-        
-        return activities;
-      });
+        // For now, try to extract what we can from this page
+        // In a future update, we could navigate to each category
+      }
+      
+      // First, expand all sections to reveal all activities
+      console.log('\n📂 Expanding all activity sections hierarchically...');
+      await this.expandAllSections(page);
+      
+      // Extract activities from current page
+      const extractedActivities = await this.extractActivitiesFromPage(page);
       
       console.log(`\n✅ Extracted ${extractedActivities.length} activities from results page`);
       
       if (extractedActivities.length > 0) {
-        console.log('Sample activities found:', extractedActivities.slice(0, 3).map(a => ({
+        console.log('Sample activities found:', extractedActivities.slice(0, 5).map(a => ({
           name: a.name,
           cost: a.cost,
           location: a.location
@@ -912,6 +677,423 @@ class NVRCRealDataScraper {
     }
     
     return activities;
+  }
+  
+  async expandAllSections(page) {
+    try {
+      // Keep expanding until no more sections can be expanded
+      let totalExpanded = 0;
+      let expansionRound = 0;
+      
+      while (true) {
+        expansionRound++;
+        console.log(`  📁 Expansion round ${expansionRound}...`);
+        
+        const expandedCount = await page.evaluate(() => {
+          let count = 0;
+          
+          // Find all expandable elements - look for various patterns
+          const expandableSelectors = [
+            // Common patterns for expandable headers
+            '.k-icon.k-i-arrow-60-right',
+            '.k-icon.k-plus',
+            '.expand-icon',
+            '.collapsed',
+            'a[aria-expanded="false"]',
+            'button[aria-expanded="false"]',
+            '[data-toggle="collapse"]:not(.in)',
+            '.accordion-toggle.collapsed',
+            // Specific to NVRC/ActiveCommunities
+            '.k-master-row .k-hierarchy-cell .k-icon',
+            'tr.k-master-row:not(.k-state-expanded) .k-icon',
+            '.activity-group-header:not(.expanded)',
+            '.category-header:not(.expanded)'
+          ];
+          
+          const elementsToClick = [];
+          
+          expandableSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              // Check if element is visible
+              const rect = el.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                elementsToClick.push(el);
+              }
+            });
+          });
+          
+          // Also check for table rows that might be expandable
+          const tableRows = document.querySelectorAll('tr.k-master-row');
+          tableRows.forEach(row => {
+            if (!row.classList.contains('k-state-expanded')) {
+              const expandIcon = row.querySelector('.k-icon');
+              if (expandIcon) {
+                elementsToClick.push(expandIcon);
+              }
+            }
+          });
+          
+          // Click all expandable elements
+          elementsToClick.forEach(el => {
+            try {
+              el.click();
+              count++;
+            } catch (e) {
+              console.error('Failed to click element:', e);
+            }
+          });
+          
+          return count;
+        });
+        
+        totalExpanded += expandedCount;
+        console.log(`    ✓ Expanded ${expandedCount} sections`);
+        
+        // If nothing was expanded, we're done
+        if (expandedCount === 0) {
+          break;
+        }
+        
+        // Wait for content to load after expansion
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Safety check - don't run more than 10 rounds
+        if (expansionRound > 10) {
+          console.log('    ⚠️ Reached maximum expansion rounds');
+          break;
+        }
+      }
+      
+      console.log(`  ✅ Total sections expanded: ${totalExpanded}`);
+      
+      // Take a screenshot after all expansions
+      await page.screenshot({ 
+        path: '/Users/mike/Development/KidsActivityTracker/backend/results-expanded.png',
+        fullPage: true 
+      });
+      console.log('📸 Screenshot saved: results-expanded.png - showing all expanded sections');
+      
+    } catch (error) {
+      console.error('Error expanding sections:', error);
+    }
+  }
+  
+  async extractActivitiesFromPage(page) {
+    const extractedActivities = await page.evaluate(() => {
+      const activities = [];
+      
+      // First try to find detail rows in the expanded table structure
+      const detailRows = document.querySelectorAll('tr.k-detail-row, tr[class*="detail"]');
+      console.log(`Found ${detailRows.length} detail rows`);
+      
+      detailRows.forEach((detailRow, index) => {
+        try {
+          // Look for activity tables within detail rows
+          const activityTables = detailRow.querySelectorAll('table');
+          
+          activityTables.forEach(table => {
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach((row, rowIndex) => {
+              const cells = Array.from(row.querySelectorAll('td'));
+              if (cells.length >= 3) {
+                const activity = {
+                  id: `nvrc-${Date.now()}-${index}-${rowIndex}`,
+                  name: '',
+                  description: '',
+                  ageRange: { min: 0, max: 18 },
+                  cost: 0,
+                  location: '',
+                  schedule: '',
+                  dates: '',
+                  registrationUrl: '',
+                  spotsAvailable: ''
+                };
+                
+                // Parse the row data - typical format has activity info, dates, times, location, cost
+                const fullText = row.textContent;
+                
+                // Extract activity name (usually first cell or contains the program name)
+                activity.name = cells[0]?.textContent.trim() || '';
+                
+                // Extract dates (look for date patterns)
+                const dateMatch = fullText.match(/([A-Z][a-z]{2}\s+\d{1,2}(?:\s*-\s*[A-Z][a-z]{2}\s+\d{1,2})?)/);
+                if (dateMatch) {
+                  activity.dates = dateMatch[0];
+                }
+                
+                // Extract times
+                const timeMatch = fullText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?)/);
+                if (timeMatch) {
+                  activity.schedule = timeMatch[0];
+                }
+                
+                // Extract location
+                const locationMatch = fullText.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena|Gym|Room))/i);
+                if (locationMatch) {
+                  activity.location = locationMatch[0].trim();
+                }
+                
+                // Extract cost
+                const costMatch = fullText.match(/\$(\d+(?:\.\d{2})?)/);
+                if (costMatch) {
+                  activity.cost = parseFloat(costMatch[1]);
+                }
+                
+                // Extract age from name or description
+                const ageMatch = fullText.match(/(\d+)\s*-\s*(\d+)\s*(?:years|yrs|yr)/i);
+                if (ageMatch) {
+                  activity.ageRange.min = parseInt(ageMatch[1]);
+                  activity.ageRange.max = parseInt(ageMatch[2]);
+                } else {
+                  // Check for single age patterns
+                  const singleAgeMatch = fullText.match(/(\d+)\s*(?:years|yrs|yr)\+?/i);
+                  if (singleAgeMatch) {
+                    activity.ageRange.min = parseInt(singleAgeMatch[1]);
+                    activity.ageRange.max = 18;
+                  }
+                }
+                
+                // Look for registration links
+                const regLink = row.querySelector('a[href*="register"], a[href*="enroll"], button');
+                if (regLink && regLink.href) {
+                  activity.registrationUrl = regLink.href;
+                }
+                
+                // Only add if we have a valid activity name
+                if (activity.name && activity.name.length > 3) {
+                  activities.push(activity);
+                }
+              }
+            });
+          });
+        } catch (err) {
+          console.error('Error parsing detail row:', err);
+        }
+      });
+      
+      // If no detail rows, try regular activity items
+      if (activities.length === 0) {
+        const activityItems = document.querySelectorAll('.list-group-item, .activity-item, .program-item, .course-item');
+        console.log(`Found ${activityItems.length} activity items`);
+        
+        activityItems.forEach((item, index) => {
+          try {
+          const activity = {
+            id: `nvrc-${Date.now()}-${index}`,
+            name: '',
+            description: '',
+            ageRange: { min: 0, max: 18 },
+            cost: 0,
+            location: '',
+            schedule: '',
+            dates: '',
+            registrationUrl: '',
+            spotsAvailable: ''
+          };
+          
+          // Extract activity name/title
+          const titleEl = item.querySelector('h4, h5, .activity-name, .program-name, strong, a');
+          if (titleEl) {
+            activity.name = titleEl.textContent.trim();
+          }
+          
+          // Extract all text content
+          const fullText = item.textContent;
+          
+          // Extract cost
+          const costMatch = fullText.match(/\$(\d+(?:\.\d{2})?)/);
+          if (costMatch) {
+            activity.cost = parseFloat(costMatch[1]);
+          }
+          
+          // Extract dates/schedule
+          const dateMatch = fullText.match(/(\w{3} \d{1,2}(?:\s*-\s*\w{3} \d{1,2})?)/);
+          if (dateMatch) {
+            activity.dates = dateMatch[0];
+          }
+          
+          // Extract time
+          const timeMatch = fullText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?)/);
+          if (timeMatch) {
+            activity.schedule = timeMatch[0];
+          }
+          
+          // Extract location
+          const locationMatch = fullText.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena))/i);
+          if (locationMatch) {
+            activity.location = locationMatch[0].trim();
+          }
+          
+          // Extract age range
+          const ageMatch = fullText.match(/(\d+)\s*-\s*(\d+)\s*(?:years|yrs|yr)/i);
+          if (ageMatch) {
+            activity.ageRange.min = parseInt(ageMatch[1]);
+            activity.ageRange.max = parseInt(ageMatch[2]);
+          }
+          
+          // Extract spots available
+          const spotsMatch = fullText.match(/(\d+)\s*(?:spots?|spaces?)\s*(?:available|left)/i);
+          if (spotsMatch) {
+            activity.spotsAvailable = spotsMatch[1];
+          }
+          
+          // Look for registration link
+          const regLink = item.querySelector('a[href*="register"], a[href*="enroll"], button');
+          if (regLink && regLink.href) {
+            activity.registrationUrl = regLink.href;
+          }
+          
+          // Set description from remaining text
+          activity.description = fullText.substring(0, 200).replace(/\s+/g, ' ').trim();
+          
+          if (activity.name) {
+            activities.push(activity);
+          }
+        } catch (err) {
+          console.error('Error parsing activity item:', err);
+        }
+        });
+      }
+      
+      // Strategy 2: Look for table rows if no list items found
+      if (activities.length === 0) {
+        const tableRows = document.querySelectorAll('tr[class*="activity"], tr[class*="course"], tbody tr');
+        console.log(`Found ${tableRows.length} table rows`);
+        
+        tableRows.forEach((row, index) => {
+          if (row.querySelector('th')) return; // Skip header rows
+          
+          try {
+            const cells = Array.from(row.querySelectorAll('td'));
+            if (cells.length >= 2) {
+              const activity = {
+                id: `nvrc-${Date.now()}-${index}`,
+                name: cells[0]?.textContent.trim() || '',
+                dates: cells[1]?.textContent.trim() || '',
+                schedule: cells[2]?.textContent.trim() || '',
+                location: cells[3]?.textContent.trim() || '',
+                cost: 0,
+                ageRange: { min: 0, max: 18 },
+                description: '',
+                registrationUrl: ''
+              };
+              
+              // Extract cost from any cell
+              cells.forEach(cell => {
+                const text = cell.textContent;
+                const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
+                if (costMatch) {
+                  activity.cost = parseFloat(costMatch[1]);
+                }
+              });
+              
+              // Get registration link
+              const regLink = row.querySelector('a[href*="register"], a[href*="enroll"]');
+              if (regLink) {
+                activity.registrationUrl = regLink.href;
+              }
+              
+              if (activity.name) {
+                activities.push(activity);
+              }
+            }
+          } catch (err) {
+            console.error('Error parsing table row:', err);
+          }
+        });
+      }
+      
+      // Strategy 3: Look for any element with activity/program keywords
+      if (activities.length === 0) {
+        console.log('Trying alternative extraction...');
+        
+        // Look for any divs or sections that might contain activities
+        const allElements = document.querySelectorAll('div, section, article, li');
+        
+        allElements.forEach((el, index) => {
+          const text = el.textContent;
+          
+          // Check if this element contains activity-like content
+          if (text && 
+              text.length > 50 && 
+              text.length < 1000 &&
+              (text.includes('$') || text.includes('Register')) &&
+              (text.includes('AM') || text.includes('PM') || text.includes('Centre') || text.includes('School'))) {
+            
+            // Avoid duplicates by checking if parent was already processed
+            if (el.parentElement && activities.some(a => el.parentElement.textContent.includes(a.name))) {
+              return;
+            }
+            
+            try {
+              const activity = {
+                id: `nvrc-${Date.now()}-${index}`,
+                name: '',
+                description: text.substring(0, 200).trim(),
+                ageRange: { min: 0, max: 18 },
+                cost: 0,
+                location: '',
+                schedule: '',
+                dates: '',
+                registrationUrl: ''
+              };
+              
+              // Try to extract a title
+              const headingEl = el.querySelector('h1, h2, h3, h4, h5, h6, strong, b, a');
+              if (headingEl) {
+                activity.name = headingEl.textContent.trim();
+              } else {
+                // Use first line as name
+                activity.name = text.split('\n')[0].substring(0, 100).trim();
+              }
+              
+              // Extract cost
+              const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
+              if (costMatch) {
+                activity.cost = parseFloat(costMatch[1]);
+              }
+              
+              // Extract location
+              const locationMatch = text.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena))/i);
+              if (locationMatch) {
+                activity.location = locationMatch[0].trim();
+              }
+              
+              // Extract time
+              const timeMatch = text.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))/);
+              if (timeMatch) {
+                activity.schedule = timeMatch[0];
+              }
+              
+              if (activity.name && activity.name.length > 3) {
+                activities.push(activity);
+              }
+            } catch (err) {
+              console.error('Error in alternative extraction:', err);
+            }
+          }
+        });
+        
+        // Remove obvious duplicates
+        const uniqueActivities = [];
+        const seenNames = new Set();
+        
+        activities.forEach(activity => {
+          if (!seenNames.has(activity.name)) {
+            seenNames.add(activity.name);
+            uniqueActivities.push(activity);
+          }
+        });
+        
+        return uniqueActivities;
+      }
+      
+      return activities;
+    });
+    
+    return extractedActivities;
   }
   
   determineActivityType(text) {
