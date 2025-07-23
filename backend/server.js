@@ -14,15 +14,15 @@ app.use(express.json());
 const nvrcScraper = new NVRCScraper();
 const campDataService = new CampDataService();
 
-// Load the interactive scraper
-let nvrcInteractiveScraper = null;
+// Load the scrapers
+let nvrcRealDataScraper = null;
 
 try {
-  const NVRCInteractiveScraper = require('./scrapers/nvrcInteractiveScraper');
-  nvrcInteractiveScraper = new NVRCInteractiveScraper();
-  console.log('✅ NVRC Interactive scraper loaded successfully');
+  const NVRCRealDataScraper = require('./scrapers/nvrcRealDataScraper');
+  nvrcRealDataScraper = new NVRCRealDataScraper();
+  console.log('✅ NVRC Real Data scraper loaded successfully - NO SAMPLE DATA!');
 } catch (error) {
-  console.error('❌ NVRC Interactive scraper not available:', error.message);
+  console.error('❌ NVRC Real Data scraper not available:', error.message);
 }
 
 // Cache to avoid excessive scraping
@@ -31,6 +31,70 @@ let cacheTimestamp = null;
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
 // Remove mock data - we'll use real scraped data only
+
+// Main endpoint for real data scraper
+app.get('/api/scrape/nvrc-real', async (req, res) => {
+  if (!nvrcRealDataScraper) {
+    return res.status(500).json({
+      success: false,
+      error: 'NVRC Real Data scraper not available'
+    });
+  }
+
+  try {
+    console.log('🚀 Running NVRC Real Data scraper - NO SAMPLE DATA!');
+    const activities = await nvrcRealDataScraper.scrape();
+    
+    // Update cache
+    cachedActivities = activities;
+    cacheTimestamp = Date.now();
+    
+    res.json({
+      success: true,
+      activities: activities,
+      scrapedAt: new Date(),
+      totalFound: activities.length
+    });
+  } catch (error) {
+    console.error('Real Data scraping error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test endpoint for hierarchical scraper
+app.get('/api/scrape/nvrc-hierarchical', async (req, res) => {
+  if (!nvrcHierarchicalScraper) {
+    return res.status(500).json({
+      success: false,
+      error: 'NVRC Hierarchical scraper not available'
+    });
+  }
+
+  try {
+    console.log('🚀 Running NVRC Hierarchical scraper...');
+    const activities = await nvrcHierarchicalScraper.scrape();
+    
+    // Update cache
+    cachedActivities = activities;
+    cacheTimestamp = Date.now();
+    
+    res.json({
+      success: true,
+      activities: activities,
+      scrapedAt: new Date(),
+      totalFound: activities.length
+    });
+  } catch (error) {
+    console.error('Hierarchical scraping error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Test endpoint for interactive scraper
 app.get('/api/scrape/nvrc-interactive', async (req, res) => {
@@ -91,41 +155,27 @@ app.post('/api/scrape/nvrc', async (req, res) => {
     
     let activities = [];
     
-    // First, try to get data from the camp data service
+    // Use REAL DATA scraper - NO SAMPLE DATA!
     try {
-      activities = await campDataService.getCamps(req.body.refresh === true);
-      
-      // If we have good data, optionally try to update with fresh scraped data in background
-      if (activities.length > 0 && req.body.scrape === true && nvrcInteractiveScraper) {
-        console.log('🔄 Running background scrape for fresh data...');
-        nvrcInteractiveScraper.scrape()
-          .then(scrapedActivities => {
-            if (scrapedActivities.length > 0) {
-              campDataService.saveScrapedData(scrapedActivities);
-              console.log(`✅ Background scrape found ${scrapedActivities.length} activities`);
-            }
-          })
-          .catch(err => {
-            console.error('❌ Background scrape failed:', err.message);
-          });
+      if (nvrcRealDataScraper) {
+        console.log('🚀 Using NVRC Real Data scraper - NO SAMPLE DATA!');
+        activities = await nvrcRealDataScraper.scrape();
+        
+        if (activities.length > 0) {
+          console.log(`✅ Got ${activities.length} REAL activities from NVRC`);
+          // Save to cache/database if needed
+          await campDataService.saveScrapedData(activities);
+        } else {
+          console.log('❌ No activities found from NVRC scraper');
+          throw new Error('No activities found from NVRC website');
+        }
+      } else {
+        throw new Error('Real data scraper not available');
       }
     } catch (error) {
-      console.error('❌ Error getting activities data:', error.message);
-      
-      // Try the interactive scraper as last resort
-      if (nvrcInteractiveScraper) {
-        console.log('🚀 Attempting live scrape...');
-        try {
-          activities = await nvrcInteractiveScraper.scrape();
-          if (activities.length > 0) {
-            await campDataService.saveScrapedData(activities);
-          }
-        } catch (scrapeError) {
-          console.error('❌ Live scraping failed:', scrapeError.message);
-          // Use generated sample data
-          activities = await campDataService.getCamps(true);
-        }
-      }
+      console.error('❌ Real data scraping failed:', error.message);
+      // DO NOT USE SAMPLE DATA - just return empty or error
+      activities = [];
     }
     
     // Update cache
