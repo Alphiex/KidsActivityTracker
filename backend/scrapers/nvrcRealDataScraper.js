@@ -873,14 +873,39 @@ class NVRCRealDataScraper {
         })));
       }
       
-      // Add activity type based on content
-      extractedActivities.forEach(activity => {
-        activity.activityType = this.determineActivityType(activity.name + ' ' + activity.description);
-        activity.provider = 'North Vancouver Recreation & Culture';
-        activity.featured = false;
+      // Transform activities to match frontend expected format
+      const transformedActivities = extractedActivities.map(activity => {
+        // Parse dates to create dateRange
+        const dateRange = this.parseDateRange(activity.dates || activity.schedule);
+        
+        // Transform location string to object
+        const location = {
+          name: activity.location || 'North Vancouver',
+          address: activity.location || 'North Vancouver, BC'
+        };
+        
+        // Parse schedule to match expected format
+        const schedule = this.parseSchedule(activity.schedule);
+        
+        return {
+          id: activity.id,
+          name: activity.name,
+          provider: 'North Vancouver Recreation & Culture',
+          description: activity.description,
+          activityType: this.determineActivityType(activity.name + ' ' + activity.description),
+          ageRange: activity.ageRange,
+          dateRange: dateRange,
+          schedule: schedule,
+          location: location,
+          cost: activity.cost,
+          spotsAvailable: parseInt(activity.spotsAvailable) || 10, // Default to 10 if not specified
+          totalSpots: 20, // Default total spots
+          registrationUrl: activity.registrationUrl || '',
+          scrapedAt: new Date()
+        };
       });
       
-      return extractedActivities;
+      return transformedActivities;
       
     } catch (error) {
       console.error('Error extracting activities:', error);
@@ -893,14 +918,79 @@ class NVRCRealDataScraper {
     const types = [];
     const lowerText = text.toLowerCase();
     
-    if (lowerText.includes('swim')) types.push('Swimming');
-    if (lowerText.includes('camp')) types.push('Summer Camp');
-    if (lowerText.includes('sport') || lowerText.includes('soccer') || lowerText.includes('basketball')) types.push('Sports');
-    if (lowerText.includes('art') || lowerText.includes('craft')) types.push('Arts & Crafts');
-    if (lowerText.includes('music') || lowerText.includes('dance')) types.push('Music & Dance');
-    if (lowerText.includes('stem') || lowerText.includes('science') || lowerText.includes('coding')) types.push('STEM');
+    // Map to frontend ActivityType enum values
+    if (lowerText.includes('swim') || lowerText.includes('aqua')) types.push('swimming');
+    if (lowerText.includes('camp')) types.push('camps');
+    if (lowerText.includes('sport') || lowerText.includes('soccer') || lowerText.includes('basketball') || 
+        lowerText.includes('tennis') || lowerText.includes('martial')) types.push('sports');
+    if (lowerText.includes('art') || lowerText.includes('craft') || lowerText.includes('paint')) types.push('arts');
+    if (lowerText.includes('education') || lowerText.includes('learn') || lowerText.includes('tutor')) types.push('education');
     
-    return types.length > 0 ? types : ['General'];
+    return types.length > 0 ? types : ['general'];
+  }
+  
+  parseDateRange(dateStr) {
+    // Default date range if no dates found
+    const defaultStart = new Date();
+    const defaultEnd = new Date();
+    defaultEnd.setMonth(defaultEnd.getMonth() + 2); // 2 months from now
+    
+    if (!dateStr) {
+      return { start: defaultStart, end: defaultEnd };
+    }
+    
+    // Try to parse various date formats
+    // Example: "Jan 6 - Feb 28" or "July 15 - August 30"
+    const rangeMatch = dateStr.match(/(\w+\s+\d+)\s*-\s*(\w+\s+\d+)/);
+    if (rangeMatch) {
+      const currentYear = new Date().getFullYear();
+      const start = new Date(`${rangeMatch[1]}, ${currentYear}`);
+      const end = new Date(`${rangeMatch[2]}, ${currentYear}`);
+      
+      // If end date is before start, it's probably next year
+      if (end < start) {
+        end.setFullYear(currentYear + 1);
+      }
+      
+      return { start, end };
+    }
+    
+    return { start: defaultStart, end: defaultEnd };
+  }
+  
+  parseSchedule(scheduleStr) {
+    // Default schedule
+    const defaultSchedule = {
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      startTime: '9:00 AM',
+      endTime: '5:00 PM'
+    };
+    
+    if (!scheduleStr) {
+      return defaultSchedule;
+    }
+    
+    // Parse time from schedule string
+    const timeMatch = scheduleStr.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))\s*-?\s*(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?/);
+    if (timeMatch) {
+      defaultSchedule.startTime = timeMatch[1];
+      defaultSchedule.endTime = timeMatch[2] || timeMatch[1];
+    }
+    
+    // Parse days if mentioned
+    const dayPatterns = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const foundDays = [];
+    dayPatterns.forEach(day => {
+      if (scheduleStr.includes(day)) {
+        foundDays.push(day);
+      }
+    });
+    
+    if (foundDays.length > 0) {
+      defaultSchedule.days = foundDays;
+    }
+    
+    return defaultSchedule;
   }
 }
 
