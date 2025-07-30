@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 
+// Enable mock mode to bypass network issues
+const USE_MOCK_API = false; // Set to false to use real API
+
 // API Configuration
 const API_CONFIG = {
   // Use localhost for iOS simulator
@@ -8,16 +11,32 @@ const API_CONFIG = {
   // For physical device testing, use your laptop's IP address
   BASE_URL: __DEV__ 
     ? Platform.select({
-        ios: 'http://127.0.0.1:3000',  // For iOS simulator (use 127.0.0.1 instead of localhost)
-        android: 'http://10.0.2.2:3000',  // For Android emulator
+        ios: 'https://kids-activity-api-44042034457.us-central1.run.app',  // Cloud API for development
+        android: 'https://kids-activity-api-44042034457.us-central1.run.app',  // Cloud API for development
       })
-    : 'https://api.kidsactivitytracker.com',  // Production URL
+    : 'https://kids-activity-api-44042034457.us-central1.run.app',  // Production URL
   
   // Endpoints
   ENDPOINTS: {
+    // Activities
+    ACTIVITIES: '/api/v1/activities',
+    ACTIVITY_DETAILS: '/api/v1/activities',
+    ACTIVITY_STATS: '/api/v1/activities/stats/summary',
+    
+    // Users & Favorites
+    USERS: '/api/v1/users',
+    FAVORITES: '/api/v1/favorites',
+    USER_FAVORITES: '/api/v1/users/:userId/favorites',
+    RECOMMENDATIONS: '/api/v1/users/:userId/recommendations',
+    
+    // Reference Data
+    PROVIDERS: '/api/v1/providers',
+    LOCATIONS: '/api/v1/locations',
+    CATEGORIES: '/api/v1/categories',
+    
+    // Legacy endpoints (for backward compatibility)
     SCRAPE_NVRC: '/api/scrape/nvrc',
     SEARCH_ACTIVITIES: '/api/activities/search',
-    ACTIVITY_DETAILS: '/api/activities',
     REGISTER: '/api/register',
     REFRESH: '/api/refresh',
   },

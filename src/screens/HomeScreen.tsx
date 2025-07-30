@@ -1,42 +1,108 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  RefreshControl,
-  TouchableOpacity,
   ScrollView,
-  Dimensions,
+  TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useStore } from '../store';
-import ScraperService from '../services/scraperService';
-import ActivityCard from '../components/ActivityCard';
+import ActivityService from '../services/activityService';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
 
-// const { width } = Dimensions.get('window'); // Not currently used
-
 const HomeScreen = () => {
   const navigation = useNavigation();
-  const { activities, setActivities, isLoading, setLoading } = useStore();
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const { setLoading } = useStore();
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState({
+    newActivitiesCount: 0,
+    totalActivities: 0,
+    lastUpdated: null as Date | null,
+  });
+  const [categories, setCategories] = useState<Array<{ name: string; count: number; icon: string }>>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadActivities = async () => {
+  // Define category icons
+  const categoryIcons = {
+    'Sports': 'basketball',
+    'Arts': 'palette',
+    'Music': 'music-note',
+    'Science': 'flask',
+    'Dance': 'dance-ballroom',
+    'Education': 'school',
+    'Outdoor': 'tree',
+    'Indoor': 'home',
+    'Swimming': 'swim',
+    'Martial Arts': 'karate',
+    'Drama': 'drama-masks',
+    'Technology': 'laptop',
+  };
+
+  const loadHomeData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const scraperService = ScraperService.getInstance();
-      const fetchedActivities = await scraperService.scrapeNVRC();
-      setActivities(fetchedActivities);
+      const activityService = ActivityService.getInstance();
+      
+      // Fetch categories
+      try {
+        const categoriesData = await activityService.getCategories();
+        const categoriesWithIcons = categoriesData.map(cat => ({
+          ...cat,
+          icon: categoryIcons[cat.name] || 'tag',
+        }));
+        setCategories(categoriesWithIcons);
+      } catch (catError) {
+        console.error('Error fetching categories:', catError);
+        // Use fallback categories if API fails
+        const fallbackCategories = [
+          { name: 'Sports', count: 0 },
+          { name: 'Arts', count: 0 },
+          { name: 'Music', count: 0 },
+          { name: 'Science', count: 0 },
+          { name: 'Dance', count: 0 },
+          { name: 'Education', count: 0 },
+        ];
+        const categoriesWithIcons = fallbackCategories.map(cat => ({
+          ...cat,
+          icon: categoryIcons[cat.name] || 'tag',
+        }));
+        setCategories(categoriesWithIcons);
+      }
+
+      // Fetch statistics
+      try {
+        const statsData = await activityService.getStatistics();
+        
+        // Calculate new activities (mocked for now - should come from API)
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        setStats({
+          newActivitiesCount: statsData.newActivitiesLastWeek || 15, // Mock value
+          totalActivities: statsData.totalActivities || 0,
+          lastUpdated: new Date(),
+        });
+      } catch (statsError) {
+        console.error('Error fetching statistics:', statsError);
+        // Use fallback stats if API fails
+        setStats({
+          newActivitiesCount: 0,
+          totalActivities: 0,
+          lastUpdated: new Date(),
+        });
+      }
     } catch (err: any) {
-      console.error('Error loading activities:', err);
-      setError(err.message || 'Failed to load activities. Please try again.');
+      console.error('Error loading home data:', err);
+      // Don't show error if we have some data
+      if (categories.length === 0) {
+        setError(err.message || 'Failed to load data. Please try again.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -44,141 +110,118 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
-    loadActivities();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    loadHomeData();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadActivities();
+    loadHomeData();
   };
 
-  const renderActivity = ({ item }) => (
-    <TouchableOpacity
-      onPress={() => {
-        // Convert Date objects to ISO strings to avoid non-serializable warning
-        const serializedActivity = {
-          ...item,
-          dateRange: {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
-          },
-          scrapedAt: item.scrapedAt.toISOString(),
-        };
-        navigation.navigate('ActivityDetail', { activity: serializedActivity });
-      }}
-    >
-      <ActivityCard activity={item} />
-    </TouchableOpacity>
-  );
+  const navigateToActivityType = (category: string) => {
+    navigation.navigate('ActivityType', { category });
+  };
 
-  if (isLoading && activities.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <LoadingIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading activities...</Text>
-      </View>
-    );
-  }
+  const navigateToNewActivities = () => {
+    navigation.navigate('NewActivities');
+  };
 
   if (error) {
     return (
       <View style={styles.centerContainer}>
-        <Icon name="alert-circle" size={64} color={Colors.error} />
+        <Icon name="alert-circle" size={60} color={Colors.error} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadActivities}>
-          <Text style={styles.retryText}>Try Again</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadHomeData}>
+          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={selectedCategory 
-          ? activities.filter(activity => 
-              activity.activityType.includes(selectedCategory)
-            )
-          : activities
-        }
-        renderItem={renderActivity}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            tintColor={Colors.primary}
-            colors={[Colors.primary]}
-          />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <LinearGradient
-              colors={Colors.gradients.primary}
-              style={styles.headerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={styles.headerContent}>
-                <Text style={styles.greeting}>Hello, Parent! 👋</Text>
-                <Text style={styles.headerTitle}>Discover Amazing Activities</Text>
-                <Text style={styles.headerSubtitle}>
-                  Find the perfect activities for your kids
-                </Text>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* Header Section */}
+      <LinearGradient
+        colors={[Colors.primary, Colors.primaryDark]}
+        style={styles.header}
+      >
+        <Text style={styles.welcomeText}>Discover Activities</Text>
+        <Text style={styles.subText}>Find the perfect activities for your kids</Text>
+      </LinearGradient>
+
+      {/* New Activities Summary Card */}
+      <TouchableOpacity onPress={navigateToNewActivities} activeOpacity={0.8}>
+        <LinearGradient
+          colors={['#4CAF50', '#45a049']}
+          style={styles.summaryCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.summaryContent}>
+            <View style={styles.summaryLeft}>
+              <Icon name="new-box" size={40} color="#fff" />
+              <View style={styles.summaryTextContainer}>
+                <Text style={styles.summaryTitle}>New This Week</Text>
+                <Text style={styles.summaryCount}>{stats.newActivitiesCount} activities</Text>
               </View>
-            </LinearGradient>
-
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoriesContainer}
-            >
-              {[
-                { icon: 'tent', label: 'Camps', value: 'camps', color: Colors.activities.camps },
-                { icon: 'basketball', label: 'Sports', value: 'sports', color: Colors.activities.sports },
-                { icon: 'palette', label: 'Arts', value: 'arts', color: Colors.activities.arts },
-                { icon: 'swim', label: 'Swimming', value: 'swimming', color: Colors.activities.swimming },
-                { icon: 'school', label: 'Education', value: 'education', color: Colors.activities.education },
-              ].map((category) => (
-                <TouchableOpacity 
-                  key={category.label} 
-                  style={[
-                    styles.categoryCard,
-                    selectedCategory === category.value && styles.categoryCardActive
-                  ]}
-                  onPress={() => setSelectedCategory(selectedCategory === category.value ? null : category.value)}
-                >
-                  <View style={[
-                    styles.categoryIcon, 
-                    { backgroundColor: category.color + (selectedCategory === category.value ? '40' : '20') }
-                  ]}>
-                    <Icon name={category.icon} size={24} color={category.color} />
-                  </View>
-                  <Text style={styles.categoryLabel}>{category.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Available Activities</Text>
-              {selectedCategory && (
-                <TouchableOpacity onPress={() => setSelectedCategory(null)}>
-                  <Text style={styles.clearFilter}>Show All</Text>
-                </TouchableOpacity>
-              )}
             </View>
+            <Icon name="chevron-right" size={30} color="#fff" />
           </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="tent-off" size={64} color={Colors.gray[400]} />
-            <Text style={styles.emptyText}>No activities available</Text>
-            <Text style={styles.emptySubText}>Pull down to refresh</Text>
-          </View>
-        }
-      />
-    </View>
+          <Text style={styles.summarySubtext}>Tap to see all new activities</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Activity Categories Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Browse by Category</Text>
+        <View style={styles.categoriesGrid}>
+          {categories.map((category, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.categoryCard}
+              onPress={() => navigateToActivityType(category.name)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={[Colors.cardBackground, Colors.background]}
+                style={styles.categoryGradient}
+              >
+                <Icon name={category.icon} size={40} color={Colors.primary} />
+                <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={styles.categoryCount}>{category.count} activities</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Quick Stats */}
+      <View style={styles.statsSection}>
+        <View style={styles.statCard}>
+          <Icon name="counter" size={30} color={Colors.primary} />
+          <Text style={styles.statNumber}>{stats.totalActivities}</Text>
+          <Text style={styles.statLabel}>Total Activities</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Icon name="map-marker-radius" size={30} color={Colors.primary} />
+          <Text style={styles.statNumber}>{categories.length}</Text>
+          <Text style={styles.statLabel}>Categories</Text>
+        </View>
+      </View>
+
+      {/* Last Updated */}
+      {stats.lastUpdated && (
+        <Text style={styles.lastUpdated}>
+          Last updated: {stats.lastUpdated.toLocaleString()}
+        </Text>
+      )}
+    </ScrollView>
   );
 };
 
@@ -191,115 +234,156 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: Theme.spacing.md,
-    ...Theme.typography.body,
-    color: Colors.text.secondary,
-  },
-  listContainer: {
-    paddingHorizontal: Theme.spacing.md,
-    paddingBottom: Theme.spacing.xl,
+    backgroundColor: Colors.background,
+    padding: 20,
   },
   header: {
-    marginBottom: Theme.spacing.md,
+    padding: 30,
+    paddingTop: 50,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
-  headerGradient: {
-    borderRadius: Theme.borderRadius.xl,
-    marginHorizontal: Theme.spacing.md,
-    marginTop: Theme.spacing.md,
-    // Shadows removed from LinearGradient to avoid performance warning
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
   },
-  headerContent: {
-    padding: Theme.spacing.lg,
-  },
-  greeting: {
+  subText: {
     fontSize: 16,
-    color: Colors.white,
+    color: '#fff',
     opacity: 0.9,
-    marginBottom: Theme.spacing.xs,
   },
-  headerTitle: {
-    ...Theme.typography.h2,
-    color: Colors.white,
-    marginBottom: Theme.spacing.xs,
+  summaryCard: {
+    margin: 20,
+    padding: 20,
+    borderRadius: 15,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  headerSubtitle: {
-    ...Theme.typography.body,
-    color: Colors.white,
-    opacity: 0.8,
-  },
-  categoriesContainer: {
-    marginTop: Theme.spacing.lg,
-    paddingHorizontal: Theme.spacing.md,
-  },
-  categoryCard: {
-    alignItems: 'center',
-    marginRight: Theme.spacing.md,
-  },
-  categoryCardActive: {
-    transform: [{ scale: 1.1 }],
-  },
-  categoryIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: Theme.borderRadius.round,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Theme.spacing.xs,
-  },
-  categoryLabel: {
-    ...Theme.typography.caption,
-    color: Colors.text.secondary,
-  },
-  sectionHeader: {
+  summaryContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Theme.spacing.lg,
-    marginHorizontal: Theme.spacing.md,
-    marginBottom: Theme.spacing.sm,
+  },
+  summaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  summaryTextContainer: {
+    marginLeft: 15,
+  },
+  summaryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  summaryCount: {
+    fontSize: 16,
+    color: '#fff',
+    opacity: 0.9,
+  },
+  summarySubtext: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.8,
+    marginTop: 10,
+  },
+  section: {
+    padding: 20,
   },
   sectionTitle: {
-    ...Theme.typography.h4,
-    color: Colors.text.primary,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 15,
   },
-  clearFilter: {
-    ...Theme.typography.body,
-    color: Colors.primary,
-    fontWeight: '600',
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
-  emptyContainer: {
+  categoryCard: {
+    width: '48%',
+    marginBottom: 15,
+  },
+  categoryGradient: {
+    padding: 20,
+    borderRadius: 15,
     alignItems: 'center',
-    paddingTop: Theme.spacing.xxl,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
   },
-  emptyText: {
-    ...Theme.typography.h5,
-    color: Colors.text.secondary,
-    marginTop: Theme.spacing.md,
+  categoryName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginTop: 10,
   },
-  emptySubText: {
-    ...Theme.typography.bodySmall,
-    color: Colors.text.secondary,
-    marginTop: Theme.spacing.xs,
+  categoryCount: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 5,
+  },
+  statsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.cardBackground,
+    padding: 20,
+    borderRadius: 15,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginTop: 10,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 5,
   },
   errorText: {
-    ...Theme.typography.body,
+    fontSize: 16,
     color: Colors.error,
-    marginTop: Theme.spacing.md,
-    marginHorizontal: Theme.spacing.lg,
     textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 20,
   },
   retryButton: {
-    marginTop: Theme.spacing.lg,
     backgroundColor: Colors.primary,
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
-    borderRadius: Theme.borderRadius.md,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
   },
-  retryText: {
-    ...Theme.typography.button,
-    color: Colors.white,
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  lastUpdated: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 30,
   },
 });
 

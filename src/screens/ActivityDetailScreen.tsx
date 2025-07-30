@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,22 +12,52 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useRoute } from '@react-navigation/native';
 import { Activity } from '../types';
 import { useStore } from '../store';
+import ActivityService from '../services/activityService';
 
 const ActivityDetailScreen = () => {
   const route = useRoute();
   const { favoriteActivities, toggleFavorite } = useStore();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // Parse the serialized dates back to Date objects
   const serializedActivity = route.params?.activity;
   const activity: Activity = {
     ...serializedActivity,
-    dateRange: {
+    dateRange: serializedActivity.dateRange ? {
       start: new Date(serializedActivity.dateRange.start),
       end: new Date(serializedActivity.dateRange.end),
-    },
+    } : null,
     scrapedAt: new Date(serializedActivity.scrapedAt),
   };
-  const isFavorite = favoriteActivities.includes(activity.id);
+
+  useEffect(() => {
+    setIsFavorite(favoriteActivities.includes(activity.id) || activity.isFavorite);
+  }, [activity.id, favoriteActivities, activity.isFavorite]);
+
+  const handleToggleFavorite = async () => {
+    setLoading(true);
+    try {
+      const activityService = ActivityService.getInstance();
+      if (isFavorite) {
+        const success = await activityService.removeFavorite(activity.id);
+        if (success) {
+          setIsFavorite(false);
+          toggleFavorite(activity.id);
+        }
+      } else {
+        const success = await activityService.addFavorite(activity.id);
+        if (success) {
+          setIsFavorite(true);
+          toggleFavorite(activity.id);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update favorite status');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRegister = () => {
     Alert.alert(
@@ -57,8 +87,9 @@ const ActivityDetailScreen = () => {
       <View style={styles.header}>
         <Text style={styles.title}>{activity.name}</Text>
         <TouchableOpacity
-          onPress={() => toggleFavorite(activity.id)}
+          onPress={handleToggleFavorite}
           style={styles.favoriteButton}
+          disabled={loading}
         >
           <Icon
             name={isFavorite ? 'favorite' : 'favorite-border'}
@@ -77,33 +108,51 @@ const ActivityDetailScreen = () => {
           <Icon name="location-on" size={20} color="#666" />
           <View style={styles.detailContent}>
             <Text style={styles.detailLabel}>Location</Text>
-            <Text style={styles.detailText}>{activity.location.name}</Text>
-            <Text style={styles.detailSubtext}>{activity.location.address}</Text>
+            <Text style={styles.detailText}>
+              {typeof activity.location === 'string' 
+                ? activity.location 
+                : activity.location?.name || activity.locationName || 'Location TBD'}
+            </Text>
+            {typeof activity.location === 'object' && activity.location?.address && (
+              <Text style={styles.detailSubtext}>{activity.location.address}</Text>
+            )}
           </View>
         </View>
 
-        <View style={styles.detailRow}>
-          <Icon name="calendar-today" size={20} color="#666" />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Dates</Text>
-            <Text style={styles.detailText}>
-              {formatDate(activity.dateRange.start)} - {formatDate(activity.dateRange.end)}
-            </Text>
+        {activity.dateRange && (
+          <View style={styles.detailRow}>
+            <Icon name="calendar-today" size={20} color="#666" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Dates</Text>
+              <Text style={styles.detailText}>
+                {formatDate(activity.dateRange.start)} - {formatDate(activity.dateRange.end)}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.detailRow}>
-          <Icon name="schedule" size={20} color="#666" />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Schedule</Text>
-            <Text style={styles.detailText}>
-              {activity.schedule.days.join(', ')}
-            </Text>
-            <Text style={styles.detailSubtext}>
-              {activity.schedule.startTime} - {activity.schedule.endTime}
-            </Text>
+        {activity.schedule && typeof activity.schedule === 'object' && activity.schedule.days ? (
+          <View style={styles.detailRow}>
+            <Icon name="schedule" size={20} color="#666" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Schedule</Text>
+              <Text style={styles.detailText}>
+                {activity.schedule.days.join(', ')}
+              </Text>
+              <Text style={styles.detailSubtext}>
+                {activity.schedule.startTime} - {activity.schedule.endTime}
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : activity.schedule && typeof activity.schedule === 'string' ? (
+          <View style={styles.detailRow}>
+            <Icon name="schedule" size={20} color="#666" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Schedule</Text>
+              <Text style={styles.detailText}>{activity.schedule}</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.detailRow}>
           <Icon name="child-care" size={20} color="#666" />
@@ -133,7 +182,9 @@ const ActivityDetailScreen = () => {
             ]}>
               {activity.spotsAvailable === 0
                 ? 'Activity Full'
-                : `${activity.spotsAvailable} of ${activity.totalSpots} spots available`}
+                : activity.totalSpots 
+                  ? `${activity.spotsAvailable} of ${activity.totalSpots} spots available`
+                  : `${activity.spotsAvailable} spots available`}
             </Text>
           </View>
         </View>
