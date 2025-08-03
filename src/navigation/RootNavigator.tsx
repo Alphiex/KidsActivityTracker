@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { StatusBar, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme';
 import PreferencesService from '../services/preferencesService';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -22,6 +24,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
+import RecommendationsScreen from '../screens/RecommendationsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -76,32 +79,35 @@ const screenOptions = {
   },
 };
 
-const MainTabs = () => (
-  <Tab.Navigator
-    screenOptions={{
-      tabBarActiveTintColor: '#667eea',
-      tabBarInactiveTintColor: Colors.gray[500],
-      tabBarStyle: {
-        backgroundColor: Colors.white,
-        borderTopWidth: 0,
-        elevation: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        height: 65,
-        paddingBottom: 8,
-        paddingTop: 8,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-      },
-      tabBarLabelStyle: {
-        fontSize: 12,
-        fontWeight: '600',
-      },
-      headerShown: false,
-    }}
-  >
+const MainTabs = () => {
+  const { colors } = useTheme();
+  
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBackground,
+          borderTopWidth: 0,
+          elevation: 20,
+          shadowColor: colors.shadowColor,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          height: 65,
+          paddingBottom: 8,
+          paddingTop: 8,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        headerShown: false,
+      }}
+    >
     <Tab.Screen
       name="Home"
       component={HomeStack}
@@ -158,40 +164,87 @@ const MainTabs = () => (
         ),
       }}
     />
-  </Tab.Navigator>
-);
+    </Tab.Navigator>
+  );
+};
 
 const RootNavigator = () => {
+  console.log('RootNavigator rendering');
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const { isDark, colors } = useTheme();
+  console.log('Theme loaded:', { isDark, hasColors: !!colors });
 
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
 
   const checkOnboardingStatus = async () => {
+    console.log('Checking onboarding status...');
     try {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
+      console.log('Preferences loaded:', preferences);
       setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
     } catch (error) {
       console.error('Error checking onboarding status:', error);
     } finally {
+      console.log('Setting loading to false');
       setIsLoading(false);
     }
   };
 
   if (isLoading) {
-    return null; // Or a loading screen
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <Text style={{ color: colors.text }}>Loading...</Text>
+      </View>
+    );
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!hasCompletedOnboarding ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : null}
+    <NavigationContainer
+      theme={{
+        dark: isDark,
+        colors: {
+          primary: colors.primary,
+          background: colors.background,
+          card: colors.surface,
+          text: colors.text,
+          border: colors.border,
+          notification: colors.primary,
+        },
+        fonts: {
+          regular: {
+            fontFamily: 'System',
+            fontWeight: '400',
+          },
+          medium: {
+            fontFamily: 'System',
+            fontWeight: '500',
+          },
+          bold: {
+            fontFamily: 'System',
+            fontWeight: '700',
+          },
+          heavy: {
+            fontFamily: 'System',
+            fontWeight: '900',
+          },
+        },
+      }}
+    >
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        backgroundColor={colors.background}
+      />
+      <Stack.Navigator 
+        screenOptions={{ headerShown: false }}
+        initialRouteName={hasCompletedOnboarding ? "MainTabs" : "Onboarding"}
+      >
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

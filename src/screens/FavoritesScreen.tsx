@@ -17,6 +17,7 @@ import ActivityService from '../services/activityService';
 import FavoritesService from '../services/favoritesService';
 import PreferencesService from '../services/preferencesService';
 import { Activity } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +26,7 @@ const FavoritesScreen = () => {
   const favoritesService = FavoritesService.getInstance();
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
+  const { colors, isDark } = useTheme();
   
   const [favorites, setFavorites] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);

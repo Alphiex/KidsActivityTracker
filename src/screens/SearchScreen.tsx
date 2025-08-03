@@ -18,6 +18,7 @@ import ActivityCard from '../components/ActivityCard';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { Activity } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,6 +26,7 @@ const SearchScreen = () => {
   const navigation = useNavigation();
   const preferencesService = PreferencesService.getInstance();
   const preferences = preferencesService.getPreferences();
+  const { colors, isDark } = useTheme();
   
   const [searchText, setSearchText] = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -52,14 +54,14 @@ const SearchScreen = () => {
   });
 
   const categories = [
-    { name: 'Sports', icon: 'basketball', color: '#FF6B6B' },
-    { name: 'Arts', icon: 'palette', color: '#4ECDC4' },
-    { name: 'Music', icon: 'music-note', color: '#A8E6CF' },
-    { name: 'Science', icon: 'flask', color: '#FFD93D' },
-    { name: 'Dance', icon: 'dance-ballroom', color: '#C06EFF' },
-    { name: 'Education', icon: 'school', color: '#4B9BFF' },
+    { name: 'Team Sports', icon: 'basketball', color: '#FF6B6B' },
+    { name: 'Martial Arts', icon: 'karate', color: '#4ECDC4' },
+    { name: 'Racquet Sports', icon: 'tennis', color: '#A8E6CF' },
+    { name: 'Aquatic Leadership', icon: 'pool', color: '#FFD93D' },
     { name: 'Swimming', icon: 'swim', color: '#00C9FF' },
-    { name: 'Outdoor', icon: 'tree', color: '#95E1D3' },
+    { name: 'Camps', icon: 'tent', color: '#C06EFF' },
+    { name: 'Dance', icon: 'dance-ballroom', color: '#4B9BFF' },
+    { name: 'Other', icon: 'star', color: '#95E1D3' },
   ];
 
   const popularFilters = [
@@ -107,7 +109,10 @@ const SearchScreen = () => {
     // Category filter
     if (selectedCategories.length > 0) {
       filtered = filtered.filter((activity) =>
-        selectedCategories.includes(activity.category)
+        selectedCategories.some(cat => 
+          activity.category === cat || 
+          (activity.activityType && activity.activityType.includes(cat))
+        )
       );
     }
 
@@ -182,11 +187,11 @@ const SearchScreen = () => {
       onRequestClose={() => setShowFilters(false)}
     >
       <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filters</Text>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Filters</Text>
             <TouchableOpacity onPress={() => setShowFilters(false)}>
-              <Icon name="close" size={24} color="#333" />
+              <Icon name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -406,24 +411,24 @@ const SearchScreen = () => {
     selectedDays.length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={[colors.gradientStart, colors.gradientEnd]}
         style={styles.header}
       >
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Icon name="magnify" size={24} color="#999" />
+          <View style={[styles.searchBar, { backgroundColor: colors.inputBackground }]}>
+            <Icon name="magnify" size={24} color={colors.textSecondary} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text }]}
               placeholder="Search activities, providers..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               value={searchText}
               onChangeText={handleSearch}
             />
             {searchText !== '' && (
               <TouchableOpacity onPress={() => setSearchText('')}>
-                <Icon name="close-circle" size={20} color="#999" />
+                <Icon name="close-circle" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -460,16 +465,16 @@ const SearchScreen = () => {
       </LinearGradient>
 
       {searchText === '' && recentSearches.length > 0 ? (
-        <View style={styles.recentSearches}>
-          <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
+        <View style={[styles.recentSearches, { backgroundColor: colors.background }]}>
+          <Text style={[styles.recentSearchesTitle, { color: colors.text }]}>Recent Searches</Text>
           {recentSearches.map((search, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.recentSearchItem}
+              style={[styles.recentSearchItem, { borderBottomColor: colors.border }]}
               onPress={() => setSearchText(search)}
             >
-              <Icon name="history" size={20} color="#999" />
-              <Text style={styles.recentSearchText}>{search}</Text>
+              <Icon name="history" size={20} color={colors.textSecondary} />
+              <Text style={[styles.recentSearchText, { color: colors.textSecondary }]}>{search}</Text>
             </TouchableOpacity>
           ))}
         </View>

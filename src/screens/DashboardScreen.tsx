@@ -15,6 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
 import { Colors } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +24,7 @@ const DashboardScreen = () => {
   const preferencesService = PreferencesService.getInstance();
   const [preferences, setPreferences] = useState(preferencesService.getPreferences());
   const [refreshing, setRefreshing] = useState(false);
+  const { colors, isDark } = useTheme();
   const [stats, setStats] = useState({
     matchingActivities: 0,
     newThisWeek: 0,
@@ -31,14 +33,14 @@ const DashboardScreen = () => {
   });
 
   const categoryColors = {
-    Sports: ['#FF6B6B', '#FF8787'],
-    Arts: ['#4ECDC4', '#44A08D'],
-    Music: ['#A8E6CF', '#7FD1B3'],
-    Science: ['#FFD93D', '#FFB73D'],
-    Dance: ['#C06EFF', '#9B59FF'],
-    Education: ['#4B9BFF', '#2E7FFF'],
-    Swimming: ['#00C9FF', '#0099CC'],
-    Outdoor: ['#95E1D3', '#6FC9B8'],
+    'Team Sports': ['#FF6B6B', '#FF8787'],
+    'Martial Arts': ['#4ECDC4', '#44A08D'],
+    'Racquet Sports': ['#A8E6CF', '#7FD1B3'],
+    'Aquatic Leadership': ['#FFD93D', '#FFB73D'],
+    'Swimming': ['#00C9FF', '#0099CC'],
+    'Camps': ['#C06EFF', '#9B59FF'],
+    'All': ['#4B9BFF', '#2E7FFF'],
+    'Other': ['#95E1D3', '#6FC9B8'],
   };
 
   const quickActionCards = [
@@ -107,6 +109,13 @@ const DashboardScreen = () => {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      // Set default stats on error
+      setStats({
+        matchingActivities: 0,
+        newThisWeek: 0,
+        savedFavorites: 0,
+        upcomingEvents: 0,
+      });
     } finally {
       setRefreshing(false);
     }
@@ -123,7 +132,7 @@ const DashboardScreen = () => {
 
   const renderHeader = () => (
     <LinearGradient
-      colors={['#667eea', '#764ba2']}
+      colors={[colors.gradientStart, colors.gradientEnd]}
       style={styles.header}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -166,7 +175,7 @@ const DashboardScreen = () => {
 
   const renderQuickFilters = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Quick Filters</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Filters</Text>
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
@@ -175,14 +184,14 @@ const DashboardScreen = () => {
         {preferences.ageRanges.map((range, index) => (
           <TouchableOpacity 
             key={index}
-            style={styles.filterChip}
+            style={[styles.filterChip, { backgroundColor: colors.surface }]}
             onPress={() => navigation.navigate('ActivityType', { 
               category: 'All',
               filters: { ageRange: range }
             })}
           >
-            <Icon name="human-child" size={16} color="#667eea" />
-            <Text style={styles.filterChipText}>
+            <Icon name="human-child" size={16} color={colors.primary} />
+            <Text style={[styles.filterChipText, { color: colors.text }]}>
               Ages {range.min}-{range.max}
             </Text>
           </TouchableOpacity>
@@ -190,14 +199,14 @@ const DashboardScreen = () => {
         {preferences.locations.slice(0, 3).map((location, index) => (
           <TouchableOpacity 
             key={`loc-${index}`}
-            style={styles.filterChip}
+            style={[styles.filterChip, { backgroundColor: colors.surface }]}
             onPress={() => navigation.navigate('ActivityType', { 
               category: 'All',
               filters: { location }
             })}
           >
-            <Icon name="map-marker" size={16} color="#667eea" />
-            <Text style={styles.filterChipText}>{location}</Text>
+            <Icon name="map-marker" size={16} color={colors.primary} />
+            <Text style={[styles.filterChipText, { color: colors.text }]}>{location}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -206,7 +215,7 @@ const DashboardScreen = () => {
 
   const renderQuickActions = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.quickActionsGrid}>
         {quickActionCards.map((card, index) => (
           <TouchableOpacity
@@ -233,9 +242,9 @@ const DashboardScreen = () => {
   const renderCategories = () => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Browse Categories</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse Categories</Text>
         <TouchableOpacity onPress={() => navigation.navigate('AllCategories')}>
-          <Text style={styles.seeAllText}>See All</Text>
+          <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
         </TouchableOpacity>
       </View>
       <ScrollView 
@@ -247,7 +256,13 @@ const DashboardScreen = () => {
           <TouchableOpacity
             key={category}
             style={styles.categoryCard}
-            onPress={() => navigation.navigate('ActivityType', { category })}
+            onPress={() => {
+              if (category === 'All') {
+                navigation.navigate('Search');
+              } else {
+                navigation.navigate('ActivityType', { category });
+              }
+            }}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -269,24 +284,29 @@ const DashboardScreen = () => {
 
   const getCategoryIcon = (category: string) => {
     const icons = {
-      Sports: 'basketball',
-      Arts: 'palette',
-      Music: 'music-note',
-      Science: 'flask',
-      Dance: 'dance-ballroom',
-      Education: 'school',
-      Swimming: 'swim',
-      Outdoor: 'tree',
+      'Team Sports': 'basketball',
+      'Martial Arts': 'karate',
+      'Racquet Sports': 'tennis',
+      'Aquatic Leadership': 'pool',
+      'Swimming': 'swim',
+      'Camps': 'tent',
+      'All': 'star',
+      'Other': 'tag',
     };
     return icons[category] || 'tag';
   };
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
       }
     >
       {renderHeader()}
@@ -297,9 +317,9 @@ const DashboardScreen = () => {
       {/* Personalized Recommendations */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recommended for You</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recommended for You</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Recommendations')}>
-            <Text style={styles.seeAllText}>See All</Text>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity 
@@ -427,16 +447,19 @@ const styles = StyleSheet.create({
   quickActionCard: {
     width: (width - 50) / 2,
     marginBottom: 15,
-  },
-  quickActionGradient: {
-    padding: 20,
-    borderRadius: 20,
-    alignItems: 'center',
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+  },
+  quickActionGradient: {
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   quickActionText: {
     color: '#fff',
@@ -450,18 +473,22 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     marginRight: 15,
-  },
-  categoryGradient: {
     width: 100,
     height: 100,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+  },
+  categoryGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryName: {
     color: '#fff',
@@ -472,17 +499,20 @@ const styles = StyleSheet.create({
   recommendationCard: {
     marginTop: 10,
     marginBottom: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
   },
   recommendationGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
     borderRadius: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    overflow: 'hidden',
   },
   recommendationText: {
     flex: 1,

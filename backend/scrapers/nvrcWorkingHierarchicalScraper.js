@@ -8,13 +8,15 @@ class NVRCWorkingHierarchicalScraper {
     try {
       console.log('🚀 Starting NVRC Working Hierarchical Scraper...');
       browser = await puppeteer.launch({
-        headless: false,
-        slowMo: 150,
+        headless: process.env.NODE_ENV === 'production' ? 'new' : false,
+        slowMo: process.env.NODE_ENV === 'production' ? 0 : 150,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1440,900'],
-        defaultViewport: null
+        defaultViewport: null,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
       });
 
       const page = await browser.newPage();
+      this.lastUrl = '';
       
       // Enable console logging
       page.on('console', msg => {
@@ -257,277 +259,184 @@ class NVRCWorkingHierarchicalScraper {
         url: pageInfo.currentUrl
       });
 
-      // Look for blue activity bars that need to be expanded
-      console.log('\n🔍 Looking for blue activity bars to expand...');
+      // Look for activities in the results page
+      console.log('\n🔍 Extracting activities from results page...');
       
       // Wait a bit for the page to fully render
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // First, let's identify all the blue activity bars
-      const activityBars = await page.evaluate(() => {
-        const bars = [];
+      // Extract all activities from the page structure
+      const activities = await page.evaluate(() => {
+        const activities = [];
         
-        // Look for the activity result headers - they have a specific structure
-        const activityHeaders = document.querySelectorAll('.field--name-name, h3.field--name-name');
+        // The page uses <details> elements for categories and services
+        const activityCategories = document.querySelectorAll('details.programs-activity');
+        console.log(`Found ${activityCategories.length} activity categories`);
         
-        activityHeaders.forEach(header => {
-          const text = header.textContent.trim();
-          if (text && !text.includes('construction') && !text.includes('Updates')) {
-            // Check if this header has a sibling or parent with the count
-            const parent = header.closest('.views-row, .node, article');
-            if (parent) {
-              // Look for the count in the same row
-              const countElement = parent.querySelector('.field--name-field-activity-spaces-available, .activity-count, [class*="count"]');
-              const count = countElement ? parseInt(countElement.textContent) || 0 : 0;
-              
-              bars.push({
-                text: text,
-                name: text,
-                count: count,
-                element: header,
-                hasExpandButton: parent.querySelector('.fa-angle-down, .expand-icon, [class*="expand"]') !== null
-              });
-            }
-          }
-        });
-        
-        // If no headers found, try alternative selectors
-        if (bars.length === 0) {
-          // Look for elements with blue background
-          const blueElements = document.querySelectorAll('[style*="background-color: rgb(0, 114, 198)"], [style*="background-color: #0072c6"], .activity-category-header');
-          blueElements.forEach(el => {
-            const text = el.textContent.trim();
-            if (text && !text.includes('construction')) {
-              bars.push({
-                text: text,
-                name: text.replace(/\s*\d+$/, ''),
-                count: parseInt(text.match(/\d+$/)?.[0] || '0'),
-                element: el,
-                hasExpandButton: el.querySelector('.fa-angle-down, [class*="expand"]') !== null
-              });
-            }
-          });
-        }
-        
-        console.log('Found potential activity bars:', bars.map(b => b.text));
-        return bars;
-      });
-      
-      console.log(`\n✅ Found ${activityBars.length} activity category bars:`);
-      activityBars.forEach(bar => {
-        console.log(`  - ${bar.text} (${bar.count} activities)`);
-      });
-      
-      let activities = [];
-      
-      // Process each category bar
-      for (const bar of activityBars) {
-        console.log(`\n📂 Expanding category: ${bar.text}`);
-        
-        // Click the + button or the bar itself to expand
-        const expanded = await page.evaluate((barText) => {
-          // Find the element with this exact text
-          const elements = Array.from(document.querySelectorAll('div, a, button, span'));
-          for (const el of elements) {
-            if (el.textContent.trim() === barText) {
-              // Look for a + button nearby
-              const plusButton = el.querySelector('.expand-button, .plus-button, [class*="expand"], [class*="plus"]') ||
-                               el.parentElement.querySelector('.expand-button, .plus-button, [class*="expand"], [class*="plus"]');
-              
-              if (plusButton) {
-                plusButton.click();
-                return 'clicked plus button';
-              } else {
-                // Click the element itself
-                el.click();
-                return 'clicked bar';
-              }
-            }
-          }
-          return 'not found';
-        }, bar.text);
-        
-        console.log(`  ${expanded}`);
-        
-        // Wait for expansion
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Now look for sub-activities within this category
-        const subActivities = await page.evaluate((categoryName) => {
-          const activities = [];
+        activityCategories.forEach(categoryDetail => {
+          // Get category name from summary
+          const categoryName = categoryDetail.querySelector('summary .title')?.textContent.trim() || '';
+          console.log(`Processing category: ${categoryName}`);
           
-          // Look for expanded content - could be in various formats
-          // Try to find elements that appeared after expansion
-          const possibleContainers = document.querySelectorAll(
-            '.sub-activities, .activity-list, .expanded-content, ' +
-            '[class*="expand"], [class*="collapse"], .panel-collapse.in'
-          );
+          // Get all services within this category
+          const services = categoryDetail.querySelectorAll('details.programs-service');
+          console.log(`  Found ${services.length} services in ${categoryName}`);
           
-          possibleContainers.forEach(container => {
-            // Look for sub-activity bars (similar blue bars with counts)
-            const subBars = container.querySelectorAll('div, a');
-            subBars.forEach(subBar => {
-              const text = subBar.textContent.trim();
-              const match = text.match(/^([A-Za-z\s&\-]+)\s+(\d+)$/);
-              
-              if (match && !text.includes(categoryName)) {
-                activities.push({
-                  category: categoryName,
-                  subcategory: match[1].trim(),
-                  count: parseInt(match[2]),
-                  needsExpansion: true
-                });
-              }
-            });
-          });
-          
-          return activities;
-        }, bar.name);
-        
-        console.log(`  Found ${subActivities.length} sub-activities`);
-        
-        // Expand each sub-activity
-        for (const subActivity of subActivities) {
-          console.log(`    📁 Expanding sub-activity: ${subActivity.subcategory} (${subActivity.count})`);
-          
-          // Click to expand the sub-activity
-          await page.evaluate((subText) => {
-            const elements = Array.from(document.querySelectorAll('div, a, button, span'));
-            for (const el of elements) {
-              if (el.textContent.trim().includes(subText)) {
-                const plusButton = el.querySelector('[class*="expand"], [class*="plus"]') ||
-                                 el.parentElement.querySelector('[class*="expand"], [class*="plus"]');
-                if (plusButton) {
-                  plusButton.click();
-                } else {
-                  el.click();
-                }
-                break;
-              }
-            }
-          }, subActivity.subcategory);
-          
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          // Extract actual activities from the expanded content
-          const extractedActivities = await page.evaluate((cat, subcat) => {
-            const activities = [];
+          services.forEach(serviceDetail => {
+            // Get service/subcategory name
+            const serviceName = serviceDetail.querySelector('summary .title')?.textContent.trim() || '';
+            console.log(`    Processing service: ${serviceName}`);
             
-            // Look for activity details in tables, lists, or cards
-            const activityElements = document.querySelectorAll(
-              'tr:not(.header), .activity-item, .program-item, ' +
-              '.list-group-item, [class*="activity-detail"]'
-            );
+            // Get all events/activities within this service
+            const events = serviceDetail.querySelectorAll('.programs-event');
+            console.log(`      Found ${events.length} events in ${serviceName}`);
             
-            activityElements.forEach((el, index) => {
-              const text = el.textContent;
-              
-              // Skip if it's a category header
-              if (text.match(/^[A-Za-z\s&]+\s+\d+$/)) return;
-              
-              // Look for activity details
-              if (text.includes('$') || text.includes('Register')) {
+            events.forEach((event, index) => {
+              try {
                 const activity = {
-                  id: `nvrc_${Date.now()}_${index}`,
-                  category: cat,
-                  subcategory: subcat,
+                  id: event.id || `nvrc_${Date.now()}_${index}`,
+                  category: categoryName,
+                  subcategory: serviceName,
                   name: '',
-                  schedule: '',
-                  cost: 0,
                   location: '',
-                  provider: 'NVRC'
+                  facility: '',
+                  schedule: '',
+                  dates: '',
+                  ageRange: { min: 0, max: 18 },
+                  cost: 0,
+                  spotsAvailable: 0,
+                  courseId: '',
+                  registrationUrl: '',
+                  registrationDate: '',
+                  alert: '',
+                  provider: 'NVRC',
+                  scrapedAt: new Date().toISOString(),
+                  dateRange: {
+                    start: new Date().toISOString(),
+                    end: new Date().toISOString()
+                  },
+                  activityType: [categoryName] // Add activity type based on category
                 };
                 
-                // Extract name - could be in various formats
-                const nameEl = el.querySelector('td:first-child, .activity-name, h4, h5, strong');
-                if (nameEl) {
-                  activity.name = nameEl.textContent.trim();
-                } else {
-                  // Use first part of text as name
-                  activity.name = text.split('\n')[0].trim();
-                }
-                
-                // Extract cost
-                const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
-                if (costMatch) {
-                  activity.cost = parseFloat(costMatch[1]);
-                }
-                
-                // Extract schedule/time
-                const timeMatch = text.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?)/);
-                if (timeMatch) {
-                  activity.schedule = timeMatch[0];
-                }
-                
-                // Extract dates
-                const dateMatch = text.match(/(\w{3}\s+\d{1,2}(?:\s*-\s*\w{3}\s+\d{1,2})?)/);
-                if (dateMatch) {
-                  activity.dates = dateMatch[0];
+                // Extract activity name
+                const titleEl = event.querySelector('.programs-event-title');
+                if (titleEl) {
+                  activity.name = titleEl.textContent.trim();
                 }
                 
                 // Extract location
-                const locationMatch = text.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena))/i);
-                if (locationMatch) {
-                  activity.location = locationMatch[0].trim();
+                const locationEl = event.querySelector('.programs-event-location a');
+                if (locationEl) {
+                  activity.location = locationEl.textContent.trim();
                 }
                 
-                if (activity.name && activity.name.length > 3) {
+                // Extract facility
+                const facilityEl = event.querySelector('.programs-event-facility');
+                if (facilityEl) {
+                  activity.facility = facilityEl.textContent.trim();
+                }
+                
+                // Extract schedule (days)
+                const daysEl = event.querySelector('.programs-event-days');
+                if (daysEl) {
+                  activity.schedule = daysEl.textContent.trim();
+                }
+                
+                // Extract date range
+                const dateRangeEl = event.querySelector('.programs-event-date-range');
+                if (dateRangeEl) {
+                  activity.dates = dateRangeEl.textContent.trim();
+                  
+                  // Parse dates into dateRange object
+                  const dateMatch = activity.dates.match(/(\w{3}\s+\d{1,2})\s*-\s*(\w{3}\s+\d{1,2})/);
+                  if (dateMatch) {
+                    const currentYear = new Date().getFullYear();
+                    const startDateStr = dateMatch[1] + ', ' + currentYear;
+                    const endDateStr = dateMatch[2] + ', ' + currentYear;
+                    
+                    activity.dateRange = {
+                      start: new Date(startDateStr).toISOString(),
+                      end: new Date(endDateStr).toISOString()
+                    };
+                  } else {
+                    // Fallback for single date or other formats
+                    activity.dateRange = {
+                      start: new Date().toISOString(),
+                      end: new Date().toISOString()
+                    };
+                  }
+                }
+                
+                // Extract time range
+                const timeRangeEl = event.querySelector('.programs-event-time-range');
+                if (timeRangeEl) {
+                  activity.schedule += ' ' + timeRangeEl.textContent.trim();
+                }
+                
+                // Extract age range
+                const ageRangeEl = event.querySelector('.programs-event-age-range');
+                if (ageRangeEl) {
+                  const ageText = ageRangeEl.textContent.trim();
+                  const ageMatch = ageText.match(/(\d+)\s*(?:-\s*(\d+))?\s*yrs/);
+                  if (ageMatch) {
+                    activity.ageRange.min = parseInt(ageMatch[1]);
+                    activity.ageRange.max = ageMatch[2] ? parseInt(ageMatch[2]) : 18;
+                  } else if (ageText.includes('+')) {
+                    const minAge = parseInt(ageText.match(/(\d+)/)?.[1] || '0');
+                    activity.ageRange.min = minAge;
+                    activity.ageRange.max = 18;
+                  }
+                }
+                
+                // Extract cost
+                const feeEl = event.querySelector('.programs-event-fee');
+                if (feeEl) {
+                  const feeText = feeEl.textContent;
+                  const feeMatch = feeText.match(/\$(\d+(?:\.\d{2})?)/);
+                  if (feeMatch) {
+                    activity.cost = parseFloat(feeMatch[1]);
+                  }
+                }
+                
+                // Extract spots available
+                const spotsEl = event.querySelector('.programs-event-sessions-spots-sessions-remaining');
+                if (spotsEl) {
+                  activity.spotsAvailable = parseInt(spotsEl.textContent) || 0;
+                }
+                
+                // Extract course ID
+                const courseIdEl = event.querySelector('.programs-event-course-id a');
+                if (courseIdEl) {
+                  activity.courseId = courseIdEl.textContent.trim();
+                  activity.registrationUrl = courseIdEl.href;
+                }
+                
+                // Extract registration date
+                const regDateEl = event.querySelector('.programs-event-registration');
+                if (regDateEl) {
+                  activity.registrationDate = regDateEl.textContent.replace('Registration date:', '').trim();
+                }
+                
+                // Extract alert/description
+                const alertEl = event.querySelector('.programs-event-alert');
+                if (alertEl) {
+                  activity.alert = alertEl.textContent.trim();
+                }
+                
+                // Only add if we have a valid activity
+                if (activity.name) {
                   activities.push(activity);
                 }
+              } catch (err) {
+                console.error('Error extracting activity:', err);
               }
             });
-            
-            return activities;
-          }, bar.name, subActivity.subcategory);
-          
-          activities.push(...extractedActivities);
-          console.log(`      Extracted ${extractedActivities.length} activities`);
-          
-          // Collapse the sub-activity
-          await page.evaluate((subText) => {
-            const elements = Array.from(document.querySelectorAll('div, a, button, span'));
-            for (const el of elements) {
-              if (el.textContent.trim().includes(subText)) {
-                const minusButton = el.querySelector('[class*="collapse"], [class*="minus"]') ||
-                                  el.parentElement.querySelector('[class*="collapse"], [class*="minus"]');
-                if (minusButton) {
-                  minusButton.click();
-                } else {
-                  el.click();
-                }
-                break;
-              }
-            }
-          }, subActivity.subcategory);
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
+          });
+        });
         
-        // Collapse the main category
-        await page.evaluate((barText) => {
-          const elements = Array.from(document.querySelectorAll('div, a, button, span'));
-          for (const el of elements) {
-            if (el.textContent.trim() === barText) {
-              const minusButton = el.querySelector('[class*="collapse"], [class*="minus"]') ||
-                               el.parentElement.querySelector('[class*="collapse"], [class*="minus"]');
-              if (minusButton) {
-                minusButton.click();
-              } else {
-                el.click();
-              }
-              break;
-            }
-          }
-        }, bar.text);
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      // If no blue bars found, try alternative extraction
-      if (activityBars.length === 0) {
-        console.log('\n⚠️ No blue activity bars found, trying alternative extraction...');
-        activities = await this.extractFromPage(page);
-      }
+        console.log(`Total activities extracted: ${activities.length}`);
+        return activities;
+      });
       
       console.log(`\n✅ Successfully extracted ${activities.length} activities`);
       
@@ -554,232 +463,173 @@ class NVRCWorkingHierarchicalScraper {
     }
   }
 
-  async expandAndExtractActivities(page, categoryBar) {
+  async extractActivitiesFromDetailPage(page, categoryName) {
     const activities = [];
     
     try {
-      console.log(`\n📂 Processing category: ${categoryBar.text}`);
-      
-      // Click to expand the category
-      const expanded = await page.evaluate((barText) => {
-        const elements = Array.from(document.querySelectorAll('*'));
-        
-        for (const el of elements) {
-          // Look for exact text match
-          if (el.textContent.trim() === barText) {
-            // Check if there's a + button associated
-            const parent = el.parentElement;
-            const expandBtn = parent?.querySelector('[class*="expand"], [class*="plus"], .fa-plus');
-            
-            if (expandBtn) {
-              expandBtn.click();
-              return 'clicked expand button';
-            } else if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.style.cursor === 'pointer') {
-              el.click();
-              return 'clicked element';
-            }
-          }
-        }
-        return 'not found';
-      }, categoryBar.text);
-      
-      console.log(`  Expansion result: ${expanded}`);
+      // Wait for page to load
+      await page.waitForSelector('body', { timeout: 10000 });
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Look for sub-categories that appeared
-      const subCategories = await page.evaluate((mainCategory) => {
-        const subs = [];
-        const allElements = document.querySelectorAll('div, a, span, button');
+      // Extract all activity information from the detail page
+      const pageActivities = await page.evaluate((category) => {
+        const activities = [];
         
-        allElements.forEach(el => {
-          const text = el.textContent.trim();
-          // Look for sub-category pattern (text with number)
-          const match = text.match(/^([A-Za-z\s&\-\/]+)\s+(\d+)$/);
+        // Look for activity listings on the detail page
+        const activityElements = document.querySelectorAll(
+          '.activity-listing, .program-listing, .course-listing, ' +
+          'table tr, .list-group-item, article, .node'
+        );
+        
+        activityElements.forEach((el, index) => {
+          const text = el.textContent;
           
-          if (match && !text.includes(mainCategory)) {
-            // Check if this is a sub-category (indented or nested)
-            const rect = el.getBoundingClientRect();
-            const parent = el.closest('.expanded, .sub-categories, [class*="child"], [class*="sub"]');
+          // Skip headers and short content
+          if (text.length < 30) return;
+          
+          // Look for activity indicators
+          if (text.includes('$') || text.includes('Register') || 
+              text.includes('AM') || text.includes('PM')) {
             
-            if (parent || rect.left > 100) { // Likely indented
-              subs.push({
-                text: text,
-                name: match[1].trim(),
-                count: parseInt(match[2])
-              });
+            const activity = {
+              id: `nvrc_${Date.now()}_${index}`,
+              category: category,
+              name: '',
+              schedule: '',
+              dates: '',
+              cost: 0,
+              location: '',
+              provider: 'NVRC',
+              fullText: text.substring(0, 500)
+            };
+            
+            // Extract title/name
+            const titleEl = el.querySelector('h1, h2, h3, h4, h5, .title, .program-name');
+            if (titleEl) {
+              activity.name = titleEl.textContent.trim();
+            } else {
+              // Use first line as name
+              const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+              activity.name = lines[0] || category;
+            }
+            
+            // Extract cost
+            const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
+            if (costMatch) {
+              activity.cost = parseFloat(costMatch[1]);
+            }
+            
+            // Extract schedule/time
+            const timeMatch = text.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?)/);
+            if (timeMatch) {
+              activity.schedule = timeMatch[0];
+            }
+            
+            // Extract dates
+            const dateMatch = text.match(/((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*(?:\s*[&,]\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*)*|\w{3}\s+\d{1,2}(?:\s*-\s*\w{3}\s+\d{1,2})?)/);
+            if (dateMatch) {
+              activity.dates = dateMatch[0];
+            }
+            
+            // Extract location
+            const locationMatch = text.match(/([A-Z][\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena|Rec))/i);
+            if (locationMatch) {
+              activity.location = locationMatch[0].trim();
+            }
+            
+            // Only add if we have a valid name
+            if (activity.name && activity.name.length > 3) {
+              activities.push(activity);
             }
           }
         });
         
-        return subs;
-      }, categoryBar.name);
+        return activities;
+      }, categoryName);
       
-      console.log(`  Found ${subCategories.length} sub-categories`);
-      
-      // If no sub-categories, try to extract activities directly
-      if (subCategories.length === 0) {
-        const directActivities = await this.extractActivitiesFromExpandedSection(page, categoryBar.name, '');
-        activities.push(...directActivities);
-      } else {
-        // Process each sub-category
-        for (const subCat of subCategories) {
-          console.log(`    📁 Expanding sub-category: ${subCat.text}`);
-          
-          // Click to expand sub-category
-          await page.evaluate((subText) => {
-            const elements = Array.from(document.querySelectorAll('*'));
-            for (const el of elements) {
-              if (el.textContent.trim() === subText) {
-                const expandBtn = el.parentElement?.querySelector('[class*="expand"], [class*="plus"], .fa-plus');
-                if (expandBtn) {
-                  expandBtn.click();
-                } else {
-                  el.click();
-                }
-                break;
-              }
-            }
-          }, subCat.text);
-          
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          // Extract activities from this sub-category
-          const subActivities = await this.extractActivitiesFromExpandedSection(page, categoryBar.name, subCat.name);
-          activities.push(...subActivities);
-          console.log(`      Extracted ${subActivities.length} activities`);
-          
-          // Collapse sub-category
-          await page.evaluate((subText) => {
-            const elements = Array.from(document.querySelectorAll('*'));
-            for (const el of elements) {
-              if (el.textContent.trim() === subText) {
-                const collapseBtn = el.parentElement?.querySelector('[class*="collapse"], [class*="minus"], .fa-minus');
-                if (collapseBtn) {
-                  collapseBtn.click();
-                } else {
-                  el.click();
-                }
-                break;
-              }
-            }
-          }, subCat.text);
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-      
-      // Collapse main category
-      await page.evaluate((barText) => {
-        const elements = Array.from(document.querySelectorAll('*'));
-        for (const el of elements) {
-          if (el.textContent.trim() === barText) {
-            const collapseBtn = el.parentElement?.querySelector('[class*="collapse"], [class*="minus"], .fa-minus');
-            if (collapseBtn) {
-              collapseBtn.click();
-            } else {
-              el.click();
-            }
-            break;
-          }
-        }
-      }, categoryBar.text);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+      activities.push(...pageActivities);
       
     } catch (error) {
-      console.error(`Error processing category ${categoryBar.text}:`, error);
+      console.error(`Error extracting from detail page:`, error);
     }
     
     return activities;
   }
   
-  async extractActivitiesFromExpandedSection(page, category, subcategory) {
-    return await page.evaluate((cat, subcat) => {
+  async extractExpandedActivities(page, categoryName) {
+    return await page.evaluate((category) => {
       const activities = [];
       
-      // Look for activity rows in various formats
-      const activitySelectors = [
-        'tr:not(:has(th)):has(td)', // Table rows
-        '.activity-row',
-        '.program-item',
-        '.list-group-item',
-        '[class*="activity"]:not([class*="category"]):not([class*="header"])'
-      ];
+      // Look for expanded content within the same page
+      // This could be in collapsible sections, hidden divs that are now visible, etc.
+      const expandedContent = document.querySelectorAll(
+        '.expanded-content, .collapse.in, .panel-collapse.in, ' +
+        '[style*="display: block"], [aria-expanded="true"] + *, ' +
+        '.activity-details, .program-details'
+      );
       
-      const activityElements = document.querySelectorAll(activitySelectors.join(', '));
-      
-      activityElements.forEach((el, index) => {
-        const text = el.textContent;
+      expandedContent.forEach(container => {
+        // Look for activities within the expanded content
+        const activityElements = container.querySelectorAll(
+          'tr, .list-item, .activity-item, .program-item, li'
+        );
         
-        // Skip category headers
-        if (text.match(/^[A-Za-z\s&]+\s+\d+$/) || text.length < 20) return;
-        
-        // Look for activity indicators
-        if (text.includes('$') || text.includes('Register') || text.includes(':')) {
-          const activity = {
-            id: `nvrc_${Date.now()}_${index}`,
-            category: cat,
-            subcategory: subcat,
-            name: '',
-            schedule: '',
-            dates: '',
-            cost: 0,
-            location: '',
-            provider: 'NVRC',
-            fullText: text.substring(0, 500)
-          };
+        activityElements.forEach((el, index) => {
+          const text = el.textContent;
           
-          // Extract from table row
-          if (el.tagName === 'TR') {
-            const cells = el.querySelectorAll('td');
-            if (cells.length >= 2) {
-              activity.name = cells[0]?.textContent.trim() || '';
-              activity.schedule = cells[1]?.textContent.trim() || '';
-              if (cells[2]) {
-                const costText = cells[2].textContent;
-                const costMatch = costText.match(/\$(\d+(?:\.\d{2})?)/);
-                if (costMatch) activity.cost = parseFloat(costMatch[1]);
-              }
-              if (cells[3]) activity.location = cells[3].textContent.trim();
-            }
-          } else {
-            // Extract from other formats
-            // Try to find a title
-            const titleEl = el.querySelector('h3, h4, h5, h6, .title, .activity-name, strong');
-            if (titleEl) {
-              activity.name = titleEl.textContent.trim();
+          if (text.length > 30 && (text.includes('$') || text.includes('Register'))) {
+            const activity = {
+              id: `nvrc_${Date.now()}_${index}`,
+              category: category,
+              name: '',
+              schedule: '',
+              dates: '',
+              cost: 0,
+              location: '',
+              provider: 'NVRC'
+            };
+            
+            // Extract name
+            const nameEl = el.querySelector('td:first-child, .name, .title, strong');
+            if (nameEl) {
+              activity.name = nameEl.textContent.trim();
             } else {
-              // Use first meaningful line
-              const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
-              activity.name = lines[0] || '';
+              activity.name = text.split('\n')[0].trim();
             }
             
             // Extract cost
             const costMatch = text.match(/\$(\d+(?:\.\d{2})?)/);
-            if (costMatch) activity.cost = parseFloat(costMatch[1]);
+            if (costMatch) {
+              activity.cost = parseFloat(costMatch[1]);
+            }
             
             // Extract time
             const timeMatch = text.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))?)/);
-            if (timeMatch) activity.schedule = timeMatch[0];
+            if (timeMatch) {
+              activity.schedule = timeMatch[0];
+            }
             
             // Extract dates
-            const dateMatch = text.match(/((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\s*(?:&\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\s*)*|\w{3}\s+\d{1,2}(?:\s*-\s*\w{3}\s+\d{1,2})?)/);
-            if (dateMatch) activity.dates = dateMatch[0];
+            const dateMatch = text.match(/(\w{3}\s+\d{1,2}(?:\s*-\s*\w{3}\s+\d{1,2})?)/);
+            if (dateMatch) {
+              activity.dates = dateMatch[0];
+            }
             
-            // Extract location
-            const locationMatch = text.match(/([A-Z][\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena|Rec))/i);
-            if (locationMatch) activity.location = locationMatch[0].trim();
+            // Extract location  
+            const locationMatch = text.match(/([\w\s]+(?:Centre|Center|Community|School|Park|Pool|Arena))/i);
+            if (locationMatch) {
+              activity.location = locationMatch[0].trim();
+            }
+            
+            if (activity.name && activity.name.length > 3) {
+              activities.push(activity);
+            }
           }
-          
-          // Only add if we have a valid name
-          if (activity.name && activity.name.length > 3 && !activity.name.match(/^\d+$/)) {
-            activities.push(activity);
-          }
-        }
+        });
       });
       
       return activities;
-    }, category, subcategory);
+    }, categoryName);
   }
 
   async extractFromPage(page) {

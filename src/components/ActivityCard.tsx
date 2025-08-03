@@ -14,6 +14,7 @@ import { useStore } from '../store';
 import FavoritesService from '../services/favoritesService';
 import { Colors, Theme } from '../theme';
 import { getPrimaryActivityImage } from '../assets/images';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
   const favoritesService = FavoritesService.getInstance();
   const [isFavorite, setIsFavorite] = useState(false);
   const [hasCapacityAlert, setHasCapacityAlert] = useState(false);
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     setIsFavorite(favoritesService.isFavorite(activity.id));
@@ -60,7 +62,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
       <View style={styles.imageContainer}>
         <Image 
           source={getPrimaryActivityImage(activity.activityType || [])} 
@@ -88,7 +90,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
           <Icon
             name={isFavorite ? 'heart' : 'heart-outline'}
             size={24}
-            color={isFavorite ? '#FF6B6B' : '#666'}
+            color={isFavorite ? '#FF6B6B' : colors.textSecondary}
           />
         </TouchableOpacity>
       </View>

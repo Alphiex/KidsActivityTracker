@@ -9,9 +9,10 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		1D03B76393FA7A1A4E2E0FD1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
-		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		761780ED2CA45674006654EE /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.mm */; };
+		761780EE2CA45674006654EF /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 761780ED2CA45674006654EF /* main.m */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		E346AB8FD2580807C442D9DE /* libPods-KidsActivityTracker.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3BAFB427F3C0111C4420727A /* libPods-KidsActivityTracker.a */; };
+		A8D431C6D3D50DF2AB909DBD /* libPods-KidsActivityTracker.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CAD9EF587FA4C18393B85852 /* libPods-KidsActivityTracker.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,11 +20,13 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = KidsActivityTracker/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = KidsActivityTracker/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = KidsActivityTracker/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		3BAFB427F3C0111C4420727A /* libPods-KidsActivityTracker.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-KidsActivityTracker.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5AE68AC32BA486692038C5C6 /* Pods-KidsActivityTracker.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-KidsActivityTracker.debug.xcconfig"; path = "Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker.debug.xcconfig"; sourceTree = "<group>"; };
-		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = KidsActivityTracker/AppDelegate.swift; sourceTree = "<group>"; };
+		33273CDDE29E3B3CE79E63CB /* Pods-KidsActivityTracker.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-KidsActivityTracker.debug.xcconfig"; path = "Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker.debug.xcconfig"; sourceTree = "<group>"; };
+		761780EB2CA45674006654ED /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = KidsActivityTracker/AppDelegate.h; sourceTree = "<group>"; };
+		761780EC2CA45674006654EE /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = KidsActivityTracker/AppDelegate.mm; sourceTree = "<group>"; };
+		761780ED2CA45674006654EF /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = main.m; path = KidsActivityTracker/main.m; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = KidsActivityTracker/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		D05B4E7CEBB0B20FF0B74694 /* Pods-KidsActivityTracker.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-KidsActivityTracker.release.xcconfig"; path = "Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker.release.xcconfig"; sourceTree = "<group>"; };
+		CAD9EF587FA4C18393B85852 /* libPods-KidsActivityTracker.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-KidsActivityTracker.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D27107EBCAE6811E1EADD091 /* Pods-KidsActivityTracker.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-KidsActivityTracker.release.xcconfig"; path = "Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -32,7 +35,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E346AB8FD2580807C442D9DE /* libPods-KidsActivityTracker.a in Frameworks */,
+				A8D431C6D3D50DF2AB909DBD /* libPods-KidsActivityTracker.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -43,7 +46,9 @@
 			isa = PBXGroup;
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
-				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				761780EB2CA45674006654ED /* AppDelegate.h */,
+				761780EC2CA45674006654EE /* AppDelegate.mm */,
+				761780ED2CA45674006654EF /* main.m */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -55,7 +60,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				3BAFB427F3C0111C4420727A /* libPods-KidsActivityTracker.a */,
+				CAD9EF587FA4C18393B85852 /* libPods-KidsActivityTracker.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -92,8 +97,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				5AE68AC32BA486692038C5C6 /* Pods-KidsActivityTracker.debug.xcconfig */,
-				D05B4E7CEBB0B20FF0B74694 /* Pods-KidsActivityTracker.release.xcconfig */,
+				33273CDDE29E3B3CE79E63CB /* Pods-KidsActivityTracker.debug.xcconfig */,
+				D27107EBCAE6811E1EADD091 /* Pods-KidsActivityTracker.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -105,13 +110,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "KidsActivityTracker" */;
 			buildPhases = (
-				E2A0729137D340FECBB48363 /* [CP] Check Pods Manifest.lock */,
+				829B7745C4C2B43C39B895C0 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				D5CD003BD95B8447A035E967 /* [CP] Embed Pods Frameworks */,
-				7A08C68F2747CBA1DBC9E5B4 /* [CP] Copy Pods Resources */,
+				E7F6E76B56DBF5D8B8EE399A /* [CP] Embed Pods Frameworks */,
+				286D3CFEC75E13F5A53DD2B1 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -183,7 +188,7 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		7A08C68F2747CBA1DBC9E5B4 /* [CP] Copy Pods Resources */ = {
+		286D3CFEC75E13F5A53DD2B1 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -200,24 +205,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		D5CD003BD95B8447A035E967 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		E2A0729137D340FECBB48363 /* [CP] Check Pods Manifest.lock */ = {
+		829B7745C4C2B43C39B895C0 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -239,6 +227,23 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		E7F6E76B56DBF5D8B8EE399A /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -246,7 +251,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				761780ED2CA45674006654EE /* AppDelegate.mm in Sources */,
+				761780EE2CA45674006654EF /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,7 +261,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5AE68AC32BA486692038C5C6 /* Pods-KidsActivityTracker.debug.xcconfig */;
+			baseConfigurationReference = 33273CDDE29E3B3CE79E63CB /* Pods-KidsActivityTracker.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -276,15 +282,13 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = KidsActivityTracker;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D05B4E7CEBB0B20FF0B74694 /* Pods-KidsActivityTracker.release.xcconfig */;
+			baseConfigurationReference = D27107EBCAE6811E1EADD091 /* Pods-KidsActivityTracker.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -304,7 +308,6 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = KidsActivityTracker;
-				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;

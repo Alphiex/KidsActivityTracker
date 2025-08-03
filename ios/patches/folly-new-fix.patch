@@ -1,0 +1,19 @@
+--- a/folly/lang/New.h
++++ b/folly/lang/New.h
+@@ -85,7 +85,7 @@
+ template <typename Alloc>
+ inline void* operator_new(std::size_t n, Alloc const& a) {
+   using A = typename std::allocator_traits<Alloc>::template rebind_alloc<char>;
+-  return detail::operator_new_fn<std::is_nothrow_constructible_v<A, Alloc>>()(
++  return static_cast<void*>(detail::operator_new_fn<std::is_nothrow_constructible_v<A, Alloc>>()(
+       n, static_cast<A>(a));
+ }
+ 
+@@ -110,7 +110,7 @@
+ template <typename Alloc>
+ inline void operator_delete(void* p, Alloc const& a) {
+   using A = typename std::allocator_traits<Alloc>::template rebind_alloc<char>;
+-  return detail::operator_delete_fn<
++  detail::operator_delete_fn<
+       std::is_nothrow_constructible_v<A, Alloc>>()(p, static_cast<A>(a));
+ }

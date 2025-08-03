@@ -18,11 +18,11 @@ const campDataService = new CampDataService();
 let nvrcRealDataScraper = null;
 
 try {
-  const NVRCRealDataScraper = require('./scrapers/nvrcRealDataScraper');
-  nvrcRealDataScraper = new NVRCRealDataScraper();
-  console.log('✅ NVRC Real Data scraper loaded successfully - NO SAMPLE DATA!');
+  const NVRCWorkingHierarchicalScraper = require('./scrapers/nvrcWorkingHierarchicalScraper');
+  nvrcRealDataScraper = new NVRCWorkingHierarchicalScraper();
+  console.log('✅ NVRC Working Hierarchical scraper loaded successfully - Gets ALL 700+ activities!');
 } catch (error) {
-  console.error('❌ NVRC Real Data scraper not available:', error.message);
+  console.error('❌ NVRC Working Hierarchical scraper not available:', error.message);
 }
 
 // Cache to avoid excessive scraping
@@ -158,7 +158,7 @@ app.post('/api/scrape/nvrc', async (req, res) => {
     // Use REAL DATA scraper - NO SAMPLE DATA!
     try {
       if (nvrcRealDataScraper) {
-        console.log('🚀 Using NVRC Real Data scraper - NO SAMPLE DATA!');
+        console.log('🚀 Using NVRC Working Hierarchical scraper - Gets ALL 700+ activities!');
         activities = await nvrcRealDataScraper.scrape();
         
         if (activities.length > 0) {

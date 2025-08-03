@@ -40,14 +40,14 @@ const OnboardingScreen = () => {
   const [allTimes, setAllTimes] = useState(true);
 
   const categories = [
-    { name: 'Sports', icon: 'basketball', color: '#FF6B6B' },
-    { name: 'Arts', icon: 'palette', color: '#4ECDC4' },
-    { name: 'Music', icon: 'music-note', color: '#A8E6CF' },
-    { name: 'Science', icon: 'flask', color: '#FFD93D' },
-    { name: 'Dance', icon: 'dance-ballroom', color: '#C06EFF' },
-    { name: 'Education', icon: 'school', color: '#4B9BFF' },
+    { name: 'Team Sports', icon: 'basketball', color: '#FF6B6B' },
+    { name: 'Martial Arts', icon: 'karate', color: '#4ECDC4' },
+    { name: 'Racquet Sports', icon: 'tennis', color: '#A8E6CF' },
+    { name: 'Aquatic Leadership', icon: 'pool', color: '#FFD93D' },
     { name: 'Swimming', icon: 'swim', color: '#00C9FF' },
-    { name: 'Outdoor', icon: 'tree', color: '#95E1D3' },
+    { name: 'Camps', icon: 'tent', color: '#C06EFF' },
+    { name: 'Dance', icon: 'dance-ballroom', color: '#4B9BFF' },
+    { name: 'Other', icon: 'star', color: '#95E1D3' },
   ];
 
   const locationOptions = [

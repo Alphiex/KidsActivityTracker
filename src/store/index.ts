@@ -2,7 +2,14 @@ import { create } from 'zustand';
 import { MMKV } from 'react-native-mmkv';
 import { Activity, User, Filter, Child, SiteAccount } from '../types';
 
-const storage = new MMKV();
+// Lazy initialize MMKV to avoid New Architecture initialization issues
+let storage: MMKV | null = null;
+const getStorage = () => {
+  if (!storage) {
+    storage = new MMKV();
+  }
+  return storage;
+};
 
 interface AppState {
   // User data
@@ -142,25 +149,35 @@ export const useStore = create<AppState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
 
   hydrate: () => {
-    const userString = storage.getString('user');
-    const favoritesString = storage.getString('favorites');
-    
-    if (userString) {
-      set({ user: JSON.parse(userString) });
-    }
-    
-    if (favoritesString) {
-      set({ favoriteActivities: JSON.parse(favoritesString) });
+    try {
+      const userString = getStorage().getString('user');
+      const favoritesString = getStorage().getString('favorites');
+      
+      if (userString) {
+        set({ user: JSON.parse(userString) });
+      }
+      
+      if (favoritesString) {
+        set({ favoriteActivities: JSON.parse(favoritesString) });
+      }
+    } catch (error) {
+      console.warn('Error hydrating store:', error);
     }
   },
 
   persist: () => {
-    const { user, favoriteActivities } = get();
-    
-    if (user) {
-      storage.set('user', JSON.stringify(user));
+    try {
+      const { user, favoriteActivities } = get();
+      
+      if (user) {
+        getStorage().set('user', JSON.stringify(user));
+      } else {
+        getStorage().delete('user');
+      }
+      
+      getStorage().set('favorites', JSON.stringify(favoriteActivities));
+    } catch (error) {
+      console.warn('Error persisting store:', error);
     }
-    
-    storage.set('favorites', JSON.stringify(favoriteActivities));
   }
 }));

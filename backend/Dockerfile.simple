@@ -1,0 +1,35 @@
+# Simple Dockerfile without Puppeteer
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install basic dependencies
+RUN apk add --no-cache dumb-init
+
+# Copy package files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install dependencies
+RUN npm install --production
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy application code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Disable scraping in this deployment for now
+ENV DISABLE_SCRAPING=true
+
+# Start the application
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "api/server.js"]

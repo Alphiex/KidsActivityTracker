@@ -1,0 +1,2 @@
+Proxy server running on http://localhost:3001
+Proxying /api/* to https://kids-activity-api-44042034457.us-central1.run.app

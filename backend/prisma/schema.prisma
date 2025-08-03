@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Provider model (NVRC, etc.)
+model Provider {
+  id            String      @id @default(uuid())
+  name          String      @unique
+  website       String
+  scraperConfig Json?       // Configuration for the scraper
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  activities    Activity[]
+  scrapeJobs    ScrapeJob[]
+  
+  @@index([name])
+}
+
+// Location model
+model Location {
+  id          String      @id @default(uuid())
+  name        String
+  address     String?
+  city        String?
+  province    String?
+  postalCode  String?
+  latitude    Float?
+  longitude   Float?
+  facility    String?     // e.g., "Pool", "Gym", "Field"
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  activities  Activity[]
+  
+  @@unique([name, address])
+  @@index([name])
+  @@index([city])
+}
+
+// Main Activity model
+model Activity {
+  id                String      @id @default(uuid())
+  providerId        String
+  externalId        String      // ID from the provider's system
+  name              String
+  category          String
+  subcategory       String?
+  description       String?
+  
+  // Schedule and dates
+  schedule          String?     // e.g., "Mon, Wed, Fri 3:00pm - 4:00pm"
+  dateStart         DateTime?
+  dateEnd           DateTime?
+  registrationDate  DateTime?
+  
+  // Age and cost
+  ageMin            Int         @default(0)
+  ageMax            Int         @default(18)
+  cost              Float       @default(0)
+  
+  // Availability
+  spotsAvailable    Int         @default(0)
+  totalSpots        Int?
+  
+  // Location
+  locationId        String?
+  locationName      String?     // Denormalized for performance
+  
+  // Registration
+  registrationUrl   String?
+  courseId          String?
+  
+  // Status
+  isActive          Boolean     @default(true)
+  lastSeenAt        DateTime    @default(now())
+  
+  // Metadata
+  rawData           Json?       // Store original scraped data
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  // Relations
+  provider          Provider    @relation(fields: [providerId], references: [id])
+  location          Location?   @relation(fields: [locationId], references: [id])
+  favorites         Favorite[]
+  history           ActivityHistory[]
+  
+  @@unique([providerId, externalId])
+  @@index([providerId])
+  @@index([category])
+  @@index([locationId])
+  @@index([dateStart])
+  @@index([ageMin, ageMax])
+  @@index([cost])
+  @@index([isActive, lastSeenAt])
+}
+
+// User model
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  name          String?
+  
+  // Preferences
+  preferences   Json?       // Store user preferences (age ranges, locations, etc.)
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  favorites     Favorite[]
+  
+  @@index([email])
+}
+
+// Favorite activities
+model Favorite {
+  id          String      @id @default(uuid())
+  userId      String
+  activityId  String
+  notes       String?
+  createdAt   DateTime    @default(now())
+  
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity    Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, activityId])
+  @@index([userId])
+  @@index([activityId])
+}
+
+// Activity history tracking
+model ActivityHistory {
+  id          String      @id @default(uuid())
+  activityId  String
+  fieldName   String
+  oldValue    String?
+  newValue    String?
+  changedAt   DateTime    @default(now())
+  
+  activity    Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@index([activityId])
+  @@index([changedAt])
+}
+
+// Scrape job tracking
+model ScrapeJob {
+  id                String      @id @default(uuid())
+  providerId        String
+  status            JobStatus   @default(PENDING)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  
+  // Metrics
+  activitiesFound   Int         @default(0)
+  activitiesCreated Int         @default(0)
+  activitiesUpdated Int         @default(0)
+  activitiesRemoved Int         @default(0)
+  
+  // Error handling
+  errorMessage      String?
+  errorDetails      Json?
+  
+  createdAt         DateTime    @default(now())
+  
+  provider          Provider    @relation(fields: [providerId], references: [id])
+  
+  @@index([providerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Enums
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

@@ -12,11 +12,13 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const preferencesService = PreferencesService.getInstance();
   const [preferences, setPreferences] = useState(preferencesService.getPreferences());
+  const { colors, mode, setMode, isDark } = useTheme();
 
   const settingsSections = [
     {
@@ -106,10 +108,20 @@ const SettingsScreen = () => {
       icon: 'palette',
       items: [
         {
-          title: 'Theme',
-          subtitle: preferences.theme.charAt(0).toUpperCase() + preferences.theme.slice(1),
-          icon: 'theme-light-dark',
-          onPress: () => navigation.navigate('ThemeSettings'),
+          title: 'Dark Mode',
+          subtitle: mode === 'system' ? 'System' : (isDark ? 'On' : 'Off'),
+          icon: isDark ? 'weather-night' : 'weather-sunny',
+          toggle: true,
+          value: mode === 'dark' || (mode === 'system' && isDark),
+          onToggle: (value: boolean) => {
+            setMode(value ? 'dark' : 'light');
+          },
+        },
+        {
+          title: 'Theme Settings',
+          subtitle: 'Customize appearance',
+          icon: 'palette',
+          onPress: () => showThemeOptions(),
         },
         {
           title: 'View Type',
@@ -229,23 +241,36 @@ const SettingsScreen = () => {
     );
   };
 
+  const showThemeOptions = () => {
+    Alert.alert(
+      'Theme Settings',
+      'Choose your preferred theme',
+      [
+        { text: 'Light', onPress: () => setMode('light') },
+        { text: 'Dark', onPress: () => setMode('dark') },
+        { text: 'System', onPress: () => setMode('system') },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const renderSettingItem = (item: any) => {
     if (item.toggle) {
       return (
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, { backgroundColor: colors.cardBackground }]}>
           <View style={styles.settingItemLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: '#667eea20' }]}>
-              <Icon name={item.icon} size={24} color="#667eea" />
+            <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+              <Icon name={item.icon} size={24} color={colors.primary} />
             </View>
             <View style={styles.settingItemText}>
-              <Text style={styles.settingItemTitle}>{item.title}</Text>
-              <Text style={styles.settingItemSubtitle}>{item.subtitle}</Text>
+              <Text style={[styles.settingItemTitle, { color: colors.text }]}>{item.title}</Text>
+              <Text style={[styles.settingItemSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
             </View>
           </View>
           <Switch
             value={item.value}
             onValueChange={item.onToggle}
-            trackColor={{ false: '#ddd', true: '#667eea' }}
+            trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor={item.value ? '#fff' : '#f4f3f4'}
           />
         </View>
@@ -254,30 +279,30 @@ const SettingsScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.settingItem}
+        style={[styles.settingItem, { backgroundColor: colors.cardBackground }]}
         onPress={item.onPress}
         disabled={!item.onPress}
       >
         <View style={styles.settingItemLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: '#667eea20' }]}>
-            <Icon name={item.icon} size={24} color="#667eea" />
+          <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+            <Icon name={item.icon} size={24} color={colors.primary} />
           </View>
           <View style={styles.settingItemText}>
-            <Text style={styles.settingItemTitle}>{item.title}</Text>
-            <Text style={styles.settingItemSubtitle}>{item.subtitle}</Text>
+            <Text style={[styles.settingItemTitle, { color: colors.text }]}>{item.title}</Text>
+            <Text style={[styles.settingItemSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
           </View>
         </View>
         {item.onPress && (
-          <Icon name="chevron-right" size={24} color="#ccc" />
+          <Icon name="chevron-right" size={24} color={colors.textSecondary} />
         )}
       </TouchableOpacity>
     );
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={[colors.gradientStart, colors.gradientEnd]}
         style={styles.header}
       >
         <View style={styles.headerContent}>
@@ -292,15 +317,15 @@ const SettingsScreen = () => {
       {settingsSections.map((section, index) => (
         <View key={index} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Icon name={section.icon} size={20} color="#667eea" />
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Icon name={section.icon} size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
           </View>
-          <View style={styles.sectionContent}>
+          <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
             {section.items.map((item, itemIndex) => (
               <View key={itemIndex}>
                 {renderSettingItem(item)}
                 {itemIndex < section.items.length - 1 && (
-                  <View style={styles.divider} />
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
                 )}
               </View>
             ))}
@@ -309,10 +334,10 @@ const SettingsScreen = () => {
       ))}
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, { color: colors.textSecondary }]}>
           Kids Activity Tracker v1.0.0
         </Text>
-        <Text style={styles.footerSubtext}>
+        <Text style={[styles.footerSubtext, { color: colors.textSecondary }]}>
           Made with ❤️ for busy parents
         </Text>
       </View>

@@ -3,16 +3,19 @@ import { Platform } from 'react-native';
 // Enable mock mode to bypass network issues
 const USE_MOCK_API = false; // Set to false to use real API
 
+// Force proxy URL for debugging
+const FORCE_PROXY = true;
+
 // API Configuration
 const API_CONFIG = {
-  // Use localhost for iOS simulator
-  // For real device testing, replace with your computer's IP address
-  // On iOS simulator, use 127.0.0.1 instead of localhost
-  // For physical device testing, use your laptop's IP address
-  BASE_URL: __DEV__ 
+  // Use localhost for iOS simulator to bypass network issues
+  // The proxy server handles the connection to the real API
+  BASE_URL: __DEV__ && FORCE_PROXY
+    ? 'http://localhost:3001'  // Force proxy for all platforms in dev
+    : __DEV__ 
     ? Platform.select({
-        ios: 'https://kids-activity-api-44042034457.us-central1.run.app',  // Cloud API for development
-        android: 'https://kids-activity-api-44042034457.us-central1.run.app',  // Cloud API for development
+        ios: 'http://localhost:3001',  // Use local proxy for iOS simulator
+        android: 'http://10.0.2.2:3001',  // Use local proxy for Android emulator
       })
     : 'https://kids-activity-api-44042034457.us-central1.run.app',  // Production URL
   

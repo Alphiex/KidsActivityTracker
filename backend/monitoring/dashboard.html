@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kids Activity Tracker - Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">Kids Activity Tracker - Monitoring Dashboard</h1>
+        
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-600">Total Activities</h2>
+                <p class="text-3xl font-bold text-blue-600" id="totalActivities">-</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-600">Success Rate</h2>
+                <p class="text-3xl font-bold text-green-600" id="successRate">-</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-600">Queue Status</h2>
+                <p class="text-3xl font-bold text-orange-600" id="queueStatus">-</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-600">Last Scrape</h2>
+                <p class="text-sm font-medium text-gray-700" id="lastScrape">-</p>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Categories Chart -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Activities by Category</h2>
+                <canvas id="categoriesChart"></canvas>
+            </div>
+            
+            <!-- Job Status Chart -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Job Status (Last 7 Days)</h2>
+                <canvas id="jobStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Providers Table -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Providers</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active Activities</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Jobs</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="providersTable" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Jobs -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">Recent Scrape Jobs</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activities</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobsTable" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/v1';
+        let categoriesChart = null;
+        let jobStatusChart = null;
+
+        // Fetch and display dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await axios.get(`${API_BASE}/stats/dashboard`);
+                const data = response.data.dashboard;
+
+                // Update summary cards
+                document.getElementById('totalActivities').textContent = data.activities.totalActive.toLocaleString();
+                document.getElementById('successRate').textContent = data.jobs.successRate + '%';
+                document.getElementById('queueStatus').textContent = `${data.queue.active} active, ${data.queue.waiting} waiting`;
+
+                // Update categories chart
+                updateCategoriesChart(data.activities.byCategory);
+
+                // Update job status chart
+                updateJobStatusChart(data.jobs.statusCounts);
+
+                // Update providers table
+                updateProvidersTable(data.providers);
+
+                // Load recent jobs
+                loadRecentJobs();
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        // Update categories chart
+        function updateCategoriesChart(categories) {
+            const ctx = document.getElementById('categoriesChart').getContext('2d');
+            
+            if (categoriesChart) {
+                categoriesChart.destroy();
+            }
+
+            categoriesChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: categories.map(c => c.category),
+                    datasets: [{
+                        data: categories.map(c => c.count),
+                        backgroundColor: [
+                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+                            '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update job status chart
+        function updateJobStatusChart(statusCounts) {
+            const ctx = document.getElementById('jobStatusChart').getContext('2d');
+            
+            if (jobStatusChart) {
+                jobStatusChart.destroy();
+            }
+
+            const labels = Object.keys(statusCounts);
+            const data = Object.values(statusCounts);
+
+            jobStatusChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Jobs',
+                        data: data,
+                        backgroundColor: {
+                            'COMPLETED': '#10B981',
+                            'FAILED': '#EF4444',
+                            'RUNNING': '#3B82F6',
+                            'PENDING': '#F59E0B',
+                            'CANCELLED': '#6B7280'
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update providers table
+        function updateProvidersTable(providers) {
+            const tbody = document.getElementById('providersTable');
+            tbody.innerHTML = providers.map(provider => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${provider.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${provider.activeActivities}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${provider.totalJobs}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button onclick="triggerScrape('${provider.id}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                            Scrape Now
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Load recent jobs
+        async function loadRecentJobs() {
+            try {
+                const response = await axios.get(`${API_BASE}/scraper/jobs?limit=10`);
+                const jobs = response.data.jobs;
+
+                const tbody = document.getElementById('jobsTable');
+                tbody.innerHTML = jobs.map(job => {
+                    const duration = job.completedAt && job.startedAt 
+                        ? Math.round((new Date(job.completedAt) - new Date(job.startedAt)) / 1000) + 's'
+                        : '-';
+                    
+                    const statusClass = {
+                        'COMPLETED': 'text-green-600',
+                        'FAILED': 'text-red-600',
+                        'RUNNING': 'text-blue-600',
+                        'PENDING': 'text-yellow-600'
+                    }[job.status] || 'text-gray-600';
+
+                    return `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${new Date(job.createdAt).toLocaleString()}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${job.provider.name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="${statusClass} font-medium">${job.status}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${job.activitiesFound || 0}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${duration}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Update last scrape time
+                if (jobs.length > 0 && jobs[0].completedAt) {
+                    document.getElementById('lastScrape').textContent = new Date(jobs[0].completedAt).toLocaleString();
+                }
+
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+            }
+        }
+
+        // Trigger manual scrape
+        async function triggerScrape(providerId) {
+            try {
+                const response = await axios.post(`${API_BASE}/scraper/trigger`, { providerId });
+                alert(`Scrape job queued: ${response.data.jobId}`);
+                // Reload dashboard after a delay
+                setTimeout(loadDashboard, 2000);
+            } catch (error) {
+                alert('Error triggering scrape: ' + error.message);
+            }
+        }
+
+        // Load dashboard on page load
+        loadDashboard();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>
