@@ -49,7 +49,7 @@ class NVRCWorkingHierarchicalScraper {
       console.log('\n📍 Navigating to NVRC find program page...');
       await page.goto('https://www.nvrc.ca/programs-memberships/find-program', {
         waitUntil: 'networkidle0',
-        timeout: 60000
+        timeout: 90000 // Increased timeout for slow cloud network
       });
 
       await page.waitForSelector('form', { timeout: 30000 });
@@ -99,7 +99,7 @@ class NVRCWorkingHierarchicalScraper {
           });
         console.log(`Found ${checkboxes.length} activity checkboxes`);
         return checkboxes.length > 10;
-      }, { timeout: 30000, polling: 1000 });
+      }, { timeout: 60000, polling: 1000 }); // Increased timeout to 60 seconds
       
       console.log('  ✅ Step 2 activities loaded!');
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -108,63 +108,142 @@ class NVRCWorkingHierarchicalScraper {
       console.log('\n🎯 STEP 2: Selecting ALL program activities...');
       
       const selectedActivities = await page.evaluate(() => {
-        // Find all section headers and their checkboxes
-        const sections = Array.from(document.querySelectorAll('.form-type-checkboxes'));
+        // Find all checkboxes that look like activities
+        const allCheckboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
         const activities = [];
         let totalSelected = 0;
         
-        sections.forEach(section => {
-          // Skip the age groups section
-          const sectionTitle = section.querySelector('.fieldset-legend')?.textContent || '';
-          if (sectionTitle.includes('age') || sectionTitle.includes('Age')) {
-            return;
+        // Define activity keywords to look for
+        const activityKeywords = [
+          'Swim', 'Camp', 'Sport', 'Art', 'Dance', 'Music', 'Gym', 'Climb', 
+          'Martial', 'Cooking', 'Yoga', 'Tennis', 'Basketball', 'Soccer',
+          'Fitness', 'Spin', 'Strength', 'Cardio', 'Aquatic', 'Leadership',
+          'Certification', 'Early Years', 'Night Out', 'Learn', 'Play',
+          'Skating', 'Multisport', 'Racquet', 'Team', 'Visual', 'Pottery',
+          'Movement', 'Badminton', 'Pickleball', 'Squash', 'Table Tennis',
+          'Volleyball', 'Guitar', 'Ukulele', 'Drawing', 'Painting', 'Mixed Media'
+        ];
+        
+        allCheckboxes.forEach(cb => {
+          const label = cb.parentElement?.textContent?.trim() || '';
+          
+          // Check if this is an activity checkbox
+          const isActivity = activityKeywords.some(keyword => 
+            label.includes(keyword) && 
+            !label.includes('years') && 
+            !label.includes('Age') &&
+            !label.includes('Parent Participation')
+          );
+          
+          if (isActivity && !cb.checked) {
+            cb.click();
+            activities.push(label);
+            totalSelected++;
+            console.log(`Selected activity: ${label}`);
           }
-          
-          // Get all checkboxes in this section
-          const checkboxes = Array.from(section.querySelectorAll('input[type="checkbox"]'));
-          
-          checkboxes.forEach(cb => {
-            const label = cb.parentElement?.textContent?.trim() || '';
-            
-            // Skip if already checked or if it's an age-related checkbox
-            if (!cb.checked && label && !label.includes('years') && !label.includes('Age')) {
-              cb.click();
-              activities.push(label);
-              totalSelected++;
-              console.log(`Selected activity: ${label}`);
-            }
-          });
         });
+        
+        // If we didn't find many activities, try another approach
+        if (totalSelected < 10) {
+          console.log('Trying alternative approach...');
+          
+          // Find all section headers and their checkboxes
+          const sections = Array.from(document.querySelectorAll('.form-type-checkboxes'));
+          
+          sections.forEach(section => {
+            // Skip the age groups section
+            const sectionTitle = section.querySelector('.fieldset-legend')?.textContent || '';
+            if (sectionTitle.includes('age') || sectionTitle.includes('Age')) {
+              return;
+            }
+            
+            // Get all checkboxes in this section
+            const checkboxes = Array.from(section.querySelectorAll('input[type="checkbox"]'));
+            
+            checkboxes.forEach(cb => {
+              const label = cb.parentElement?.textContent?.trim() || '';
+              
+              // Skip if already checked or if it's an age-related checkbox
+              if (!cb.checked && label && !label.includes('years') && !label.includes('Age')) {
+                cb.click();
+                if (!activities.includes(label)) {
+                  activities.push(label);
+                  totalSelected++;
+                  console.log(`Selected activity (alt): ${label}`);
+                }
+              }
+            });
+          });
+        }
         
         return { activities, totalSelected };
       });
       
       console.log(`  ✅ Found ${selectedActivities.totalSelected} activity checkboxes`);
       console.log(`  ✅ Selected ${selectedActivities.totalSelected} new activities`);
-      console.log(`  Activities: ${selectedActivities.activities.join(', ')}`);
+      if (selectedActivities.activities.length > 0) {
+        console.log(`  Activities: ${selectedActivities.activities.slice(0, 10).join(', ')}${selectedActivities.activities.length > 10 ? '...' : ''}`);
+      }
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // If we didn't select enough activities, log a warning but continue
+      if (selectedActivities.totalSelected < 20) {
+        console.log('  ⚠️  Warning: Selected fewer activities than expected. Continuing anyway...');
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Give more time for form to update
 
       // STEP 3: Select all locations
       console.log('\n⏳ Waiting for Step 3 locations to appear...');
       
+      // Wait longer and add more debugging
       await page.waitForFunction(() => {
-        const selectAllOption = Array.from(document.querySelectorAll('label'))
-          .find(label => label.textContent?.includes('Select all locations available'));
+        // Check for various possible location selectors
+        const labels = Array.from(document.querySelectorAll('label'));
+        const selectAllOption = labels.find(label => {
+          const text = label.textContent || '';
+          return text.includes('Select all locations') || 
+                 text.includes('all locations available') ||
+                 text.includes('All locations');
+        });
+        
+        // Also check if there are individual location checkboxes
+        const locationCheckboxes = labels.filter(label => {
+          const text = label.textContent || '';
+          return text.includes('Centre') || 
+                 text.includes('Park') || 
+                 text.includes('Arena') ||
+                 text.includes('Pool');
+        });
+        
+        console.log(`Found ${labels.length} labels, ${locationCheckboxes.length} location labels`);
+        
         if (selectAllOption) {
           console.log('Found "Select all locations" option!');
           return true;
         }
+        
+        // If we find individual locations but no "select all", that's also OK
+        if (locationCheckboxes.length > 5) {
+          console.log('Found individual location checkboxes');
+          return true;
+        }
+        
         return false;
-      }, { timeout: 30000, polling: 1000 });
+      }, { timeout: 90000, polling: 2000 }); // Increased timeout to 90 seconds with slower polling
       
       console.log('  ✅ Step 3 locations loaded!');
       
-      console.log('\n📍 STEP 3: Selecting "Select all locations available"...');
+      console.log('\n📍 STEP 3: Selecting all locations...');
       
       const locationSelected = await page.evaluate(() => {
+        // First try to find "Select all locations" option
         const selectAllLabel = Array.from(document.querySelectorAll('label'))
-          .find(label => label.textContent?.includes('Select all locations available'));
+          .find(label => {
+            const text = label.textContent || '';
+            return text.includes('Select all locations') || 
+                   text.includes('all locations available') ||
+                   text.includes('All locations');
+          });
         
         if (selectAllLabel) {
           const checkbox = selectAllLabel.querySelector('input[type="checkbox"]') ||
@@ -172,13 +251,41 @@ class NVRCWorkingHierarchicalScraper {
           
           if (checkbox && !checkbox.checked) {
             checkbox.click();
-            return true;
+            console.log('Clicked "Select all locations" checkbox');
+            return { method: 'select-all', count: 1 };
           }
         }
-        return false;
+        
+        // If no "select all" option, select individual locations
+        const locationLabels = Array.from(document.querySelectorAll('label'))
+          .filter(label => {
+            const text = label.textContent || '';
+            return (text.includes('Centre') || 
+                    text.includes('Park') || 
+                    text.includes('Arena') ||
+                    text.includes('Pool') ||
+                    text.includes('Field') ||
+                    text.includes('Gym')) &&
+                   !text.includes('years') &&
+                   !text.includes('Select all');
+          });
+        
+        let selectedCount = 0;
+        locationLabels.forEach(label => {
+          const checkbox = label.querySelector('input[type="checkbox"]') ||
+                          label.previousElementSibling;
+          
+          if (checkbox && checkbox.type === 'checkbox' && !checkbox.checked) {
+            checkbox.click();
+            selectedCount++;
+            console.log(`Selected location: ${label.textContent?.trim()}`);
+          }
+        });
+        
+        return { method: 'individual', count: selectedCount };
       });
       
-      console.log(`  ✅ Selected all locations: ${locationSelected}`);
+      console.log(`  ✅ Location selection: ${locationSelected.method} method, ${locationSelected.count} locations`);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Find and click the "Show Results" button
