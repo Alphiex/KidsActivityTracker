@@ -364,8 +364,26 @@ class NVRCWorkingHierarchicalScraper {
       // Extract activities from the results page
       console.log('\n🔍 Extracting activities from results page...');
       
+      // Wait for activities to load
+      await page.waitForFunction(() => {
+        const categories = document.querySelectorAll('.nvrc-activities-category');
+        const hasContent = categories.length > 0 || 
+                          document.querySelector('.nvrc-activities-service') !== null ||
+                          document.querySelector('.activities-category__title') !== null;
+        console.log(`Checking for activities... Categories: ${categories.length}, Has content: ${hasContent}`);
+        return hasContent;
+      }, { timeout: 30000, polling: 2000 }).catch(() => {
+        console.log('⚠️  Warning: Activities may not have loaded fully');
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Extra wait
+      
       const activities = await page.evaluate(() => {
         const allActivities = [];
+        
+        // Log page content for debugging
+        console.log('Page body classes:', document.body.className);
+        console.log('Page title:', document.title);
         
         // Find all category sections
         const categorySections = document.querySelectorAll('.nvrc-activities-category');
@@ -462,8 +480,12 @@ class NVRCWorkingHierarchicalScraper {
                   }
                 }
                 
+                // Use courseId (barcode) as the primary ID since it's unique from NVRC
+                const cleanCourseId = courseId.replace('Barcode:', '').trim();
+                const uniqueId = cleanCourseId || `NVRC_${categoryName}_${serviceName}_${name}_${dates}`.replace(/\s+/g, '_');
+                
                 const activity = {
-                  id: `${categoryName}_${serviceName}_${name}_${index}`.replace(/\s+/g, '_'),
+                  id: uniqueId,  // Use courseId as the stable unique identifier
                   name: name || serviceName,
                   category: categoryName,
                   subcategory: serviceName,
@@ -476,7 +498,7 @@ class NVRCWorkingHierarchicalScraper {
                   spotsAvailable,
                   registrationUrl,
                   registrationDate,
-                  courseId: courseId.replace('Barcode:', '').trim(),
+                  courseId: cleanCourseId,
                   dateRange,
                   provider: 'NVRC',
                   scrapedAt: new Date().toISOString()
