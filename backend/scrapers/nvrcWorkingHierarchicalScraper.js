@@ -349,10 +349,14 @@ class NVRCWorkingHierarchicalScraper {
       
       console.log('\n📍 Current URL:', pageInfo.url);
       
-      // Take screenshot for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        await page.screenshot({ path: 'nvrc-results-page.png', fullPage: true });
-        console.log('📸 Results page screenshot saved');
+      // Take screenshot for debugging (only in local development)
+      if (process.env.NODE_ENV !== 'production' && !process.env.PUPPETEER_EXECUTABLE_PATH) {
+        try {
+          await page.screenshot({ path: 'nvrc-results-page.png', fullPage: true });
+          console.log('📸 Results page screenshot saved');
+        } catch (err) {
+          console.log('📸 Could not save screenshot (expected in cloud environment)');
+        }
       }
       
       console.log('Page info:', pageInfo);
@@ -492,19 +496,25 @@ class NVRCWorkingHierarchicalScraper {
 
       console.log(`\n✅ Successfully extracted ${activities.length} activities`);
       
-      // Save results with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `nvrc_working_hierarchical_${timestamp}.json`;
-      
-      const results = {
-        timestamp: new Date().toISOString(),
-        url: await page.url(),
-        activitiesCount: activities.length,
-        activities
-      };
-      
-      fs.writeFileSync(filename, JSON.stringify(results, null, 2));
-      console.log(`💾 Results saved to ${filename}`);
+      // Save results with timestamp (only in local development)
+      if (!process.env.PUPPETEER_EXECUTABLE_PATH) {
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `nvrc_working_hierarchical_${timestamp}.json`;
+          
+          const results = {
+            timestamp: new Date().toISOString(),
+            url: await page.url(),
+            activitiesCount: activities.length,
+            activities
+          };
+          
+          fs.writeFileSync(filename, JSON.stringify(results, null, 2));
+          console.log(`💾 Results saved to ${filename}`);
+        } catch (err) {
+          console.log('💾 Could not save results file (expected in cloud environment)');
+        }
+      }
       
       return activities;
       
