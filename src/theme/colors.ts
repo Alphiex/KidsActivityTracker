@@ -23,7 +23,10 @@ export const Colors = {
   // Neutral colors
   white: '#FFFFFF',
   black: '#000000',
-  gray: {
+  gray: '#6C757D',
+  lightGray: '#E9ECEF',
+  darkGray: '#343A40',
+  grayScale: {
     100: '#F8F9FA',
     200: '#E9ECEF',
     300: '#DEE2E6',

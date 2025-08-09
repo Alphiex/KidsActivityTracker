@@ -1,0 +1,37 @@
+# Lightweight auth deployment
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', './backend/Dockerfile.auth', '-t', 'gcr.io/${PROJECT_ID}/kids-activity-api:auth-light-${SHORT_SHA}', './backend']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/${PROJECT_ID}/kids-activity-api:auth-light-${SHORT_SHA}']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'kids-activity-api'
+      - '--image'
+      - 'gcr.io/${PROJECT_ID}/kids-activity-api:auth-light-${SHORT_SHA}'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,FRONTEND_URL=https://kidsactivitytracker.com,BCRYPT_SALT_ROUNDS=12,RATE_LIMIT_WINDOW_MS=900000,RATE_LIMIT_MAX_REQUESTS=100'
+      - '--set-secrets'
+      - 'DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest,JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,SESSION_SECRET=session-secret:latest'
+      - '--min-instances'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '300'
+
+timeout: '600s'

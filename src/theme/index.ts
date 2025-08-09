@@ -96,3 +96,26 @@ export const Theme = {
 };
 
 export { Colors } from './colors';
+
+// Export convenience colors for auth screens
+export const colors = {
+  primary: Colors.primary,
+  primaryDark: Colors.primaryDark,
+  secondary: Colors.secondary,
+  background: Colors.background,
+  surface: Colors.surface,
+  text: Colors.text.primary,
+  textSecondary: Colors.text.secondary,
+  error: Colors.error,
+  success: Colors.success,
+  warning: Colors.warning,
+  white: Colors.white,
+  black: Colors.black,
+  gray: Colors.gray,
+  lightGray: Colors.lightGray,
+  darkGray: Colors.darkGray,
+  inputBackground: Colors.grayScale[100],
+  inputBorder: Colors.grayScale[300],
+  divider: Colors.grayScale[300],
+  lightBackground: Colors.grayScale[100],
+};

@@ -1,183 +1,55 @@
-import { create } from 'zustand';
-import { MMKV } from 'react-native-mmkv';
-import { Activity, User, Filter, Child, SiteAccount } from '../types';
+import { configureStore } from '@reduxjs/toolkit';
+import { 
+  persistStore, 
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER
+} from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { combineReducers } from 'redux';
 
-// Lazy initialize MMKV to avoid New Architecture initialization issues
-let storage: MMKV | null = null;
-const getStorage = () => {
-  if (!storage) {
-    storage = new MMKV();
-  }
-  return storage;
+// Import slices
+import authReducer from './slices/authSlice';
+import childrenReducer from './slices/childrenSlice';
+import childActivitiesReducer from './slices/childActivitiesSlice';
+
+// Persist configuration
+const persistConfig = {
+  key: 'root',
+  version: 1,
+  storage: AsyncStorage,
+  whitelist: ['auth', 'children'], // Persist auth and children state
 };
 
-interface AppState {
-  // User data
-  user: User | null;
-  setUser: (user: User | null) => void;
-  
-  // Activities data
-  activities: Activity[];
-  setActivities: (activities: Activity[]) => void;
-  favoriteActivities: string[];
-  toggleFavorite: (activityId: string) => void;
-  
-  // Filters
-  activeFilter: Filter;
-  setFilter: (filter: Filter) => void;
-  
-  // Children management
-  addChild: (child: Child) => void;
-  updateChild: (childId: string, child: Partial<Child>) => void;
-  deleteChild: (childId: string) => void;
-  
-  // Site accounts
-  addSiteAccount: (account: SiteAccount) => void;
-  updateSiteAccount: (accountId: string, account: Partial<SiteAccount>) => void;
-  deleteSiteAccount: (accountId: string) => void;
-  
-  // Loading states
-  isLoading: boolean;
-  setLoading: (loading: boolean) => void;
-  
-  // Persistence
-  hydrate: () => void;
-  persist: () => void;
-}
+const rootReducer = combineReducers({
+  auth: authReducer,
+  children: childrenReducer,
+  childActivities: childActivitiesReducer,
+});
 
-export const useStore = create<AppState>((set, get) => ({
-  user: null,
-  activities: [],
-  favoriteActivities: [],
-  activeFilter: {},
-  isLoading: false,
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
-  setUser: (user) => {
-    set({ user });
-    get().persist();
-  },
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
+});
 
-  setActivities: (activities) => set({ activities }),
+export const persistor = persistStore(store);
 
-  toggleFavorite: (activityId) => {
-    const { favoriteActivities } = get();
-    const updated = favoriteActivities.includes(activityId)
-      ? favoriteActivities.filter(id => id !== activityId)
-      : [...favoriteActivities, activityId];
-    set({ favoriteActivities: updated });
-    get().persist();
-  },
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
 
-  setFilter: (filter) => set({ activeFilter: filter }),
+// Export hooks for TypeScript
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 
-  addChild: (child) => {
-    const { user } = get();
-    if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      children: [...user.children, child]
-    };
-    set({ user: updatedUser });
-    get().persist();
-  },
-
-  updateChild: (childId, childUpdate) => {
-    const { user } = get();
-    if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      children: user.children.map(child => 
-        child.id === childId ? { ...child, ...childUpdate } : child
-      )
-    };
-    set({ user: updatedUser });
-    get().persist();
-  },
-
-  deleteChild: (childId) => {
-    const { user } = get();
-    if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      children: user.children.filter(child => child.id !== childId)
-    };
-    set({ user: updatedUser });
-    get().persist();
-  },
-
-  addSiteAccount: (account) => {
-    const { user } = get();
-    if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      siteAccounts: [...user.siteAccounts, account]
-    };
-    set({ user: updatedUser });
-    get().persist();
-  },
-
-  updateSiteAccount: (accountId, accountUpdate) => {
-    const { user } = get();
-    if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      siteAccounts: user.siteAccounts.map(account => 
-        account.id === accountId ? { ...account, ...accountUpdate } : account
-      )
-    };
-    set({ user: updatedUser });
-    get().persist();
-  },
-
-  deleteSiteAccount: (accountId) => {
-    const { user } = get();
-    if (!user) return;
-    
-    const updatedUser = {
-      ...user,
-      siteAccounts: user.siteAccounts.filter(account => account.id !== accountId)
-    };
-    set({ user: updatedUser });
-    get().persist();
-  },
-
-  setLoading: (loading) => set({ isLoading: loading }),
-
-  hydrate: () => {
-    try {
-      const userString = getStorage().getString('user');
-      const favoritesString = getStorage().getString('favorites');
-      
-      if (userString) {
-        set({ user: JSON.parse(userString) });
-      }
-      
-      if (favoritesString) {
-        set({ favoriteActivities: JSON.parse(favoritesString) });
-      }
-    } catch (error) {
-      console.warn('Error hydrating store:', error);
-    }
-  },
-
-  persist: () => {
-    try {
-      const { user, favoriteActivities } = get();
-      
-      if (user) {
-        getStorage().set('user', JSON.stringify(user));
-      } else {
-        getStorage().delete('user');
-      }
-      
-      getStorage().set('favorites', JSON.stringify(favoriteActivities));
-    } catch (error) {
-      console.warn('Error persisting store:', error);
-    }
-  }
-}));
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;

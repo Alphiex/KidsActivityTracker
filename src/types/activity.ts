@@ -18,6 +18,7 @@ export interface Activity {
   };
   cost: number;
   spotsAvailable: number;
+  totalSpots?: number;
   registrationUrl?: string;
   courseId?: string;
   provider: string;
@@ -28,6 +29,20 @@ export interface Activity {
   };
   registrationDate?: Date | string;
   alert?: string;
+  
+  // Enhanced detail fields
+  registrationStatus?: string;
+  registrationButtonText?: string;
+  detailUrl?: string;
+  fullDescription?: string;
+  instructor?: string;
+  prerequisites?: string;
+  whatToBring?: string;
+  fullAddress?: string;
+  latitude?: number;
+  longitude?: number;
+  directRegistrationUrl?: string;
+  contactInfo?: string;
   
   // New fields for enhanced features
   isFavorite?: boolean;

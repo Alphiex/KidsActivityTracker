@@ -1,161 +1,401 @@
 # Kids Activity Tracker Backend
 
-A scalable backend API for the Kids Activity Tracker app that scrapes, stores, and serves activity data for kids in North Vancouver.
+Node.js backend API for the Kids Activity Tracker mobile application, providing activity data, user authentication, and real-time updates from North Vancouver Recreation & Culture.
 
-## Architecture
+## Overview
 
-The backend follows a 3-tier architecture:
+This backend provides:
+- 🔄 Automated activity scraping from NVRC (5000+ activities)
+- 🔐 JWT-based authentication with refresh tokens
+- 📊 RESTful API with advanced filtering and pagination
+- ❤️ User favorites and preferences management
+- 🚀 Production deployment on Google Cloud Run
+- 📈 Real-time monitoring and analytics
+- 💾 PostgreSQL with Prisma ORM
+- ⚡ Redis caching for performance
 
-1. **API Layer** (Cloud Run)
-   - RESTful API built with Express.js
-   - Serves activity data to mobile apps
-   - Handles user preferences and favorites
-   - Rate limiting and security features
+## Tech Stack
 
-2. **Data Layer** (Cloud SQL + Redis)
-   - PostgreSQL for persistent storage
-   - Redis for job queuing and caching
-   - Prisma ORM for database management
+- **Runtime**: Node.js 18+ with TypeScript
+- **Framework**: Express.js
+- **Database**: PostgreSQL 14+ with Prisma ORM
+- **Caching**: Redis 6+
+- **Authentication**: JWT (access/refresh tokens)
+- **Deployment**: Google Cloud Run
+- **Scraping**: Puppeteer
+- **Monitoring**: Custom dashboard
 
-3. **Processing Layer** (Cloud Run Jobs)
-   - Scheduled scraping jobs (hourly)
-   - Puppeteer-based web scraping
-   - Activity data normalization
+## Project Structure
 
-## Features
+```
+backend/
+├── src/                    # TypeScript source code
+│   ├── routes/            # API route handlers
+│   │   ├── auth.ts        # Authentication endpoints
+│   │   ├── activities.ts  # Activity endpoints
+│   │   ├── favorites.ts   # Favorites management
+│   │   └── reference.ts   # Categories, locations, etc.
+│   ├── services/          # Business logic
+│   │   ├── authService.ts # JWT handling
+│   │   ├── activityService.ts # Activity operations
+│   │   └── scraperService.ts # NVRC scraping
+│   ├── middleware/        # Express middleware
+│   │   ├── auth.ts        # JWT verification
+│   │   ├── cors.ts        # CORS configuration
+│   │   └── rateLimit.ts   # Rate limiting
+│   ├── utils/            # Utility functions
+│   └── server.ts         # Main application
+├── prisma/               # Database schema
+│   ├── schema.prisma     # Prisma schema definition
+│   ├── migrations/       # Database migrations
+│   └── seed.js          # Sample data seeding
+├── scripts/             # Utility scripts
+├── monitoring/          # Monitoring dashboard
+└── tests/              # Test files
+```
 
-- 🔄 Automated hourly scraping of activity providers
-- 📊 RESTful API with comprehensive filtering
-- ❤️ User favorites and recommendations
-- 🔍 Advanced search and filtering
-- 📈 Real-time monitoring dashboard
-- 🔒 Production-ready security
-- ☁️ Google Cloud Platform deployment
-
-## Local Development
+## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL 15+
-- Redis 7+
-- Docker (optional)
+- PostgreSQL 14+
+- Redis (optional for caching)
+- npm or yarn
 
-### Setup
+### Installation
 
-1. Clone the repository
-2. Install dependencies:
+1. **Clone and install dependencies**
    ```bash
    cd backend
    npm install
    ```
 
-3. Set up environment variables:
+2. **Set up environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your database credentials
    ```
 
-4. Set up the database:
+   Edit `.env` with your configuration:
+   ```env
+   # Database
+   DATABASE_URL="postgresql://user:password@localhost:5432/kidsactivitytracker"
+   
+   # Redis (optional)
+   REDIS_URL="redis://localhost:6379"
+   
+   # JWT Secrets (generate secure random strings)
+   JWT_ACCESS_SECRET="your-access-secret"
+   JWT_REFRESH_SECRET="your-refresh-secret"
+   
+   # Session
+   SESSION_SECRET="your-session-secret"
+   
+   # Server
+   PORT=3000
+   NODE_ENV=development
+   FRONTEND_URL=http://localhost:8081
+   ```
+
+3. **Set up database**
    ```bash
+   # Create database
+   createdb kidsactivitytracker
+   
+   # Generate Prisma client
    npm run db:generate
+   
+   # Run migrations
    npm run db:migrate
+   
+   # Seed with sample data (optional)
    npm run db:seed
    ```
 
-5. Start services:
+4. **Start development server**
    ```bash
-   # Terminal 1: Start Redis
-   redis-server
-
-   # Terminal 2: Start API server
    npm run dev
-
-   # Terminal 3: Start monitoring dashboard
-   npm run monitoring
    ```
 
-### API Endpoints
+   The API will be available at `http://localhost:3000`
 
-- `GET /health` - Health check
-- `GET /api/v1/activities` - Search activities with filters
-- `GET /api/v1/activities/:id` - Get activity details
-- `POST /api/v1/users` - Create user
-- `POST /api/v1/favorites` - Add favorite
-- `GET /api/v1/users/:userId/favorites` - Get user favorites
-- `POST /api/v1/scraper/trigger` - Manually trigger scraping
+## API Documentation
 
-### Testing
+### Base URL
+- **Production**: `https://kids-activity-api-44042034457.us-central1.run.app`
+- **Local**: `http://localhost:3000`
+
+### Authentication
+
+All authenticated endpoints require:
+```
+Authorization: Bearer <access_token>
+```
+
+#### POST /api/auth/register
+Create a new account
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!",
+  "name": "John Doe"
+}
+```
+
+#### POST /api/auth/login
+Login with credentials
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+Response includes access and refresh tokens with expiry timestamps.
+
+### Activities
+
+#### GET /api/v1/activities
+Search and filter activities
+
+Query parameters:
+- `search` - Text search
+- `category` - Filter by category
+- `ageMin`, `ageMax` - Age range
+- `costMin`, `costMax` - Price range
+- `location` - Location filter
+- `limit` - Results per page (default: 50)
+- `offset` - Pagination offset
+
+Example:
+```
+GET /api/v1/activities?category=Swimming&ageMin=6&ageMax=12&limit=20
+```
+
+### User Features
+
+#### GET /api/favorites
+Get user's favorite activities (requires auth)
+
+#### POST /api/favorites
+Add activity to favorites
+```json
+{
+  "activityId": "uuid"
+}
+```
+
+#### DELETE /api/favorites/:activityId
+Remove from favorites
+
+### Reference Data
+
+#### GET /api/v1/categories
+Get all activity categories
+
+#### GET /api/v1/locations
+Get all locations
+
+#### GET /api/v1/providers
+Get all activity providers
+
+## Development
+
+### Available Scripts
 
 ```bash
-# Run tests
-npm test
+# Development server with hot reload
+npm run dev
 
-# Run health check
-node scripts/health-check.js
+# Build TypeScript
+npm run build
+
+# Start production server
+npm start
+
+# Database commands
+npm run db:generate    # Generate Prisma client
+npm run db:migrate     # Run migrations
+npm run db:migrate:prod # Production migrations
+npm run db:studio      # Open Prisma Studio
+npm run db:seed        # Seed sample data
+npm run db:reset       # Reset database
+
+# Testing
+npm test              # Run tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+
+# Code quality
+npm run lint          # ESLint
+npm run format        # Prettier
+npm run type-check    # TypeScript check
+
+# Monitoring
+npm run monitoring    # Start monitoring dashboard
+```
+
+### Testing API
+
+Use the included test script:
+```bash
+./TEST_API.sh
+```
+
+Or test manually with curl:
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# Login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Test123!"}'
 ```
 
 ## Deployment
 
-The backend is designed for Google Cloud Platform deployment:
+### Google Cloud Run
 
-### Infrastructure
+The backend is deployed on Google Cloud Run for automatic scaling and high availability.
 
-- **Cloud Run**: Serverless container hosting
-- **Cloud SQL**: Managed PostgreSQL
-- **Memorystore Redis**: Managed Redis
-- **Cloud Scheduler**: Cron job scheduling
-- **Secret Manager**: Secure credential storage
+#### Prerequisites
+- Google Cloud Project with billing enabled
+- gcloud CLI installed and configured
+- Docker installed (for local builds)
 
-### Deploy with Terraform
-
+#### Deploy with Cloud Build
 ```bash
-cd terraform
-terraform init
-terraform apply
+npm run gcp:deploy
 ```
 
-### Deploy with Cloud Build
-
+#### Manual deployment
 ```bash
-gcloud builds submit --config=cloudbuild.yaml .
-```
-
-### Manual Deployment
-
-```bash
-# Build and push Docker image
+# Build Docker image
 docker build -t gcr.io/PROJECT_ID/kids-activity-api .
+
+# Push to Container Registry
 docker push gcr.io/PROJECT_ID/kids-activity-api
 
 # Deploy to Cloud Run
 gcloud run deploy kids-activity-api \
   --image gcr.io/PROJECT_ID/kids-activity-api \
-  --region us-central1
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
 ```
+
+### Environment Configuration
+
+Production environment variables are stored in Google Secret Manager:
+- `database-url`
+- `jwt-access-secret`
+- `jwt-refresh-secret`
+- `session-secret`
+- `redis-url`
 
 ## Monitoring
 
-- **Dashboard**: Access at `/monitoring` endpoint
-- **Logs**: `gcloud run logs read --service=kids-activity-api`
-- **Metrics**: View in Google Cloud Console
+### Health Check
+```bash
+curl https://kids-activity-api-44042034457.us-central1.run.app/health
+```
+
+### Monitoring Dashboard
+Available at `/monitoring` endpoint showing:
+- Request counts and response times
+- Error rates and types
+- Database connection status
+- Cache hit rates
+- System metrics
+
+### Logging
+- Structured JSON logging
+- Cloud Logging integration
+- Error tracking
+- Performance metrics
+
+### Alerts
+Set up in Google Cloud Monitoring for:
+- High error rates (>1%)
+- Slow response times (>1s)
+- Database connection failures
+- Memory/CPU usage
 
 ## Security
 
-- Helmet.js for security headers
-- Rate limiting on API endpoints
-- CORS configuration
-- SQL injection protection via Prisma
-- Secrets stored in Secret Manager
+- **Authentication**: JWT with short-lived access tokens (15 min)
+- **Password Security**: bcrypt with 12 rounds
+- **Rate Limiting**: 100 requests per 15 minutes per IP
+- **Input Validation**: express-validator on all endpoints
+- **SQL Injection**: Protected by Prisma parameterized queries
+- **XSS Protection**: Helmet.js security headers
+- **CORS**: Configured for mobile app origins
+- **Secrets**: Stored in Google Secret Manager
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Database Connection Failed**
+   - Check DATABASE_URL format
+   - Verify PostgreSQL is running
+   - Check network connectivity
+   - For Cloud SQL, ensure Cloud SQL Proxy is running
+
+2. **JWT Authentication Errors**
+   - Verify JWT secrets are set
+   - Check token expiration
+   - Ensure Authorization header format is correct
+   - Verify refresh token flow
+
+3. **Scraping Issues**
+   - Check Puppeteer dependencies
+   - Verify Chrome/Chromium is installed
+   - Check NVRC website changes
+   - Review scraper logs
+
+4. **Performance Problems**
+   - Enable Redis caching
+   - Check database indexes
+   - Review query optimization
+   - Monitor Cloud Run scaling
+
+### Debug Mode
+
+Enable detailed logging:
+```bash
+DEBUG=* npm run dev
+```
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Code Style
+- TypeScript strict mode
+- ESLint configuration
+- Prettier formatting
+- Conventional commits
+
+### Testing Requirements
+- Unit tests for new features
+- Integration tests for API endpoints
+- Minimum 80% code coverage
+- All tests must pass
 
 ## License
 
 MIT License - see LICENSE file for details
+
+## Support
+
+For issues or questions:
+1. Check the [FAQ](../FAQ.md)
+2. Review [DEBUG_API.md](../DEBUG_API.md)
+3. Open a GitHub issue
+4. Contact the development team

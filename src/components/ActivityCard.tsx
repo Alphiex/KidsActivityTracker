@@ -10,24 +10,29 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { Activity } from '../types';
-import { useStore } from '../store';
+import { useAppSelector } from '../store';
+import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 import FavoritesService from '../services/favoritesService';
 import { Colors, Theme } from '../theme';
-import { getPrimaryActivityImage } from '../assets/images';
+import { getActivityImageByKey } from '../assets/images';
 import { useTheme } from '../contexts/ThemeContext';
+import ChildActivityStatus from './activities/ChildActivityStatus';
+import { formatPrice } from '../utils/formatters';
+import { getActivityImageKey } from '../utils/activityHelpers';
 
 const { width } = Dimensions.get('window');
 
 interface ActivityCardProps {
   activity: Activity;
+  onPress?: () => void;
 }
 
-const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
-  const { favoriteActivities, toggleFavorite } = useStore();
+const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
   const favoritesService = FavoritesService.getInstance();
   const [isFavorite, setIsFavorite] = useState(false);
   const [hasCapacityAlert, setHasCapacityAlert] = useState(false);
   const { colors, isDark } = useTheme();
+  const registeredChildIds = useAppSelector(selectActivityChildren(activity.id));
 
   useEffect(() => {
     setIsFavorite(favoritesService.isFavorite(activity.id));
@@ -62,10 +67,17 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
+    <TouchableOpacity 
+      style={[styles.card, { backgroundColor: colors.cardBackground }]}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
       <View style={styles.imageContainer}>
         <Image 
-          source={getPrimaryActivityImage(activity.activityType || [])} 
+          source={getActivityImageByKey(getActivityImageKey(
+            activity.category || (activity.activityType && activity.activityType[0]) || '', 
+            activity.subcategory
+          ))} 
           style={styles.image} 
           resizeMode="cover"
         />
@@ -75,7 +87,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
         />
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>${activity.cost}</Text>
+            <Text style={styles.priceText}>${formatPrice(activity.cost)}</Text>
             <Text style={styles.priceLabel}>per child</Text>
           </View>
         </View>
@@ -83,7 +95,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
           onPress={() => {
             favoritesService.toggleFavorite(activity);
             setIsFavorite(!isFavorite);
-            toggleFavorite(activity.id);
           }}
           style={styles.favoriteButton}
         >
@@ -178,6 +189,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
             ))}
           </View>
         </View>
+
+        {/* Show registered children status */}
+        {registeredChildIds.length > 0 && (
+          <ChildActivityStatus 
+            activityId={activity.id} 
+            compact={true}
+          />
+        )}
       </View>
       
       {/* New: Quick Action Buttons */}
@@ -189,7 +208,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
           <Icon name="calendar-plus" size={20} color="#666" />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

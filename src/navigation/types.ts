@@ -7,4 +7,12 @@ export type RootStackParamList = {
   Favorites: undefined;
   Search: undefined;
   Settings: undefined;
+  Children: undefined;
+};
+
+export type ChildrenStackParamList = {
+  ChildrenList: undefined;
+  AddEditChild: { childId?: string };
+  ChildProfile: { childId: string };
+  ChildActivityHistory: { childId: string; childName: string };
 };

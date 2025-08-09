@@ -15,10 +15,13 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import Slider from '@react-native-community/slider';
 import ActivityCard from '../components/ActivityCard';
+import PaginatedActivityList from '../components/PaginatedActivityList';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { Activity } from '../types';
+import { ActivitySearchParams } from '../types/api';
 import { useTheme } from '../contexts/ThemeContext';
+import { Alert } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,9 +32,7 @@ const SearchScreen = () => {
   const { colors, isDark } = useTheme();
   
   const [searchText, setSearchText] = useState('');
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchFilters, setSearchFilters] = useState<ActivitySearchParams>({});
   const [showFilters, setShowFilters] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([
     'Swimming lessons',
@@ -39,6 +40,7 @@ const SearchScreen = () => {
     'Soccer',
     'Dance',
   ]);
+  const [showRecentSearches, setShowRecentSearches] = useState(true);
 
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -72,79 +74,36 @@ const SearchScreen = () => {
   ];
 
   useEffect(() => {
-    loadAllActivities();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, selectedDays, selectedTimes]);
-
-  const loadAllActivities = async () => {
-    setIsLoading(true);
-    try {
-      const activityService = ActivityService.getInstance();
-      const fetchedActivities = await activityService.searchActivities({});
-      setActivities(fetchedActivities);
-      setFilteredActivities(fetchedActivities);
-    } catch (error) {
-      console.error('Error loading activities:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...activities];
-
-    // Text search
+    // Update search filters when criteria change
+    const filters: ActivitySearchParams = {};
+    
     if (searchText) {
-      filtered = filtered.filter(
-        (activity) =>
-          activity.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          activity.description?.toLowerCase().includes(searchText.toLowerCase()) ||
-          activity.provider.toLowerCase().includes(searchText.toLowerCase())
-      );
+      filters.search = searchText;
+      setShowRecentSearches(false);
+    } else {
+      setShowRecentSearches(true);
     }
-
-    // Category filter
+    
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter((activity) =>
-        selectedCategories.some(cat => 
-          activity.category === cat || 
-          (activity.activityType && activity.activityType.includes(cat))
-        )
-      );
+      filters.category = selectedCategories[0]; // Backend expects single category
     }
-
-    // Location filter
+    
     if (selectedLocations.length > 0) {
-      filtered = filtered.filter((activity) =>
-        selectedLocations.some((loc) => activity.location.includes(loc))
-      );
+      filters.location = selectedLocations[0]; // Backend expects single location  
     }
-
-    // Age filter
-    filtered = filtered.filter(
-      (activity) =>
-        activity.ageRange.min <= ageRange.max &&
-        activity.ageRange.max >= ageRange.min
-    );
-
-    // Price filter
-    filtered = filtered.filter(
-      (activity) => activity.cost >= priceRange.min && activity.cost <= priceRange.max
-    );
-
-    // Day filter
-    if (selectedDays.length > 0) {
-      filtered = filtered.filter((activity) => {
-        // TODO: Check if activity is available on selected days
-        return true; // Placeholder
-      });
+    
+    if (ageRange.min !== 0 || ageRange.max !== 18) {
+      filters.ageMin = ageRange.min;
+      filters.ageMax = ageRange.max;
     }
-
-    setFilteredActivities(filtered);
-  };
+    
+    if (!anyPrice && (priceRange.min !== 0 || priceRange.max !== 1000)) {
+      filters.costMin = priceRange.min;
+      filters.costMax = priceRange.max;
+    }
+    
+    setSearchFilters(filters);
+  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, anyPrice]);
 
   const handleSearch = (text: string) => {
     setSearchText(text);
@@ -153,19 +112,25 @@ const SearchScreen = () => {
     }
   };
 
+  const handleRecentSearchPress = (search: string) => {
+    setSearchText(search);
+  };
+
   const handleQuickFilter = (filterId: string) => {
     switch (filterId) {
       case 'weekend':
         setSelectedDays(['Saturday', 'Sunday']);
+        Alert.alert('Info', 'Weekend filter is coming soon!');
         break;
       case 'free':
+        setAnyPrice(false);
         setPriceRange({ min: 0, max: 0 });
         break;
       case 'nearme':
-        // TODO: Implement location-based filtering
+        Alert.alert('Info', 'Location-based filtering is coming soon!');
         break;
       case 'starting-soon':
-        // TODO: Filter by start date
+        Alert.alert('Info', 'Start date filtering is coming soon!');
         break;
     }
   };
@@ -175,8 +140,15 @@ const SearchScreen = () => {
     setSelectedLocations([]);
     setAgeRange({ min: 0, max: 18 });
     setPriceRange({ min: 0, max: 1000 });
+    setAnyPrice(true);
     setSelectedDays([]);
     setSelectedTimes({ morning: false, afternoon: false, evening: false });
+    setSearchText('');
+  };
+
+  const applyFilters = () => {
+    setShowFilters(false);
+    // Filters are already applied through useEffect
   };
 
   const renderFilterModal = () => (
@@ -371,7 +343,7 @@ const SearchScreen = () => {
             <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
               <Text style={styles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={() => setShowFilters(false)}>
+            <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
               <LinearGradient
                 colors={['#667eea', '#764ba2']}
                 style={styles.applyButtonGradient}
@@ -385,23 +357,9 @@ const SearchScreen = () => {
     </Modal>
   );
 
-  const renderActivity = ({ item }: { item: Activity }) => (
-    <TouchableOpacity
-      onPress={() => {
-        const serializedActivity = {
-          ...item,
-          dateRange: item.dateRange ? {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
-          } : null,
-          scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
-        };
-        navigation.navigate('ActivityDetail', { activity: serializedActivity });
-      }}
-    >
-      <ActivityCard activity={item} />
-    </TouchableOpacity>
-  );
+  const handleActivityPress = (activity: Activity) => {
+    navigation.navigate('ActivityDetail', { activity });
+  };
 
   const activeFiltersCount = 
     selectedCategories.length + 
@@ -464,14 +422,14 @@ const SearchScreen = () => {
         </ScrollView>
       </LinearGradient>
 
-      {searchText === '' && recentSearches.length > 0 ? (
+      {showRecentSearches && recentSearches.length > 0 ? (
         <View style={[styles.recentSearches, { backgroundColor: colors.background }]}>
           <Text style={[styles.recentSearchesTitle, { color: colors.text }]}>Recent Searches</Text>
           {recentSearches.map((search, index) => (
             <TouchableOpacity
               key={index}
               style={[styles.recentSearchItem, { borderBottomColor: colors.border }]}
-              onPress={() => setSearchText(search)}
+              onPress={() => handleRecentSearchPress(search)}
             >
               <Icon name="history" size={20} color={colors.textSecondary} />
               <Text style={[styles.recentSearchText, { color: colors.textSecondary }]}>{search}</Text>
@@ -479,20 +437,13 @@ const SearchScreen = () => {
           ))}
         </View>
       ) : (
-        <FlatList
-          data={filteredActivities}
-          renderItem={renderActivity}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Icon name="magnify-close" size={60} color="#ccc" />
-              <Text style={styles.emptyStateText}>No activities found</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Try adjusting your search or filters
-              </Text>
-            </View>
+        <PaginatedActivityList
+          filters={searchFilters}
+          onActivityPress={handleActivityPress}
+          emptyMessage={
+            searchText 
+              ? `No activities found for "${searchText}"`
+              : 'No activities found. Try adjusting your filters.'
           }
         />
       )}

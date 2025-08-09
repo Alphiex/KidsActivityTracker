@@ -57,6 +57,7 @@ RUN npx prisma generate
 COPY scrapers ./scrapers/
 COPY generated ./generated/
 COPY scraper-job.js ./
+COPY scraper-debug-job.js ./
 
 # Production stage
 FROM node:20-slim
@@ -130,4 +131,4 @@ RUN apt-get update && apt-get install -y gnupg \
 USER pptruser
 
 # Run the scraper
-CMD ["node", "scraper-job.js"]
+CMD ["node", "scraper-debug-job.js"]

@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import Slider from '@react-native-community/slider';
 import PreferencesService from '../services/preferencesService';
+import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 
 const { width, height } = Dimensions.get('window');
 
@@ -535,22 +536,26 @@ const OnboardingScreen = () => {
     }
   };
 
-  const savePreferences = () => {
-    const preferences = preferencesService.getPreferences();
-    preferencesService.updatePreferences({
-      ...preferences,
-      preferredCategories: selectedCategories,
-      ageRanges,
-      priceRange: anyPrice ? { min: 0, max: 999999 } : priceRange,
-      locations: allLocations ? [] : locations,
-      daysOfWeek: allDays ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] : selectedDays,
-      timePreferences: allDays ? { morning: true, afternoon: true, evening: true } : timePreferences,
-      hasCompletedOnboarding: true,
-    });
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'MainTabs' }],
-    });
+  const savePreferences = async () => {
+    try {
+      const preferences = preferencesService.getPreferences();
+      await preferencesService.updatePreferences({
+        ...preferences,
+        preferredCategories: selectedCategories,
+        ageRanges,
+        priceRange: anyPrice ? { min: 0, max: 999999 } : priceRange,
+        locations: allLocations ? [] : locations,
+        daysOfWeek: allDays ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] : selectedDays,
+        timePreferences: allDays ? { morning: true, afternoon: true, evening: true } : timePreferences,
+        hasCompletedOnboarding: true,
+      });
+      
+      // Emit event to notify RootNavigator that onboarding is complete
+      console.log('Onboarding completed, preferences saved');
+      appEventEmitter.emit(APP_EVENTS.ONBOARDING_COMPLETED);
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+    }
   };
 
   const currentStepData = steps[currentStep];

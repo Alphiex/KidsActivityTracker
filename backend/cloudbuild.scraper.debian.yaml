@@ -1,0 +1,34 @@
+steps:
+  # Build the container image with Debian base
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/kids-activity-scraper-debian', '-f', 'Dockerfile.scraper.debian', '.']
+  
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/kids-activity-scraper-debian']
+  
+  # Deploy to Cloud Run Jobs
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'deploy'
+      - 'kids-activity-scraper-debian'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/kids-activity-scraper-debian'
+      - '--region'
+      - 'us-central1'
+      - '--memory'
+      - '4Gi'
+      - '--cpu'
+      - '2'
+      - '--max-retries'
+      - '1'
+      - '--task-timeout'
+      - '30m'
+      - '--set-secrets'
+      - 'DATABASE_URL=database-url:latest'
+
+images:
+  - 'gcr.io/$PROJECT_ID/kids-activity-scraper-debian'

@@ -45,18 +45,18 @@ async function runScraper() {
     
     console.log(`📍 Found provider: ${provider.name} (${provider.id})`);
     
-    // Initialize scraper with headless mode for cloud
+    // Initialize scraper with the same config that works locally
+    const isProduction = process.env.NODE_ENV === 'production';
     const scraper = new NVRCWorkingHierarchicalScraper({
-      headless: true,
+      headless: isProduction ? 'new' : false, // Use new headless mode in production
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-extensions'
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--window-size=1920,1080'
       ]
     });
     

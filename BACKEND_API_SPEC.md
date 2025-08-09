@@ -2,162 +2,515 @@
 
 ## Overview
 
-The mobile app requires a backend API to handle web scraping and automation tasks that cannot be performed directly from the mobile device.
+The Kids Activity Tracker backend provides a RESTful API for managing children's activities, user authentication, favorites, and preferences. The API is built with Node.js, Express, and PostgreSQL, deployed on Google Cloud Run.
 
-## Required Endpoints
+**Base URL**: `https://kids-activity-api-44042034457.us-central1.run.app`
 
-### 1. Camp Scraping
+## Authentication
 
-#### GET /api/scrape/nvrc
-Scrapes NVRC website for camps
+The API uses JWT-based authentication with access and refresh tokens.
 
-Query Parameters:
-- `programs[]`: Array of program types
-- `activities[]`: Array of activity types  
-- `locations[]`: Array of location IDs
-- `dateFrom`: Start date filter
-- `dateTo`: End date filter
+### Headers
+- `Authorization: Bearer <access_token>` - Required for authenticated endpoints
+- `Content-Type: application/json` - Required for all POST/PUT requests
 
-Response:
+## Endpoints
+
+### Health Check
+
+#### GET /health
+Check API health status
+
+**Response:**
 ```json
 {
-  "camps": [
+  "success": true,
+  "status": "healthy",
+  "timestamp": "2025-08-09T00:00:00.000Z"
+}
+```
+
+### Authentication Endpoints
+
+#### POST /api/auth/register
+Create a new user account
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePassword123!",
+  "name": "John Doe"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Registration successful",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "isVerified": false
+  },
+  "tokens": {
+    "accessToken": "jwt_token",
+    "refreshToken": "jwt_token",
+    "accessTokenExpiry": 1754709921,
+    "refreshTokenExpiry": 1755313821
+  }
+}
+```
+
+#### POST /api/auth/login
+Login with email and password
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePassword123!"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "isVerified": true
+  },
+  "tokens": {
+    "accessToken": "jwt_token",
+    "refreshToken": "jwt_token",
+    "accessTokenExpiry": 1754709921,
+    "refreshTokenExpiry": 1755313821
+  }
+}
+```
+
+#### POST /api/auth/refresh
+Refresh access token using refresh token
+
+**Request Body:**
+```json
+{
+  "refreshToken": "jwt_refresh_token"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "tokens": {
+    "accessToken": "new_jwt_token",
+    "refreshToken": "new_refresh_token",
+    "accessTokenExpiry": 1754709921,
+    "refreshTokenExpiry": 1755313821
+  }
+}
+```
+
+#### POST /api/auth/logout
+Logout and invalidate tokens
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logout successful"
+}
+```
+
+#### GET /api/auth/check
+Check if user is authenticated
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "success": true,
+  "authenticated": true,
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com"
+  }
+}
+```
+
+### Activity Endpoints
+
+#### GET /api/v1/activities
+Search and filter activities
+
+**Query Parameters:**
+- `search` (string): Search term for activity name/description
+- `category` (string): Filter by category (e.g., "Swimming", "Camps")
+- `ageMin` (number): Minimum age filter
+- `ageMax` (number): Maximum age filter
+- `costMin` (number): Minimum cost filter
+- `costMax` (number): Maximum cost filter
+- `location` (string): Filter by location
+- `limit` (number): Number of results per page (default: 50)
+- `offset` (number): Pagination offset (default: 0)
+- `sortBy` (string): Sort field (cost, dateStart, name, createdAt)
+- `sortOrder` (string): Sort order (asc, desc)
+
+**Response:**
+```json
+{
+  "success": true,
+  "activities": [
     {
-      "id": "string",
-      "name": "string",
-      "provider": "NVRC",
-      "description": "string",
-      "activityType": ["camps", "swimming"],
-      "ageRange": { "min": 6, "max": 12 },
-      "dateRange": {
-        "start": "2024-07-01",
-        "end": "2024-07-05"
+      "id": "uuid",
+      "name": "Swimming Lessons - Level 1",
+      "description": "Beginner swimming lessons",
+      "category": "Swimming",
+      "provider": {
+        "id": "uuid",
+        "name": "NVRC"
       },
-      "schedule": {
-        "days": ["Monday", "Tuesday"],
-        "startTime": "9:00 AM",
-        "endTime": "4:00 PM"
-      },
-      "location": {
-        "name": "string",
-        "address": "string"
-      },
-      "cost": 250,
+      "location": "Ron Andrews Community Recreation Centre",
+      "ageMin": 6,
+      "ageMax": 12,
+      "cost": 150,
+      "dateStart": "2025-09-01",
+      "dateEnd": "2025-09-30",
+      "registrationUrl": "https://...",
+      "imageUrl": "https://...",
       "spotsAvailable": 5,
       "totalSpots": 20,
-      "registrationUrl": "string",
-      "scrapedAt": "2024-01-01T00:00:00Z"
+      "isActive": true,
+      "createdAt": "2025-08-01T00:00:00.000Z",
+      "updatedAt": "2025-08-01T00:00:00.000Z",
+      "_count": {
+        "favorites": 10
+      }
+    }
+  ],
+  "total": 100,
+  "hasMore": true,
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 100,
+    "pages": 2
+  }
+}
+```
+
+#### GET /api/v1/activities/:id
+Get activity details by ID
+
+**Response:**
+```json
+{
+  "success": true,
+  "activity": {
+    "id": "uuid",
+    "name": "Swimming Lessons - Level 1",
+    "description": "Detailed description...",
+    "category": "Swimming",
+    "provider": {
+      "id": "uuid",
+      "name": "NVRC",
+      "website": "https://nvrc.ca"
+    },
+    "location": {
+      "id": "uuid",
+      "name": "Ron Andrews Community Recreation Centre",
+      "address": "931 Lytton St",
+      "city": "North Vancouver",
+      "province": "BC"
+    },
+    // ... all activity fields
+  }
+}
+```
+
+#### GET /api/v1/activities/stats/summary
+Get activity statistics
+
+**Response:**
+```json
+{
+  "success": true,
+  "stats": {
+    "categories": [
+      {
+        "category": "Swimming",
+        "count": 882
+      },
+      {
+        "category": "Camps",
+        "count": 237
+      }
+    ],
+    "totalCategories": 30,
+    "upcomingCount": 46
+  }
+}
+```
+
+### Favorites Endpoints
+
+#### GET /api/favorites
+Get user's favorite activities
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "success": true,
+  "favorites": [
+    {
+      "id": "uuid",
+      "userId": "uuid",
+      "activityId": "uuid",
+      "notes": "Great for beginners",
+      "createdAt": "2025-08-01T00:00:00.000Z",
+      "activity": {
+        // Full activity object
+      }
     }
   ]
 }
 ```
 
-### 2. Camp Registration
+#### POST /api/favorites
+Add activity to favorites
 
-#### POST /api/register
-Automates camp registration
+**Headers:** `Authorization: Bearer <access_token>`
 
-Request Body:
+**Request Body:**
 ```json
 {
-  "campId": "string",
-  "childId": "string",
-  "siteAccount": {
-    "provider": "NVRC",
-    "username": "string",
-    "password": "string"
+  "activityId": "uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Activity added to favorites",
+  "favorite": {
+    "id": "uuid",
+    "userId": "uuid",
+    "activityId": "uuid",
+    "createdAt": "2025-08-01T00:00:00.000Z"
   }
 }
 ```
 
-Response:
+#### DELETE /api/favorites/:activityId
+Remove activity from favorites
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
 ```json
 {
   "success": true,
-  "confirmationNumber": "string",
-  "message": "string"
+  "message": "Activity removed from favorites"
 }
 ```
 
-### 3. Search Camps
+### User Preferences
 
-#### GET /api/camps/search
-Search camps with filters
+#### GET /api/preferences
+Get user preferences
 
-Query Parameters:
-- `activityTypes[]`: Filter by activity types
-- `minAge`: Minimum age
-- `maxAge`: Maximum age
-- `dateFrom`: Start date
-- `dateTo`: End date
-- `maxCost`: Maximum cost
-- `locations[]`: Location filters
-- `providers[]`: Provider filters
+**Headers:** `Authorization: Bearer <access_token>`
 
-### 4. Monitor Availability
-
-#### POST /api/monitor
-Set up monitoring for camp availability
-
-Request Body:
+**Response:**
 ```json
 {
-  "campId": "string",
-  "userId": "string",
-  "notifyWhen": "available" | "price_drop"
+  "success": true,
+  "preferences": {
+    "categories": ["Swimming", "Camps"],
+    "ageMin": 6,
+    "ageMax": 12,
+    "maxCost": 500,
+    "locations": ["North Vancouver"],
+    "notifications": {
+      "newActivities": true,
+      "priceDrops": true,
+      "availability": true
+    }
+  }
 }
 ```
 
-## Implementation Notes
+#### PUT /api/preferences
+Update user preferences
 
-### Web Scraping Strategy
+**Headers:** `Authorization: Bearer <access_token>`
 
-1. Use Puppeteer or Playwright for JavaScript-rendered sites
-2. Implement rate limiting to avoid being blocked
-3. Cache results for 15 minutes to reduce load
-4. Handle pagination automatically
-
-### Security Considerations
-
-1. Encrypt stored credentials
-2. Use secure communication (HTTPS)
-3. Implement API authentication
-4. Rate limit API requests
-5. Validate all input data
-
-### Technology Recommendations
-
-- **Node.js + Express** or **Python + FastAPI**
-- **Puppeteer/Playwright** for web scraping
-- **Redis** for caching
-- **PostgreSQL** for data storage
-- **JWT** for authentication
-
-### Example NVRC Scraper Logic
-
-```javascript
-async function scrapeNVRC(filters) {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  
-  // Build URL with filters
-  const url = buildNVRCUrl(filters);
-  await page.goto(url);
-  
-  // Wait for results to load
-  await page.waitForSelector('.program-list');
-  
-  // Extract camp data
-  const camps = await page.evaluate(() => {
-    const items = document.querySelectorAll('.program-item');
-    return Array.from(items).map(item => ({
-      name: item.querySelector('.program-name')?.textContent,
-      description: item.querySelector('.program-description')?.textContent,
-      // ... extract other fields
-    }));
-  });
-  
-  await browser.close();
-  return camps;
+**Request Body:**
+```json
+{
+  "categories": ["Swimming", "Camps", "Sports"],
+  "ageMin": 5,
+  "ageMax": 10,
+  "maxCost": 300,
+  "locations": ["North Vancouver", "West Vancouver"],
+  "notifications": {
+    "newActivities": true,
+    "priceDrops": false,
+    "availability": true
+  }
 }
+```
+
+### Reference Data Endpoints
+
+#### GET /api/v1/categories
+Get all available categories
+
+**Response:**
+```json
+{
+  "success": true,
+  "categories": [
+    "Adult",
+    "All Ages & Family",
+    "Aquatic Leadership",
+    "Camps",
+    "Certifications and Leadership",
+    "Climbing",
+    "Cooking",
+    "Dance",
+    "Early Years Playtime",
+    "Early Years: On My Own",
+    "Early Years: Parent Participation",
+    "Gymnastics",
+    "Kids Night Out",
+    "Learn and Play",
+    "Martial Arts",
+    "Movement & Fitness Dance",
+    "Multisport",
+    "Music",
+    "Pottery",
+    "Racquet Sports",
+    "School Age",
+    "School Programs",
+    "Skating",
+    "Spin",
+    "Strength & Cardio",
+    "Swimming",
+    "Team Sports",
+    "Visual Arts",
+    "Yoga",
+    "Youth"
+  ]
+}
+```
+
+#### GET /api/v1/locations
+Get all activity locations
+
+**Response:**
+```json
+{
+  "success": true,
+  "locations": [
+    {
+      "id": "uuid",
+      "name": "Ron Andrews Community Recreation Centre",
+      "address": "931 Lytton St",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": "V7H 2A4",
+      "facility": "Recreation Centre"
+    }
+  ]
+}
+```
+
+#### GET /api/v1/providers
+Get all activity providers
+
+**Response:**
+```json
+{
+  "success": true,
+  "providers": [
+    {
+      "id": "uuid",
+      "name": "NVRC",
+      "website": "https://nvrc.ca",
+      "contactEmail": "info@nvrc.ca",
+      "contactPhone": "604-123-4567"
+    }
+  ]
+}
+```
+
+## Error Responses
+
+All endpoints may return error responses in the following format:
+
+```json
+{
+  "success": false,
+  "error": "Error message",
+  "code": "ERROR_CODE"
+}
+```
+
+Common HTTP status codes:
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (missing or invalid token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found
+- `409` - Conflict (e.g., email already exists)
+- `429` - Too Many Requests (rate limit exceeded)
+- `500` - Internal Server Error
+
+## Rate Limiting
+
+The API implements rate limiting:
+- **Window**: 15 minutes
+- **Max requests**: 100 per window
+- **Headers returned**:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Requests remaining
+  - `X-RateLimit-Reset`: Timestamp when limit resets
+
+## Pagination
+
+List endpoints support pagination using `limit` and `offset` parameters:
+- Default limit: 50
+- Maximum limit: 100
+- Offset starts at 0
+
+Example: `/api/v1/activities?limit=20&offset=40` returns items 41-60
+
+## Data Formats
+
+- **Dates**: ISO 8601 format (YYYY-MM-DD)
+- **Timestamps**: ISO 8601 with timezone (YYYY-MM-DDTHH:mm:ss.sssZ)
+- **Money**: Integer representing cents (e.g., 15000 = $150.00)
+
+## Testing
+
+Test credentials are available:
+- **Email**: test@kidsactivitytracker.com
+- **Password**: Test123!
+
+Use the test script to verify API functionality:
+```bash
+./TEST_API.sh
 ```

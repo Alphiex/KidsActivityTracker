@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-08-07T03:04:46.798Z",
+  "url": "https://nvrc.perfectmind.com/23734/Clients/BookMe4?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a",
+  "totalActivities": 0,
+  "activities": [],
+  "summary": {
+    "bySection": {},
+    "byStatus": {},
+    "byLocation": {},
+    "byActivityType": {},
+    "priceRange": {
+      "min": null,
+      "max": 0
+    },
+    "ageRanges": [],
+    "totalActivities": 0
+  },
+  "databaseStats": {
+    "created": 0,
+    "updated": 0,
+    "removed": 1936,
+    "errors": 0
+  }
+}

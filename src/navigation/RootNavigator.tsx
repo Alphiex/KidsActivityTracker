@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar, View, Text } from 'react-native';
+import { StatusBar, View, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -7,6 +7,9 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme';
 import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAppSelector, useAppDispatch } from '../store';
+import { loadStoredAuth } from '../store/slices/authSlice';
+import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -14,9 +17,8 @@ import DashboardScreen from '../screens/DashboardScreen';
 import SearchScreen from '../screens/SearchScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import ActivityDetailScreen from '../screens/ActivityDetailScreen';
+import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenEnhanced';
 import FilterScreen from '../screens/FilterScreen';
-import ChildrenScreen from '../screens/ChildrenScreen';
 import SiteAccountsScreen from '../screens/SiteAccountsScreen';
 import ActivityTypeScreen from '../screens/ActivityTypeScreen';
 import NewActivitiesScreen from '../screens/NewActivitiesScreen';
@@ -25,6 +27,18 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
+
+// Import Preference Screens
+import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
+import AgePreferencesScreen from '../screens/preferences/AgePreferencesScreen';
+import LocationPreferencesScreen from '../screens/preferences/LocationPreferencesScreen';
+import BudgetPreferencesScreen from '../screens/preferences/BudgetPreferencesScreen';
+import SchedulePreferencesScreen from '../screens/preferences/SchedulePreferencesScreen';
+import ViewSettingsScreen from '../screens/preferences/ViewSettingsScreen';
+
+// Import Navigators
+import AuthNavigator from './AuthNavigator';
+import ChildrenNavigator from './ChildrenNavigator';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -60,10 +74,16 @@ const FavoritesStack = () => (
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-    <Stack.Screen name="Children" component={ChildrenScreen} />
+    <Stack.Screen name="Children" component={ChildrenNavigator} />
     <Stack.Screen name="SiteAccounts" component={SiteAccountsScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+    <Stack.Screen name="CategoryPreferences" component={CategoryPreferencesScreen} />
+    <Stack.Screen name="AgePreferences" component={AgePreferencesScreen} />
+    <Stack.Screen name="LocationPreferences" component={LocationPreferencesScreen} />
+    <Stack.Screen name="BudgetPreferences" component={BudgetPreferencesScreen} />
+    <Stack.Screen name="SchedulePreferences" component={SchedulePreferencesScreen} />
+    <Stack.Screen name="ViewSettings" component={ViewSettingsScreen} />
   </Stack.Navigator>
 );
 
@@ -170,34 +190,65 @@ const MainTabs = () => {
 
 const RootNavigator = () => {
   console.log('RootNavigator rendering');
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, isLoading: authLoading } = useAppSelector((state) => state.auth);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const { isDark, colors } = useTheme();
   console.log('Theme loaded:', { isDark, hasColors: !!colors });
 
   useEffect(() => {
-    checkOnboardingStatus();
+    initializeApp();
   }, []);
 
-  const checkOnboardingStatus = async () => {
-    console.log('Checking onboarding status...');
+  // Re-check onboarding status when auth changes
+  useEffect(() => {
+    if (isAuthenticated && !authLoading && !isLoading) {
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+      console.log('Auth changed, checking onboarding status:', preferences.hasCompletedOnboarding);
+      setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
+    }
+  }, [isAuthenticated, authLoading, isLoading]);
+
+  // Listen for onboarding completion event
+  useEffect(() => {
+    const handleOnboardingCompleted = () => {
+      console.log('Onboarding completed event received');
+      setHasCompletedOnboarding(true);
+    };
+
+    appEventEmitter.on(APP_EVENTS.ONBOARDING_COMPLETED, handleOnboardingCompleted);
+
+    return () => {
+      appEventEmitter.off(APP_EVENTS.ONBOARDING_COMPLETED, handleOnboardingCompleted);
+    };
+  }, []);
+
+  const initializeApp = async () => {
+    console.log('Initializing app...');
     try {
+      // Check authentication status
+      await dispatch(loadStoredAuth());
+      
+      // Check onboarding status
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       console.log('Preferences loaded:', preferences);
       setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
+      console.error('Error initializing app:', error);
     } finally {
       console.log('Setting loading to false');
       setIsLoading(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <Text style={{ color: colors.text }}>Loading...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ color: colors.text, marginTop: 10 }}>Loading...</Text>
       </View>
     );
   }
@@ -240,11 +291,17 @@ const RootNavigator = () => {
       />
       <Stack.Navigator 
         screenOptions={{ headerShown: false }}
-        initialRouteName={hasCompletedOnboarding ? "MainTabs" : "Onboarding"}
       >
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
+        {!isAuthenticated ? (
+          <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : !hasCompletedOnboarding ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

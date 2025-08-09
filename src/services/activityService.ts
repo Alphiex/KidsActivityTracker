@@ -5,11 +5,11 @@ import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
 import { Activity, Filter } from '../types';
 import { API_CONFIG } from '../config/api';
+import { PaginatedResponse, ActivitySearchParams } from '../types/api';
 
 class ActivityService {
   private static instance: ActivityService;
   private api: AxiosInstance;
-  private userId: string | null = null;
 
   private constructor() {
     // Log the API configuration
@@ -62,9 +62,19 @@ class ActivityService {
       },
     });
 
-    // Add request/response interceptors for debugging
+    // Add request/response interceptors for debugging and auth
     this.api.interceptors.request.use(
-      (config) => {
+      async (config) => {
+        // Add auth token from secure storage
+        try {
+          const token = await AsyncStorage.getItem('@auth_access_token');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        } catch (error) {
+          console.error('Error getting auth token:', error);
+        }
+        
         // Only log in development
         if (__DEV__) {
           console.log('API Request:', config.method?.toUpperCase(), config.url);
@@ -113,8 +123,7 @@ class ActivityService {
       }
     );
 
-    // Initialize user
-    this.initializeUser();
+    // Authentication is handled by authService and Redux store
   }
 
   static getInstance(): ActivityService {
@@ -124,58 +133,6 @@ class ActivityService {
     return ActivityService.instance;
   }
 
-  /**
-   * Initialize or get user
-   */
-  private async initializeUser() {
-    try {
-      // Check if user exists in AsyncStorage
-      let userId = await AsyncStorage.getItem('userId');
-      let userEmail = await AsyncStorage.getItem('userEmail');
-
-      if (!userId || !userEmail) {
-        // Create a new user with a unique email
-        userEmail = `user_${Date.now()}@app.local`;
-        
-        try {
-          const response = await this.api.post(API_CONFIG.ENDPOINTS.USERS, {
-            email: userEmail,
-            name: 'App User',
-            preferences: {
-              ageRange: { min: 0, max: 18 },
-              preferredCategories: [],
-              maxCost: 1000
-            }
-          });
-
-          userId = response.data.user.id;
-          
-          // Save to AsyncStorage
-          await AsyncStorage.setItem('userId', userId);
-          await AsyncStorage.setItem('userEmail', userEmail);
-        } catch (error) {
-          // If user creation fails, generate a local ID
-          console.log('Using local user ID due to API error');
-          userId = `local_${Date.now()}`;
-          await AsyncStorage.setItem('userId', userId);
-          await AsyncStorage.setItem('userEmail', userEmail);
-        }
-      }
-
-      this.userId = userId;
-    } catch (error) {
-      console.error('Error initializing user:', error);
-      // Set a default local user ID if all else fails
-      this.userId = 'local_default';
-    }
-  }
-
-  /**
-   * Get current user ID
-   */
-  getUserId(): string | null {
-    return this.userId;
-  }
 
   /**
    * Check network connectivity
@@ -203,25 +160,25 @@ class ActivityService {
 
       const params: any = {};
 
-      // Convert filter to API params
+      // Convert filter to API params - match backend parameter names
       if (filters.ageRange) {
-        params.age_min = filters.ageRange.min;
-        params.age_max = filters.ageRange.max;
+        params.ageMin = filters.ageRange.min;
+        params.ageMax = filters.ageRange.max;
       }
       if (filters.maxCost !== undefined) {
-        params.cost_max = filters.maxCost;
+        params.costMax = filters.maxCost;
       }
       if (filters.activityTypes && filters.activityTypes.length > 0) {
-        params.category = filters.activityTypes.join(',');
+        params.category = filters.activityTypes[0]; // Backend expects single category
       }
       if (filters.categories) {
         params.category = filters.categories;
       }
       if (filters.locations && filters.locations.length > 0) {
-        params.locations = filters.locations.join(',');
+        params.location = filters.locations[0]; // Backend expects single location
       }
       if (filters.search) {
-        params.q = filters.search;
+        params.search = filters.search; // Backend expects 'search' not 'q'
       }
       
       // Add limit to reduce response size initially
@@ -262,7 +219,21 @@ class ActivityService {
         provider: activity.provider?.name || 'NVRC',
         isFavorite: activity._count?.favorites > 0 || false,
         cost: activity.cost || 0,
-        location: activity.location || 'Unknown'
+        location: activity.location || 'Unknown',
+        // Include all enhanced fields
+        registrationStatus: activity.registrationStatus,
+        registrationButtonText: activity.registrationButtonText,
+        detailUrl: activity.detailUrl,
+        fullDescription: activity.fullDescription,
+        instructor: activity.instructor,
+        prerequisites: activity.prerequisites,
+        whatToBring: activity.whatToBring,
+        fullAddress: activity.fullAddress,
+        latitude: activity.latitude,
+        longitude: activity.longitude,
+        directRegistrationUrl: activity.directRegistrationUrl,
+        contactInfo: activity.contactInfo,
+        totalSpots: activity.totalSpots
       }));
     } catch (error: any) {
       console.error('Error searching activities:', error);
@@ -275,6 +246,63 @@ class ActivityService {
         return [];
       }
       
+      throw new Error(error.response?.data?.message || 'Failed to search activities');
+    }
+  }
+
+  /**
+   * Search activities with pagination support
+   */
+  async searchActivitiesPaginated(params: ActivitySearchParams): Promise<PaginatedResponse<Activity>> {
+    try {
+      const isConnected = await this.checkConnectivity();
+      if (!isConnected) {
+        return {
+          items: [],
+          total: 0,
+          limit: params.limit || 50,
+          offset: params.offset || 0,
+          hasMore: false,
+          pages: 0
+        };
+      }
+
+      console.log('Searching activities with pagination:', params);
+      
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
+      
+      if (response.data && response.data.success) {
+        const activities = response.data.activities.map((activity: any) => ({
+          ...activity,
+          activityType: [activity.category || 'Other'],
+          dateRange: activity.dateStart && activity.dateEnd ? {
+            start: new Date(activity.dateStart),
+            end: new Date(activity.dateEnd),
+          } : null,
+          ageRange: {
+            min: activity.ageMin || 0,
+            max: activity.ageMax || 18
+          },
+          scrapedAt: new Date(activity.updatedAt || activity.createdAt || Date.now()),
+          provider: activity.provider?.name || 'NVRC',
+          isFavorite: activity._count?.favorites > 0 || false,
+          cost: activity.cost || 0,
+          location: activity.location || 'Unknown'
+        }));
+        
+        return {
+          items: activities,
+          total: response.data.total || activities.length,
+          limit: response.data.pagination?.limit || params.limit || 50,
+          offset: response.data.pagination?.offset || params.offset || 0,
+          hasMore: response.data.hasMore || false,
+          pages: response.data.pagination?.pages || 1
+        };
+      }
+      
+      throw new Error('Invalid response format');
+    } catch (error: any) {
+      console.error('Error searching activities:', error);
       throw new Error(error.response?.data?.message || 'Failed to search activities');
     }
   }
@@ -310,7 +338,7 @@ class ActivityService {
           },
           scrapedAt: new Date(activity.updatedAt || activity.createdAt),
           provider: activity.provider?.name || 'NVRC',
-          isFavorite: activity.favorites?.some((f: any) => f.userId === this.userId)
+          isFavorite: activity._count?.favorites > 0 || false
         };
       }
 
@@ -325,28 +353,23 @@ class ActivityService {
    * Get user's favorite activities
    */
   async getFavorites(): Promise<Activity[]> {
-    if (!this.userId) {
-      console.warn('No user ID available');
-      return [];
-    }
-
     try {
-
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.USER_FAVORITES.replace(':userId', this.userId));
+      // Use the correct backend endpoint /api/favorites
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.FAVORITES);
 
       if (response.data.success && response.data.favorites) {
         return response.data.favorites.map((fav: any) => ({
           ...fav.activity,
-          activityType: [fav.activity.category],
+          activityType: [fav.activity.category || 'Other'],
           dateRange: fav.activity.dateStart && fav.activity.dateEnd ? {
             start: new Date(fav.activity.dateStart),
             end: new Date(fav.activity.dateEnd),
           } : null,
           ageRange: {
-            min: fav.activity.ageMin,
-            max: fav.activity.ageMax
+            min: fav.activity.ageMin || 0,
+            max: fav.activity.ageMax || 18
           },
-          scrapedAt: new Date(fav.activity.updatedAt || fav.activity.createdAt),
+          scrapedAt: new Date(fav.activity.updatedAt || fav.activity.createdAt || Date.now()),
           provider: fav.activity.provider?.name || 'NVRC',
           isFavorite: true,
           favoriteNotes: fav.notes
@@ -364,16 +387,10 @@ class ActivityService {
    * Add activity to favorites
    */
   async addFavorite(activityId: string, notes?: string): Promise<boolean> {
-    if (!this.userId) {
-      console.error('No user ID available');
-      return false;
-    }
-
     try {
+      // Backend expects only activityId in body, uses authenticated user context
       await this.api.post(API_CONFIG.ENDPOINTS.FAVORITES, {
-        userId: this.userId,
-        activityId,
-        notes
+        activityId
       });
 
       return true;
@@ -387,13 +404,9 @@ class ActivityService {
    * Remove activity from favorites
    */
   async removeFavorite(activityId: string): Promise<boolean> {
-    if (!this.userId) {
-      console.error('No user ID available');
-      return false;
-    }
-
     try {
-      await this.api.delete(`${API_CONFIG.ENDPOINTS.FAVORITES}/${this.userId}/${activityId}`);
+      // Backend expects /api/favorites/:activityId format
+      await this.api.delete(`${API_CONFIG.ENDPOINTS.FAVORITES}/${activityId}`);
       return true;
     } catch (error: any) {
       console.error('Error removing favorite:', error);
@@ -405,38 +418,19 @@ class ActivityService {
    * Get recommended activities
    */
   async getRecommendations(limit: number = 10): Promise<Activity[]> {
-    if (!this.userId) {
-      // Return popular activities if no user
-      return this.searchActivities({ limit });
-    }
-
+    // Since recommendations endpoint doesn't exist yet, return popular activities
+    // TODO: Implement proper recommendations when backend endpoint is available
     try {
-      const endpoint = API_CONFIG.ENDPOINTS.RECOMMENDATIONS
-        .replace(':userId', this.userId);
-      
-      const response = await this.api.get(endpoint, {
-        params: { limit }
+      const response = await this.searchActivities({ 
+        limit,
+        sortBy: 'registeredCount',
+        sortOrder: 'desc'
       });
-
-      if (response.data.success && response.data.recommendations) {
-        return response.data.recommendations.map((activity: any) => ({
-          ...activity,
-          activityType: [activity.category],
-          dateRange: activity.dateStart && activity.dateEnd ? {
-            start: new Date(activity.dateStart),
-            end: new Date(activity.dateEnd),
-          } : null,
-          ageRange: {
-            min: activity.ageMin,
-            max: activity.ageMax
-          },
-          scrapedAt: new Date(activity.updatedAt || activity.createdAt),
-          provider: activity.provider?.name || 'NVRC',
-          isRecommended: true
-        }));
-      }
-
-      return [];
+      
+      return response.map((activity: any) => ({
+        ...activity,
+        isRecommended: true
+      }));
     } catch (error: any) {
       console.error('Error fetching recommendations:', error);
       return [];

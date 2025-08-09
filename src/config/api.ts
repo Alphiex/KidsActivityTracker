@@ -3,24 +3,45 @@ import { Platform } from 'react-native';
 // Enable mock mode to bypass network issues
 const USE_MOCK_API = false; // Set to false to use real API
 
-// Force proxy URL for debugging
-const FORCE_PROXY = true;
+// API URLs - Update these with your deployment URLs
+const API_URLS = {
+  // Local development
+  LOCAL: Platform.select({
+    ios: 'http://localhost:3000',
+    android: 'http://10.0.2.2:3000',
+  }),
+  
+  // Production - Google Cloud Run deployment
+  PRODUCTION: 'https://kids-activity-api-44042034457.us-central1.run.app',
+};
+
+// Force local development server
+const FORCE_LOCAL = false; // Set to false to use production API
 
 // API Configuration
 const API_CONFIG = {
-  // Use localhost for iOS simulator to bypass network issues
-  // The proxy server handles the connection to the real API
-  BASE_URL: __DEV__ && FORCE_PROXY
-    ? 'http://localhost:3001'  // Force proxy for all platforms in dev
-    : __DEV__ 
-    ? Platform.select({
-        ios: 'http://localhost:3001',  // Use local proxy for iOS simulator
-        android: 'http://10.0.2.2:3001',  // Use local proxy for Android emulator
-      })
-    : 'https://kids-activity-api-44042034457.us-central1.run.app',  // Production URL
+  // Automatically use local in dev mode, production in release
+  BASE_URL: __DEV__ && FORCE_LOCAL
+    ? API_URLS.LOCAL
+    : API_URLS.PRODUCTION,
   
   // Endpoints
   ENDPOINTS: {
+    // Auth endpoints
+    AUTH: {
+      LOGIN: '/api/auth/login',
+      REGISTER: '/api/auth/register',
+      LOGOUT: '/api/auth/logout',
+      REFRESH: '/api/auth/refresh',
+      FORGOT_PASSWORD: '/api/auth/forgot-password',
+      RESET_PASSWORD: '/api/auth/reset-password',
+      VERIFY_EMAIL: '/api/auth/verify-email',
+      RESEND_VERIFICATION: '/api/auth/resend-verification',
+      CHANGE_PASSWORD: '/api/auth/change-password',
+      PROFILE: '/api/auth/profile',
+      CHECK: '/api/auth/check',
+    },
+    
     // Activities
     ACTIVITIES: '/api/v1/activities',
     ACTIVITY_DETAILS: '/api/v1/activities',

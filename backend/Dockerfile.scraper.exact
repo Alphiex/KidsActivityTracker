@@ -1,0 +1,87 @@
+# Use the exact same Node version that works locally
+FROM node:18
+
+# Install the exact same Chrome version and dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libgcc1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    xdg-utils
+
+# Install Chrome stable (same as local)
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install dependencies
+RUN npm ci
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy all files
+COPY . .
+
+# Make sure we have the PerfectMind scraper
+COPY scrapers/nvrcPerfectMindScraper.js ./scrapers/
+COPY scraper-perfectmind-job.js ./
+
+# Don't use puppeteer's bundled chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+
+# Increase memory for Node
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Run with the exact same user permissions as local
+RUN groupadd -r scraper && useradd -r -g scraper -G audio,video scraper \
+    && mkdir -p /home/scraper/Downloads \
+    && chown -R scraper:scraper /home/scraper \
+    && chown -R scraper:scraper /app
+
+USER scraper
+
+# Run the PerfectMind scraper
+CMD ["node", "scraper-perfectmind-job.js"]

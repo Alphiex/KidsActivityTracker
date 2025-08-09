@@ -14,8 +14,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
+import FavoritesService from '../services/favoritesService';
 import { Colors } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { Alert, ActivityIndicator } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -24,7 +27,10 @@ const DashboardScreen = () => {
   const preferencesService = PreferencesService.getInstance();
   const [preferences, setPreferences] = useState(preferencesService.getPreferences());
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { colors, isDark } = useTheme();
+  const { isConnected } = useNetworkStatus();
   const [stats, setStats] = useState({
     matchingActivities: 0,
     newThisWeek: 0,
@@ -78,8 +84,24 @@ const DashboardScreen = () => {
 
   const loadDashboardData = async () => {
     try {
+      setError(null);
+      
+      // Check network status first
+      if (isConnected === false) {
+        setError('No internet connection');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      
       const activityService = ActivityService.getInstance();
-      const allActivities = await activityService.searchActivities({});
+      const favoritesService = FavoritesService.getInstance();
+      
+      // Load activities with pagination limit
+      const allActivities = await activityService.searchActivities({ limit: 100 });
+      
+      // Get favorites count
+      const favorites = await favoritesService.getFavorites();
       
       // Calculate stats based on preferences
       const matchingActivities = allActivities.filter(activity => 
@@ -90,25 +112,34 @@ const DashboardScreen = () => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const newThisWeek = allActivities.filter(activity => {
-        const activityDate = new Date(activity.scrapedAt || activity.createdAt || 0);
-        return activityDate >= oneWeekAgo;
+        try {
+          const activityDate = new Date(activity.scrapedAt || activity.createdAt || 0);
+          return activityDate >= oneWeekAgo;
+        } catch (e) {
+          return false;
+        }
       }).length;
 
       setStats({
         matchingActivities,
         newThisWeek,
-        savedFavorites: 0, // TODO: Get from favorites service
+        savedFavorites: favorites.length,
         upcomingEvents: allActivities.filter(activity => {
           if (!activity.dateRange) return false;
-          const startDate = new Date(activity.dateRange.start);
-          const today = new Date();
-          const nextWeek = new Date();
-          nextWeek.setDate(today.getDate() + 7);
-          return startDate >= today && startDate <= nextWeek;
+          try {
+            const startDate = new Date(activity.dateRange.start);
+            const today = new Date();
+            const nextWeek = new Date();
+            nextWeek.setDate(today.getDate() + 7);
+            return startDate >= today && startDate <= nextWeek;
+          } catch (e) {
+            return false;
+          }
         }).length,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading dashboard data:', error);
+      setError(error.message || 'Failed to load activities');
       // Set default stats on error
       setStats({
         matchingActivities: 0,
@@ -118,6 +149,7 @@ const DashboardScreen = () => {
       });
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -295,6 +327,32 @@ const DashboardScreen = () => {
     };
     return icons[category] || 'tag';
   };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>Loading activities...</Text>
+      </View>
+    );
+  }
+
+  if (error && !refreshing) {
+    const isOffline = isConnected === false;
+    return (
+      <View style={[styles.container, styles.centerContent, { backgroundColor: colors.background }]}>
+        <Icon 
+          name={isOffline ? "wifi-off" : "alert-circle"} 
+          size={60} 
+          color={isOffline ? colors.textSecondary : colors.error} 
+        />
+        <Text style={[styles.errorText, { color: colors.text }]}>{error}</Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={loadDashboardData}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -520,6 +578,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginHorizontal: 15,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+  },
+  errorText: {
+    marginTop: 15,
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -49,7 +49,7 @@ class NVRCWorkingHierarchicalScraper {
       console.log('\n📍 Navigating to NVRC find program page...');
       await page.goto('https://www.nvrc.ca/programs-memberships/find-program', {
         waitUntil: 'networkidle0',
-        timeout: 90000 // Increased timeout for slow cloud network
+        timeout: 120000 // 2 minute timeout for cloud
       });
 
       await page.waitForSelector('form', { timeout: 30000 });
@@ -364,7 +364,7 @@ class NVRCWorkingHierarchicalScraper {
       // Extract activities from the results page
       console.log('\n🔍 Extracting activities from results page...');
       
-      // Wait for activities to load
+      // Wait for activities to load with longer timeout for cloud
       await page.waitForFunction(() => {
         const categories = document.querySelectorAll('.nvrc-activities-category');
         const hasContent = categories.length > 0 || 
@@ -372,11 +372,33 @@ class NVRCWorkingHierarchicalScraper {
                           document.querySelector('.activities-category__title') !== null;
         console.log(`Checking for activities... Categories: ${categories.length}, Has content: ${hasContent}`);
         return hasContent;
-      }, { timeout: 30000, polling: 2000 }).catch(() => {
+      }, { timeout: 60000, polling: 3000 }).catch(() => {
         console.log('⚠️  Warning: Activities may not have loaded fully');
       });
       
       await new Promise(resolve => setTimeout(resolve, 5000)); // Extra wait
+      
+      // Take screenshot for debugging in cloud
+      if (process.env.NODE_ENV === 'production') {
+        console.log('📸 Taking debug screenshot...');
+        const screenshotData = await page.screenshot({ encoding: 'base64' });
+        console.log(`📸 Screenshot size: ${screenshotData.length} bytes`);
+      }
+      
+      // Check if content is inside iframes
+      const frameCount = await page.evaluate(() => {
+        return document.querySelectorAll('iframe').length;
+      });
+      console.log(`📍 Page has ${frameCount} iframes`);
+      
+      // Try waiting for specific content
+      try {
+        await page.waitForSelector('.nvrc-activities-category, iframe[src*="perfectmind"], iframe[src*="nvrc"]', { 
+          timeout: 20000 
+        });
+      } catch (e) {
+        console.log('⚠️  Timeout waiting for activity selectors or iframes');
+      }
       
       const activities = await page.evaluate(() => {
         const allActivities = [];
@@ -384,6 +406,13 @@ class NVRCWorkingHierarchicalScraper {
         // Log page content for debugging
         console.log('Page body classes:', document.body.className);
         console.log('Page title:', document.title);
+        
+        // Check for iframes that might contain the content
+        const iframes = document.querySelectorAll('iframe');
+        console.log(`Page has ${iframes.length} iframes`);
+        iframes.forEach((iframe, index) => {
+          console.log(`Iframe ${index}: ${iframe.src || 'no src'}`);
+        });
         
         // Find all category sections
         const categorySections = document.querySelectorAll('.nvrc-activities-category');
@@ -517,6 +546,50 @@ class NVRCWorkingHierarchicalScraper {
       });
 
       console.log(`\n✅ Successfully extracted ${activities.length} activities`);
+      
+      // If no activities found and there are iframes, try to access them
+      if (activities.length === 0 && frameCount > 0) {
+        console.log('\n🔍 No activities found in main page, checking iframes...');
+        
+        const frames = page.frames();
+        console.log(`Total frames available: ${frames.length}`);
+        
+        for (let i = 1; i < frames.length; i++) {
+          try {
+            const frame = frames[i];
+            console.log(`\nChecking frame ${i}...`);
+            
+            const frameActivities = await frame.evaluate(() => {
+              // Look for any activity-like content in the iframe
+              const activities = [];
+              
+              // Try various selectors
+              const selectors = [
+                '.nvrc-activities-events__row',
+                '[class*="activity"]',
+                '[class*="program"]',
+                'a[href*="BookMe4"]',
+                'a[href*="perfectmind"]'
+              ];
+              
+              for (const selector of selectors) {
+                const elements = document.querySelectorAll(selector);
+                if (elements.length > 0) {
+                  console.log(`Frame found ${elements.length} elements with selector: ${selector}`);
+                  break;
+                }
+              }
+              
+              // Just count for now
+              return document.querySelectorAll('*').length;
+            });
+            
+            console.log(`Frame ${i} has ${frameActivities} elements`);
+          } catch (e) {
+            console.log(`Could not access frame ${i}: ${e.message}`);
+          }
+        }
+      }
       
       // Save results with timestamp (only in local development)
       if (!process.env.PUPPETEER_EXECUTABLE_PATH) {

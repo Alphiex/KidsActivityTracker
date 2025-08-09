@@ -59,9 +59,20 @@ const LocationBrowseScreen = () => {
       
       // Group activities by location
       const groups = allActivities.reduce((acc, activity) => {
-        const location = typeof activity.location === 'string' 
-          ? activity.location 
-          : activity.location?.name || 'Unknown Location';
+        let location = 'Unknown Location';
+        
+        // Handle various location formats
+        if (activity.location) {
+          if (typeof activity.location === 'string') {
+            location = activity.location;
+          } else if (typeof activity.location === 'object' && activity.location.name) {
+            location = activity.location.name;
+          }
+        } else if (activity.locationName) {
+          location = activity.locationName;
+        } else if (activity.facility) {
+          location = activity.facility;
+        }
         
         if (!acc[location]) {
           acc[location] = [];
@@ -168,11 +179,11 @@ const LocationBrowseScreen = () => {
       onPress={() => {
         const serializedActivity = {
           ...item,
-          dateRange: item.dateRange ? {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
+          dateRange: item.dateRange && item.dateRange.start && item.dateRange.end ? {
+            start: item.dateRange.start instanceof Date ? item.dateRange.start.toISOString() : item.dateRange.start,
+            end: item.dateRange.end instanceof Date ? item.dateRange.end.toISOString() : item.dateRange.end,
           } : null,
-          scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+          scrapedAt: item.scrapedAt instanceof Date ? item.scrapedAt.toISOString() : item.scrapedAt,
         };
         navigation.navigate('ActivityDetail', { activity: serializedActivity });
       }}
@@ -230,6 +241,7 @@ const LocationBrowseScreen = () => {
 
   const renderLocationsGrid = () => (
     <FlatList
+      key="grid-view"
       data={locationGroups}
       renderItem={renderLocationCard}
       keyExtractor={(item) => item.location}
@@ -245,6 +257,7 @@ const LocationBrowseScreen = () => {
 
   const renderLocationsList = () => (
     <FlatList
+      key="list-view"
       data={locationGroups}
       renderItem={renderLocationList}
       keyExtractor={(item) => item.location}
@@ -272,10 +285,10 @@ const LocationBrowseScreen = () => {
           contentContainerStyle={styles.activityList}
           showsVerticalScrollIndicator={false}
         />
-      ) : viewMode === 'grid' ? (
-        renderLocationsGrid()
       ) : (
-        renderLocationsList()
+        <View style={{ flex: 1 }} key={viewMode}>
+          {viewMode === 'grid' ? renderLocationsGrid() : renderLocationsList()}
+        </View>
       )}
     </View>
   );

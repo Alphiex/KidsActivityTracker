@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatPrice } from '../utils/formatters';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
@@ -45,7 +46,7 @@ const SettingsScreen = () => {
         },
         {
           title: 'Budget',
-          subtitle: `$${preferences.priceRange.min} - $${preferences.priceRange.max}`,
+          subtitle: `$${formatPrice(preferences.priceRange.min)} - $${formatPrice(preferences.priceRange.max)}`,
           icon: 'cash',
           onPress: () => navigation.navigate('BudgetPreferences'),
         },

@@ -1,97 +1,275 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Kids Activity Tracker
 
-# Getting Started
+A React Native mobile application for discovering and tracking children's activities in North Vancouver and surrounding areas. The app helps parents find sports, camps, arts, and other activities for their children based on age, location, cost, and interests.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+- **Activity Discovery**: Browse thousands of activities from local recreation centers
+- **Advanced Search**: Filter by category, age range, location, and price
+- **Favorites**: Save activities for quick access
+- **Personalized Recommendations**: Get activity suggestions based on your preferences
+- **Dark Mode**: Full dark mode support for comfortable viewing
+- **Offline Support**: View cached data when offline with network status indicators
+- **Real-time Updates**: Activities are automatically updated from provider websites
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Tech Stack
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### Mobile App (React Native)
+- **Framework**: React Native 0.76.6
+- **State Management**: Redux Toolkit with Redux Persist
+- **Navigation**: React Navigation v6
+- **UI Components**: Custom components with React Native Vector Icons
+- **Styling**: StyleSheet with theme support
+- **Storage**: MMKV for secure storage, AsyncStorage for preferences
+- **Networking**: Axios with retry logic and offline detection
 
-```sh
-# Using npm
-npm start
+### Backend (Node.js)
+- **Runtime**: Node.js with Express.js
+- **Database**: PostgreSQL with Prisma ORM
+- **Caching**: Redis for performance optimization
+- **Authentication**: JWT with access/refresh token pattern
+- **API**: RESTful API with pagination support
+- **Deployment**: Google Cloud Run with Cloud SQL
 
-# OR using Yarn
-yarn start
+## Project Structure
+
+```
+KidsActivityTracker/
+├── src/                    # React Native app source
+│   ├── components/         # Reusable UI components
+│   ├── screens/           # App screens
+│   ├── services/          # API and business logic
+│   ├── store/             # Redux store configuration
+│   ├── navigation/        # Navigation configuration
+│   ├── types/             # TypeScript type definitions
+│   ├── hooks/             # Custom React hooks
+│   └── contexts/          # React contexts (Theme, etc.)
+├── backend/               # Node.js backend
+│   ├── src/              # Backend source code
+│   │   ├── routes/       # API route handlers
+│   │   ├── services/     # Business logic
+│   │   ├── middleware/   # Express middleware
+│   │   └── utils/        # Utility functions
+│   ├── prisma/           # Database schema and migrations
+│   └── monitoring/       # Monitoring dashboard
+├── ios/                  # iOS native code
+├── android/              # Android native code
+└── docs/                 # Documentation
+
 ```
 
-## Step 2: Build and run your app
+## Getting Started
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### Prerequisites
 
-### Android
+- Node.js 18+ and npm
+- React Native development environment ([setup guide](https://reactnative.dev/docs/environment-setup))
+- Xcode 15+ (for iOS development)
+- Android Studio (for Android development)
+- PostgreSQL 14+ (for local backend development)
+- Redis (optional, for caching)
 
-```sh
-# Using npm
-npm run android
+### Installation
 
-# OR using Yarn
-yarn android
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/KidsActivityTracker.git
+   cd KidsActivityTracker
+   ```
+
+2. **Install dependencies**
+   ```bash
+   # Install mobile app dependencies
+   npm install
+   
+   # Install iOS dependencies
+   cd ios && pod install && cd ..
+   
+   # Install backend dependencies
+   cd backend && npm install && cd ..
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   # Copy example environment files
+   cp backend/.env.example backend/.env
+   
+   # Edit backend/.env with your configuration
+   ```
+
+4. **Set up the database**
+   ```bash
+   cd backend
+   
+   # Run database migrations
+   npm run db:migrate
+   
+   # Seed with sample data (optional)
+   npm run db:seed
+   ```
+
+### Running the App
+
+1. **Start the backend server**
+   ```bash
+   cd backend
+   npm run dev
+   ```
+
+2. **Start Metro bundler**
+   ```bash
+   # In the project root
+   npm start
+   ```
+
+3. **Run the app**
+   ```bash
+   # iOS
+   npm run ios
+   
+   # Android
+   npm run android
+   ```
+
+## API Documentation
+
+The backend provides a RESTful API with the following main endpoints:
+
+### Authentication
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Logout and invalidate tokens
+
+### Activities
+- `GET /api/v1/activities` - Search activities with filters
+- `GET /api/v1/activities/:id` - Get activity details
+- `GET /api/v1/activities/stats/summary` - Get activity statistics
+
+### User Features
+- `GET /api/favorites` - Get user's favorite activities
+- `POST /api/favorites` - Add activity to favorites
+- `DELETE /api/favorites/:activityId` - Remove from favorites
+- `GET /api/preferences` - Get user preferences
+- `PUT /api/preferences` - Update preferences
+
+### Reference Data
+- `GET /api/v1/categories` - Get all activity categories
+- `GET /api/v1/locations` - Get all locations
+- `GET /api/v1/providers` - Get all activity providers
+
+For detailed API documentation, see [BACKEND_API_SPEC.md](./BACKEND_API_SPEC.md).
+
+## Development
+
+### Code Style
+- TypeScript for type safety
+- ESLint and Prettier for code formatting
+- Conventional commits for version control
+
+### Testing
+```bash
+# Run mobile app tests
+npm test
+
+# Run backend tests
+cd backend && npm test
 ```
 
-### iOS
+### Building for Production
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+**iOS**
+```bash
+# Build iOS app
+cd ios
+xcodebuild -workspace KidsActivityTracker.xcworkspace \
+  -scheme KidsActivityTracker \
+  -configuration Release \
+  -archivePath ./build/KidsActivityTracker.xcarchive \
+  archive
 ```
 
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
+**Android**
+```bash
+# Build Android APK
+cd android
+./gradlew assembleRelease
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+**Backend**
+```bash
+cd backend
+npm run build
+npm run gcp:deploy  # Deploy to Google Cloud
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## Deployment
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+The app is deployed using:
+- **Backend**: Google Cloud Run with Cloud SQL (PostgreSQL)
+- **iOS**: Apple App Store (coming soon)
+- **Android**: Google Play Store (coming soon)
 
-## Step 3: Modify your app
+See [CLOUD_DEPLOYMENT.md](./CLOUD_DEPLOYMENT.md) for detailed deployment instructions.
 
-Now that you have successfully run the app, let's make changes!
+## Contributing
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Troubleshooting
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### Common Issues
 
-## Congratulations! :tada:
+1. **Metro bundler issues**
+   ```bash
+   # Clear cache
+   npx react-native start --reset-cache
+   ```
 
-You've successfully run and modified your React Native App. :partying_face:
+2. **iOS build failures**
+   ```bash
+   cd ios
+   pod deintegrate
+   pod install
+   ```
 
-### Now what?
+3. **Android build issues**
+   ```bash
+   cd android
+   ./gradlew clean
+   ```
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+For more troubleshooting tips, see [DEBUG_API.md](./DEBUG_API.md).
 
-# Troubleshooting
+## Recent Updates
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+### Version 1.0.0 (2025-08-09)
 
-# Learn More
+**Major Fixes:**
+- ✅ Fixed onboarding navigation issue where "Let's Go!" button wasn't working
+- ✅ Implemented event-based navigation for smooth onboarding completion
+- ✅ Fixed all API parameter naming (snake_case to camelCase)
+- ✅ Activities now load successfully with proper pagination
+- ✅ Added network status indicators (online/offline)
+- ✅ Fixed authentication token storage and expiry handling
+- ✅ Created missing backend endpoints (categories, locations, providers)
+- ✅ Improved error handling throughout the app
 
-To learn more about React Native, take a look at the following resources:
+**Known Issues:**
+- Push notifications not yet implemented
+- Social features planned for v1.1
+- Advanced filtering options in development
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- North Vancouver Recreation & Culture for activity data
+- React Native community for excellent tools and libraries
+- Google Cloud Platform for hosting infrastructure

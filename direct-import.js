@@ -80,22 +80,36 @@ async function importActivities() {
           // Handle location
           let locationId = null;
           if (activity.location) {
-            const location = await prisma.location.upsert({
-              where: {
-                name_address: {
+            try {
+              const location = await prisma.location.upsert({
+                where: {
+                  name_address: {
+                    name: activity.location,
+                    address: activity.facility || ''
+                  }
+                },
+                update: {},
+                create: {
                   name: activity.location,
-                  address: ''
+                  address: activity.facility || '',
+                  city: 'North Vancouver',
+                  province: 'BC'
                 }
-              },
-              update: {},
-              create: {
-                name: activity.location,
-                address: '',
-                city: 'North Vancouver',
-                province: 'BC'
+              });
+              locationId = location.id;
+            } catch (locError) {
+              // Try without facility if unique constraint fails
+              try {
+                const location = await prisma.location.findFirst({
+                  where: { name: activity.location }
+                });
+                if (location) {
+                  locationId = location.id;
+                }
+              } catch (e) {
+                console.error(`Location lookup error: ${e.message}`);
               }
-            });
-            locationId = location.id;
+            }
           }
           
           const activityData = {
@@ -108,7 +122,7 @@ async function importActivities() {
             schedule: activity.schedule || null,
             dateStart,
             dateEnd,
-            registrationDate: activity.registrationDate ? new Date(activity.registrationDate) : null,
+            registrationDate: null, // Skip registration date parsing for now
             ageMin: activity.ageRange?.min || 0,
             ageMax: activity.ageRange?.max || 18,
             cost: activity.cost || 0,

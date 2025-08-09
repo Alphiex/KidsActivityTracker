@@ -1,0 +1,566 @@
+{
+  "timestamp": "2025-08-07T00:09:55.607Z",
+  "totalActivities": 47,
+  "navigationLog": [
+    {
+      "timestamp": "2025-08-07T00:08:18.690Z",
+      "message": "🚀 Starting NVRC Comprehensive Scraper...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:19.266Z",
+      "message": "\n📍 APPROACH 1: Using NVRC main website form",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:19.266Z",
+      "message": "Navigating to NVRC find program page...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:20.835Z",
+      "message": "PAGE LOG: Failed to load resource: the server responded with a status of 404 ()",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:22.395Z",
+      "message": "PAGE LOG: The keyword 'push-button' used on the 'appearance' property was deprecated and has now been removed. It will no longer have any effect.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:22.953Z",
+      "message": "Waiting for form to load...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:26.492Z",
+      "message": "\n📋 STEP 1: Selecting age groups",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:08:26.500Z",
+      "message": "Selected 5 age groups:",
+      "data": [
+        "Adult",
+        "0 - 6 years, On My Own",
+        "0 - 6 years, Parent Participation",
+        "5 - 13 years, School Age",
+        "10 - 18 years, Youth"
+      ]
+    },
+    {
+      "timestamp": "2025-08-07T00:08:28.501Z",
+      "message": "\n🎯 STEP 2: Waiting for activities to appear",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:01.124Z",
+      "message": "\n📍 STEP 3: Selecting locations",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:01.125Z",
+      "message": "Location selection:",
+      "data": {
+        "method": "individual",
+        "count": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-07T00:09:03.125Z",
+      "message": "\n🔍 Clicking Show Results button",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:03.127Z",
+      "message": "\n📍 APPROACH 2: Using PerfectMind widget directly",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:03.127Z",
+      "message": "Navigating to PerfectMind widget directly...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:11.705Z",
+      "message": "\n📂 Processing section: All Ages & Family",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:11.707Z",
+      "message": "Clicked on All Ages & Family, waiting for content...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:16.718Z",
+      "message": "Expanded 5 activity groups",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:18.721Z",
+      "message": "Extracted 4 activities from All Ages & Family",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:18.721Z",
+      "message": "\n📂 Processing section: Early Years: On My Own",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:19.035Z",
+      "message": "PAGE LOG: A preload for 'https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:23.415Z",
+      "message": "PAGE LOG: The resource https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:23.415Z",
+      "message": "PAGE LOG: The resource https://nvrc.perfectmind.com/Content/Fonts/FontAwesome/fonts/fontawesome-webfont.woff?v=4.3.0 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:24.059Z",
+      "message": "\n📂 Processing section: Early Years: Parent Participation",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:24.061Z",
+      "message": "\n📂 Processing section: School Age",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:24.064Z",
+      "message": "Clicked on School Age, waiting for content...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:24.534Z",
+      "message": "PAGE LOG: A preload for 'https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:27.920Z",
+      "message": "PAGE LOG: The resource https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:27.920Z",
+      "message": "PAGE LOG: The resource https://nvrc.perfectmind.com/Content/Fonts/FontAwesome/fonts/fontawesome-webfont.woff?v=4.3.0 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:29.073Z",
+      "message": "Expanded 5 activity groups",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:31.078Z",
+      "message": "Extracted 10 activities from School Age",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:31.078Z",
+      "message": "\n📂 Processing section: Youth",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:31.354Z",
+      "message": "PAGE LOG: A preload for 'https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:35.720Z",
+      "message": "PAGE LOG: The resource https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:35.720Z",
+      "message": "PAGE LOG: The resource https://nvrc.perfectmind.com/Content/Fonts/FontAwesome/fonts/fontawesome-webfont.woff?v=4.3.0 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:36.381Z",
+      "message": "Clicked on Youth, waiting for content...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:36.836Z",
+      "message": "PAGE LOG: A preload for 'https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:40.415Z",
+      "message": "PAGE LOG: The resource https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:40.416Z",
+      "message": "PAGE LOG: The resource https://nvrc.perfectmind.com/Content/Fonts/FontAwesome/fonts/fontawesome-webfont.woff?v=4.3.0 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:41.385Z",
+      "message": "Expanded 2 activity groups",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:43.390Z",
+      "message": "Extracted 1 activities from Youth",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:43.390Z",
+      "message": "\n📂 Processing section: Adult",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:43.671Z",
+      "message": "PAGE LOG: A preload for 'https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:47.992Z",
+      "message": "PAGE LOG: The resource https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:47.992Z",
+      "message": "PAGE LOG: The resource https://nvrc.perfectmind.com/Content/Fonts/FontAwesome/fonts/fontawesome-webfont.woff?v=4.3.0 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:48.591Z",
+      "message": "Clicked on Adult, waiting for content...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:49.079Z",
+      "message": "PAGE LOG: A preload for 'https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:52.590Z",
+      "message": "PAGE LOG: The resource https://fonts.gstatic.com/s/opensans/v43/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsiH0B4gaVQUwaEQbjA.woff was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:52.590Z",
+      "message": "PAGE LOG: The resource https://nvrc.perfectmind.com/Content/Fonts/FontAwesome/fonts/fontawesome-webfont.woff?v=4.3.0 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:53.601Z",
+      "message": "Expanded 5 activity groups",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-07T00:09:55.607Z",
+      "message": "Extracted 32 activities from Adult",
+      "data": null
+    }
+  ],
+  "activities": [
+    {
+      "source": "All Ages & Family",
+      "name": "Login",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/MemberRegistration/MemberSignIn?returnUrl=https%3a%2f%2fnvrc.perfectmind.com%2f23734%2fClients%2fBookMe4BookingPages%2fBookingCoursesPage%3fcalendarId%3dd4384a71-5e9f-43b8-97cf-87c7bc5ec6fb%26widgetId%3da28b2c65-61af-407f-80d1-eaa58f30a94a%26embed%3dFalse",
+      "rawText": "Login"
+    },
+    {
+      "source": "All Ages & Family",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=31239325-3e13-45f6-ae51-94589144222b",
+      "rawText": "More Info"
+    },
+    {
+      "source": "All Ages & Family",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=b1e31c59-19e0-4c31-b47c-78fddc778fde",
+      "rawText": "More Info"
+    },
+    {
+      "source": "All Ages & Family",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=408bcdbe-eb15-414d-bad7-c1c607efea63",
+      "rawText": "More Info"
+    },
+    {
+      "source": "School Age",
+      "name": "Login",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/MemberRegistration/MemberSignIn?returnUrl=https%3a%2f%2fnvrc.perfectmind.com%2f23734%2fClients%2fBookMe4BookingPages%2fBookingCoursesPage%3fcalendarId%3d1c679ddb-9cec-4da1-b990-3adfb13ca43b%26widgetId%3da28b2c65-61af-407f-80d1-eaa58f30a94a%26embed%3dFalse",
+      "rawText": "Login"
+    },
+    {
+      "source": "School Age",
+      "name": "Closed",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=5c1ab82a-8497-4265-b8a8-c59d7cc163da",
+      "rawText": "Closed"
+    },
+    {
+      "source": "School Age",
+      "name": "Waitlist",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=d643a470-39ec-4f59-8035-e945d70b45a8",
+      "rawText": "Waitlist"
+    },
+    {
+      "source": "School Age",
+      "name": "Book Now",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=c4cd33ab-db08-4ba4-b458-400636480352",
+      "rawText": "Book Now"
+    },
+    {
+      "source": "School Age",
+      "name": "Closed",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=dce7e4b7-9eac-4aa4-bfbd-7567fa0cbbc2",
+      "rawText": "Closed"
+    },
+    {
+      "source": "School Age",
+      "name": "Waitlist",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=0ac65bd8-4e20-42f0-a46a-0c082d02f317",
+      "rawText": "Waitlist"
+    },
+    {
+      "source": "School Age",
+      "name": "Waitlist",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=b47e99df-ce78-45bd-9062-9d7516b1d29d",
+      "rawText": "Waitlist"
+    },
+    {
+      "source": "School Age",
+      "name": "Closed",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=c610e191-0173-42a3-b23c-330a6111396f",
+      "rawText": "Closed"
+    },
+    {
+      "source": "School Age",
+      "name": "Waitlist",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=557f4241-4e3f-4ebd-8129-ed35cd6606e7",
+      "rawText": "Waitlist"
+    },
+    {
+      "source": "School Age",
+      "name": "Waitlist",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=cc7c4d87-fea4-41a9-8c72-3ba4ecb8b291",
+      "rawText": "Waitlist"
+    },
+    {
+      "source": "Youth",
+      "name": "Login",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/MemberRegistration/MemberSignIn?returnUrl=https%3a%2f%2fnvrc.perfectmind.com%2f23734%2fClients%2fBookMe4BookingPages%2fClasses%3fcalendarId%3d829acf32-dd84-43cd-9401-6ef950a813a4%26widgetId%3da28b2c65-61af-407f-80d1-eaa58f30a94a%26embed%3dFalse",
+      "rawText": "Login"
+    },
+    {
+      "source": "Adult",
+      "name": "Login",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/MemberRegistration/MemberSignIn?returnUrl=https%3a%2f%2fnvrc.perfectmind.com%2f23734%2fClients%2fBookMe4BookingPages%2fBookingCoursesPage%3fcalendarId%3d287cf438-909c-4512-ad03-74d66a958b78%26widgetId%3da28b2c65-61af-407f-80d1-eaa58f30a94a%26embed%3dFalse",
+      "rawText": "Login"
+    },
+    {
+      "source": "Adult",
+      "name": "Book Now",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=433c3ec5-eef2-4111-83e8-1c7b9493bb98",
+      "rawText": "Book Now"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=ff83659f-4c72-4702-8d05-76eb96d7ecc9",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=cc677583-8125-4af0-97e6-22b43fdca616",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=c4188409-8971-4446-b5aa-66106208cdab",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=639c8fc3-1941-4e6b-9708-ffd1ec2e688f",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=a85595df-1b45-4545-b5b8-0cd1e317800f",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=c9eaba22-33dc-4170-b0ac-bc88c8bf7b05",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=c31c6758-0778-4413-9e1e-2e1cd5386d32",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=3f7eab7b-74dd-411c-9163-361d2d4ab388",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=6e1951e6-d650-4dcd-8c99-c35e8be4737c",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=4e36e9e2-7be6-4e6e-aa37-4bf8c20a5c4b",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=11fe0edd-f15d-44a7-b534-9a3a73573481",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=d9f3fd43-1e94-46ba-83f0-54522e6aafcd",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=d9cd96e0-9a07-4e03-826b-71f715a3d351",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=2bdf9f96-bc44-4dc0-8039-edb8ee2b5d86",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=a9978c5f-f2d2-406d-8698-3310d7d3b7e7",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=425a5d81-235b-4c37-927b-77d278bc84db",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=cf07d423-9339-4562-ab04-1b59ea15dd64",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=740e09f2-fc23-4ff7-9916-3202e635d133",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=ac3980d1-2e42-46c3-91f0-e39a7639fcd9",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=5e41466b-2522-4bde-a895-d7557108dfa9",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=48a81a21-cf55-421a-bff3-ab96b2313171",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=6b93397f-1e26-4e7f-a47b-4773e9f9de56",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=65f904fe-d0fa-4ff2-8357-6c7c0f29bc58",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=9c35ded6-2648-4167-b670-6e0310aa24d0",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=a6b785fc-f93e-492c-b6f6-0987d44eabdf",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=5fbbc41a-c2d6-42ac-a175-7c7b76464954",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=ce72ed69-3a53-4587-ae16-4585d70d0723",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=3a93afa9-5d4c-4a3c-bfe4-ee3eba6c63c3",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=457f7247-56ef-489a-83e7-f89ebd8570f9",
+      "rawText": "More Info"
+    },
+    {
+      "source": "Adult",
+      "name": "More Info",
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&redirectedFromEmbededMode=False&courseId=2f3596c9-6f9a-4e92-9b21-31846edb2e11",
+      "rawText": "More Info"
+    }
+  ],
+  "activitySummary": {
+    "totalCount": 47,
+    "bySources": {
+      "All Ages & Family": 4,
+      "School Age": 10,
+      "Youth": 1,
+      "Adult": 32
+    },
+    "uniqueActivities": [
+      "Book Now",
+      "Closed",
+      "Login",
+      "More Info",
+      "Waitlist"
+    ],
+    "uniqueCount": 5
+  }
+}

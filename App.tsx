@@ -1,27 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 import RootNavigator from './src/navigation/RootNavigator';
 import SplashScreen from './src/components/SplashScreen';
-import { useStore } from './src/store';
+import NetworkStatus from './src/components/NetworkStatus';
+import { store, persistor } from './src/store';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const { hydrate } = useStore();
-
-  useEffect(() => {
-    // Load persisted data on app start with delay to avoid initialization issues
-    const timer = setTimeout(() => {
-      try {
-        hydrate();
-      } catch (error) {
-        console.warn('Error during hydration:', error);
-      }
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [hydrate]);
 
   const handleSplashFinish = () => {
     setIsLoading(false);
@@ -37,11 +26,16 @@ function App() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <RootNavigator />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <ThemeProvider>
+            <RootNavigator />
+            <NetworkStatus />
+          </ThemeProvider>
+        </GestureHandlerRootView>
+      </PersistGate>
+    </Provider>
   );
 }
 

@@ -8,14 +8,15 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
 import { Filter } from '../types/activity';
 import Slider from '@react-native-community/slider';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ActivityService from '../services/activityService';
+import { formatPrice } from '../utils/formatters';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Filter'>;
+type Props = StackScreenProps<RootStackParamList, 'Filter'>;
 
 const AGE_GROUPS = [
   { label: 'Baby (0-2)', min: 0, max: 2 },
@@ -164,7 +165,7 @@ export default function FilterScreen({ navigation, route }: Props) {
         </View>
         {!showFreeOnly && (
           <View style={styles.sliderContainer}>
-            <Text style={styles.sliderLabel}>Max Cost: ${maxCost}</Text>
+            <Text style={styles.sliderLabel}>Max Cost: ${formatPrice(maxCost)}</Text>
             <Slider
               style={styles.slider}
               minimumValue={0}
