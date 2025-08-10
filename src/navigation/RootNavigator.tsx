@@ -15,7 +15,8 @@ import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 import HomeScreen from '../screens/HomeScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import SearchScreen from '../screens/SearchScreen';
-import FavoritesScreen from '../screens/FavoritesScreen';
+import FavoritesScreen from '../screens/FavoritesScreenNew';
+import FriendsAndFamilyScreen from '../screens/FriendsAndFamilyScreenSimple';
 import ProfileScreen from '../screens/ProfileScreen';
 import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenEnhanced';
 import FilterScreen from '../screens/FilterScreen';
@@ -46,11 +47,18 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const HomeStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator 
+    screenOptions={{ 
+      headerShown: false,
+      presentation: 'card',
+      animationEnabled: true,
+    }}
+  >
     <Stack.Screen name="Dashboard" component={DashboardScreen} />
     <Stack.Screen name="ActivityType" component={ActivityTypeScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
+    <Stack.Screen name="Favorites" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
@@ -71,6 +79,15 @@ const FavoritesStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="FavoritesMain" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+  </Stack.Navigator>
+);
+
+const FriendsAndFamilyStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="FriendsAndFamilyMain" component={FriendsAndFamilyScreen} />
+    <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+    <Stack.Screen name="ActivityHistory" component={ActivityDetailScreen} /> {/* TODO: Create dedicated screen */}
+    <Stack.Screen name="SharedActivities" component={ActivityDetailScreen} /> {/* TODO: Create dedicated screen */}
   </Stack.Navigator>
 );
 
@@ -160,13 +177,13 @@ const MainTabs = () => {
       }}
     />
     <Tab.Screen
-      name="Favorites"
-      component={FavoritesStack}
+      name="FriendsAndFamily"
+      component={FriendsAndFamilyStack}
       options={{
-        tabBarLabel: 'Favorites',
+        tabBarLabel: 'Friends & Family',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon 
-            name={focused ? "heart" : "heart-outline"} 
+            name={focused ? "account-group" : "account-group-outline"} 
             color={color} 
             size={28} 
           />

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
   Dimensions,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -99,7 +100,7 @@ const FavoritesScreen = () => {
       } : null,
       scrapedAt: activity.scrapedAt ? activity.scrapedAt.toISOString() : null,
     };
-    navigation.navigate('ActivityDetail', { activity: serializedActivity });
+    navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
   };
 
   const removeFavorite = (activity: Activity) => {
@@ -169,74 +170,12 @@ const FavoritesScreen = () => {
 
   const renderFavoriteCard = ({ item }: { item: Activity }) => (
     <View style={styles.cardWrapper}>
-      <TouchableOpacity
+      <ActivityCard 
+        activity={item}
         onPress={() => navigateToActivity(item)}
-        activeOpacity={0.9}
-      >
-        <View style={styles.card}>
-          {item.spotsLeft !== undefined && item.spotsLeft <= 3 && (
-            <View style={[styles.capacityBadge, { backgroundColor: getCapacityColor(item.spotsLeft) }]}>
-              <Icon name="alert" size={16} color="#fff" />
-              <Text style={styles.capacityBadgeText}>
-                {item.spotsLeft} {item.spotsLeft === 1 ? 'spot' : 'spots'} left
-              </Text>
-            </View>
-          )}
-          
-          <View style={styles.cardHeader}>
-            <View style={styles.categoryTag}>
-              <Icon 
-                name={getCategoryIcon(item.category)} 
-                size={16} 
-                color="#667eea" 
-              />
-              <Text style={styles.categoryText}>{item.category}</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => removeFavorite(item)}
-              style={styles.favoriteButton}
-            >
-              <Icon name="heart" size={24} color="#FF6B6B" />
-            </TouchableOpacity>
-          </View>
-          
-          <Text style={styles.activityName}>{item.name}</Text>
-          <Text style={styles.provider}>{item.provider}</Text>
-          
-          <View style={styles.detailsRow}>
-            <View style={styles.detailItem}>
-              <Icon name="map-marker" size={16} color="#666" />
-              <Text style={styles.detailText}>{item.location}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Icon name="human-child" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                Ages {item.ageRange.min}-{item.ageRange.max}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.cardFooter}>
-            <View style={styles.priceContainer}>
-              <Text style={styles.priceLabel}>From</Text>
-              <Text style={styles.price}>${item.cost}</Text>
-            </View>
-            {item.spotsLeft !== undefined && (
-              <View style={[styles.capacityIndicator, { borderColor: getCapacityColor(item.spotsLeft) }]}>
-                <View 
-                  style={[
-                    styles.capacityFill, 
-                    { 
-                      backgroundColor: getCapacityColor(item.spotsLeft),
-                      width: `${Math.max(10, (item.spotsLeft / 10) * 100)}%`
-                    }
-                  ]} 
-                />
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
+        isFavorite={true}
+        onToggleFavorite={() => removeFavorite(item)}
+      />
     </View>
   );
 
@@ -268,7 +207,7 @@ const FavoritesScreen = () => {
       </LinearGradient>
       <TouchableOpacity
         style={styles.exploreButton}
-        onPress={() => navigation.navigate('Search')}
+        onPress={() => navigation.navigate('Search' as never)}
       >
         <LinearGradient
           colors={['#667eea', '#764ba2']}
@@ -286,12 +225,12 @@ const FavoritesScreen = () => {
     : favorites;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {renderHeader()}
       
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading favorites...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading favorites...</Text>
         </View>
       ) : filteredFavorites.length === 0 ? (
         renderEmptyState()
@@ -307,7 +246,7 @@ const FavoritesScreen = () => {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

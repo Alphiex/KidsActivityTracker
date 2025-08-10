@@ -23,9 +23,11 @@ import ActivityService from '../../services/activityService';
 import FavoritesService from '../../services/favoritesService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
+import AssignActivityToChildModal from '../../components/activities/AssignActivityToChildModal';
 import { formatPrice } from '../../utils/formatters';
 import { useTheme } from '../../contexts/ThemeContext';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
+import childrenService from '../../services/childrenService';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,7 @@ const ActivityDetailScreenEnhanced = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showChildAssignModal, setShowChildAssignModal] = useState(false);
   const [geocodedCoords, setGeocodedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = React.useRef<MapView>(null);
   
@@ -128,8 +131,8 @@ const ActivityDetailScreenEnhanced = () => {
             mapRef.current?.animateToRegion({
               latitude: coords.latitude,
               longitude: coords.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
+              latitudeDelta: 0.005, // Detailed view for exact location
+              longitudeDelta: 0.005,
             }, 1000);
           }, 100);
         }
@@ -226,7 +229,7 @@ const ActivityDetailScreenEnhanced = () => {
     }
   };
 
-  // Determine map coordinates
+  // Determine map coordinates - use exact coordinates when available
   const mapLat = activity.latitude || geocodedCoords?.latitude || 49.3217;
   const mapLng = activity.longitude || geocodedCoords?.longitude || -123.0724;
   const hasExactLocation = !!(activity.latitude || geocodedCoords);
@@ -482,8 +485,8 @@ const ActivityDetailScreenEnhanced = () => {
                 initialRegion={{
                   latitude: mapLat,
                   longitude: mapLng,
-                  latitudeDelta: hasExactLocation ? 0.01 : 0.05,
-                  longitudeDelta: hasExactLocation ? 0.01 : 0.05,
+                  latitudeDelta: 0.005, // Always show detailed view
+                  longitudeDelta: 0.005,
                 }}
                 showsUserLocation={true}
                 showsMyLocationButton={false}
@@ -511,17 +514,6 @@ const ActivityDetailScreenEnhanced = () => {
                   </View>
                 </Marker>
               </MapView>
-              
-              {!hasExactLocation && (
-                <View style={styles.mapOverlay}>
-                  <View style={styles.mapOverlayContent}>
-                    <Icon name="info" size={16} color="#FFFFFF" />
-                    <Text style={styles.mapOverlayText}>
-                      Approximate location
-                    </Text>
-                  </View>
-                </View>
-              )}
 
               <TouchableOpacity
                 style={styles.directionsButton}
@@ -545,17 +537,16 @@ const ActivityDetailScreenEnhanced = () => {
 
         {/* Child Registration */}
         <View style={[styles.card, { backgroundColor: colors.surface, marginBottom: 100 }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Child Registration</Text>
-          <ChildActivityStatus 
-            activityId={activity.id} 
-            onPress={() => setShowRegisterModal(true)}
-          />
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Assign to Child</Text>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary, marginBottom: 16 }]}>
+            Track this activity for your children
+          </Text>
           <TouchableOpacity
             style={[styles.childRegisterButton, { backgroundColor: colors.secondary }]}
-            onPress={() => setShowRegisterModal(true)}
+            onPress={() => setShowChildAssignModal(true)}
           >
-            <Icon name="child-care" size={20} color="#FFFFFF" />
-            <Text style={styles.childRegisterButtonText}>Register Child</Text>
+            <Icon name="account-child" size={20} color="#FFFFFF" />
+            <Text style={styles.childRegisterButtonText}>Assign to Child</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -564,6 +555,12 @@ const ActivityDetailScreenEnhanced = () => {
         visible={showRegisterModal}
         activity={activity}
         onClose={() => setShowRegisterModal(false)}
+      />
+
+      <AssignActivityToChildModal
+        visible={showChildAssignModal}
+        activity={activity}
+        onClose={() => setShowChildAssignModal(false)}
       />
 
       {/* Floating Register Button - Always visible at bottom */}
@@ -774,6 +771,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  cardSubtitle: {
+    fontSize: 14,
   },
   descriptionText: {
     fontSize: 15,

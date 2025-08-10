@@ -19,7 +19,7 @@ import { Activity } from '../types';
 const ActivityTypeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { category } = route.params as { category: string };
+  const { category, filters } = route.params as { category: string; filters?: any };
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,9 +30,20 @@ const ActivityTypeScreen = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
-      const fetchedActivities = await activityService.searchActivities({
-        activityTypes: [category],
-      });
+      
+      let searchParams: any = {};
+      
+      // Add category filter if not "All"
+      if (category !== 'All') {
+        searchParams.activityTypes = [category];
+      }
+      
+      // Apply additional filters if provided
+      if (filters) {
+        searchParams = { ...searchParams, ...filters };
+      }
+      
+      const fetchedActivities = await activityService.searchActivities(searchParams);
       setActivities(fetchedActivities);
     } catch (err: any) {
       console.error('Error loading activities:', err);
@@ -44,8 +55,15 @@ const ActivityTypeScreen = () => {
   };
 
   useEffect(() => {
+    let title = category;
+    
+    // Update title based on filters
+    if (filters?.maxCost) {
+      title = `Budget Friendly (Under $${filters.maxCost})`;
+    }
+    
     navigation.setOptions({
-      title: category,
+      title: title,
       headerStyle: {
         backgroundColor: Colors.primary,
       },

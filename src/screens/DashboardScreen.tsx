@@ -57,28 +57,16 @@ const DashboardScreen = () => {
       onPress: () => navigation.navigate('LocationBrowse'),
     },
     {
-      title: 'Weekend Activities',
-      icon: 'calendar-weekend',
+      title: 'Favorites',
+      icon: 'heart',
       gradient: ['#f093fb', '#f5576c'],
-      onPress: () => navigation.navigate('ActivityType', { 
-        category: 'All',
-        filters: { daysOfWeek: ['Saturday', 'Sunday'] }
-      }),
-    },
-    {
-      title: 'Budget Friendly',
-      icon: 'cash-multiple',
-      gradient: ['#4facfe', '#00f2fe'],
-      onPress: () => navigation.navigate('ActivityType', { 
-        category: 'All',
-        filters: { priceRange: { min: 0, max: 100 } }
-      }),
-    },
-    {
-      title: 'New This Week',
-      icon: 'new-box',
-      gradient: ['#43e97b', '#38f9d7'],
-      onPress: () => navigation.navigate('NewActivities'),
+      onPress: () => {
+        try {
+          navigation.navigate('Favorites' as never);
+        } catch (error) {
+          console.error('Navigation error:', error);
+        }
+      },
     },
   ];
 
@@ -205,45 +193,6 @@ const DashboardScreen = () => {
     </LinearGradient>
   );
 
-  const renderQuickFilters = () => (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Filters</Text>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-      >
-        {preferences.ageRanges.map((range, index) => (
-          <TouchableOpacity 
-            key={index}
-            style={[styles.filterChip, { backgroundColor: colors.surface }]}
-            onPress={() => navigation.navigate('ActivityType', { 
-              category: 'All',
-              filters: { ageRange: range }
-            })}
-          >
-            <Icon name="human-child" size={16} color={colors.primary} />
-            <Text style={[styles.filterChipText, { color: colors.text }]}>
-              Ages {range.min}-{range.max}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        {preferences.locations.slice(0, 3).map((location, index) => (
-          <TouchableOpacity 
-            key={`loc-${index}`}
-            style={[styles.filterChip, { backgroundColor: colors.surface }]}
-            onPress={() => navigation.navigate('ActivityType', { 
-              category: 'All',
-              filters: { location }
-            })}
-          >
-            <Icon name="map-marker" size={16} color={colors.primary} />
-            <Text style={[styles.filterChipText, { color: colors.text }]}>{location}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
 
   const renderQuickActions = () => (
     <View style={styles.section}>
@@ -368,8 +317,50 @@ const DashboardScreen = () => {
       }
     >
       {renderHeader()}
-      {renderQuickFilters()}
       {renderQuickActions()}
+      
+      {/* Dashboard Actions */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Discover Activities</Text>
+        <View style={styles.dashboardActionsGrid}>
+
+          {/* New This Week */}
+          <TouchableOpacity
+            style={styles.dashboardActionCard}
+            onPress={() => navigation.navigate('NewActivities')}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#43e97b', '#38f9d7']}
+              style={styles.dashboardActionGradient}
+            >
+              <Icon name="new-box" size={32} color="#fff" />
+              <Text style={styles.dashboardActionTitle}>New This Week</Text>
+              <Text style={styles.dashboardActionCount}>{stats.newThisWeek} activities</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Budget Friendly */}
+          <TouchableOpacity
+            style={styles.dashboardActionCard}
+            onPress={() => navigation.navigate('ActivityType', { 
+              category: 'All',
+              filters: { maxCost: preferences.budgetFriendlyThreshold || 20 }
+            })}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#4facfe', '#00f2fe']}
+              style={styles.dashboardActionGradient}
+            >
+              <Icon name="cash-multiple" size={32} color="#fff" />
+              <Text style={styles.dashboardActionTitle}>Budget Friendly</Text>
+              <Text style={styles.dashboardActionCount}>Under ${preferences.budgetFriendlyThreshold || 20}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
       {renderCategories()}
       
       {/* Personalized Recommendations */}
@@ -525,6 +516,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 8,
     textAlign: 'center',
+  },
+  dashboardActionsGrid: {
+    marginTop: 10,
+  },
+  dashboardActionCard: {
+    marginBottom: 15,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+  },
+  dashboardActionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  dashboardActionTitle: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 15,
+  },
+  dashboardActionCount: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '500',
   },
   categoryScroll: {
     marginTop: 10,
