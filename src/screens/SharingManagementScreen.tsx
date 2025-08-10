@@ -502,7 +502,6 @@ const styles = StyleSheet.create({
   invitationActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
     marginTop: 12,
   },
   declineButton: {
@@ -510,6 +509,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 20,
     borderWidth: 1,
+    marginRight: 12,
   },
   declineButtonText: {
     fontSize: 14,
@@ -586,7 +586,6 @@ const styles = StyleSheet.create({
   childSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
     marginBottom: 20,
   },
   childOption: {
@@ -594,6 +593,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 2,
+    margin: 5,
   },
   selectedChildOption: {
     borderWidth: 2,
@@ -610,12 +610,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   permissionsList: {
-    gap: 16,
   },
   permissionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   permissionLabel: {
     fontSize: 16,
@@ -624,7 +624,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 20,
-    gap: 12,
   },
   cancelButton: {
     flex: 1,
@@ -632,6 +631,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
+    marginRight: 6,
   },
   cancelButtonText: {
     fontSize: 16,
@@ -642,6 +642,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    marginLeft: 6,
   },
   shareButtonText: {
     fontSize: 16,

@@ -328,10 +328,10 @@ const styles = StyleSheet.create({
   childActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   shareIconButton: {
     padding: 8,
+    marginRight: 12,
   },
   loadingContainer: {
     padding: 40,
