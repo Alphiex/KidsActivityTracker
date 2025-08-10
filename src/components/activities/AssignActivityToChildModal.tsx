@@ -14,6 +14,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Activity } from '../../types';
 import { Child } from '../../store/slices/childrenSlice';
 import childrenService, { ChildActivity } from '../../services/childrenService';
+import { shareActivityViaEmail } from '../../utils/sharing';
 
 interface AssignActivityToChildModalProps {
   visible: boolean;
@@ -84,6 +85,14 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
           [
             { text: 'Cancel', style: 'cancel' },
             {
+              text: 'Share via Email',
+              onPress: () => shareActivityViaEmail({ 
+                activity, 
+                child, 
+                status: existingAssignment.status 
+              }),
+            },
+            {
               text: 'Mark as Planned',
               onPress: () => updateActivityStatus(existingAssignment.id, 'planned'),
             },
@@ -109,7 +118,17 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
           ...prev,
           [child.id]: newAssignment,
         }));
-        Alert.alert('Success', `Activity assigned to ${child.name}`);
+        Alert.alert(
+          'Success', 
+          `Activity assigned to ${child.name}`,
+          [
+            { text: 'OK', style: 'default' },
+            { 
+              text: 'Share via Email', 
+              onPress: () => shareActivityViaEmail({ activity, child, status: 'planned' })
+            },
+          ]
+        );
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to assign activity');
@@ -171,7 +190,17 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
             </Text>
           )}
         </View>
-        <Icon name={statusIcon.name} size={24} color={statusIcon.color} />
+        <View style={styles.childActions}>
+          {assignment && (
+            <TouchableOpacity
+              style={styles.shareIconButton}
+              onPress={() => shareActivityViaEmail({ activity, child: item, status: assignment.status })}
+            >
+              <Icon name="share-variant" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          <Icon name={statusIcon.name} size={24} color={statusIcon.color} />
+        </View>
       </TouchableOpacity>
     );
   };
@@ -295,6 +324,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     textTransform: 'capitalize',
+  },
+  childActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shareIconButton: {
+    padding: 8,
   },
   loadingContainer: {
     padding: 40,

@@ -28,6 +28,7 @@ import { formatPrice } from '../../utils/formatters';
 import { useTheme } from '../../contexts/ThemeContext';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 import childrenService from '../../services/childrenService';
+import { shareActivityViaEmail } from '../../utils/sharing';
 
 const { width } = Dimensions.get('window');
 
@@ -319,6 +320,15 @@ const ActivityDetailScreenEnhanced = () => {
               <Text style={[styles.viewWebsiteButtonText, { color: colors.primary }]}>View on Website</Text>
             </TouchableOpacity>
           )}
+          
+          {/* Share Activity Button */}
+          <TouchableOpacity
+            style={[styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+            onPress={() => shareActivityViaEmail({ activity })}
+          >
+            <Icon name="share" size={20} color={colors.primary} />
+            <Text style={[styles.shareButtonText, { color: colors.primary }]}>Share via Email</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Registration Status Card */}
@@ -734,6 +744,25 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   viewWebsiteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  shareButtonText: {
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
