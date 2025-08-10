@@ -117,10 +117,16 @@ const PaginatedActivityList: React.FC<PaginatedActivityListProps> = ({
   };
 
   const handleActivityPress = (activity: Activity) => {
+    console.log('PaginatedActivityList handleActivityPress called for:', activity.name);
+    console.log('onActivityPress prop exists:', !!onActivityPress);
+    console.log('Navigation object exists:', !!navigation);
+    
     if (onActivityPress) {
+      console.log('Using custom onActivityPress handler');
       onActivityPress(activity);
     } else {
-      navigation.navigate('ActivityDetail', { activity });
+      console.log('Navigating to ActivityDetail');
+      navigation.navigate('ActivityDetail' as never, { activity } as never);
     }
   };
 

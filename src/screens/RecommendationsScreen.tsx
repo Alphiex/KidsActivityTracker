@@ -58,22 +58,22 @@ const RecommendationsScreen = () => {
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
-    <TouchableOpacity
-      onPress={() => {
-        const serializedActivity = {
-          ...item,
-          dateRange: item.dateRange ? {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
-          } : null,
-          scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
-        };
-        navigation.navigate('ActivityDetail', { activity: serializedActivity });
-      }}
-      style={styles.activityWrapper}
-    >
-      <ActivityCard activity={item} />
-    </TouchableOpacity>
+    <View style={styles.activityWrapper}>
+      <ActivityCard 
+        activity={item}
+        onPress={() => {
+          const serializedActivity = {
+            ...item,
+            dateRange: item.dateRange ? {
+              start: item.dateRange.start.toISOString(),
+              end: item.dateRange.end.toISOString(),
+            } : null,
+            scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+          };
+          navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
+        }}
+      />
+    </View>
   );
 
   const renderHeader = () => (

@@ -83,28 +83,27 @@ const NewActivitiesScreen = () => {
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
-    <TouchableOpacity
-      onPress={() => {
-        // Convert Date objects to ISO strings to avoid non-serializable warning
-        const serializedActivity = {
-          ...item,
-          dateRange: item.dateRange ? {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
-          } : null,
-          scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
-        };
-        navigation.navigate('ActivityDetail', { activity: serializedActivity });
-      }}
-    >
-      <View style={styles.activityWrapper}>
-        <ActivityCard activity={item} />
-        {/* New badge */}
-        <View style={styles.newBadge}>
-          <Text style={styles.newBadgeText}>NEW</Text>
-        </View>
+    <View style={styles.activityWrapper}>
+      <ActivityCard 
+        activity={item}
+        onPress={() => {
+          // Convert Date objects to ISO strings to avoid non-serializable warning
+          const serializedActivity = {
+            ...item,
+            dateRange: item.dateRange ? {
+              start: item.dateRange.start.toISOString(),
+              end: item.dateRange.end.toISOString(),
+            } : null,
+            scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+          };
+          navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
+        }}
+      />
+      {/* New badge */}
+      <View style={styles.newBadge}>
+        <Text style={styles.newBadgeText}>NEW</Text>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const renderHeader = () => (

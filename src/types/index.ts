@@ -8,18 +8,38 @@ export interface Activity {
     min: number;
     max: number;
   };
-  dateRange: {
+  dateRange?: {
     start: Date;
     end: Date;
-  };
-  schedule: Schedule;
-  location: Location;
+  } | null;
+  schedule: Schedule | string;
+  location: Location | string;
   cost: number;
   spotsAvailable?: number;
   totalSpots?: number;
   registrationUrl: string;
   imageUrl?: string;
   scrapedAt: Date;
+  isFavorite?: boolean;
+  
+  // Enhanced fields from detailed scraping
+  registrationStatus?: string;
+  registrationButtonText?: string;
+  detailUrl?: string;
+  fullDescription?: string;
+  instructor?: string;
+  prerequisites?: string;
+  whatToBring?: string;
+  fullAddress?: string;
+  latitude?: number;
+  longitude?: number;
+  directRegistrationUrl?: string;
+  contactInfo?: string;
+  courseId?: string;
+  locationName?: string;
+  dates?: string;
+  category?: string;
+  subcategory?: string;
 }
 
 export interface Schedule {

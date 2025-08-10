@@ -27,6 +27,8 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
+import TestNavigationScreen from '../screens/TestNavigationScreen';
+import NavigationErrorBoundary from '../components/NavigationErrorBoundary';
 
 // Import Preference Screens
 import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
@@ -52,6 +54,7 @@ const HomeStack = () => (
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+    <Stack.Screen name="TestNavigation" component={TestNavigationScreen} />
   </Stack.Navigator>
 );
 
@@ -254,56 +257,58 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer
-      theme={{
-        dark: isDark,
-        colors: {
-          primary: colors.primary,
-          background: colors.background,
-          card: colors.surface,
-          text: colors.text,
-          border: colors.border,
-          notification: colors.primary,
-        },
-        fonts: {
-          regular: {
-            fontFamily: 'System',
-            fontWeight: '400',
+    <NavigationErrorBoundary>
+      <NavigationContainer
+        theme={{
+          dark: isDark,
+          colors: {
+            primary: colors.primary,
+            background: colors.background,
+            card: colors.surface,
+            text: colors.text,
+            border: colors.border,
+            notification: colors.primary,
           },
-          medium: {
-            fontFamily: 'System',
-            fontWeight: '500',
+          fonts: {
+            regular: {
+              fontFamily: 'System',
+              fontWeight: '400',
+            },
+            medium: {
+              fontFamily: 'System',
+              fontWeight: '500',
+            },
+            bold: {
+              fontFamily: 'System',
+              fontWeight: '700',
+            },
+            heavy: {
+              fontFamily: 'System',
+              fontWeight: '900',
+            },
           },
-          bold: {
-            fontFamily: 'System',
-            fontWeight: '700',
-          },
-          heavy: {
-            fontFamily: 'System',
-            fontWeight: '900',
-          },
-        },
-      }}
-    >
-      <StatusBar 
-        barStyle={isDark ? 'light-content' : 'dark-content'} 
-        backgroundColor={colors.background}
-      />
-      <Stack.Navigator 
-        screenOptions={{ headerShown: false }}
+        }}
       >
-        {!isAuthenticated ? (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        ) : !hasCompletedOnboarding ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : (
-          <>
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+        <StatusBar 
+          barStyle={isDark ? 'light-content' : 'dark-content'} 
+          backgroundColor={colors.background}
+        />
+        <Stack.Navigator 
+          screenOptions={{ headerShown: false }}
+        >
+          {!isAuthenticated ? (
+            <Stack.Screen name="Auth" component={AuthNavigator} />
+          ) : !hasCompletedOnboarding ? (
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          ) : (
+            <>
+              <Stack.Screen name="MainTabs" component={MainTabs} />
+              <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </NavigationErrorBoundary>
   );
 };
 

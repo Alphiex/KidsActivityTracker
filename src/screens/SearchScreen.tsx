@@ -358,7 +358,21 @@ const SearchScreen = () => {
   );
 
   const handleActivityPress = (activity: Activity) => {
-    navigation.navigate('ActivityDetail', { activity });
+    console.log('SearchScreen handleActivityPress called for:', activity.name);
+    console.log('Navigation object:', navigation);
+    console.log('Activity data:', activity);
+    
+    // Serialize dates for navigation
+    const serializedActivity = {
+      ...activity,
+      dateRange: activity.dateRange ? {
+        start: activity.dateRange.start.toISOString(),
+        end: activity.dateRange.end.toISOString(),
+      } : null,
+      scrapedAt: activity.scrapedAt.toISOString(),
+    };
+    
+    navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
   };
 
   const activeFiltersCount = 

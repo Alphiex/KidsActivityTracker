@@ -63,7 +63,8 @@ const ActivityTypeScreen = () => {
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
-    <TouchableOpacity
+    <ActivityCard 
+      activity={item}
       onPress={() => {
         // Convert Date objects to ISO strings to avoid non-serializable warning
         const serializedActivity = {
@@ -74,11 +75,9 @@ const ActivityTypeScreen = () => {
           } : null,
           scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
         };
-        navigation.navigate('ActivityDetail', { activity: serializedActivity });
+        navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
       }}
-    >
-      <ActivityCard activity={item} />
-    </TouchableOpacity>
+    />
   );
 
   const renderHeader = () => (

@@ -175,22 +175,25 @@ const LocationBrowseScreen = () => {
   };
 
   const renderActivityItem = ({ item }: { item: Activity }) => (
-    <TouchableOpacity
-      onPress={() => {
-        const serializedActivity = {
-          ...item,
-          dateRange: item.dateRange && item.dateRange.start && item.dateRange.end ? {
-            start: item.dateRange.start instanceof Date ? item.dateRange.start.toISOString() : item.dateRange.start,
-            end: item.dateRange.end instanceof Date ? item.dateRange.end.toISOString() : item.dateRange.end,
-          } : null,
-          scrapedAt: item.scrapedAt instanceof Date ? item.scrapedAt.toISOString() : item.scrapedAt,
-        };
-        navigation.navigate('ActivityDetail', { activity: serializedActivity });
-      }}
-      style={styles.activityCardWrapper}
-    >
-      <ActivityCard activity={item} />
-    </TouchableOpacity>
+    <View style={styles.activityCardWrapper}>
+      <ActivityCard 
+        activity={item}
+        onPress={() => {
+          console.log('LocationBrowseScreen - Activity pressed:', item.name);
+          
+          const serializedActivity = {
+            ...item,
+            dateRange: item.dateRange && item.dateRange.start && item.dateRange.end ? {
+              start: item.dateRange.start instanceof Date ? item.dateRange.start.toISOString() : item.dateRange.start,
+              end: item.dateRange.end instanceof Date ? item.dateRange.end.toISOString() : item.dateRange.end,
+            } : null,
+            scrapedAt: item.scrapedAt instanceof Date ? item.scrapedAt.toISOString() : item.scrapedAt,
+          };
+          
+          navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
+        }}
+      />
+    </View>
   );
 
   const renderHeader = () => (

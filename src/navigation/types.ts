@@ -1,8 +1,8 @@
-import { Activity, Filter } from '../types/activity';
+import { Activity, Filter } from '../types';
 
 export type RootStackParamList = {
   Home: { filter?: Filter } | undefined;
-  ActivityDetail: { activity: Activity };
+  ActivityDetail: { activity: any }; // TODO: Fix Activity type conflict
   Filter: { currentFilter?: Filter };
   Favorites: undefined;
   Search: undefined;

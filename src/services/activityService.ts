@@ -287,7 +287,21 @@ class ActivityService {
           provider: activity.provider?.name || 'NVRC',
           isFavorite: activity._count?.favorites > 0 || false,
           cost: activity.cost || 0,
-          location: activity.location || 'Unknown'
+          location: activity.location || 'Unknown',
+          // Include all enhanced fields
+          registrationStatus: activity.registrationStatus,
+          registrationButtonText: activity.registrationButtonText,
+          detailUrl: activity.detailUrl,
+          fullDescription: activity.fullDescription,
+          instructor: activity.instructor,
+          prerequisites: activity.prerequisites,
+          whatToBring: activity.whatToBring,
+          fullAddress: activity.fullAddress,
+          latitude: activity.latitude,
+          longitude: activity.longitude,
+          directRegistrationUrl: activity.directRegistrationUrl,
+          contactInfo: activity.contactInfo,
+          totalSpots: activity.totalSpots
         }));
         
         return {

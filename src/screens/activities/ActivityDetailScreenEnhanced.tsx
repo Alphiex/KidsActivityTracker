@@ -9,21 +9,23 @@ import {
   Alert,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-// import MapView, { Marker } from 'react-native-maps'; // TODO: Install react-native-maps
+import MapView, { Marker } from 'react-native-maps';
 import LinearGradient from 'react-native-linear-gradient';
 import { Activity } from '../../types';
-import { useStore } from '../../store';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchActivityChildren } from '../../store/slices/childActivitiesSlice';
 import ActivityService from '../../services/activityService';
+import FavoritesService from '../../services/favoritesService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import { formatPrice } from '../../utils/formatters';
 import { useTheme } from '../../contexts/ThemeContext';
+import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 
 const { width } = Dimensions.get('window');
 
@@ -31,40 +33,120 @@ const ActivityDetailScreenEnhanced = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
-  const { colors } = useTheme();
-  const { favoriteActivities, toggleFavorite } = useStore();
+  const { colors, isDark } = useTheme();
+  const favoritesService = FavoritesService.getInstance();
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({
-    details: true,
-    description: true,
-    requirements: false,
-    location: false,
-  });
+  const [geocodedCoords, setGeocodedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const mapRef = React.useRef<MapView>(null);
   
   // Parse the serialized dates back to Date objects
   const serializedActivity = route.params?.activity;
-  const activity: Activity = {
-    ...serializedActivity,
-    dateRange: serializedActivity.dateRange ? {
-      start: new Date(serializedActivity.dateRange.start),
-      end: new Date(serializedActivity.dateRange.end),
-    } : null,
-    scrapedAt: new Date(serializedActivity.scrapedAt),
-  };
+  
+  if (!serializedActivity) {
+    console.error('ActivityDetailScreenEnhanced: No activity data received');
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.centerContainer}>
+          <Text style={[styles.errorText, { color: colors.text }]}>
+            No activity data available
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  
+  console.log('ActivityDetailScreenEnhanced received activity:', serializedActivity?.name);
+  console.log('Location data:', {
+    latitude: serializedActivity?.latitude,
+    longitude: serializedActivity?.longitude,
+    location: serializedActivity?.location,
+    fullAddress: serializedActivity?.fullAddress,
+  });
+  
+  let activity: Activity;
+  try {
+    activity = {
+      ...serializedActivity,
+      dateRange: serializedActivity.dateRange ? {
+        start: new Date(serializedActivity.dateRange.start),
+        end: new Date(serializedActivity.dateRange.end),
+      } : null,
+      scrapedAt: new Date(serializedActivity.scrapedAt),
+    };
+  } catch (error) {
+    console.error('Error parsing activity data:', error);
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.centerContainer}>
+          <Text style={[styles.errorText, { color: colors.text }]}>
+            Error loading activity details
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   useEffect(() => {
-    setIsFavorite(favoriteActivities.includes(activity.id) || activity.isFavorite);
+    setIsFavorite(favoritesService.isFavorite(activity.id) || activity.isFavorite);
     dispatch(fetchActivityChildren(activity.id));
-  }, [activity.id, favoriteActivities, activity.isFavorite, dispatch]);
+  }, [activity.id, activity.isFavorite, dispatch]);
+
+  // Geocode address if coordinates are not available
+  useEffect(() => {
+    const geocodeIfNeeded = async () => {
+      // If activity already has coordinates, don't geocode
+      if (activity.latitude && activity.longitude) {
+        return;
+      }
+
+      // Get the full address
+      const address = getFullAddress(activity);
+      if (!address) {
+        return;
+      }
+
+      try {
+        const coords = await geocodeAddressWithCache(address);
+        if (coords) {
+          setGeocodedCoords(coords);
+          // Animate to the new location
+          setTimeout(() => {
+            mapRef.current?.animateToRegion({
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }, 1000);
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Geocoding error:', error);
+      }
+    };
+
+    geocodeIfNeeded();
+  }, [activity]);
 
   const handleToggleFavorite = async () => {
     setLoading(true);
     try {
       const activityService = ActivityService.getInstance();
       await activityService.toggleFavorite(activity.id);
-      toggleFavorite(activity.id);
+      favoritesService.toggleFavorite(activity);
       setIsFavorite(!isFavorite);
     } catch (error) {
       Alert.alert('Error', 'Failed to update favorite status');
@@ -74,10 +156,39 @@ const ActivityDetailScreenEnhanced = () => {
   };
 
   const handleRegister = () => {
-    if (activity.directRegistrationUrl || activity.registrationUrl) {
-      Linking.openURL(activity.directRegistrationUrl || activity.registrationUrl);
+    const url = activity.directRegistrationUrl || activity.registrationUrl;
+    if (url) {
+      Linking.openURL(url).catch(err => {
+        console.error('Failed to open URL:', err);
+        Alert.alert('Error', 'Failed to open registration link');
+      });
     } else {
       Alert.alert('Registration', 'Registration URL not available for this activity');
+    }
+  };
+
+  const handleGetDirections = () => {
+    if (activity.latitude || geocodedCoords) {
+      const lat = activity.latitude || geocodedCoords?.latitude;
+      const lng = activity.longitude || geocodedCoords?.longitude;
+      const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+      const latLng = `${lat},${lng}`;
+      const label = typeof activity.location === 'string' 
+        ? activity.location 
+        : activity.location?.name || activity.locationName || activity.name;
+      const url = Platform.select({
+        ios: `${scheme}${label}@${latLng}`,
+        android: `${scheme}${latLng}(${label})`
+      });
+      Linking.openURL(url);
+    } else {
+      const address = getFullAddress(activity);
+      const encodedAddress = encodeURIComponent(address);
+      const url = Platform.select({
+        ios: `maps:0,0?q=${encodedAddress}`,
+        android: `geo:0,0?q=${encodedAddress}`
+      });
+      Linking.openURL(url);
     }
   };
 
@@ -87,13 +198,6 @@ const ActivityDetailScreenEnhanced = () => {
       day: 'numeric',
       year: 'numeric',
     });
-  };
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
   };
 
   const getStatusColor = (status: string) => {
@@ -122,316 +226,311 @@ const ActivityDetailScreenEnhanced = () => {
     }
   };
 
+  // Determine map coordinates
+  const mapLat = activity.latitude || geocodedCoords?.latitude || 49.3217;
+  const mapLng = activity.longitude || geocodedCoords?.longitude || -123.0724;
+  const hasExactLocation = !!(activity.latitude || geocodedCoords);
+  
+  // Debug logging
+  console.log('Map coordinates:', {
+    activityLat: activity.latitude,
+    activityLng: activity.longitude,
+    geocodedLat: geocodedCoords?.latitude,
+    geocodedLng: geocodedCoords?.longitude,
+    finalLat: mapLat,
+    finalLng: mapLng,
+    hasExactLocation,
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.primary, colors.primary + 'CC']}
-        style={styles.headerGradient}
-      >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <Text style={styles.category}>{activity.category}</Text>
-          <Text style={styles.title}>{activity.name}</Text>
-          {activity.subcategory && (
-            <Text style={styles.subcategory}>{activity.subcategory}</Text>
-          )}
-        </View>
-        
-        <TouchableOpacity
-          onPress={handleToggleFavorite}
-          style={styles.favoriteButton}
-          disabled={loading}
-        >
-          <Icon
-            name={isFavorite ? 'favorite' : 'favorite-border'}
-            size={28}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
-      </LinearGradient>
-
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        bounces={false}
       >
-        {/* Registration Status Banner */}
-        <View
-          style={[
-            styles.statusBanner,
-            { backgroundColor: getStatusColor(activity.registrationStatus) }
-          ]}
-        >
-          <Icon
-            name={getStatusIcon(activity.registrationStatus)}
-            size={24}
-            color="#FFFFFF"
-          />
-          <Text style={styles.statusText}>
-            {activity.registrationButtonText || activity.registrationStatus || 'Status Unknown'}
-          </Text>
+        {/* Hero Header */}
+        <View style={styles.heroContainer}>
+          <LinearGradient
+            colors={[colors.primary, colors.primary + 'DD']}
+            style={styles.heroGradient}
+          >
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <View style={styles.backButtonCircle}>
+                <Icon name="arrow-back" size={24} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={handleToggleFavorite}
+              style={styles.favoriteButton}
+              disabled={loading}
+            >
+              <View style={styles.favoriteButtonCircle}>
+                <Icon
+                  name={isFavorite ? 'favorite' : 'favorite-border'}
+                  size={24}
+                  color={isFavorite ? '#FF4444' : colors.primary}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.heroContent}>
+              <Text style={styles.category}>{activity.category}</Text>
+              <Text style={styles.title}>{activity.name}</Text>
+              {activity.subcategory && (
+                <Text style={styles.subcategory}>{activity.subcategory}</Text>
+              )}
+            </View>
+          </LinearGradient>
         </View>
 
-        {/* Quick Info Cards */}
-        <View style={styles.quickInfoContainer}>
-          <View style={[styles.quickInfoCard, { backgroundColor: colors.surface }]}>
-            <MaterialCommunityIcons name="calendar-range" size={20} color={colors.primary} />
-            <Text style={[styles.quickInfoLabel, { color: colors.textSecondary }]}>Dates</Text>
-            <Text style={[styles.quickInfoValue, { color: colors.text }]}>
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          {/* Primary Register Button */}
+          {(activity.directRegistrationUrl || activity.registrationUrl) && (
+            <TouchableOpacity
+              style={[styles.primaryRegisterButton, { backgroundColor: colors.primary }]}
+              onPress={handleRegister}
+            >
+              <Text style={styles.primaryRegisterButtonText}>Register for this Activity</Text>
+              <Icon name="open-in-new" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          )}
+          
+          {/* View on Website Button */}
+          {activity.detailUrl && (
+            <TouchableOpacity
+              style={[styles.viewWebsiteButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+              onPress={() => {
+                Linking.openURL(activity.detailUrl).catch(err => {
+                  console.error('Failed to open URL:', err);
+                  Alert.alert('Error', 'Failed to open website link');
+                });
+              }}
+            >
+              <Icon name="language" size={20} color={colors.primary} />
+              <Text style={[styles.viewWebsiteButtonText, { color: colors.primary }]}>View on Website</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Registration Status Card */}
+        {activity.registrationStatus && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.statusRow}>
+              <View style={styles.statusLeft}>
+                <Icon
+                  name={getStatusIcon(activity.registrationStatus)}
+                  size={24}
+                  color={getStatusColor(activity.registrationStatus)}
+                />
+                <View style={styles.statusTextContainer}>
+                  <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
+                    Registration Status
+                  </Text>
+                  <Text style={[styles.statusValue, { color: colors.text }]}>
+                    {activity.registrationButtonText || activity.registrationStatus}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Key Details Grid */}
+        <View style={styles.detailsGrid}>
+          <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
+            <MaterialCommunityIcons name="calendar-range" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Dates</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={2}>
               {activity.dates || (activity.dateRange ? 
                 `${formatDate(activity.dateRange.start)} - ${formatDate(activity.dateRange.end)}` : 
                 'TBD')}
             </Text>
           </View>
 
-          <View style={[styles.quickInfoCard, { backgroundColor: colors.surface }]}>
-            <MaterialCommunityIcons name="human-child" size={20} color={colors.primary} />
-            <Text style={[styles.quickInfoLabel, { color: colors.textSecondary }]}>Ages</Text>
-            <Text style={[styles.quickInfoValue, { color: colors.text }]}>
-              {activity.ageRange ? `${activity.ageRange.min}-${activity.ageRange.max} yrs` : 'All ages'}
+          <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
+            <MaterialCommunityIcons name="human-child" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Ages</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>
+              {activity.ageRange?.min}-{activity.ageRange?.max} yrs
             </Text>
           </View>
 
-          <View style={[styles.quickInfoCard, { backgroundColor: colors.surface }]}>
-            <MaterialCommunityIcons name="cash" size={20} color={colors.primary} />
-            <Text style={[styles.quickInfoLabel, { color: colors.textSecondary }]}>Cost</Text>
-            <Text style={[styles.quickInfoValue, { color: colors.text }]}>
-              ${formatPrice(activity.cost)}
+          <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
+            <MaterialCommunityIcons name="cash" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Cost</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>
+              ${formatPrice(activity.cost || 0)}
             </Text>
           </View>
 
-          <View style={[styles.quickInfoCard, { backgroundColor: colors.surface }]}>
-            <MaterialCommunityIcons name="account-group" size={20} color={colors.primary} />
-            <Text style={[styles.quickInfoLabel, { color: colors.textSecondary }]}>Spots</Text>
-            <Text style={[styles.quickInfoValue, { color: colors.text }]}>
-              {activity.totalSpots ? 
-                `${activity.spotsAvailable || 0}/${activity.totalSpots}` : 
-                activity.spotsAvailable || 'TBD'}
+          <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
+            <MaterialCommunityIcons name="account-group" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Spots</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>
+              {activity.spotsAvailable || 'N/A'}
             </Text>
           </View>
         </View>
 
-        {/* Main Registration Button */}
-        <TouchableOpacity
-          style={[
-            styles.mainRegisterButton,
-            { 
-              backgroundColor: activity.registrationStatus === 'Closed' ? '#9E9E9E' : colors.primary,
-              opacity: activity.registrationStatus === 'Closed' ? 0.7 : 1,
-            }
-          ]}
-          onPress={handleRegister}
-          disabled={activity.registrationStatus === 'Closed'}
-        >
-          <Icon name="open-in-new" size={20} color="#FFFFFF" />
-          <Text style={styles.mainRegisterButtonText}>
-            {activity.registrationStatus === 'Closed' ? 
-              'Registration Closed' : 
-              activity.registrationStatus === 'WaitList' ?
-              'Join Waitlist' :
-              'Register Now'}
-          </Text>
-        </TouchableOpacity>
+        {/* Description */}
+        {(activity.fullDescription || activity.description) && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Description</Text>
+            <Text style={[styles.descriptionText, { color: colors.text }]}>
+              {activity.fullDescription || activity.description}
+            </Text>
+          </View>
+        )}
 
-        {/* Expandable Sections */}
-        {/* Details Section */}
-        <TouchableOpacity
-          style={[styles.sectionHeader, { backgroundColor: colors.surface }]}
-          onPress={() => toggleSection('details')}
-        >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Details</Text>
-          <Icon
-            name={expandedSections.details ? 'expand-less' : 'expand-more'}
-            size={24}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-        
-        {expandedSections.details && (
-          <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
-            {activity.schedule && (
-              <View style={styles.detailRow}>
-                <Icon name="schedule" size={20} color={colors.textSecondary} />
-                <View style={styles.detailContent}>
-                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Schedule</Text>
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    {typeof activity.schedule === 'string' ? activity.schedule : 'See description'}
-                  </Text>
-                </View>
+        {/* Schedule & Additional Info */}
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Details</Text>
+          
+          {activity.schedule && (
+            <View style={styles.infoRow}>
+              <Icon name="schedule" size={20} color={colors.textSecondary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Schedule</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
+                  {typeof activity.schedule === 'string' ? activity.schedule : 
+                   `${activity.schedule.days?.join(', ')} ${activity.schedule.startTime} - ${activity.schedule.endTime}`}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {activity.instructor && (
+            <View style={styles.infoRow}>
+              <Icon name="person" size={20} color={colors.textSecondary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Instructor</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{activity.instructor}</Text>
+              </View>
+            </View>
+          )}
+
+          {activity.courseId && (
+            <View style={styles.infoRow}>
+              <Icon name="tag" size={20} color={colors.textSecondary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Course ID</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{activity.courseId}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Requirements */}
+        {(activity.prerequisites || activity.whatToBring) && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Requirements</Text>
+            
+            {activity.prerequisites && (
+              <View style={styles.requirementSection}>
+                <Text style={[styles.requirementTitle, { color: colors.text }]}>Prerequisites</Text>
+                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                  {activity.prerequisites}
+                </Text>
               </View>
             )}
 
-            {activity.instructor && (
-              <View style={styles.detailRow}>
-                <Icon name="person" size={20} color={colors.textSecondary} />
-                <View style={styles.detailContent}>
-                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Instructor</Text>
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    {activity.instructor}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {activity.courseId && (
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="barcode" size={20} color={colors.textSecondary} />
-                <View style={styles.detailContent}>
-                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Course ID</Text>
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    {activity.courseId}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {activity.registrationDate && (
-              <View style={styles.detailRow}>
-                <Icon name="event" size={20} color={colors.textSecondary} />
-                <View style={styles.detailContent}>
-                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Registration Opens</Text>
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    {activity.registrationDate}
-                  </Text>
-                </View>
+            {activity.whatToBring && (
+              <View style={styles.requirementSection}>
+                <Text style={[styles.requirementTitle, { color: colors.text }]}>What to Bring</Text>
+                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                  {activity.whatToBring}
+                </Text>
               </View>
             )}
           </View>
         )}
 
-        {/* Description Section */}
-        {(activity.fullDescription || activity.description) && (
-          <>
-            <TouchableOpacity
-              style={[styles.sectionHeader, { backgroundColor: colors.surface }]}
-              onPress={() => toggleSection('description')}
-            >
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
-              <Icon
-                name={expandedSections.description ? 'expand-less' : 'expand-more'}
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+        {/* Location & Map */}
+        {getFullAddress(activity) && (
+          <View style={[styles.card, { backgroundColor: colors.surface, padding: 0, overflow: 'hidden' }]}>
+            <View style={styles.locationHeader}>
+              <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>Location</Text>
+            </View>
             
-            {expandedSections.description && (
-              <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.descriptionText, { color: colors.text }]}>
-                  {activity.fullDescription || activity.description}
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-
-        {/* Requirements Section */}
-        {(activity.prerequisites || activity.whatToBring) && (
-          <>
-            <TouchableOpacity
-              style={[styles.sectionHeader, { backgroundColor: colors.surface }]}
-              onPress={() => toggleSection('requirements')}
-            >
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Requirements</Text>
-              <Icon
-                name={expandedSections.requirements ? 'expand-less' : 'expand-more'}
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-            
-            {expandedSections.requirements && (
-              <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
-                {activity.prerequisites && (
-                  <View style={styles.requirementItem}>
-                    <Text style={[styles.requirementLabel, { color: colors.textSecondary }]}>
-                      Prerequisites
-                    </Text>
-                    <Text style={[styles.requirementText, { color: colors.text }]}>
-                      {activity.prerequisites}
-                    </Text>
-                  </View>
-                )}
-                
-                {activity.whatToBring && (
-                  <View style={styles.requirementItem}>
-                    <Text style={[styles.requirementLabel, { color: colors.textSecondary }]}>
-                      What to Bring
-                    </Text>
-                    <Text style={[styles.requirementText, { color: colors.text }]}>
-                      {activity.whatToBring}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </>
-        )}
-
-        {/* Location Section */}
-        <TouchableOpacity
-          style={[styles.sectionHeader, { backgroundColor: colors.surface }]}
-          onPress={() => toggleSection('location')}
-        >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Location</Text>
-          <Icon
-            name={expandedSections.location ? 'expand-less' : 'expand-more'}
-            size={24}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-        
-        {expandedSections.location && (
-          <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
             <View style={styles.locationInfo}>
-              <Icon name="location-on" size={20} color={colors.textSecondary} />
+              <Icon name="location-on" size={24} color={colors.primary} />
               <View style={styles.locationTextContainer}>
                 <Text style={[styles.locationName, { color: colors.text }]}>
-                  {activity.location || activity.locationName || 'Location TBD'}
+                  {typeof activity.location === 'string' 
+                    ? activity.location 
+                    : activity.location?.name || activity.locationName || 'Location'}
                 </Text>
-                {activity.fullAddress && (
+                {(activity.fullAddress || (typeof activity.location === 'object' && activity.location?.address)) && (
                   <Text style={[styles.locationAddress, { color: colors.textSecondary }]}>
-                    {activity.fullAddress}
+                    {activity.fullAddress || (typeof activity.location === 'object' ? activity.location.address : '')}
                   </Text>
                 )}
               </View>
             </View>
 
-            {activity.latitude && activity.longitude && (
-              <View style={styles.mapContainer}>
-                {/* TODO: Add MapView once react-native-maps is installed */}
-                <View style={[styles.map, styles.mapPlaceholder]}>
-                  <Icon name="location-on" size={48} color={colors.primary} />
-                  <Text style={[styles.mapPlaceholderText, { color: colors.text }]}>
-                    Map View Available
-                  </Text>
-                  <Text style={[styles.mapCoordinates, { color: colors.textSecondary }]}>
-                    {activity.latitude.toFixed(4)}, {activity.longitude.toFixed(4)}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.directionsButton}
-                  onPress={() => {
-                    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
-                    const latLng = `${activity.latitude},${activity.longitude}`;
-                    const label = activity.location || activity.name;
-                    const url = Platform.select({
-                      ios: `${scheme}${label}@${latLng}`,
-                      android: `${scheme}${latLng}(${label})`
-                    });
-                    Linking.openURL(url);
+            {/* Always show map */}
+            <View style={styles.mapWrapper}>
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={{
+                  latitude: mapLat,
+                  longitude: mapLng,
+                  latitudeDelta: hasExactLocation ? 0.01 : 0.05,
+                  longitudeDelta: hasExactLocation ? 0.01 : 0.05,
+                }}
+                showsUserLocation={true}
+                showsMyLocationButton={false}
+                showsCompass={true}
+                showsScale={false}
+                zoomEnabled={true}
+                zoomTapEnabled={true}
+              >
+                {/* Always show marker */}
+                <Marker
+                  coordinate={{
+                    latitude: mapLat,
+                    longitude: mapLng,
                   }}
+                  title={activity.name}
+                  description={getFullAddress(activity)}
+                  pinColor={colors.primary}
+                  anchor={{ x: 0.5, y: 1 }}
+                  calloutAnchor={{ x: 0.5, y: 0 }}
                 >
-                  <Icon name="directions" size={16} color="#FFFFFF" />
-                  <Text style={styles.directionsText}>Get Directions</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                  {/* Custom marker for better visibility */}
+                  <View style={styles.customMarker}>
+                    <View style={[styles.markerDot, { backgroundColor: colors.primary }]} />
+                    <View style={[styles.markerStem, { backgroundColor: colors.primary }]} />
+                  </View>
+                </Marker>
+              </MapView>
+              
+              {!hasExactLocation && (
+                <View style={styles.mapOverlay}>
+                  <View style={styles.mapOverlayContent}>
+                    <Icon name="info" size={16} color="#FFFFFF" />
+                    <Text style={styles.mapOverlayText}>
+                      Approximate location
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.directionsButton}
+                onPress={handleGetDirections}
+              >
+                <Icon name="directions" size={20} color="#FFFFFF" />
+                <Text style={styles.directionsText}>Directions</Text>
+              </TouchableOpacity>
+            </View>
 
             {activity.contactInfo && (
               <View style={styles.contactInfo}>
@@ -444,19 +543,19 @@ const ActivityDetailScreenEnhanced = () => {
           </View>
         )}
 
-        {/* Child Registration Section */}
-        <View style={[styles.childSection, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Child Registration</Text>
+        {/* Child Registration */}
+        <View style={[styles.card, { backgroundColor: colors.surface, marginBottom: 100 }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Child Registration</Text>
           <ChildActivityStatus 
             activityId={activity.id} 
             onPress={() => setShowRegisterModal(true)}
           />
           <TouchableOpacity
-            style={[styles.registerChildButton, { backgroundColor: colors.secondary }]}
+            style={[styles.childRegisterButton, { backgroundColor: colors.secondary }]}
             onPress={() => setShowRegisterModal(true)}
           >
             <Icon name="child-care" size={20} color="#FFFFFF" />
-            <Text style={styles.registerChildButtonText}>Register Child</Text>
+            <Text style={styles.childRegisterButtonText}>Register Child</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -466,6 +565,20 @@ const ActivityDetailScreenEnhanced = () => {
         activity={activity}
         onClose={() => setShowRegisterModal(false)}
       />
+
+      {/* Floating Register Button - Always visible at bottom */}
+      {(activity.directRegistrationUrl || activity.registrationUrl) && (
+        <TouchableOpacity
+          style={[styles.floatingRegisterButton, { backgroundColor: colors.primary }]}
+          onPress={handleRegister}
+          activeOpacity={0.9}
+        >
+          <View style={styles.floatingButtonContent}>
+            <Text style={styles.floatingRegisterText}>Register Now</Text>
+            <Icon name="arrow-forward" size={20} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -474,193 +587,274 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerGradient: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 20,
+  scrollView: {
+    flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  heroContainer: {
+    height: 200,
+  },
+  heroGradient: {
+    flex: 1,
+    justifyContent: 'flex-end',
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   backButton: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 30,
     left: 20,
-    padding: 8,
+    zIndex: 10,
   },
-  headerContent: {
+  backButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
-  },
-  category: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginVertical: 8,
-  },
-  subcategory: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   favoriteButton: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 30,
     right: 20,
-    padding: 8,
+    zIndex: 10,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  favoriteButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 8,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  statusText: {
-    fontSize: 16,
+  heroContent: {
+    marginBottom: 10,
+  },
+  category: {
+    fontSize: 14,
     fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: '#FFFFFF',
-    marginLeft: 8,
+    marginBottom: 4,
   },
-  quickInfoContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    marginTop: 16,
+  subcategory: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
-  quickInfoCard: {
-    width: (width - 48) / 2,
+  card: {
+    margin: 16,
+    marginBottom: 0,
     padding: 16,
-    margin: 4,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  quickInfoLabel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  quickInfoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  mainRegisterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 16,
-    marginVertical: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  mainRegisterButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 8,
-  },
-  sectionHeader: {
+  statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 12,
   },
-  sectionTitle: {
-    fontSize: 18,
+  statusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusTextContainer: {
+    marginLeft: 12,
+  },
+  statusLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  statusValue: {
+    fontSize: 16,
     fontWeight: '600',
   },
-  sectionContent: {
-    marginHorizontal: 16,
-    marginTop: 2,
+  actionButtonsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
+  },
+  primaryRegisterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  primaryRegisterButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  viewWebsiteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  viewWebsiteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
+  },
+  detailCard: {
+    flex: 1,
+    minWidth: (width - 44) / 2,
     padding: 16,
     borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  detailRow: {
+  detailLabel: {
+    fontSize: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  descriptionText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  detailContent: {
-    flex: 1,
+  infoContent: {
     marginLeft: 12,
+    flex: 1,
   },
-  detailLabel: {
+  infoLabel: {
     fontSize: 12,
     marginBottom: 2,
   },
-  detailText: {
-    fontSize: 16,
+  infoValue: {
+    fontSize: 15,
   },
-  descriptionText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  requirementItem: {
+  requirementSection: {
     marginBottom: 16,
   },
-  requirementLabel: {
-    fontSize: 14,
+  requirementTitle: {
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,
   },
   requirementText: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  locationHeader: {
+    padding: 16,
+    paddingBottom: 0,
   },
   locationInfo: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   locationTextContainer: {
-    flex: 1,
     marginLeft: 12,
+    flex: 1,
   },
   locationName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginBottom: 2,
   },
   locationAddress: {
     fontSize: 14,
-    marginTop: 4,
   },
-  mapContainer: {
-    height: 200,
-    marginVertical: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
+  mapWrapper: {
+    height: 250,
+    position: 'relative',
   },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
-  mapPlaceholder: {
-    justifyContent: 'center',
+  mapOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+  },
+  mapOverlayContent: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
   },
-  mapPlaceholderText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  mapCoordinates: {
+  mapOverlayText: {
+    color: '#FFFFFF',
     fontSize: 12,
-    marginTop: 4,
+    marginLeft: 6,
   },
   directionsButton: {
     position: 'absolute',
@@ -668,43 +862,86 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
   },
   directionsText: {
-    fontSize: 14,
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
     marginLeft: 6,
   },
   contactInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    padding: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
   contactText: {
-    fontSize: 16,
     marginLeft: 12,
+    fontSize: 14,
   },
-  childSection: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-  },
-  registerChildButton: {
+  childRegisterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
     marginTop: 12,
   },
-  registerChildButtonText: {
+  childRegisterButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
     marginLeft: 8,
+  },
+  customMarker: {
+    alignItems: 'center',
+  },
+  markerDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  markerStem: {
+    width: 3,
+    height: 20,
+    marginTop: -2,
+  },
+  floatingRegisterButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    paddingVertical: 16,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingRegisterText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginRight: 8,
   },
 });
 

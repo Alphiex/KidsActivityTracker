@@ -69,7 +69,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
   return (
     <TouchableOpacity 
       style={[styles.card, { backgroundColor: colors.cardBackground }]}
-      onPress={onPress}
+      onPress={() => {
+        console.log('ActivityCard pressed:', activity.name);
+        console.log('onPress function exists:', !!onPress);
+        if (onPress) {
+          onPress();
+        }
+      }}
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
