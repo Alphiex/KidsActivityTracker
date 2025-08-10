@@ -282,6 +282,38 @@ const FriendsAndFamilyScreenSimple = () => {
             />
           )}
         </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity
+              style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
+              onPress={() => navigation.navigate('SharingManagement' as never)}
+            >
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.quickActionGradient}
+              >
+                <Icon name="share-variant" size={32} color="#FFFFFF" />
+                <Text style={styles.quickActionText}>Sharing</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
+              onPress={() => navigation.navigate('ActivityHistory' as never)}
+            >
+              <LinearGradient
+                colors={['#f093fb', '#f5576c']}
+                style={styles.quickActionGradient}
+              >
+                <Icon name="history" size={32} color="#FFFFFF" />
+                <Text style={styles.quickActionText}>Activity History</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
       {renderAddChildModal()}
@@ -454,6 +486,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  quickActionCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  quickActionGradient: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  quickActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 

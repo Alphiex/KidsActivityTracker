@@ -30,6 +30,7 @@ import NotificationPreferencesScreen from '../screens/NotificationPreferencesScr
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import TestNavigationScreen from '../screens/TestNavigationScreen';
 import NavigationErrorBoundary from '../components/NavigationErrorBoundary';
+import SharingManagementScreen from '../screens/SharingManagementScreen';
 
 // Import Preference Screens
 import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
@@ -86,6 +87,7 @@ const FriendsAndFamilyStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="FriendsAndFamilyMain" component={FriendsAndFamilyScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+    <Stack.Screen name="SharingManagement" component={SharingManagementScreen} />
     <Stack.Screen name="ActivityHistory" component={ActivityDetailScreen} /> {/* TODO: Create dedicated screen */}
     <Stack.Screen name="SharedActivities" component={ActivityDetailScreen} /> {/* TODO: Create dedicated screen */}
   </Stack.Navigator>
