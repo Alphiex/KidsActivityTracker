@@ -180,7 +180,7 @@ const MainTabs = () => {
     />
     <Tab.Screen
       name="FriendsAndFamily"
-      component={FriendsAndFamilyStack}
+      component={FriendsAndFamilyScreen}
       options={{
         tabBarLabel: 'Friends & Family',
         tabBarIcon: ({ color, size, focused }) => (

@@ -1,33 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  ScrollView, 
   TouchableOpacity,
-  FlatList,
+  Modal,
   TextInput,
   Alert,
-  Modal,
   Dimensions,
-  RefreshControl,
-  SafeAreaView,
+  FlatList,
+  RefreshControl
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../contexts/ThemeContext';
-import { Child } from '../store/slices/childrenSlice';
+import { useNavigation } from '@react-navigation/native';
 import childrenService from '../services/childrenService';
+import { Child } from '../store/slices/childrenSlice';
 
 const { width } = Dimensions.get('window');
 
 const FriendsAndFamilyScreenSimple = () => {
-  const navigation = useNavigation();
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const [children, setChildren] = useState<Child[]>([]);
   const [showAddChildModal, setShowAddChildModal] = useState(false);
-  const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [childName, setChildName] = useState('');
   const [childDateOfBirth, setChildDateOfBirth] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +42,9 @@ const FriendsAndFamilyScreenSimple = () => {
 
   const loadChildren = async () => {
     try {
+      console.log('Loading children from service...');
       const loadedChildren = await childrenService.getChildren();
+      console.log('Loaded children:', loadedChildren);
       setChildren(Array.isArray(loadedChildren) ? loadedChildren : []);
     } catch (error) {
       console.error('Error loading children:', error);
@@ -63,28 +64,20 @@ const FriendsAndFamilyScreenSimple = () => {
     }
 
     try {
-      if (editingChild) {
-        await childrenService.updateChild(editingChild.id, {
-          name: childName.trim(),
-          dateOfBirth: childDateOfBirth,
-        });
-      } else {
-        await childrenService.createChild({
-          name: childName.trim(),
-          dateOfBirth: childDateOfBirth,
-        });
-      }
+      await childrenService.createChild({
+        name: childName.trim(),
+        dateOfBirth: childDateOfBirth,
+      });
       
       await loadChildren();
       resetModal();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save child information');
+      Alert.alert('Error', 'Failed to add child');
     }
   };
 
   const resetModal = () => {
     setShowAddChildModal(false);
-    setEditingChild(null);
     setChildName('');
     setChildDateOfBirth('');
   };
@@ -106,35 +99,6 @@ const FriendsAndFamilyScreenSimple = () => {
     }
   };
 
-  const handleEditChild = (child: Child) => {
-    setEditingChild(child);
-    setChildName(child.name);
-    setChildDateOfBirth(child.dateOfBirth);
-    setShowAddChildModal(true);
-  };
-
-  const handleDeleteChild = (childId: string) => {
-    Alert.alert(
-      'Delete Child',
-      'Are you sure you want to remove this child? All associated activity records will be deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await childrenService.deleteChild(childId);
-              await loadChildren();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete child');
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const renderChildCard = ({ item }: { item: Child }) => {
     const age = calculateAge(item.dateOfBirth);
     const avatarColor = childColors[parseInt(item.id) % childColors.length] || childColors[0];
@@ -153,85 +117,14 @@ const FriendsAndFamilyScreenSimple = () => {
             {age} years old
           </Text>
         </View>
-        <View style={styles.childActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleEditChild(item)}
-          >
-            <Icon name="pencil" size={20} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { marginLeft: 10 }]}
-            onPress={() => handleDeleteChild(item.id)}
-          >
-            <Icon name="delete" size={20} color={colors.error || '#FF0000'} />
-          </TouchableOpacity>
-        </View>
       </TouchableOpacity>
     );
   };
 
-  const renderAddChildModal = () => (
-    <Modal
-      visible={showAddChildModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={resetModal}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            {editingChild ? 'Edit Child' : 'Add Child'}
-          </Text>
-          
-          <View style={styles.inputContainer}>
-            <Icon name="account-child" size={24} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Child's Name"
-              placeholderTextColor={colors.textSecondary}
-              value={childName}
-              onChangeText={setChildName}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Icon name="cake-variant" size={24} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Date of Birth (YYYY-MM-DD)"
-              placeholderTextColor={colors.textSecondary}
-              value={childDateOfBirth}
-              onChangeText={setChildDateOfBirth}
-              keyboardType="default"
-            />
-          </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={resetModal}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
-              onPress={handleAddChild}
-            >
-              <Text style={styles.saveButtonText}>
-                {editingChild ? 'Update' : 'Add'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={[colors.gradientStart || colors.primary, colors.gradientEnd || colors.primaryDark || colors.primary]}
+        colors={[colors.primary, colors.primaryDark || colors.primary]}
         style={styles.header}
       >
         <Text style={styles.headerTitle}>Friends & Family</Text>
@@ -239,10 +132,8 @@ const FriendsAndFamilyScreenSimple = () => {
           Manage your children and share activities
         </Text>
       </LinearGradient>
-
-      <ScrollView
+      <ScrollView 
         style={styles.content}
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -254,7 +145,7 @@ const FriendsAndFamilyScreenSimple = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>My Children</Text>
-            <TouchableOpacity
+            <TouchableOpacity 
               style={[styles.addButton, { backgroundColor: colors.primary }]}
               onPress={() => setShowAddChildModal(true)}
             >
@@ -262,7 +153,7 @@ const FriendsAndFamilyScreenSimple = () => {
               <Text style={styles.addButtonText}>Add Child</Text>
             </TouchableOpacity>
           </View>
-
+          
           {children.length === 0 ? (
             <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
               <Icon name="account-child-circle" size={60} color={colors.textSecondary} />
@@ -282,41 +173,59 @@ const FriendsAndFamilyScreenSimple = () => {
             />
           )}
         </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
-              onPress={() => navigation.navigate('SharingManagement' as never)}
-            >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.quickActionGradient}
-              >
-                <Icon name="share-variant" size={32} color="#FFFFFF" />
-                <Text style={styles.quickActionText}>Sharing</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.quickActionCard, { backgroundColor: colors.surface }]}
-              onPress={() => navigation.navigate('ActivityHistory' as never)}
-            >
-              <LinearGradient
-                colors={['#f093fb', '#f5576c']}
-                style={styles.quickActionGradient}
-              >
-                <Icon name="history" size={32} color="#FFFFFF" />
-                <Text style={styles.quickActionText}>Activity History</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
       </ScrollView>
 
-      {renderAddChildModal()}
+      {/* Add Child Modal */}
+      <Modal
+        visible={showAddChildModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={resetModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Child</Text>
+            
+            <View style={styles.inputContainer}>
+              <Icon name="account-child" size={24} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="Child's Name"
+                placeholderTextColor={colors.textSecondary}
+                value={childName}
+                onChangeText={setChildName}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Icon name="cake-variant" size={24} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="Date of Birth (YYYY-MM-DD)"
+                placeholderTextColor={colors.textSecondary}
+                value={childDateOfBirth}
+                onChangeText={setChildDateOfBirth}
+                keyboardType="default"
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={resetModal}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={handleAddChild}
+              >
+                <Text style={styles.saveButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -324,6 +233,7 @@ const FriendsAndFamilyScreenSimple = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
   },
   header: {
     paddingTop: 20,
@@ -358,6 +268,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
+    color: '#333',
   },
   addButton: {
     flexDirection: 'row',
@@ -365,12 +276,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    backgroundColor: '#4A90E2',
   },
   addButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+    color: '#666666',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    color: '#666666',
   },
   childCard: {
     flexDirection: 'row',
@@ -407,27 +337,6 @@ const styles = StyleSheet.create({
   },
   childAge: {
     fontSize: 14,
-  },
-  childActions: {
-    flexDirection: 'row',
-  },
-  actionButton: {
-    padding: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 40,
-    borderRadius: 16,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -486,32 +395,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  quickActionCard: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    marginHorizontal: 6,
-  },
-  quickActionGradient: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  quickActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
-    textAlign: 'center',
   },
 });
 
