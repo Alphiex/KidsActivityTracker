@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
 import * as SecureStore from '../utils/secureStorage';
+import rateLimitHelper from '../utils/rateLimitHelper';
 
 interface LoginParams {
   email: string;
@@ -60,6 +61,15 @@ class AuthService {
     // Request interceptor to add auth token
     this.api.interceptors.request.use(
       async (config) => {
+        // Check rate limit before making request
+        const endpoint = rateLimitHelper.getAuthEndpointKey(config.url || '');
+        const { wait, timeRemaining } = rateLimitHelper.shouldWait(endpoint);
+        
+        if (wait) {
+          console.warn(`Rate limited: Please wait ${timeRemaining} seconds before retrying`);
+          throw new Error(`Rate limited. Please wait ${timeRemaining} seconds.`);
+        }
+        
         const token = await SecureStore.getAccessToken();
         console.log('Request interceptor:', {
           url: config.url,
@@ -83,23 +93,53 @@ class AuthService {
       async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Don't retry if:
+        // 1. Already retried
+        // 2. It's a refresh token request (to prevent loops)
+        // 3. It's a login/register request
+        // 4. Rate limited (429)
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
+                              originalRequest.url?.includes('/auth/register') ||
+                              originalRequest.url?.includes('/auth/refresh');
+        const isRateLimited = error.response?.status === 429;
+
+        if (error.response?.status === 401 && 
+            !originalRequest._retry && 
+            !isAuthEndpoint && 
+            !isRateLimited) {
           originalRequest._retry = true;
 
           try {
             const tokens = await SecureStore.getTokens();
-            if (tokens?.refreshToken) {
+            if (tokens?.refreshToken && !tokens.refreshToken.startsWith('dev_')) {
+              console.log('Attempting token refresh...');
               const response = await this.refreshToken(tokens.refreshToken);
               await SecureStore.setTokens(response.tokens);
               
               // Retry original request with new token
               originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`;
               return this.api(originalRequest);
+            } else {
+              console.log('Invalid or dev refresh token, clearing auth');
+              await SecureStore.clearAllAuthData();
             }
-          } catch (refreshError) {
+          } catch (refreshError: any) {
+            console.error('Token refresh failed:', refreshError.message);
             // Refresh failed, clear auth and redirect to login
             await SecureStore.clearAllAuthData();
             throw refreshError;
+          }
+        }
+
+        // Log rate limit errors clearly
+        if (isRateLimited) {
+          console.error('RATE LIMITED: Please wait before making more requests');
+          const retryAfter = error.response?.headers?.['retry-after'];
+          const endpoint = rateLimitHelper.getAuthEndpointKey(originalRequest.url || '');
+          rateLimitHelper.setRateLimit(endpoint, retryAfter ? parseInt(retryAfter) : 60);
+          
+          if (retryAfter) {
+            console.error(`Retry after: ${retryAfter} seconds`);
           }
         }
 

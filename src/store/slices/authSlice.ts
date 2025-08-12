@@ -121,10 +121,25 @@ export const loadStoredAuth = createAsyncThunk(
   'auth/loadStoredAuth',
   async () => {
     const tokens = await SecureStore.getTokens();
+    
+    // Skip verification if tokens are from dev auth
+    if (tokens?.accessToken?.startsWith('dev_')) {
+      console.log('Found dev tokens, clearing auth data');
+      await SecureStore.clearAllAuthData();
+      return null;
+    }
+    
     if (tokens && tokens.accessToken) {
-      // Verify token is still valid
-      const response = await authService.verifyToken();
-      return { user: response.user, tokens };
+      try {
+        // Verify token is still valid
+        const response = await authService.verifyToken();
+        return { user: response.user, tokens };
+      } catch (error: any) {
+        console.error('Token verification failed during load:', error.message);
+        // Clear invalid tokens
+        await SecureStore.clearAllAuthData();
+        return null;
+      }
     }
     return null;
   }
