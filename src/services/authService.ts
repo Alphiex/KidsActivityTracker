@@ -105,7 +105,7 @@ class AuthService {
 
   async login(params: LoginParams): Promise<AuthResponse> {
     // Use development auth in dev mode to avoid rate limits
-    if (__DEV__ && process.env.SKIP_AUTH !== 'false') {
+    if (__DEV__) {
       console.log('Using development authentication');
       return await devLogin(params.email, params.password) as AuthResponse;
     }
@@ -120,7 +120,7 @@ class AuthService {
 
   async register(params: RegisterParams): Promise<AuthResponse> {
     // Use development auth in dev mode to avoid rate limits
-    if (__DEV__ && process.env.SKIP_AUTH !== 'false') {
+    if (__DEV__) {
       console.log('Using development authentication for registration');
       return await devRegister(params.email, params.password, params.name, params.phoneNumber) as AuthResponse;
     }

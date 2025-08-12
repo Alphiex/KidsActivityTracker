@@ -8,7 +8,7 @@ import { Colors } from '../theme';
 import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '../store';
-import { loadStoredAuth } from '../store/slices/authSlice';
+import { loadStoredAuth, login } from '../store/slices/authSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 
 // Import screens
@@ -250,14 +250,15 @@ const RootNavigator = () => {
   const initializeApp = async () => {
     console.log('Initializing app...');
     try {
-      // Check authentication status
+      // Check authentication status (will auto-login in dev mode)
       await dispatch(loadStoredAuth());
       
       // Check onboarding status
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       console.log('Preferences loaded:', preferences);
-      setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
+      // Skip onboarding in development
+      setHasCompletedOnboarding(__DEV__ ? true : (preferences.hasCompletedOnboarding || false));
     } catch (error) {
       console.error('Error initializing app:', error);
     } finally {

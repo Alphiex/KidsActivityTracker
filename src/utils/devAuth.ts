@@ -92,5 +92,5 @@ export const devRegister = async (email: string, password: string, name: string,
 
 // Check if we should use dev auth
 export const shouldUseDevAuth = (): boolean => {
-  return __DEV__ && process.env.SKIP_AUTH === 'true';
+  return __DEV__; // Always use dev auth in development mode
 };

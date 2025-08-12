@@ -120,31 +120,33 @@ export const resetPassword = createAsyncThunk(
 export const loadStoredAuth = createAsyncThunk(
   'auth/loadStoredAuth',
   async () => {
+    // In development, always return a mock user
+    if (__DEV__) {
+      console.log('Development mode: Using mock authentication');
+      const mockTokens = {
+        accessToken: 'dev_access_token',
+        refreshToken: 'dev_refresh_token',
+        accessTokenExpiry: Date.now() / 1000 + 3600,
+        refreshTokenExpiry: Date.now() / 1000 + 604800,
+      };
+      const mockUser = {
+        id: 'dev_user_1',
+        email: 'dev@example.com',
+        name: 'Development User',
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      // Store mock data
+      await SecureStore.setTokens(mockTokens);
+      await SecureStore.setUserData(mockUser);
+      return { user: mockUser, tokens: mockTokens };
+    }
+    
+    // Production: Check for stored tokens
     const tokens = await SecureStore.getTokens();
     if (tokens && tokens.accessToken) {
-      // Skip token verification in development to avoid rate limits
-      if (__DEV__) {
-        console.log('Development mode: Skipping token verification');
-        // Get stored user data instead of verifying
-        const userData = await SecureStore.getUserData();
-        if (userData) {
-          return { user: userData, tokens };
-        }
-        // Create a mock user if no stored data
-        return {
-          user: {
-            id: 'dev_user_1',
-            email: 'dev@example.com',
-            name: 'Development User',
-            emailVerified: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          tokens
-        };
-      }
-      
-      // Production: Verify token is still valid
+      // Verify token is still valid
       const response = await authService.verifyToken();
       return { user: response.user, tokens };
     }
