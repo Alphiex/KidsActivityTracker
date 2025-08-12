@@ -120,30 +120,6 @@ export const resetPassword = createAsyncThunk(
 export const loadStoredAuth = createAsyncThunk(
   'auth/loadStoredAuth',
   async () => {
-    // In development, always return a mock user
-    if (__DEV__) {
-      console.log('Development mode: Using mock authentication');
-      const mockTokens = {
-        accessToken: 'dev_access_token',
-        refreshToken: 'dev_refresh_token',
-        accessTokenExpiry: Date.now() / 1000 + 3600,
-        refreshTokenExpiry: Date.now() / 1000 + 604800,
-      };
-      const mockUser = {
-        id: 'dev_user_1',
-        email: 'dev@example.com',
-        name: 'Development User',
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      // Store mock data
-      await SecureStore.setTokens(mockTokens);
-      await SecureStore.setUserData(mockUser);
-      return { user: mockUser, tokens: mockTokens };
-    }
-    
-    // Production: Check for stored tokens
     const tokens = await SecureStore.getTokens();
     if (tokens && tokens.accessToken) {
       // Verify token is still valid

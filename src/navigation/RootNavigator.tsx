@@ -8,7 +8,7 @@ import { Colors } from '../theme';
 import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '../store';
-import { loadStoredAuth, login } from '../store/slices/authSlice';
+import { loadStoredAuth } from '../store/slices/authSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 
 // Import screens
@@ -257,8 +257,7 @@ const RootNavigator = () => {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       console.log('Preferences loaded:', preferences);
-      // Skip onboarding in development
-      setHasCompletedOnboarding(__DEV__ ? true : (preferences.hasCompletedOnboarding || false));
+      setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
     } catch (error) {
       console.error('Error initializing app:', error);
     } finally {

@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { Activity, Filter } from '../types';
 import { API_CONFIG } from '../config/api';
 import { PaginatedResponse, ActivitySearchParams } from '../types/api';
+import * as SecureStore from '../utils/secureStorage';
 
 class ActivityService {
   private static instance: ActivityService;
@@ -67,7 +68,7 @@ class ActivityService {
       async (config) => {
         // Add auth token from secure storage
         try {
-          const token = await AsyncStorage.getItem('@auth_access_token');
+          const token = await SecureStore.getAccessToken();
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
           }
@@ -78,6 +79,7 @@ class ActivityService {
         // Only log in development
         if (__DEV__) {
           console.log('API Request:', config.method?.toUpperCase(), config.url);
+          console.log('Has auth token:', !!config.headers.Authorization);
         }
         return config;
       },
