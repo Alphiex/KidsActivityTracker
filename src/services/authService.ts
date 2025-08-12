@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
 import * as SecureStore from '../utils/secureStorage';
+import { devLogin, devRegister } from '../utils/devAuth';
 
 interface LoginParams {
   email: string;
@@ -103,6 +104,12 @@ class AuthService {
   }
 
   async login(params: LoginParams): Promise<AuthResponse> {
+    // Use development auth in dev mode to avoid rate limits
+    if (__DEV__ && process.env.SKIP_AUTH !== 'false') {
+      console.log('Using development authentication');
+      return await devLogin(params.email, params.password) as AuthResponse;
+    }
+    
     try {
       const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN, params);
       return response.data;
@@ -112,6 +119,12 @@ class AuthService {
   }
 
   async register(params: RegisterParams): Promise<AuthResponse> {
+    // Use development auth in dev mode to avoid rate limits
+    if (__DEV__ && process.env.SKIP_AUTH !== 'false') {
+      console.log('Using development authentication for registration');
+      return await devRegister(params.email, params.password, params.name, params.phoneNumber) as AuthResponse;
+    }
+    
     try {
       const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, params);
       return response.data;

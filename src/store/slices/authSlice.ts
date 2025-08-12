@@ -43,8 +43,9 @@ export const login = createAsyncThunk(
   async ({ email, password }: { email: string; password: string }) => {
     const response = await authService.login({ email, password });
     
-    // Store tokens securely
+    // Store tokens and user data securely
     await SecureStore.setTokens(response.tokens);
+    await SecureStore.setUserData(response.user);
     
     return response;
   }
@@ -65,8 +66,9 @@ export const register = createAsyncThunk(
   }) => {
     const response = await authService.register({ email, password, name, phoneNumber });
     
-    // Store tokens securely
+    // Store tokens and user data securely
     await SecureStore.setTokens(response.tokens);
+    await SecureStore.setUserData(response.user);
     
     return response;
   }
@@ -120,7 +122,29 @@ export const loadStoredAuth = createAsyncThunk(
   async () => {
     const tokens = await SecureStore.getTokens();
     if (tokens && tokens.accessToken) {
-      // Verify token is still valid
+      // Skip token verification in development to avoid rate limits
+      if (__DEV__) {
+        console.log('Development mode: Skipping token verification');
+        // Get stored user data instead of verifying
+        const userData = await SecureStore.getUserData();
+        if (userData) {
+          return { user: userData, tokens };
+        }
+        // Create a mock user if no stored data
+        return {
+          user: {
+            id: 'dev_user_1',
+            email: 'dev@example.com',
+            name: 'Development User',
+            emailVerified: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          tokens
+        };
+      }
+      
+      // Production: Verify token is still valid
       const response = await authService.verifyToken();
       return { user: response.user, tokens };
     }
