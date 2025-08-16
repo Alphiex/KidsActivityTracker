@@ -116,10 +116,24 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
- * Rate limiting middleware
+ * Rate limiting middleware - DISABLED FOR PRODUCTION
  */
 import rateLimit from 'express-rate-limit';
 
+// Create no-op middleware that bypasses rate limiting
+const createNoOpLimiter = () => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    next();
+  };
+};
+
+// RATE LIMITING DISABLED - Using no-op middleware
+export const apiLimiter = createNoOpLimiter();
+export const authLimiter = createNoOpLimiter();
+export const passwordResetLimiter = createNoOpLimiter();
+export const emailVerificationLimiter = createNoOpLimiter();
+
+/* ORIGINAL RATE LIMITING CONFIGURATION (DISABLED)
 // General API rate limit
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -156,6 +170,7 @@ export const emailVerificationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+*/
 
 /**
  * CSRF protection middleware

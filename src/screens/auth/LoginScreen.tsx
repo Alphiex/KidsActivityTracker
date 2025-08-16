@@ -18,8 +18,6 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/slices/authSlice';
 import { colors } from '../../theme';
-import rateLimitHelper from '../../utils/rateLimitHelper';
-import RateLimitScreen from './RateLimitScreen';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -39,32 +37,15 @@ const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [isRateLimited, setIsRateLimited] = useState(false);
 
   useEffect(() => {
     // Clear any existing errors when component mounts
     dispatch(clearError());
-    
-    // Check if rate limited
-    const checkRateLimit = () => {
-      const { wait } = rateLimitHelper.shouldWait('auth_login');
-      setIsRateLimited(wait);
-    };
-    
-    checkRateLimit();
-    const interval = setInterval(checkRateLimit, 1000);
-    
-    return () => clearInterval(interval);
   }, [dispatch]);
 
   useEffect(() => {
     if (error) {
-      // Check if it's a rate limit error
-      if (error.includes('Rate limited')) {
-        setIsRateLimited(true);
-      } else {
-        Alert.alert('Login Failed', error);
-      }
+      Alert.alert('Login Failed', error);
       dispatch(clearError());
     }
   }, [error, dispatch]);
@@ -106,16 +87,6 @@ const LoginScreen: React.FC = () => {
 
     dispatch(login({ email: email.trim(), password }));
   };
-
-  // Show rate limit screen if rate limited
-  if (isRateLimited) {
-    return (
-      <RateLimitScreen 
-        onRetry={() => setIsRateLimited(false)} 
-        endpoint="auth_login"
-      />
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>

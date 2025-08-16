@@ -1,7 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
 import * as SecureStore from '../utils/secureStorage';
-import rateLimitHelper from '../utils/rateLimitHelper';
 
 interface LoginParams {
   email: string;
@@ -61,15 +60,6 @@ class AuthService {
     // Request interceptor to add auth token
     this.api.interceptors.request.use(
       async (config) => {
-        // Check rate limit before making request
-        const endpoint = rateLimitHelper.getAuthEndpointKey(config.url || '');
-        const { wait, timeRemaining } = rateLimitHelper.shouldWait(endpoint);
-        
-        if (wait) {
-          console.warn(`Rate limited: Please wait ${timeRemaining} seconds before retrying`);
-          throw new Error(`Rate limited. Please wait ${timeRemaining} seconds.`);
-        }
-        
         const token = await SecureStore.getAccessToken();
         console.log('Request interceptor:', {
           url: config.url,
@@ -131,12 +121,10 @@ class AuthService {
           }
         }
 
-        // Log rate limit errors clearly
+        // Log rate limit errors clearly (keeping for potential future use)
         if (isRateLimited) {
           console.error('RATE LIMITED: Please wait before making more requests');
           const retryAfter = error.response?.headers?.['retry-after'];
-          const endpoint = rateLimitHelper.getAuthEndpointKey(originalRequest.url || '');
-          rateLimitHelper.setRateLimit(endpoint, retryAfter ? parseInt(retryAfter) : 60);
           
           if (retryAfter) {
             console.error(`Retry after: ${retryAfter} seconds`);
