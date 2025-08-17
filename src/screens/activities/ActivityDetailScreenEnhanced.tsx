@@ -401,11 +401,55 @@ const ActivityDetailScreenEnhanced = () => {
           </View>
         )}
 
+        {/* Sessions */}
+        {activity.sessions && activity.sessions.length > 0 && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              {activity.sessions.length === 1 ? 'Session' : `Sessions (${activity.sessions.length})`}
+            </Text>
+            {activity.sessions.map((session, index) => (
+              <View key={index} style={[styles.sessionItem, index > 0 && styles.sessionBorder]}>
+                <View style={styles.sessionHeader}>
+                  <MaterialCommunityIcons name="calendar-clock" size={20} color={colors.primary} />
+                  <Text style={[styles.sessionNumber, { color: colors.text }]}>
+                    {activity.sessions.length > 1 ? `Session ${index + 1}` : 'Date & Time'}
+                  </Text>
+                </View>
+                {session.date && (
+                  <Text style={[styles.sessionDate, { color: colors.text }]}>{session.date}</Text>
+                )}
+                {(session.startTime || session.endTime) && (
+                  <Text style={[styles.sessionTime, { color: colors.textSecondary }]}>
+                    {session.startTime}{session.endTime && ` - ${session.endTime}`}
+                  </Text>
+                )}
+                {session.location && session.location !== activity.location && (
+                  <View style={styles.sessionLocation}>
+                    <Icon name="location-on" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.sessionLocationText, { color: colors.textSecondary }]}>
+                      {session.location}
+                    </Text>
+                  </View>
+                )}
+                {session.instructor && (
+                  <View style={styles.sessionInstructor}>
+                    <Icon name="person" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.sessionInstructorText, { color: colors.textSecondary }]}>
+                      {session.instructor}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Schedule & Additional Info */}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Details</Text>
           
-          {activity.schedule && (
+          {/* Show schedule only if no sessions */}
+          {!activity.sessions && activity.schedule && (
             <View style={styles.infoRow}>
               <Icon name="schedule" size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
@@ -447,9 +491,44 @@ const ActivityDetailScreenEnhanced = () => {
             {activity.prerequisites && (
               <View style={styles.requirementSection}>
                 <Text style={[styles.requirementTitle, { color: colors.text }]}>Prerequisites</Text>
-                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                  {activity.prerequisites}
-                </Text>
+                {typeof activity.prerequisites === 'string' ? (
+                  <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                    {activity.prerequisites}
+                  </Text>
+                ) : Array.isArray(activity.prerequisites) ? (
+                  <View>
+                    {activity.prerequisites.map((prereq, index) => (
+                      <View key={index} style={styles.prerequisiteItem}>
+                        <MaterialCommunityIcons 
+                          name="checkbox-marked-circle-outline" 
+                          size={16} 
+                          color={colors.warning} 
+                        />
+                        <View style={styles.prerequisiteContent}>
+                          <Text style={[styles.prerequisiteName, { color: colors.text }]}>
+                            {prereq.name}
+                          </Text>
+                          {prereq.description && (
+                            <Text style={[styles.prerequisiteDescription, { color: colors.textSecondary }]}>
+                              {prereq.description}
+                            </Text>
+                          )}
+                          {prereq.url && (
+                            <TouchableOpacity
+                              onPress={() => Linking.openURL(prereq.url)}
+                              style={styles.prerequisiteLink}
+                            >
+                              <Text style={[styles.prerequisiteLinkText, { color: colors.primary }]}>
+                                View Course Details
+                              </Text>
+                              <Icon name="open-in-new" size={14} color={colors.primary} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
               </View>
             )}
 
@@ -835,6 +914,83 @@ const styles = StyleSheet.create({
   requirementText: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  // Session styles
+  sessionItem: {
+    paddingVertical: 12,
+  },
+  sessionBorder: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sessionNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  sessionDate: {
+    fontSize: 15,
+    marginBottom: 4,
+    marginLeft: 32,
+  },
+  sessionTime: {
+    fontSize: 14,
+    marginLeft: 32,
+  },
+  sessionLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 32,
+    marginTop: 4,
+  },
+  sessionLocationText: {
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  sessionInstructor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 32,
+    marginTop: 4,
+  },
+  sessionInstructorText: {
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  // Prerequisite styles
+  prerequisiteItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  prerequisiteContent: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  prerequisiteName: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  prerequisiteDescription: {
+    fontSize: 14,
+    lineHeight: 19,
+    marginBottom: 4,
+  },
+  prerequisiteLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  prerequisiteLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 4,
   },
   locationHeader: {
     padding: 16,

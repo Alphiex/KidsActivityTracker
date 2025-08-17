@@ -235,7 +235,12 @@ class ActivityService {
         longitude: activity.longitude,
         directRegistrationUrl: activity.directRegistrationUrl,
         contactInfo: activity.contactInfo,
-        totalSpots: activity.totalSpots
+        totalSpots: activity.totalSpots,
+        // New fields for sessions and prerequisites
+        hasMultipleSessions: activity.hasMultipleSessions,
+        sessionCount: activity.sessionCount,
+        sessions: activity.sessions,
+        hasPrerequisites: activity.hasPrerequisites
       }));
     } catch (error: any) {
       console.error('Error searching activities:', error);
@@ -303,7 +308,12 @@ class ActivityService {
           longitude: activity.longitude,
           directRegistrationUrl: activity.directRegistrationUrl,
           contactInfo: activity.contactInfo,
-          totalSpots: activity.totalSpots
+          totalSpots: activity.totalSpots,
+          // New fields for sessions and prerequisites
+          hasMultipleSessions: activity.hasMultipleSessions,
+          sessionCount: activity.sessionCount,
+          sessions: activity.sessions,
+          hasPrerequisites: activity.hasPrerequisites
         }));
         
         return {
@@ -354,7 +364,12 @@ class ActivityService {
           },
           scrapedAt: new Date(activity.updatedAt || activity.createdAt),
           provider: activity.provider?.name || 'NVRC',
-          isFavorite: activity._count?.favorites > 0 || false
+          isFavorite: activity._count?.favorites > 0 || false,
+          // Include all enhanced fields
+          hasMultipleSessions: activity.hasMultipleSessions,
+          sessionCount: activity.sessionCount,
+          sessions: activity.sessions,
+          hasPrerequisites: activity.hasPrerequisites
         };
       }
 

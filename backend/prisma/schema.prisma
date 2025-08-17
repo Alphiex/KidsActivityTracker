@@ -89,10 +89,17 @@ model Activity {
   directRegistrationUrl     String?
   contactInfo               String?
   
+  // Support for multiple sessions and prerequisites
+  hasMultipleSessions       Boolean     @default(false)
+  sessionCount              Int         @default(0)
+  hasPrerequisites          Boolean     @default(false)
+  
   provider          Provider    @relation(fields: [providerId], references: [id])
   location          Location?   @relation(fields: [locationId], references: [id])
   favorites         Favorite[]
   childActivities   ChildActivity[]
+  sessions          ActivitySession[]
+  prerequisitesList ActivityPrerequisite[]
   
   // Unique constraint on provider + courseId to prevent duplicates
   @@unique([providerId, externalId])
@@ -104,6 +111,41 @@ model Activity {
   @@index([isActive, lastSeenAt])
   @@index([registrationStatus])
   @@index([latitude, longitude])
+}
+
+model ActivitySession {
+  id              String      @id @default(uuid())
+  activityId      String
+  sessionNumber   Int?
+  date            String?     // Date as string to handle various formats
+  startTime       String?     // Time as string (e.g., "9:00 AM")
+  endTime         String?     // Time as string (e.g., "4:00 PM")
+  location        String?
+  instructor      String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  activity        Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@index([activityId])
+  @@index([date])
+}
+
+model ActivityPrerequisite {
+  id              String      @id @default(uuid())
+  activityId      String
+  name            String
+  description     String?
+  url             String?     // URL to the prerequisite course
+  courseId        String?     // Course ID of the prerequisite
+  isRequired      Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  activity        Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@index([activityId])
 }
 
 // ============= NEW MODELS FOR USER ACCOUNTS =============

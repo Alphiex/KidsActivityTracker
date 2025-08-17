@@ -10,6 +10,10 @@ const config = {
   server: {
     port: 8081,
   },
+  resolver: {
+    assetExts: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'],
+  },
+  resetCache: true,
 };
 
 module.exports = mergeConfig(getDefaultConfig(__dirname), config);

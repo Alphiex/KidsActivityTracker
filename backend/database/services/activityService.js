@@ -106,6 +106,21 @@ class ActivityService {
             rawData: activity
           };
 
+          // Prepare additional data
+          const hasMultipleSessions = activity.sessions && activity.sessions.length > 1;
+          const sessionCount = activity.sessions ? activity.sessions.length : 0;
+          const hasPrerequisites = activity.prerequisites && activity.prerequisites.length > 0;
+          
+          // Add new fields to activity data
+          activityData.hasMultipleSessions = hasMultipleSessions;
+          activityData.sessionCount = sessionCount;
+          activityData.hasPrerequisites = hasPrerequisites;
+          
+          // Add enhanced fields if available
+          if (activity.instructor) activityData.instructor = activity.instructor;
+          if (activity.fullDescription) activityData.fullDescription = activity.fullDescription;
+          if (activity.whatToBring) activityData.whatToBring = activity.whatToBring;
+          
           // Upsert activity
           const upserted = await tx.activity.upsert({
             where: {
@@ -136,6 +151,52 @@ class ActivityService {
           // Track significant changes
           if (existingIds.has(activity.id)) {
             await this.trackChanges(tx, upserted.id, activityData);
+          }
+          
+          // Handle sessions
+          if (activity.sessions && activity.sessions.length > 0) {
+            // Delete existing sessions for this activity
+            await tx.activitySession.deleteMany({
+              where: { activityId: upserted.id }
+            });
+            
+            // Create new sessions
+            const sessionData = activity.sessions.map((session, index) => ({
+              activityId: upserted.id,
+              sessionNumber: index + 1,
+              date: session.date,
+              startTime: session.time ? session.time.split('-')[0]?.trim() : session.startTime,
+              endTime: session.time ? session.time.split('-')[1]?.trim() : session.endTime,
+              location: session.location,
+              instructor: session.instructor,
+              notes: session.notes
+            }));
+            
+            await tx.activitySession.createMany({
+              data: sessionData
+            });
+          }
+          
+          // Handle prerequisites
+          if (activity.prerequisites && Array.isArray(activity.prerequisites) && activity.prerequisites.length > 0) {
+            // Delete existing prerequisites for this activity
+            await tx.activityPrerequisite.deleteMany({
+              where: { activityId: upserted.id }
+            });
+            
+            // Create new prerequisites
+            const prereqData = activity.prerequisites.map(prereq => ({
+              activityId: upserted.id,
+              name: prereq.name,
+              description: prereq.description,
+              url: prereq.url,
+              courseId: prereq.courseId,
+              isRequired: prereq.isRequired !== false
+            }));
+            
+            await tx.activityPrerequisite.createMany({
+              data: prereqData
+            });
           }
 
         } catch (error) {
@@ -263,6 +324,10 @@ class ActivityService {
         include: {
           provider: true,
           location: true,
+          sessions: {
+            orderBy: { sessionNumber: 'asc' }
+          },
+          prerequisites: true,
           _count: {
             select: { favorites: true }
           }
@@ -297,6 +362,10 @@ class ActivityService {
       include: {
         provider: true,
         location: true,
+        sessions: {
+          orderBy: { sessionNumber: 'asc' }
+        },
+        prerequisites: true,
         favorites: {
           select: {
             userId: true,

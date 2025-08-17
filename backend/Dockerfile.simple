@@ -1,20 +1,28 @@
-# Simple Dockerfile without Puppeteer
+# Simple Dockerfile for JavaScript backend
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install basic dependencies
-RUN apk add --no-cache dumb-init
+# Install dependencies for Puppeteer and Prisma
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    dumb-init \
+    openssl
+
+# Tell Puppeteer to use installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm install --production
-
-# Generate Prisma client
-RUN npx prisma generate
+RUN npm ci --production
 
 # Copy application code
 COPY . .
@@ -24,11 +32,9 @@ RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 USER nodejs
 
-# Expose port
-EXPOSE 3000
-
-# Disable scraping in this deployment for now
-ENV DISABLE_SCRAPING=true
+# Use PORT environment variable (Cloud Run sets this to 8080)
+ENV PORT=8080
+EXPOSE 8080
 
 # Start the application
 ENTRYPOINT ["dumb-init", "--"]

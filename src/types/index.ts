@@ -28,7 +28,7 @@ export interface Activity {
   detailUrl?: string;
   fullDescription?: string;
   instructor?: string;
-  prerequisites?: string;
+  prerequisites?: string | ActivityPrerequisite[];
   whatToBring?: string;
   fullAddress?: string;
   latitude?: number;
@@ -40,12 +40,38 @@ export interface Activity {
   dates?: string;
   category?: string;
   subcategory?: string;
+  
+  // Support for multiple sessions
+  hasMultipleSessions?: boolean;
+  sessionCount?: number;
+  sessions?: ActivitySession[];
+  hasPrerequisites?: boolean;
 }
 
 export interface Schedule {
   days: string[];
   startTime: string;
   endTime: string;
+}
+
+export interface ActivitySession {
+  id?: string;
+  sessionNumber?: number;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  instructor?: string;
+  notes?: string;
+}
+
+export interface ActivityPrerequisite {
+  id?: string;
+  name: string;
+  description?: string;
+  url?: string;
+  courseId?: string;
+  isRequired?: boolean;
 }
 
 export interface Location {

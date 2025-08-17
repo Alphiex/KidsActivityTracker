@@ -6,12 +6,25 @@ const { PrismaClient } = require('../../generated/prisma');
 
 const router = express.Router();
 
-// Only initialize Prisma if DATABASE_URL is available
+// Lazy initialization of Prisma
 let prisma;
-if (process.env.DATABASE_URL) {
-  prisma = new PrismaClient();
-} else {
-  console.warn('⚠️  No DATABASE_URL provided, auth routes will return mock responses');
+
+function getPrismaClient() {
+  if (!prisma) {
+    console.log('Initializing PrismaClient...');
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    if (process.env.DATABASE_URL) {
+      try {
+        prisma = new PrismaClient();
+        console.log('✅ PrismaClient initialized successfully');
+      } catch (error) {
+        console.error('❌ Failed to initialize PrismaClient:', error);
+      }
+    } else {
+      console.warn('⚠️  No DATABASE_URL provided, auth routes will return mock responses');
+    }
+  }
+  return prisma;
 }
 
 // JWT configuration - Use the secret names that match what's in Cloud Run
@@ -64,7 +77,8 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    if (!prisma) {
+    const db = getPrismaClient();
+    if (!db) {
       // Mock response for testing without database
       const mockUser = {
         id: crypto.randomBytes(16).toString('hex'),
@@ -87,7 +101,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await db.user.findUnique({
       where: { email }
     });
 
@@ -102,7 +116,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
-    const user = await prisma.user.create({
+    const user = await db.user.create({
       data: {
         email,
         passwordHash: hashedPassword,
@@ -147,7 +161,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    if (!prisma) {
+    const db = getPrismaClient();
+    if (!db) {
       // Mock response for testing without database
       if (email === 'test@kidsactivitytracker.com' && password === 'test123') {
         const mockUser = {
@@ -177,7 +192,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Find user
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { email }
     });
 
@@ -200,10 +215,10 @@ router.post('/login', async (req, res) => {
     // Generate tokens
     const tokens = generateTokens(user.id);
 
-    // Update last login
-    await prisma.user.update({
+    // Update last login (using updatedAt since lastLoginAt doesn't exist in schema)
+    await db.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() }
+      data: { updatedAt: new Date() }
     });
 
     // Return user data without password
@@ -275,7 +290,15 @@ router.post('/logout', verifyToken, async (req, res) => {
 // Get profile
 router.get('/profile', verifyToken, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const db = getPrismaClient();
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection not available'
+      });
+    }
+    
+    const user = await db.user.findUnique({
       where: { id: req.userId },
       include: {
         children: true,
@@ -313,9 +336,17 @@ router.get('/profile', verifyToken, async (req, res) => {
 // Update profile
 router.put('/profile', verifyToken, async (req, res) => {
   try {
+    const db = getPrismaClient();
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection not available'
+      });
+    }
+    
     const { name, phoneNumber, preferences } = req.body;
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await db.user.update({
       where: { id: req.userId },
       data: {
         name,
@@ -345,7 +376,16 @@ router.put('/profile', verifyToken, async (req, res) => {
 // Check auth status
 router.get('/check', verifyToken, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const db = getPrismaClient();
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        authenticated: false,
+        error: 'Database connection not available'
+      });
+    }
+    
+    const user = await db.user.findUnique({
       where: { id: req.userId }
     });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme';
+import { preloadHighPriorityImages } from '../utils/imagePreloader';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,8 +22,22 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const [loadingText, setLoadingText] = useState('Loading activities...');
 
   useEffect(() => {
+    // Start preloading images
+    const preloadImages = async () => {
+      try {
+        setLoadingText('Loading activity images...');
+        await preloadHighPriorityImages();
+        setLoadingText('Almost ready...');
+      } catch (error) {
+        console.warn('Image preloading failed:', error);
+      }
+    };
+
+    preloadImages();
+
     // Animate logo
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -129,7 +144,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
                 ]}
               />
             </View>
-            <Text style={styles.loadingText}>Loading activities...</Text>
+            <Text style={styles.loadingText}>{loadingText}</Text>
           </View>
         </Animated.View>
       </View>

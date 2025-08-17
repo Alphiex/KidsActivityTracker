@@ -48,6 +48,89 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
     });
   };
 
+  const formatDateRange = (start: Date, end: Date) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for date comparison
+    
+    // Format full date with year if different from current year
+    const formatFullDate = (date: Date) => {
+      const options: Intl.DateTimeFormatOptions = {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      };
+      return date.toLocaleDateString('en-US', options);
+    };
+    
+    const baseRange = `${formatFullDate(startDate)} - ${formatFullDate(endDate)}`;
+    
+    // Check if activity has already started
+    if (startDate <= today && endDate >= today) {
+      return `In Progress • ${baseRange}`;
+    }
+    
+    // Check if it starts soon (within 7 days)
+    const daysUntilStart = Math.floor((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilStart >= 0 && daysUntilStart <= 7) {
+      const startText = daysUntilStart === 0 ? 'Starts Today' : 
+                       daysUntilStart === 1 ? 'Starts Tomorrow' : 
+                       `Starts in ${daysUntilStart} days`;
+      return `${startText} • ${baseRange}`;
+    }
+    
+    return baseRange;
+  };
+
+  const formatSchedule = (schedule: typeof activity.schedule) => {
+    if (!schedule) return null;
+    
+    if (typeof schedule === 'string') {
+      // If schedule is a string, return it as is
+      return schedule;
+    }
+    
+    // If schedule is an object with days and times
+    if (schedule.days && schedule.days.length > 0) {
+      let daysStr = '';
+      
+      // Check if it's weekdays
+      const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const isWeekdays = schedule.days.length === 5 && 
+        schedule.days.every(day => weekdays.includes(day));
+      
+      if (isWeekdays) {
+        daysStr = 'Weekdays';
+      } else if (schedule.days.length === 7) {
+        daysStr = 'Daily';
+      } else if (schedule.days.length === 2 && 
+                 schedule.days.includes('Saturday') && 
+                 schedule.days.includes('Sunday')) {
+        daysStr = 'Weekends';
+      } else {
+        // Abbreviate day names for space
+        const dayAbbrev: { [key: string]: string } = {
+          'Monday': 'Mon',
+          'Tuesday': 'Tue',
+          'Wednesday': 'Wed',
+          'Thursday': 'Thu',
+          'Friday': 'Fri',
+          'Saturday': 'Sat',
+          'Sunday': 'Sun'
+        };
+        daysStr = schedule.days.map(day => dayAbbrev[day] || day).join(', ');
+      }
+      
+      const timeStr = schedule.startTime && schedule.endTime 
+        ? `${schedule.startTime} - ${schedule.endTime}`
+        : schedule.startTime || '';
+      return `${daysStr}${timeStr ? ' • ' + timeStr : ''}`;
+    }
+    
+    return null;
+  };
+
   const getActivityIcon = (type: string) => {
     const iconMap: { [key: string]: string } = {
       camps: 'tent',
@@ -131,13 +214,62 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         </View>
 
         {activity.dateRange && (
-          <View style={styles.infoRow}>
+          <View style={[styles.infoRow, styles.dateRangeRow]}>
             <Icon name="calendar-range" size={16} color={Colors.primary} />
-            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              {formatDate(activity.dateRange.start)} - {formatDate(activity.dateRange.end)}
+            <Text style={[styles.infoText, styles.dateRangeText, { color: colors.text }]}>
+              {formatDateRange(activity.dateRange.start, activity.dateRange.end)}
             </Text>
           </View>
         )}
+
+        {activity.sessions && activity.sessions.length > 0 ? (
+          <View style={[styles.sessionsContainer]}>
+            {activity.sessions.length === 1 ? (
+              // Single session - display inline
+              <View style={[styles.infoRow, styles.scheduleRow]}>
+                <Icon name="clock-outline" size={16} color={Colors.primary} />
+                <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
+                  {activity.sessions[0].date && `${activity.sessions[0].date} • `}
+                  {activity.sessions[0].startTime && activity.sessions[0].endTime 
+                    ? `${activity.sessions[0].startTime} - ${activity.sessions[0].endTime}`
+                    : activity.sessions[0].startTime || ''}
+                </Text>
+              </View>
+            ) : (
+              // Multiple sessions
+              <View style={styles.multipleSessionsContainer}>
+                <View style={styles.sessionHeader}>
+                  <Icon name="calendar-multiple" size={16} color={Colors.primary} />
+                  <Text style={[styles.sessionHeaderText, { color: colors.text }]}>
+                    {activity.sessions.length} Sessions Available
+                  </Text>
+                </View>
+                {activity.sessions.slice(0, 2).map((session, index) => (
+                  <View key={index} style={styles.sessionItem}>
+                    <Text style={[styles.sessionText, { color: colors.textSecondary }]}>
+                      {session.date && `${session.date}`}
+                      {session.startTime && ` • ${session.startTime}`}
+                      {session.endTime && ` - ${session.endTime}`}
+                    </Text>
+                  </View>
+                ))}
+                {activity.sessions.length > 2 && (
+                  <Text style={[styles.moreSessionsText, { color: Colors.primary }]}>
+                    +{activity.sessions.length - 2} more sessions
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        ) : activity.schedule && formatSchedule(activity.schedule) ? (
+          // Fallback to old schedule format if no sessions
+          <View style={[styles.infoRow, styles.scheduleRow]}>
+            <Icon name="clock-outline" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
+              {formatSchedule(activity.schedule)}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />
@@ -145,6 +277,15 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
             Ages {activity.ageRange.min} - {activity.ageRange.max} years
           </Text>
         </View>
+
+        {activity.hasPrerequisites && activity.prerequisites && (
+          <View style={[styles.infoRow, styles.prerequisiteRow]}>
+            <Icon name="alert-circle-outline" size={16} color={Colors.warning} />
+            <Text style={[styles.prerequisiteText, { color: Colors.warning }]}>
+              Prerequisites required
+            </Text>
+          </View>
+        )}
 
         <View style={styles.bottomSection}>
           <View style={styles.spotsContainer}>
@@ -302,6 +443,76 @@ const styles = StyleSheet.create({
     ...Theme.typography.bodySmall,
     marginLeft: Theme.spacing.sm,
     flex: 1,
+  },
+  dateRangeRow: {
+    backgroundColor: Colors.secondary + '15',
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: Theme.spacing.xs,
+    borderRadius: Theme.borderRadius.sm,
+    marginHorizontal: -Theme.spacing.xs,
+    marginBottom: Theme.spacing.xs,
+  },
+  dateRangeText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  scheduleRow: {
+    backgroundColor: Colors.primary + '10',
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: Theme.spacing.xs,
+    borderRadius: Theme.borderRadius.sm,
+    marginHorizontal: -Theme.spacing.xs,
+    marginBottom: Theme.spacing.sm,
+  },
+  scheduleText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  sessionsContainer: {
+    marginBottom: Theme.spacing.sm,
+  },
+  multipleSessionsContainer: {
+    backgroundColor: Colors.primary + '10',
+    borderRadius: Theme.borderRadius.sm,
+    padding: Theme.spacing.sm,
+    marginBottom: Theme.spacing.xs,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.xs,
+  },
+  sessionHeaderText: {
+    fontWeight: '600',
+    fontSize: 14,
+    marginLeft: Theme.spacing.sm,
+  },
+  sessionItem: {
+    paddingLeft: Theme.spacing.lg + Theme.spacing.xs,
+    marginBottom: Theme.spacing.xs / 2,
+  },
+  sessionText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  moreSessionsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    paddingLeft: Theme.spacing.lg + Theme.spacing.xs,
+    marginTop: Theme.spacing.xs / 2,
+  },
+  prerequisiteRow: {
+    backgroundColor: Colors.warning + '15',
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: Theme.spacing.xs,
+    borderRadius: Theme.borderRadius.sm,
+    marginHorizontal: -Theme.spacing.xs,
+    marginBottom: Theme.spacing.sm,
+  },
+  prerequisiteText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: Theme.spacing.sm,
   },
   bottomSection: {
     flexDirection: 'row',
