@@ -4,7 +4,7 @@
 echo "🚀 Starting Kids Activity Tracker development environment..."
 
 # Set project
-gcloud config set project kids-activity-tracker 2>/dev/null
+gcloud config set project kids-activity-tracker-dev 2>/dev/null
 
 # Start Cloud SQL
 echo "Starting Cloud SQL instance..."

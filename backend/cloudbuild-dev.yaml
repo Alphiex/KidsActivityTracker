@@ -1,12 +1,12 @@
-# Cloud Build configuration for kids-activity-tracker project (Development)
+# Cloud Build configuration for kids-activity-tracker-dev project (Development)
 steps:
   # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/kids-activity-tracker/kids-activity-api:$COMMIT_SHA', '-t', 'gcr.io/kids-activity-tracker/kids-activity-api:latest', '.']
+    args: ['build', '-t', 'gcr.io/kids-activity-tracker-dev/kids-activity-api:$COMMIT_SHA', '-t', 'gcr.io/kids-activity-tracker-dev/kids-activity-api:latest', '.']
 
   # Push the Docker image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '--all-tags', 'gcr.io/kids-activity-tracker/kids-activity-api']
+    args: ['push', '--all-tags', 'gcr.io/kids-activity-tracker-dev/kids-activity-api']
 
   # Deploy to Cloud Run (Development configuration)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -16,7 +16,7 @@ steps:
       - 'deploy'
       - 'kids-activity-api'
       - '--image'
-      - 'gcr.io/kids-activity-tracker/kids-activity-api:$COMMIT_SHA'
+      - 'gcr.io/kids-activity-tracker-dev/kids-activity-api:$COMMIT_SHA'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -35,7 +35,7 @@ steps:
       - '--cpu'
       - '1'
       - '--service-account'
-      - 'kids-activity-cloud-run@kids-activity-tracker.iam.gserviceaccount.com'
+      - 'kids-activity-cloud-run@kids-activity-tracker-dev.iam.gserviceaccount.com'
 
 timeout: '1200s'
 options:

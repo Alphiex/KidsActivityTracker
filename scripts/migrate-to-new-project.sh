@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Migration script for kids-activity-tracker project
+# Migration script for kids-activity-tracker-dev project
 # This script helps automate the migration process
 
 set -e
@@ -34,12 +34,14 @@ confirm() {
 
 # Step 1: Create project
 echo -e "\n${YELLOW}Step 1: Creating Google Cloud Project${NC}"
-if confirm "Create new project 'kids-activity-tracker'?"; then
-    gcloud projects create kids-activity-tracker --name="Kids Activity Tracker" || echo "Project might already exist"
-    gcloud config set project kids-activity-tracker
+PROJECT_ID="kids-activity-tracker-dev"
+if confirm "Create new project '$PROJECT_ID'?"; then
+    gcloud projects create $PROJECT_ID --name="Kids Activity Tracker Dev" || echo "Project might already exist"
+    gcloud config set project $PROJECT_ID
     echo -e "${GREEN}✓ Project created/selected${NC}"
 else
-    echo "Skipping project creation"
+    gcloud config set project $PROJECT_ID
+    echo "Using existing project"
 fi
 
 # Step 2: Link billing
@@ -49,7 +51,7 @@ gcloud beta billing accounts list
 echo
 read -p "Enter your billing account ID: " BILLING_ACCOUNT_ID
 if [ ! -z "$BILLING_ACCOUNT_ID" ]; then
-    gcloud beta billing projects link kids-activity-tracker --billing-account=$BILLING_ACCOUNT_ID
+    gcloud beta billing projects link kids-activity-tracker-dev --billing-account=$BILLING_ACCOUNT_ID
     echo -e "${GREEN}✓ Billing account linked${NC}"
 fi
 
@@ -113,17 +115,17 @@ if confirm "Create service account and grant permissions?"; then
         --display-name="Kids Activity Cloud Run Service Account"
     
     # Grant permissions
-    SA_EMAIL="kids-activity-cloud-run@kids-activity-tracker.iam.gserviceaccount.com"
+    SA_EMAIL="kids-activity-cloud-run@kids-activity-tracker-dev.iam.gserviceaccount.com"
     
-    gcloud projects add-iam-policy-binding kids-activity-tracker \
+    gcloud projects add-iam-policy-binding kids-activity-tracker-dev \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/cloudsql.client"
     
-    gcloud projects add-iam-policy-binding kids-activity-tracker \
+    gcloud projects add-iam-policy-binding kids-activity-tracker-dev \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/redis.editor"
     
-    gcloud projects add-iam-policy-binding kids-activity-tracker \
+    gcloud projects add-iam-policy-binding kids-activity-tracker-dev \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/secretmanager.secretAccessor"
     
