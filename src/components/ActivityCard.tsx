@@ -19,6 +19,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import ChildActivityStatus from './activities/ChildActivityStatus';
 import { formatPrice } from '../utils/formatters';
 import { getActivityImageKey } from '../utils/activityHelpers';
+import { OptimizedActivityImage } from './OptimizedActivityImage';
 
 const { width } = Dimensions.get('window');
 
@@ -79,13 +80,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        <Image 
+        <OptimizedActivityImage 
           source={getActivityImageByKey(getActivityImageKey(
             activity.category || (activity.activityType && activity.activityType[0]) || '', 
             activity.subcategory
           ))} 
           style={styles.image} 
           resizeMode="cover"
+          containerStyle={styles.imageContainer}
         />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
@@ -114,14 +116,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
       
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={2}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
             {activity.name}
           </Text>
         </View>
         
         <View style={styles.infoRow}>
           <Icon name="map-marker" size={16} color={Colors.primary} />
-          <Text style={styles.infoText} numberOfLines={1}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]} numberOfLines={1}>
             {typeof activity.location === 'string' 
               ? activity.location 
               : activity.location?.name || activity.locationName || 'Location TBD'}
@@ -131,7 +133,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         {activity.dateRange && (
           <View style={styles.infoRow}>
             <Icon name="calendar-range" size={16} color={Colors.primary} />
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               {formatDate(activity.dateRange.start)} - {formatDate(activity.dateRange.end)}
             </Text>
           </View>
@@ -139,7 +141,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
 
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             Ages {activity.ageRange.min} - {activity.ageRange.max} years
           </Text>
         </View>
@@ -206,12 +208,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
       </View>
       
       {/* New: Quick Action Buttons */}
-      <View style={styles.quickActions}>
+      <View style={[styles.quickActions, { 
+        backgroundColor: isDark ? 'rgba(50, 50, 50, 0.95)' : 'rgba(255, 255, 255, 0.95)' 
+      }]}>
         <TouchableOpacity style={styles.quickActionButton}>
-          <Icon name="share-variant" size={20} color="#666" />
+          <Icon name="share-variant" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.quickActionButton}>
-          <Icon name="calendar-plus" size={20} color="#666" />
+          <Icon name="calendar-plus" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -287,7 +291,6 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Theme.typography.h5,
-    color: Colors.text.primary,
     marginBottom: Theme.spacing.xs,
   },
   infoRow: {
@@ -297,7 +300,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     ...Theme.typography.bodySmall,
-    color: Colors.text.secondary,
     marginLeft: Theme.spacing.sm,
     flex: 1,
   },

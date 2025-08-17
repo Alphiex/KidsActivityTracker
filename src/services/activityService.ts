@@ -164,11 +164,11 @@ class ActivityService {
 
       // Convert filter to API params - match backend parameter names
       if (filters.ageRange) {
-        params.ageMin = filters.ageRange.min;
-        params.ageMax = filters.ageRange.max;
+        params.age_min = filters.ageRange.min;
+        params.age_max = filters.ageRange.max;
       }
       if (filters.maxCost !== undefined) {
-        params.costMax = filters.maxCost;
+        params.cost_max = filters.maxCost;
       }
       if (filters.activityTypes && filters.activityTypes.length > 0) {
         params.category = filters.activityTypes[0]; // Backend expects single category
