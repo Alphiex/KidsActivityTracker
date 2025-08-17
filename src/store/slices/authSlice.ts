@@ -7,7 +7,7 @@ interface User {
   email: string;
   name: string;
   phoneNumber?: string;
-  emailVerified: boolean;
+  isVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }

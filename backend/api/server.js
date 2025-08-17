@@ -9,6 +9,7 @@ const userService = require('../database/services/userService');
 const providerService = require('../database/services/providerService');
 const scrapeJobService = require('../database/services/scrapeJobService');
 const scraperJobService = require('../services/scraperJobService');
+const { router: authRoutes, verifyToken } = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -56,6 +57,9 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+// ============= Authentication Routes =============
+app.use('/api/auth', authRoutes);
 
 // ============= Activity Endpoints =============
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Migration script for kids-activity-tracker-dev project
+# Migration script for kids-activity-tracker-2024 project
 # This script helps automate the migration process
 
 set -e
@@ -34,7 +34,7 @@ confirm() {
 
 # Step 1: Create project
 echo -e "\n${YELLOW}Step 1: Creating Google Cloud Project${NC}"
-PROJECT_ID="kids-activity-tracker-dev"
+PROJECT_ID="kids-activity-tracker-2024"
 if confirm "Create new project '$PROJECT_ID'?"; then
     gcloud projects create $PROJECT_ID --name="Kids Activity Tracker Dev" || echo "Project might already exist"
     gcloud config set project $PROJECT_ID
@@ -51,7 +51,7 @@ gcloud beta billing accounts list
 echo
 read -p "Enter your billing account ID: " BILLING_ACCOUNT_ID
 if [ ! -z "$BILLING_ACCOUNT_ID" ]; then
-    gcloud beta billing projects link kids-activity-tracker-dev --billing-account=$BILLING_ACCOUNT_ID
+    gcloud beta billing projects link kids-activity-tracker-2024 --billing-account=$BILLING_ACCOUNT_ID
     echo -e "${GREEN}✓ Billing account linked${NC}"
 fi
 
@@ -115,17 +115,17 @@ if confirm "Create service account and grant permissions?"; then
         --display-name="Kids Activity Cloud Run Service Account"
     
     # Grant permissions
-    SA_EMAIL="kids-activity-cloud-run@kids-activity-tracker-dev.iam.gserviceaccount.com"
+    SA_EMAIL="kids-activity-cloud-run@kids-activity-tracker-2024.iam.gserviceaccount.com"
     
-    gcloud projects add-iam-policy-binding kids-activity-tracker-dev \
+    gcloud projects add-iam-policy-binding kids-activity-tracker-2024 \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/cloudsql.client"
     
-    gcloud projects add-iam-policy-binding kids-activity-tracker-dev \
+    gcloud projects add-iam-policy-binding kids-activity-tracker-2024 \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/redis.editor"
     
-    gcloud projects add-iam-policy-binding kids-activity-tracker-dev \
+    gcloud projects add-iam-policy-binding kids-activity-tracker-2024 \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/secretmanager.secretAccessor"
     

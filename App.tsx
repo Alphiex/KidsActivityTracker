@@ -13,23 +13,19 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 function App() {
   const [isLoading, setIsLoading] = useState(true);
 
-  // Clear all MMKV storage on app startup in development mode
+  // Note: Removed automatic clearing of MMKV storage to allow persistent authentication
   useEffect(() => {
     if (__DEV__) {
-      console.log('Development mode: Clearing all MMKV storage data...');
-      
-      // Clear the secure storage instance
-      const secureStorage = new MMKV({
-        id: 'secure-storage',
-        encryptionKey: 'kids-activity-tracker-secure-key'
-      });
-      secureStorage.clearAll();
-      
-      // Clear the default MMKV instance (used by favorites and preferences)
-      const defaultStorage = new MMKV();
-      defaultStorage.clearAll();
-      
-      console.log('MMKV storage cleared successfully');
+      console.log('Development mode: MMKV storage persists for authentication');
+      // Only clear storage if explicitly needed for debugging
+      // Uncomment the following lines to clear storage:
+      // const secureStorage = new MMKV({
+      //   id: 'secure-storage',
+      //   encryptionKey: 'kids-activity-tracker-secure-key'
+      // });
+      // secureStorage.clearAll();
+      // const defaultStorage = new MMKV();
+      // defaultStorage.clearAll();
     }
   }, []);
 

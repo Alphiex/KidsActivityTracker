@@ -68,12 +68,20 @@ async function main() {
   }
 
   // Create a test user
+  const bcrypt = require('bcryptjs');
+  const passwordHash = await bcrypt.hash('testpassword123', 12);
+  
   const testUser = await prisma.user.upsert({
     where: { email: 'test@example.com' },
     update: {},
     create: {
       email: 'test@example.com',
       name: 'Test User',
+      passwordHash: passwordHash,
+      isVerified: true,
+      verificationToken: null,
+      resetToken: null,
+      resetTokenExpiry: null,
       preferences: {
         ageRange: { min: 5, max: 12 },
         preferredCategories: ['Swimming', 'Camps'],

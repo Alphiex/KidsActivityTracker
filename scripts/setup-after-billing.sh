@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Setup script to run after billing is enabled
-# Run this after you've enabled billing for the kids-activity-tracker-dev project
+# Run this after you've enabled billing for the kids-activity-tracker-2024 project
 
 set -e
 
@@ -15,7 +15,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-PROJECT_ID="kids-activity-tracker-dev"
+PROJECT_ID="kids-activity-tracker-2024"
 
 # Set project
 echo -e "\n${YELLOW}Setting project to $PROJECT_ID${NC}"

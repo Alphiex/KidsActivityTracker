@@ -71,7 +71,7 @@ const ProfileScreen = () => {
           </View>
           <Text style={styles.userName}>{user?.name || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
-          {user?.emailVerified === false && (
+          {user?.isVerified === false && (
             <View style={styles.verificationBadge}>
               <Icon name="alert-circle" size={16} color={colors.warning} />
               <Text style={styles.verificationText}>Email not verified</Text>

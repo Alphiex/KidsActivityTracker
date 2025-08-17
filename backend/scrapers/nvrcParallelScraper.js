@@ -21,16 +21,14 @@ class NVRCParallelScraper {
       console.log('🚀 Starting NVRC Parallel Scraper...');
       console.log(`🔧 Max concurrency: ${this.options.maxConcurrency} browsers`);
       
-      // Get or create provider
-      const provider = await this.prisma.provider.upsert({
-        where: { name: 'NVRC' },
-        update: {},
-        create: {
-          name: 'NVRC',
-          website: 'https://www.nvrc.ca',
-          isActive: true
-        }
+      // Get existing provider
+      const provider = await this.prisma.provider.findFirst({
+        where: { name: 'NVRC' }
       });
+      
+      if (!provider) {
+        throw new Error('NVRC provider not found in database. Please run seed script first.');
+      }
       
       console.log(`📍 Provider: ${provider.name} (${provider.id})`);
       

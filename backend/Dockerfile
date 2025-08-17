@@ -61,6 +61,13 @@ USER nodejs
 # Expose port
 EXPOSE 3000
 
-# Start the application using ts-node
+# Copy legacy API files
+COPY --from=builder /app/api ./api
+COPY --from=builder /app/database ./database
+COPY --from=builder /app/services ./services
+COPY --from=builder /app/scrapers ./scrapers
+COPY --from=builder /app/generated ./generated
+
+# Start the application using JavaScript server with authentication
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["npx", "ts-node", "src/server.ts"]
+CMD ["node", "api/server.js"]

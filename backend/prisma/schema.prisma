@@ -23,6 +23,7 @@ model Provider {
   updatedAt      DateTime   @updatedAt
   
   activities     Activity[]
+  scrapeJobs     ScrapeJob[]
 }
 
 model Location {
@@ -273,4 +274,35 @@ model ScraperRun {
   logs              Json?
   
   @@index([providerId, startedAt])
+}
+
+// ============= SCRAPER JOB TRACKING =============
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model ScrapeJob {
+  id                String      @id @default(uuid())
+  providerId        String
+  status            JobStatus   @default(PENDING)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  activitiesFound   Int         @default(0)
+  activitiesCreated Int         @default(0)
+  activitiesUpdated Int         @default(0)
+  activitiesRemoved Int         @default(0)
+  errorMessage      String?
+  errorDetails      Json?
+  createdAt         DateTime    @default(now())
+  
+  provider          Provider    @relation(fields: [providerId], references: [id])
+  
+  @@index([providerId])
+  @@index([status])
+  @@index([createdAt])
 }

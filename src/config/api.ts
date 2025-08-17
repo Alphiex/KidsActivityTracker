@@ -12,7 +12,7 @@ const API_URLS = {
   }),
   
   // Production - Google Cloud Run deployment
-  PRODUCTION: 'https://kids-activity-api-44042034457.us-central1.run.app',
+  PRODUCTION: 'https://kids-activity-api-205843686007.us-central1.run.app',
 };
 
 // Force local development server
