@@ -10,6 +10,7 @@ if (!process.env.DATABASE_URL) {
     $connect: async () => Promise.resolve(),
     $disconnect: async () => Promise.resolve(),
     $executeRaw: async () => 0,
+    $executeRawUnsafe: async () => 0,
     $queryRaw: async () => [],
     $transaction: async (fn) => fn(prisma),
     activity: {
@@ -31,6 +32,9 @@ if (!process.env.DATABASE_URL) {
       findMany: async () => [],
       findUnique: async () => null,
       count: async () => 0,
+      create: async (data) => ({ id: 'mock-provider-id', ...data.data }),
+      update: async (data) => ({ id: data.where.id, ...data.data }),
+      upsert: async (data) => ({ id: 'mock-provider-id', ...data.create }),
     },
     location: {
       findMany: async () => [],
@@ -50,6 +54,18 @@ if (!process.env.DATABASE_URL) {
     },
     activityHistory: {
       createMany: async () => ({ count: 0 }),
+    },
+    activitySession: {
+      count: async () => 0,
+      create: async (data) => ({ id: 'mock-session-id', ...data.data }),
+      createMany: async () => ({ count: 0 }),
+      deleteMany: async () => ({ count: 0 }),
+    },
+    activityPrerequisite: {
+      count: async () => 0,
+      create: async (data) => ({ id: 'mock-prereq-id', ...data.data }),
+      createMany: async () => ({ count: 0 }),
+      deleteMany: async () => ({ count: 0 }),
     },
   };
 } else {

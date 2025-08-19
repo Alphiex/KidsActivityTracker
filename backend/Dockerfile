@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN npx prisma generate
 # RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -53,20 +53,30 @@ COPY --from=builder /app/prisma ./prisma
 # Generate Prisma client in production stage
 RUN npx prisma generate
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-USER nodejs
-
-# Expose port
-EXPOSE 3000
-
 # Copy legacy API files
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/database ./database
 COPY --from=builder /app/services ./services
 COPY --from=builder /app/scrapers ./scrapers
 COPY --from=builder /app/generated ./generated
+
+# Copy scraper job files
+COPY --from=builder /app/scraper-detailed-cloud-job.js ./
+COPY --from=builder /app/update-schema-production.js ./
+COPY --from=builder /app/scraper-job.js ./
+COPY --from=builder /app/create-all-tables.sql ./
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Change ownership of all files to nodejs user
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# Expose port
+EXPOSE 3000
 
 # Start the application using JavaScript server with authentication
 ENTRYPOINT ["dumb-init", "--"]

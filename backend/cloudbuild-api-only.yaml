@@ -1,4 +1,4 @@
-# Cloud Build configuration
+# Cloud Build configuration - API only
 steps:
   # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
@@ -34,37 +34,6 @@ steps:
       - '512Mi'
       - '--cpu'
       - '1'
-
-  # Deploy monitoring dashboard to Cloud Run
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/kids-activity-monitoring:$COMMIT_SHA', '-f', './Dockerfile.monitoring', '.']
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/kids-activity-monitoring:$COMMIT_SHA']
-
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'kids-activity-monitoring'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/kids-activity-monitoring:$COMMIT_SHA'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--set-env-vars'
-      - 'NODE_ENV=production'
-      - '--set-secrets'
-      - 'DATABASE_URL=database-url:latest'
-      - '--set-secrets'
-      - 'REDIS_URL=redis-url:latest'
-      - '--memory'
-      - '256Mi'
-      - '--cpu'
-      - '0.5'
 
 timeout: '1200s'
 options:

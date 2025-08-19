@@ -1,3 +1,5 @@
+require('dotenv').config({ path: '.env.production' });
+
 const NVRCEnhancedParallelScraper = require('./scrapers/nvrcEnhancedParallelScraper');
 const { PrismaClient } = require('./generated/prisma');
 
@@ -13,13 +15,13 @@ async function runScraper() {
   try {
     console.log('🚀 Starting NVRC Enhanced Scraper Job...');
     console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'production'}`);
+    console.log(`🌍 Environment: production`);
+    console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not connected'}`);
     
     // Initialize scraper with production settings
-    const isProduction = process.env.NODE_ENV === 'production';
     const scraper = new NVRCEnhancedParallelScraper({
-      headless: isProduction ? 'new' : false,
-      maxConcurrency: isProduction ? 2 : 3, // Lower concurrency in production to avoid memory issues
+      headless: 'new',
+      maxConcurrency: 2, // Lower concurrency to avoid memory issues
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

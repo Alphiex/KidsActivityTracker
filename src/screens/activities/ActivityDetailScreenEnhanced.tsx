@@ -75,6 +75,23 @@ const ActivityDetailScreenEnhanced = () => {
     fullAddress: serializedActivity?.fullAddress,
   });
   
+  // Debug logging for missing fields
+  console.log('DEBUG - Activity data received:', {
+    name: serializedActivity?.name,
+    registrationStatus: serializedActivity?.registrationStatus,
+    dates: serializedActivity?.dates,
+    fullDescription: serializedActivity?.fullDescription,
+    courseId: serializedActivity?.courseId,
+    externalId: serializedActivity?.externalId,
+    spotsAvailable: serializedActivity?.spotsAvailable,
+    totalSpots: serializedActivity?.totalSpots,
+    instructor: serializedActivity?.instructor,
+    startTime: serializedActivity?.startTime,
+    endTime: serializedActivity?.endTime,
+    sessions: serializedActivity?.sessions?.length || 0,
+    prerequisites: serializedActivity?.prerequisites,
+  });
+  
   let activity: Activity;
   try {
     activity = {
@@ -331,28 +348,26 @@ const ActivityDetailScreenEnhanced = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Registration Status Card */}
-        {activity.registrationStatus && (
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <View style={styles.statusRow}>
-              <View style={styles.statusLeft}>
-                <Icon
-                  name={getStatusIcon(activity.registrationStatus)}
-                  size={24}
-                  color={getStatusColor(activity.registrationStatus)}
-                />
-                <View style={styles.statusTextContainer}>
-                  <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
-                    Registration Status
-                  </Text>
-                  <Text style={[styles.statusValue, { color: colors.text }]}>
-                    {activity.registrationButtonText || activity.registrationStatus}
-                  </Text>
-                </View>
+        {/* Registration Status Card - Always show */}
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <View style={styles.statusRow}>
+            <View style={styles.statusLeft}>
+              <Icon
+                name={getStatusIcon(activity.registrationStatus || 'Unknown')}
+                size={24}
+                color={getStatusColor(activity.registrationStatus || 'Unknown')}
+              />
+              <View style={styles.statusTextContainer}>
+                <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
+                  Registration Status
+                </Text>
+                <Text style={[styles.statusValue, { color: colors.text }]}>
+                  {activity.registrationButtonText || activity.registrationStatus || 'Unknown'}
+                </Text>
               </View>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Key Details Grid */}
         <View style={styles.detailsGrid}>
@@ -367,6 +382,16 @@ const ActivityDetailScreenEnhanced = () => {
           </View>
 
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
+            <MaterialCommunityIcons name="clock-outline" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Time</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={2}>
+              {activity.startTime && activity.endTime ? 
+                `${activity.startTime} - ${activity.endTime}` : 
+                activity.schedule || 'TBD'}
+            </Text>
+          </View>
+
+          <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
             <MaterialCommunityIcons name="human-child" size={24} color={colors.primary} />
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Ages</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
@@ -377,16 +402,34 @@ const ActivityDetailScreenEnhanced = () => {
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
             <MaterialCommunityIcons name="cash" size={24} color={colors.primary} />
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Cost</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>
-              ${formatPrice(activity.cost || 0)}
-            </Text>
+            <View>
+              <Text style={[styles.detailValue, { color: colors.text }]}>
+                ${formatPrice(activity.cost || 0)}
+              </Text>
+              {activity.costIncludesTax === false && (
+                <Text style={[styles.detailSubtext, { color: colors.textSecondary, fontSize: 11 }]}>
+                  + tax
+                </Text>
+              )}
+            </View>
           </View>
 
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
             <MaterialCommunityIcons name="account-group" size={24} color={colors.primary} />
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Spots</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>
-              {activity.spotsAvailable || 'N/A'}
+              {activity.spotsAvailable || 0}
+              {activity.totalSpots ? `/${activity.totalSpots}` : ''}
+            </Text>
+          </View>
+
+          <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
+            <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Registration</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={2}>
+              {activity.registrationEndDate ? 
+                `Ends ${formatDate(new Date(activity.registrationEndDate))}` : 
+                'Open'}
             </Text>
           </View>
         </View>
@@ -397,6 +440,16 @@ const ActivityDetailScreenEnhanced = () => {
             <Text style={[styles.cardTitle, { color: colors.text }]}>Description</Text>
             <Text style={[styles.descriptionText, { color: colors.text }]}>
               {activity.fullDescription || activity.description}
+            </Text>
+          </View>
+        )}
+        
+        {/* Course Details */}
+        {activity.courseDetails && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Course Details</Text>
+            <Text style={[styles.descriptionText, { color: colors.text }]}>
+              {activity.courseDetails}
             </Text>
           </View>
         )}
@@ -412,22 +465,25 @@ const ActivityDetailScreenEnhanced = () => {
                 <View style={styles.sessionHeader}>
                   <MaterialCommunityIcons name="calendar-clock" size={20} color={colors.primary} />
                   <Text style={[styles.sessionNumber, { color: colors.text }]}>
-                    {activity.sessions.length > 1 ? `Session ${index + 1}` : 'Date & Time'}
+                    {activity.sessions.length > 1 ? `Session ${session.sessionNumber || index + 1}` : 'Date & Time'}
                   </Text>
                 </View>
-                {session.date && (
-                  <Text style={[styles.sessionDate, { color: colors.text }]}>{session.date}</Text>
+                {(session.date || session.dayOfWeek) && (
+                  <Text style={[styles.sessionDate, { color: colors.text }]}>
+                    {session.dayOfWeek ? `${session.dayOfWeek}${session.date ? ', ' : ''}` : ''}{session.date || ''}
+                  </Text>
                 )}
                 {(session.startTime || session.endTime) && (
                   <Text style={[styles.sessionTime, { color: colors.textSecondary }]}>
                     {session.startTime}{session.endTime && ` - ${session.endTime}`}
                   </Text>
                 )}
-                {session.location && session.location !== activity.location && (
+                {(session.location || session.subLocation) && (
                   <View style={styles.sessionLocation}>
                     <Icon name="location-on" size={16} color={colors.textSecondary} />
                     <Text style={[styles.sessionLocationText, { color: colors.textSecondary }]}>
-                      {session.location}
+                      {session.location || activity.location}
+                      {session.subLocation ? ` - ${session.subLocation}` : ''}
                     </Text>
                   </View>
                 )}
@@ -436,6 +492,14 @@ const ActivityDetailScreenEnhanced = () => {
                     <Icon name="person" size={16} color={colors.textSecondary} />
                     <Text style={[styles.sessionInstructorText, { color: colors.textSecondary }]}>
                       {session.instructor}
+                    </Text>
+                  </View>
+                )}
+                {session.notes && (
+                  <View style={styles.sessionNotes}>
+                    <Icon name="info-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.sessionNotesText, { color: colors.textSecondary }]}>
+                      {session.notes}
                     </Text>
                   </View>
                 )}
@@ -540,6 +604,28 @@ const ActivityDetailScreenEnhanced = () => {
                 </Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Required Extras */}
+        {activity.requiredExtras && activity.requiredExtras.length > 0 && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Required Extras</Text>
+            <View style={styles.extrasContainer}>
+              {activity.requiredExtras.map((extra, index) => (
+                <View key={index} style={[styles.extraItem, index > 0 && styles.extraBorder]}>
+                  <View style={styles.extraLeft}>
+                    <Icon name="shopping-cart" size={18} color={colors.primary} />
+                    <Text style={[styles.extraName, { color: colors.text }]}>
+                      {extra.name}
+                    </Text>
+                  </View>
+                  <Text style={[styles.extraCost, { color: colors.primary }]}>
+                    {extra.cost}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
@@ -1057,6 +1143,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  extrasContainer: {
+    marginTop: 8,
+  },
+  extraItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  extraBorder: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  extraLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  extraName: {
+    fontSize: 14,
+    marginLeft: 10,
+    flex: 1,
+  },
+  extraCost: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 16,
   },
   contactInfo: {
     flexDirection: 'row',

@@ -56,12 +56,17 @@ model Activity {
   subcategory       String?
   description       String?
   schedule          String?
+  dates             String?     // Human-readable date range (e.g., "Sep 11 - Oct 9")
   dateStart         DateTime?
   dateEnd           DateTime?
   registrationDate  DateTime?
+  registrationEndDate DateTime?  // When registration closes
+  registrationEndTime String?     // Time registration closes (e.g., "5:00 PM")
   ageMin            Int?
   ageMax            Int?
   cost              Float       @default(0)
+  costIncludesTax   Boolean     @default(true)
+  taxAmount         Float?      // Tax amount if separate
   spotsAvailable    Int?
   totalSpots        Int?
   locationId        String?
@@ -74,20 +79,23 @@ model Activity {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   dayOfWeek         String[]
+  startTime         String?     // Main activity start time
+  endTime           String?     // Main activity end time
   
   // Enhanced detail fields
   registrationStatus        String?     @default("Unknown")
   registrationButtonText    String?
   detailUrl                 String?
-  fullDescription           String?
+  fullDescription           String?     @db.Text
   instructor                String?
-  prerequisites             String?
-  whatToBring               String?
+  prerequisites             String?     @db.Text
+  whatToBring               String?     @db.Text
   fullAddress               String?
   latitude                  Float?
   longitude                 Float?
   directRegistrationUrl     String?
   contactInfo               String?
+  courseDetails             String?     @db.Text  // Additional course information
   
   // Support for multiple sessions and prerequisites
   hasMultipleSessions       Boolean     @default(false)
@@ -118,9 +126,11 @@ model ActivitySession {
   activityId      String
   sessionNumber   Int?
   date            String?     // Date as string to handle various formats
+  dayOfWeek       String?     // Day of week (e.g., "Monday")
   startTime       String?     // Time as string (e.g., "9:00 AM")
   endTime         String?     // Time as string (e.g., "4:00 PM")
-  location        String?
+  location        String?     // Main location
+  subLocation     String?     // Sub-location (e.g., "Court 1", "Pool B")
   instructor      String?
   notes           String?
   createdAt       DateTime    @default(now())

@@ -57,6 +57,26 @@ class ProviderService {
   }
 
   /**
+   * Upsert provider (create or update)
+   */
+  async upsertProvider(data) {
+    return prisma.provider.upsert({
+      where: { name: data.name },
+      update: {
+        website: data.website,
+        scraperConfig: data.scraperConfig,
+        isActive: data.isActive !== false
+      },
+      create: {
+        name: data.name,
+        website: data.website,
+        scraperConfig: data.scraperConfig || {},
+        isActive: data.isActive !== false
+      }
+    });
+  }
+
+  /**
    * Update provider
    */
   async updateProvider(id, data) {

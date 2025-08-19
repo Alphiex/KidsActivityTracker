@@ -1,177 +1,154 @@
-# NVRC Enhanced Detail Scraper
+# Activity Scrapers Documentation
 
-This enhanced scraper captures comprehensive activity information from NVRC including registration status, detail pages, and direct signup URLs.
+## Overview
 
-## Features
+This directory contains web scrapers for collecting activity data from various recreation providers. Each provider has ONE dedicated scraper that handles all data collection needs.
 
-- **Registration Status Capture**: Identifies if activities are Open, Closed, or WaitList
-- **Detail Page Scraping**: Visits individual activity pages for additional information
-- **Direct Signup URLs**: Extracts the actual registration links
-- **Enhanced Information**: Captures instructor info, prerequisites, what to bring, contact details
-- **Location Data**: Extracts full addresses and GPS coordinates when available
-- **Batch Processing**: Efficiently processes 4000+ activities with parallel detail fetching
+## Current Scrapers
 
-## Installation
+### 1. NVRC (North Vancouver Recreation Commission)
+- **File**: `nvrcEnhancedParallelScraper.js`
+- **URL**: `https://nvrc.perfectmind.com/23734/Clients/BookMe4?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a`
+- **Status**: Production Ready
 
-1. **Install Dependencies**
+## IMPORTANT: Scraper Development Guidelines
+
+⚠️ **DO NOT CREATE NEW SCRAPERS FOR EXISTING PROVIDERS** ⚠️
+
+We maintain ONE scraper per provider. If you need to modify or enhance a scraper:
+
+1. **Always modify the existing scraper** - Do not create new variations
+2. **Test locally first** before deploying
+3. **Ensure backward compatibility** with existing data structures
+4. **Document any significant changes** in this README
+
+## NVRC Enhanced Parallel Scraper
+
+### Features
+- Parallel processing of activity sections for faster scraping
+- Enhanced detail fetching from registration pages
+- Session and prerequisite information extraction
+- Automatic retry and error handling
+- Progress tracking and detailed reporting
+
+### Data Collected
+- Basic activity information (name, category, schedule, cost)
+- Age ranges and location details
+- Registration URLs and course IDs
+- Enhanced details:
+  - Multiple sessions with dates/times
+  - Prerequisites with links
+  - Instructor information
+  - Full descriptions
+  - What to bring information
+
+### Architecture
+1. **Main Page Navigation**: Accesses the PerfectMind widget
+2. **Section Discovery**: Identifies activity sections (Early Years, Youth, etc.)
+3. **Parallel Processing**: Processes multiple sections concurrently
+4. **Activity Extraction**: Extracts all activities from each section
+5. **Detail Enhancement**: Visits registration pages for additional details
+6. **Database Storage**: Saves to PostgreSQL with proper relations
+
+### Usage
+
+#### Local Development
 ```bash
-cd backend
-npm install
+node scrapers/nvrcEnhancedParallelScraper.js
 ```
 
-2. **Run Database Migrations**
+#### Production Deployment
 ```bash
-npx prisma migrate deploy
-npx prisma generate
+# The scraper is deployed as a Cloud Run Job
+node scraper-job.js
 ```
 
-## Usage
+### Configuration
+The scraper accepts these options:
+- `headless`: Run browser in headless mode (default: true)
+- `maxConcurrency`: Number of parallel browser instances (default: 3)
 
-### Manual Run
+### Database Schema
+The scraper populates these tables:
+- `Activity`: Main activity records
+- `ActivitySession`: Multiple sessions per activity
+- `ActivityPrerequisite`: Prerequisites with URLs
+- `Location`: Activity locations
+- `Provider`: Recreation providers
+- `ScrapeJob`: Scraping job history
 
+### Error Handling
+- Automatic retries for network failures
+- Graceful degradation if detail pages fail
+- Comprehensive error logging
+- Job status tracking in database
+
+## Adding New Providers
+
+When adding a scraper for a NEW provider:
+
+1. Create ONE scraper file: `{provider}Scraper.js`
+2. Follow the pattern of `nvrcEnhancedParallelScraper.js`
+3. Document the scraper in this README
+4. Test thoroughly before deployment
+5. Update `scraper-job.js` if needed
+
+## Deployment
+
+### Building the Docker Image
 ```bash
-# Run the enhanced scraper
-node scrapers/nvrcEnhancedDetailScraper.js
-
-# Import the scraped data
-node import-enhanced-activities.js
+gcloud builds submit --config cloudbuild-scraper.yaml
 ```
 
-### Automated Run
-
+### Creating a Cloud Run Job
 ```bash
-# Use the provided script
-./scripts/run-enhanced-scraper.sh
+gcloud run jobs replace scraper-job.yaml --region us-west1
 ```
 
-### Setup Automatic Daily Scraping
-
+### Running Manually
 ```bash
-# Setup cron job for daily updates
-./scripts/setup-scraper-cron.sh
+gcloud run jobs execute scraper-detailed-job --region us-west1
 ```
 
-## Configuration
-
-### Environment Variables
-
-- `HEADLESS`: Set to `false` to see browser (default: `true`)
-- `PUPPETEER_EXECUTABLE_PATH`: Custom Chrome/Chromium path
-- `DATABASE_URL`: PostgreSQL connection string
-
-### Scraper Options
-
-```javascript
-const scraper = new NVRCEnhancedDetailScraper({
-  headless: true,           // Run in headless mode
-  maxRetries: 3,           // Retry failed detail pages
-  detailPageTimeout: 30000 // Timeout for detail pages (ms)
-});
-```
-
-## Output
-
-The scraper generates a JSON file with the following structure:
-
-```json
-{
-  "timestamp": "2025-08-09T...",
-  "source": "NVRC Enhanced Detail Scraper",
-  "totalActivities": 4523,
-  "activities": [
-    {
-      "id": "unique_id",
-      "name": "Swimming Lessons",
-      "category": "Swimming",
-      "subcategory": "Preschool",
-      "registrationStatus": "Open",
-      "registrationButtonText": "Sign Up Now",
-      "detailUrl": "https://...",
-      "directRegistrationUrl": "https://...",
-      "fullDescription": "...",
-      "instructor": "John Doe",
-      "prerequisites": "Must be comfortable in water",
-      "whatToBring": "Swimsuit, towel, goggles",
-      "latitude": 49.123,
-      "longitude": -123.456,
-      "fullAddress": "123 Main St, North Vancouver, BC",
-      "contactInfo": "604-123-4567",
-      // ... plus all standard fields
-    }
-  ]
-}
-```
-
-## Database Schema
-
-The enhanced fields are stored in the Activity table:
-
-- `registrationStatus`: Current registration status (Open/Closed/WaitList)
-- `registrationButtonText`: Exact button text from NVRC
-- `detailUrl`: URL to activity detail page
-- `fullDescription`: Complete activity description
-- `instructor`: Instructor name if available
-- `prerequisites`: Requirements to join
-- `whatToBring`: Items participants should bring
-- `fullAddress`: Complete address
-- `latitude`/`longitude`: GPS coordinates for mapping
-- `directRegistrationUrl`: Direct link to registration
-- `contactInfo`: Phone or email for questions
-
-## Monitoring
-
-### Check Logs
-
+### Setting up Cron Schedule
 ```bash
-# View recent scraper logs
-tail -f logs/enhanced-scraper-*.log
-
-# Check cron job logs
-tail -f logs/cron-scraper-*.log
+gcloud scheduler jobs create http scraper-schedule \
+  --location us-west1 \
+  --schedule "0 6 * * *" \
+  --http-method POST \
+  --uri "https://us-west1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/kids-activity-tracker-2024/jobs/scraper-detailed-job:run" \
+  --oauth-service-account-email scraper-sa@kids-activity-tracker-2024.iam.gserviceaccount.com
 ```
 
-### Verify Activity Count
+## Archive
 
-```bash
-# Check database activity count
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM \"Activity\" WHERE \"isActive\" = true;"
-
-# Check by provider
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM \"Activity\" WHERE \"providerId\" = (SELECT id FROM \"Provider\" WHERE name = 'NVRC');"
-```
+Old scraper versions are archived in `archive-nvrc-old/`. These should NOT be used and are kept only for reference.
 
 ## Troubleshooting
 
-### Scraper Fails to Start
+### Common Issues
 
-1. Check Node.js version (requires 14+)
-2. Verify Puppeteer installation: `node -e "require('puppeteer')"`
-3. Check Chrome dependencies: `ldd $(which chromium-browser)`
+1. **Puppeteer Launch Errors**
+   - Ensure Chrome/Chromium is installed
+   - Check Docker has required dependencies
 
-### Low Activity Count
+2. **Timeout Errors**
+   - Increase timeout values
+   - Check network connectivity
+   - Verify target website is accessible
 
-1. Check NVRC website is accessible
-2. Verify age groups and categories are being selected
-3. Review logs for timeout errors
-4. Increase timeout values if needed
+3. **Database Connection Issues**
+   - Verify DATABASE_URL is set
+   - Check network access to Cloud SQL
+   - Ensure proper authentication
 
-### Import Failures
+### Debug Mode
+Set environment variables for debugging:
+```bash
+export NODE_ENV=development
+export DEBUG=true
+```
 
-1. Check database connection
-2. Verify schema migrations are applied
-3. Check for duplicate activities
-4. Review import logs for specific errors
+## Contact
 
-## Performance
-
-- Initial scrape: ~15-20 minutes for 4000+ activities
-- Detail page fetching: Processes in batches of 10
-- Database import: ~2-3 minutes
-- Memory usage: ~500MB-1GB during scraping
-
-## Maintenance
-
-- Run daily at off-peak hours (2 AM recommended)
-- Monitor for NVRC website changes
-- Keep Chrome/Chromium updated
-- Archive old JSON files monthly
+For questions or issues with scrapers, please create a GitHub issue or contact the development team.

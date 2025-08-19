@@ -36,13 +36,40 @@ export interface Activity {
   detailUrl?: string;
   fullDescription?: string;
   instructor?: string;
-  prerequisites?: string;
+  prerequisites?: string | Array<{name: string; url?: string; courseId?: string}>;
   whatToBring?: string;
   fullAddress?: string;
   latitude?: number;
   longitude?: number;
   directRegistrationUrl?: string;
   contactInfo?: string;
+  
+  // New comprehensive detail fields
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+  registrationEndDate?: string;
+  registrationEndTime?: string;
+  costIncludesTax?: boolean;
+  taxAmount?: number;
+  courseDetails?: string;
+  sessions?: Array<{
+    sessionNumber: number;
+    date: string;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+    location?: string;
+    subLocation?: string;
+    instructor?: string;
+    notes?: string;
+  }>;
+  requiredExtras?: Array<{
+    name: string;
+    cost: string;
+    required: boolean;
+  }>;
   
   // New fields for enhanced features
   isFavorite?: boolean;
