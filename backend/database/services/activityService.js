@@ -327,7 +327,7 @@ class ActivityService {
           sessions: {
             orderBy: { sessionNumber: 'asc' }
           },
-          prerequisites: true,
+          prerequisitesList: true,
           _count: {
             select: { favorites: true }
           }
@@ -365,16 +365,19 @@ class ActivityService {
         sessions: {
           orderBy: { sessionNumber: 'asc' }
         },
-        prerequisites: true,
+        prerequisitesList: {
+          orderBy: { createdAt: 'asc' }
+        },
         favorites: {
           select: {
+            id: true,
             userId: true,
-            notes: true
+            notifyOnChange: true,
+            createdAt: true
           }
         },
-        history: {
-          orderBy: { changedAt: 'desc' },
-          take: 10
+        _count: {
+          select: { favorites: true }
         }
       }
     });
