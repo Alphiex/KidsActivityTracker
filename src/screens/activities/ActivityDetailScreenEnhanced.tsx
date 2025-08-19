@@ -29,6 +29,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 import childrenService from '../../services/childrenService';
 import { shareActivityViaEmail } from '../../utils/sharing';
+const activityService = ActivityService.getInstance();
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +44,8 @@ const ActivityDetailScreenEnhanced = () => {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showChildAssignModal, setShowChildAssignModal] = useState(false);
   const [geocodedCoords, setGeocodedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [freshActivity, setFreshActivity] = useState<Activity | null>(null);
+  const [fetchingDetails, setFetchingDetails] = useState(true);
   const mapRef = React.useRef<MapView>(null);
   
   // Parse the serialized dates back to Date objects
@@ -92,16 +95,64 @@ const ActivityDetailScreenEnhanced = () => {
     prerequisites: serializedActivity?.prerequisites,
   });
   
-  let activity: Activity;
-  try {
-    activity = {
-      ...serializedActivity,
-      dateRange: serializedActivity.dateRange ? {
-        start: new Date(serializedActivity.dateRange.start),
-        end: new Date(serializedActivity.dateRange.end),
-      } : null,
-      scrapedAt: new Date(serializedActivity.scrapedAt),
+  let activity: Activity = freshActivity || serializedActivity;
+  
+  // Fetch fresh activity details
+  useEffect(() => {
+    const fetchFreshDetails = async () => {
+      if (!serializedActivity?.id) return;
+      
+      try {
+        setFetchingDetails(true);
+        console.log('Fetching fresh activity details for:', serializedActivity.id);
+        const response = await activityService.getActivityDetails(serializedActivity.id);
+        
+        if (response.activity) {
+          console.log('Fresh activity data received:', {
+            name: response.activity.name,
+            registrationStatus: response.activity.registrationStatus,
+            dates: response.activity.dates,
+            fullDescription: response.activity.fullDescription?.substring(0, 50),
+            instructor: response.activity.instructor,
+            spotsAvailable: response.activity.spotsAvailable,
+            sessions: response.activity.sessions?.length || 0,
+            requiredExtras: response.activity.requiredExtras?.length || 0,
+          });
+          
+          // Parse dates if needed
+          const parsedActivity = {
+            ...response.activity,
+            dateRange: response.activity.dateRange ? {
+              start: new Date(response.activity.dateRange.start),
+              end: new Date(response.activity.dateRange.end),
+            } : null,
+            scrapedAt: new Date(response.activity.scrapedAt || response.activity.updatedAt),
+          };
+          
+          setFreshActivity(parsedActivity);
+        }
+      } catch (error) {
+        console.error('Error fetching fresh activity details:', error);
+        // Fall back to passed activity
+      } finally {
+        setFetchingDetails(false);
+      }
     };
+    
+    fetchFreshDetails();
+  }, [serializedActivity?.id]);
+  
+  try {
+    // Ensure we have proper date objects
+    if (!activity.dateRange && activity.dateStart && activity.dateEnd) {
+      activity = {
+        ...activity,
+        dateRange: {
+          start: new Date(activity.dateStart),
+          end: new Date(activity.dateEnd),
+        }
+      };
+    }
   } catch (error) {
     console.error('Error parsing activity data:', error);
     return (
@@ -262,6 +313,18 @@ const ActivityDetailScreenEnhanced = () => {
     finalLng: mapLng,
     hasExactLocation,
   });
+
+  // Show loading state while fetching fresh data
+  if (fetchingDetails) {
+    return (
+      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Loading activity details...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -766,6 +829,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 16,
   },
   errorText: {
     fontSize: 16,
