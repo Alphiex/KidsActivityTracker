@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
-const { extractComprehensiveDetails } = require('./nvrcComprehensiveDetailScraper');
+const { extractComprehensiveDetails } = require('./nvrcFixedDetailScraper');
 
 class NVRCEnhancedParallelScraper {
   constructor(options = {}) {
@@ -737,7 +737,7 @@ class NVRCEnhancedParallelScraper {
           locationName: activity.location,
           registrationUrl: activity.registrationUrl,
           registrationStatus: activity.registrationStatus || (activity.spotsAvailable > 0 ? 'Open' : 'Unknown'),
-          courseId: activity.courseId || activity.registrationUrl?.match(/courseId=([^&]+)/)?.[1],
+          courseId: activity.courseId || activity.code,  // Use site's course ID (e.g., 00371053), not internal ID
           isActive: true,
           lastSeenAt: new Date(),
           rawData: activity,
