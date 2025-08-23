@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
 const { extractComprehensiveDetails } = require('./nvrcFixedDetailScraper');
+const { normalizeLocationName, determineFacilityType } = require('../improve-location-handling');
 
 class NVRCEnhancedParallelScraper {
   constructor(options = {}) {
@@ -12,6 +13,17 @@ class NVRCEnhancedParallelScraper {
     };
     this.activities = [];
     this.prisma = new PrismaClient();
+  }
+
+  // Helper method to normalize location names for fuzzy matching
+  normalizeLocationName(name) {
+    if (!name) return '';
+    return normalizeLocationName(name);
+  }
+  
+  // Helper method to determine facility type from location name
+  determineFacilityType(locationName) {
+    return determineFacilityType(locationName);
   }
 
   async scrape() {
@@ -667,43 +679,96 @@ class NVRCEnhancedParallelScraper {
           }
         }
         
-        // Create or update location - check by name only
+        // Create or update location - check by name with fuzzy matching
         let location = null;
         if (activity.location) {
-          // First try to find existing location by name
+          // First try to find existing location by exact name
           location = await this.prisma.location.findFirst({
             where: { 
               name: activity.location 
             }
           });
           
+          // If not found, try fuzzy matching to catch variations
           if (!location) {
-            // Create new location if it doesn't exist
+            const normalized = this.normalizeLocationName(activity.location);
+            const allLocations = await this.prisma.location.findMany({
+              select: { id: true, name: true }
+            });
+            
+            for (const loc of allLocations) {
+              if (this.normalizeLocationName(loc.name) === normalized) {
+                location = await this.prisma.location.findUnique({
+                  where: { id: loc.id }
+                });
+                console.log(`  📍 Found location variant: "${activity.location}" matches "${loc.name}"`);
+                break;
+              }
+            }
+          }
+          
+          if (!location) {
+            // Extract city/province from address if available
+            let city = 'North Vancouver';
+            let province = 'BC';
+            let postalCode = '';
+            
+            if (activity.fullAddress) {
+              // Try to parse address (e.g., "123 Main St, North Vancouver, BC V7H 2Z8")
+              const addressParts = activity.fullAddress.split(',').map(s => s.trim());
+              if (addressParts.length >= 2) {
+                const lastPart = addressParts[addressParts.length - 1];
+                const postalMatch = lastPart.match(/([A-Z]\d[A-Z]\s*\d[A-Z]\d)$/);
+                if (postalMatch) {
+                  postalCode = postalMatch[1];
+                  province = lastPart.replace(postalMatch[1], '').trim() || province;
+                }
+                if (addressParts.length >= 3) {
+                  city = addressParts[addressParts.length - 2] || city;
+                }
+              }
+            }
+            
+            // Create new location
             location = await this.prisma.location.create({
               data: {
                 name: activity.location,
-                address: activity.fullAddress || '',  // Use full address if available
-                city: 'North Vancouver',
-                province: 'BC',
-                postalCode: '',
+                address: activity.fullAddress || '',
+                city: city,
+                province: province,
+                postalCode: postalCode,
                 facility: this.determineFacilityType(activity.location),
                 latitude: activity.latitude || null,
                 longitude: activity.longitude || null
               }
             });
-            console.log(`  📍 Created new location: ${activity.location}`);
+            console.log(`  📍 Created new location: ${activity.location} in ${city}, ${province}`);
           } else {
             // Update location if we have better address info
+            const updates = {};
             if (!location.address && activity.fullAddress) {
+              updates.address = activity.fullAddress;
+            }
+            if (!location.latitude && activity.latitude) {
+              updates.latitude = activity.latitude;
+            }
+            if (!location.longitude && activity.longitude) {
+              updates.longitude = activity.longitude;
+            }
+            if (!location.postalCode && activity.fullAddress) {
+              // Try to extract postal code
+              const postalMatch = activity.fullAddress.match(/([A-Z]\d[A-Z]\s*\d[A-Z]\d)$/);
+              if (postalMatch) {
+                updates.postalCode = postalMatch[1];
+              }
+            }
+            
+            if (Object.keys(updates).length > 0) {
               await this.prisma.location.update({
                 where: { id: location.id },
-                data: {
-                  address: activity.fullAddress,
-                  latitude: activity.latitude || location.latitude,
-                  longitude: activity.longitude || location.longitude
-                }
+                data: updates
               });
-              console.log(`  📍 Updated location address: ${activity.location}`);
+              console.log(`  📍 Updated location info for: ${activity.location}`);
             }
           }
         }
@@ -939,16 +1004,57 @@ class NVRCEnhancedParallelScraper {
     return { created, updated, unchanged, removed, errors, newActivities, changedActivities };
   }
 
+  normalizeLocationName(name) {
+    if (!name) return '';
+    
+    return name
+      .toLowerCase()
+      .replace(/community recreation centre/g, 'community centre')
+      .replace(/recreation centre/g, 'rec centre')
+      .replace(/rec center/g, 'rec centre')
+      .replace(/community center/g, 'community centre')
+      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s]/g, '') // Remove special characters
+      .trim();
+  }
+
   determineFacilityType(locationName) {
     const name = locationName.toLowerCase();
-    if (name.includes('pool')) return 'Pool';
-    if (name.includes('arena')) return 'Arena';
-    if (name.includes('gym')) return 'Gym';
-    if (name.includes('field')) return 'Field';
-    if (name.includes('park')) return 'Park';
-    if (name.includes('centre') || name.includes('center')) return 'Recreation Centre';
-    if (name.includes('complex')) return 'Complex';
-    return 'Facility';
+    
+    // More specific categorization
+    if (name.includes('recreation centre') || name.includes('rec centre') || 
+        name.includes('community centre') || name.includes('community center')) {
+      return 'Recreation Centre';
+    }
+    if (name.includes('pool') || name.includes('aquatic')) {
+      return 'Aquatic Centre';
+    }
+    if (name.includes('arena') || name.includes('ice') || name.includes('rink')) {
+      return 'Ice Rink';
+    }
+    if (name.includes('park')) {
+      return 'Park';
+    }
+    if (name.includes('school') || name.includes('elementary') || name.includes('secondary')) {
+      return 'School';
+    }
+    if (name.includes('tennis')) {
+      return 'Tennis Facility';
+    }
+    if (name.includes('golf')) {
+      return 'Golf Course';
+    }
+    if (name.includes('gym') || name.includes('fitness')) {
+      return 'Fitness Centre';
+    }
+    if (name.includes('field')) {
+      return 'Sports Field';
+    }
+    if (name.includes('complex')) {
+      return 'Community Complex';
+    }
+    
+    return 'Community Facility';
   }
 
   summarizeActivities() {
