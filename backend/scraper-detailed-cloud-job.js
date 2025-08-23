@@ -1,5 +1,5 @@
 const { PrismaClient } = require('./generated/prisma');
-const NVRCWorkingHierarchicalScraper = require('./scrapers/nvrcWorkingHierarchicalScraper');
+const NVRCEnhancedParallelScraper = require('./scrapers/nvrcEnhancedParallelScraper');
 const activityService = require('./database/services/activityService');
 const providerService = require('./database/services/providerService');
 const scrapeJobService = require('./database/services/scrapeJobService');
@@ -26,7 +26,7 @@ async function fetchDetailedInfo(activities) {
       ]
     });
     
-    for (let i = 0; i < activities.length && i < 50; i += batchSize) { // Limit to first 50 for testing
+    for (let i = 0; i < activities.length; i += batchSize) { // Process all activities
       const batch = activities.slice(i, i + batchSize);
       console.log(`Processing batch ${Math.floor(i/batchSize) + 1}...`);
       
@@ -211,26 +211,19 @@ async function runDetailedCloudScraper() {
     // Create scrape job record
     scrapeJob = await scrapeJobService.createJob(provider.id, 'detailed-registration');
     
-    // Initialize the working scraper with cloud-optimized settings
+    // Initialize the enhanced parallel scraper with cloud-optimized settings
     const isProduction = process.env.NODE_ENV === 'production';
-    const scraper = new NVRCWorkingHierarchicalScraper({
-      headless: isProduction ? 'new' : false,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--window-size=1920,1080'
-      ]
+    const scraper = new NVRCEnhancedParallelScraper({
+      headless: isProduction,
+      maxConcurrency: 5,  // Use 5 parallel browsers
+      timeout: 20 * 60 * 1000  // 20 minutes timeout
     });
     
-    // Run the base scraper
-    console.log('\n📊 Running base activity scraper...');
+    // Run the enhanced scraper (it handles detail fetching internally)
+    console.log('\n📊 Running enhanced parallel scraper...');
     const activities = await scraper.scrape();
     
-    console.log(`\n✅ Base scraper completed. Found ${activities.length} activities`);
+    console.log(`\n✅ Enhanced scraper completed. Found ${activities.length} activities`);
     
     if (activities.length === 0) {
       console.error('⚠️ WARNING: No activities found!');
@@ -238,9 +231,8 @@ async function runDetailedCloudScraper() {
       return;
     }
     
-    // Now enhance activities with detailed information
-    console.log('\n📄 Fetching detailed registration information...');
-    const enhancedActivities = await fetchDetailedInfo(activities);
+    // Activities are already enhanced by the parallel scraper
+    const enhancedActivities = activities;
     
     // Log enhanced data statistics
     const sessionsCount = enhancedActivities.filter(a => a.sessions && a.sessions.length > 0).length;
@@ -262,7 +254,7 @@ async function runDetailedCloudScraper() {
     // Transform activities to match service format
     const transformedActivities = enhancedActivities.map(activity => ({
       // Basic fields
-      id: activity.courseId || activity.id,
+      id: activity.id || activity.externalId,  // Use internal ID for database
       name: activity.name,
       category: activity.category,
       subcategory: activity.subcategory,
@@ -275,7 +267,7 @@ async function runDetailedCloudScraper() {
       spotsAvailable: activity.spotsAvailable,
       
       // Registration info
-      courseId: activity.courseId,
+      courseId: activity.courseId || activity.code,  // Use site's course ID (e.g., 00371053)
       registrationUrl: activity.registrationUrl,
       registrationStatus: activity.registrationStatus,
       registrationButtonText: activity.registrationButtonText,
