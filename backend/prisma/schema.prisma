@@ -42,9 +42,8 @@ model Location {
   
   activities     Activity[]
   
-  @@unique([name, address])
+  @@unique([name])
   @@index([city])
-  @@index([name])
 }
 
 model Activity {

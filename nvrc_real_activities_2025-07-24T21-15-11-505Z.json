@@ -1,0 +1,1170 @@
+[
+  {
+    "id": "nvrc-1753391710937-199",
+    "name": "Bronze Cross       Delbrook Community Recreation Centre                         Spruce R",
+    "description": "Bronze Cross       Delbrook Community Recreation Centre                         Spruce Room                        Wed       Jul 30 - Aug 27       6:00pm - 10:00pm                        1",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 0,
+    "location": "Bronze Cross       Delbrook Community Recreation Centre",
+    "schedule": "6:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710937-257",
+    "name": "Bronze Medallion       Ron Andrews Community Recreation Centre                         L",
+    "description": "Bronze Medallion       Ron Andrews Community Recreation Centre                         Lane 2                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 1       9:30am - 1:30pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 194.65,
+    "location": "Bronze Medallion       Ron Andrews Community Recreation Centre",
+    "schedule": "9:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710937-318",
+    "name": "Bronze Star       Delbrook Community Recreation Centre                         Lane 3",
+    "description": "Bronze Star       Delbrook Community Recreation Centre                         Lane 3                        Mon, Tue, Wed, Thu, Fri       Aug 11 - 22       12:15pm - 1:15pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 124,
+    "location": "Bronze Star       Delbrook Community Recreation Centre",
+    "schedule": "12:15pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710938-342",
+    "name": "Art, Sport & Games Camp 4-6yrs       John Braithwaite Community Centre",
+    "description": "Art, Sport & Games Camp 4-6yrs       John Braithwaite Community Centre                         Art Studio B                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 1       10:00a",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 124.05,
+    "location": "6yrs       John Braithwaite Community Centre",
+    "schedule": "10:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Summer Camp",
+      "Sports",
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710938-381",
+    "name": "Art & Swim Camp 10-12yrs       Delbrook Community Recreation Centre",
+    "description": "Art & Swim Camp 10-12yrs       Delbrook Community Recreation Centre                         Arts and Crafts Room                        Mon, Tue, Wed, Thu, Fri       Aug 11 - 15       10:0",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 206.1,
+    "location": "12yrs       Delbrook Community Recreation Centre",
+    "schedule": "10:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming",
+      "Summer Camp",
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710938-420",
+    "name": "Camp Forms can be completed online on your child's NVRC account. Visit www.nvrc.ca/c",
+    "description": "Camp Forms can be completed online on your child's NVRC account. Visit www.nvrc.ca/camps to learn more.                        Pink Petal Ballet Dance Camp 5-7yrs       Delbrook Commun",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 215.1,
+    "location": "7yrs       Delbrook Community Recreation Centre",
+    "schedule": "2:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Summer Camp",
+      "Music & Dance"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710944-1959",
+    "name": "Camp Harry Jarome Daytrippers 12-15 yrs       Harry Jerome Community Recreation Centre",
+    "description": "Camp Harry Jarome Daytrippers 12-15 yrs       Harry Jerome Community Recreation Centre                         Youth Lounge                        Tue, Wed, Thu       Jul 29 - 31       9:3",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 226.17,
+    "location": "15 yrs       Harry Jerome Community Recreation Centre",
+    "schedule": "9:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Summer Camp"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710947-2898",
+    "name": "Camp Lynn Creek Daytrippers 12-15yrs       Lynn Creek Community Recreation Centre",
+    "description": "Camp Lynn Creek Daytrippers 12-15yrs       Lynn Creek Community Recreation Centre                         Living Room North                        Tue, Wed, Thu       Jul 29 - 31       9:3",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 226.17,
+    "location": "15yrs       Lynn Creek Community Recreation Centre",
+    "schedule": "9:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Summer Camp"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710957-4548",
+    "name": "Home Alone 10yrs+       Ron Andrews Community Recreation Centre",
+    "description": "Home Alone 10yrs+       Ron Andrews Community Recreation Centre                         Takaya  Room                        Wed       Jul 30       5:00pm - 7:00pm                        10",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 31.56,
+    "location": "Ron Andrews Community Recreation Centre",
+    "schedule": "5:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710957-4628",
+    "name": "Creative Ballet 3-5yrs       John Braithwaite Community Centre                         S",
+    "description": "Creative Ballet 3-5yrs       John Braithwaite Community Centre                         Shoreline                        Tue, Fri       Jul 29 - Aug 8       11:15am - 12:00pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 34.08,
+    "location": "5yrs       John Braithwaite Community Centre",
+    "schedule": "11:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710958-4683",
+    "name": "Dance Fun! 2-5yrs       John Braithwaite Community Centre",
+    "description": "Dance Fun! 2-5yrs       John Braithwaite Community Centre                         Shoreline                        Tue, Fri       Jul 29 - Aug 8       10:15am - 11:00am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 34.08,
+    "location": "5yrs       John Braithwaite Community Centre",
+    "schedule": "10:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Music & Dance"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710958-4703",
+    "name": "Jazz & Hip Hop 6-10yrs       John Braithwaite Community Centre",
+    "description": "Jazz & Hip Hop 6-10yrs       John Braithwaite Community Centre                         Shoreline                        Mon, Thu       Jul 28 - Aug 11       11:15am - 12:00pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 34.08,
+    "location": "10yrs       John Braithwaite Community Centre",
+    "schedule": "11:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710958-4968",
+    "name": "Ground & Stand-up Martial Arts Techniques: All Levels 13yrs+       Lions Gate Community",
+    "description": "Ground & Stand-up Martial Arts Techniques: All Levels 13yrs+       Lions Gate Community Recreation Centre                         Peak Room                        Mon       Jul 14 - Aug 25",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 70.5,
+    "location": "Lions Gate Community Recreation Centre",
+    "schedule": "8:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710958-5009",
+    "name": "Karate Kid 3-5yrs       Lions Gate Community Recreation Centre                         P",
+    "description": "Karate Kid 3-5yrs       Lions Gate Community Recreation Centre                         Peak Room                        Mon       Jul 14 - Aug 25       3:45pm - 4:30pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 47.4,
+    "location": "5yrs       Lions Gate Community Recreation Centre",
+    "schedule": "3:45pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710959-5143",
+    "name": "Karate Kid 5-8yrs       Lions Gate Community Recreation Centre                         P",
+    "description": "Karate Kid 5-8yrs       Lions Gate Community Recreation Centre                         Peak Room                        Mon       Jul 14 - Aug 25       4:45pm - 5:30pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 47.4,
+    "location": "8yrs       Lions Gate Community Recreation Centre",
+    "schedule": "4:45pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710960-5351",
+    "name": "Taekwondo Level 1 3-5yrs       Delbrook Community Recreation Centre",
+    "description": "Taekwondo Level 1 3-5yrs       Delbrook Community Recreation Centre                         Arbutus Room                        Sat       Jul 19 - Aug 16       9:00am - 9:30am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 42,
+    "location": "5yrs       Delbrook Community Recreation Centre",
+    "schedule": "9:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710961-5373",
+    "name": "Taekwondo All Levels 6-12yrs       Delbrook Community Recreation Centre",
+    "description": "Taekwondo All Levels 6-12yrs       Delbrook Community Recreation Centre                         Arbutus Room                        Sat       Jul 19 - Aug 16       9:30am - 10:30am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 63,
+    "location": "12yrs       Delbrook Community Recreation Centre",
+    "schedule": "9:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710961-5395",
+    "name": "Taekwondo All Levels 13yrs+       Delbrook Community Recreation Centre",
+    "description": "Taekwondo All Levels 13yrs+       Delbrook Community Recreation Centre                         Arbutus Room                        Sat       Jul 19 - Aug 16       10:30am - 11:30am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 84,
+    "location": "Delbrook Community Recreation Centre",
+    "schedule": "10:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710961-5417",
+    "name": "The NVRC offers a progressive skill based badminton program.  Move through the level",
+    "description": "The NVRC offers a progressive skill based badminton program.  Move through the levels: (1) 'Learn The Skills'  (2) 'Learn the Game' (3) 'Play The Game'.                        Badminto",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 54.54,
+    "location": "12yrs       Parkgate Community Centre",
+    "schedule": "4:30pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710961-5463",
+    "name": "Tennis Teen Competitive 1        North Vancouver Tennis Centre                         C",
+    "description": "Tennis Teen Competitive 1        North Vancouver Tennis Centre                         Court 1                        Mon, Thu, Fri       Jul 21 - 25       2:30pm - 3:55pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 165.4,
+    "location": "Tennis Teen Competitive 1        North Vancouver Tennis Centre",
+    "schedule": "2:30pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710962-5575",
+    "name": "Tennis Teen Competitive 2        North Vancouver Tennis Centre                         C",
+    "description": "Tennis Teen Competitive 2        North Vancouver Tennis Centre                         Court 3                        Mon, Thu, Fri       Jul 21 - 25       2:30pm - 3:55pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 165.4,
+    "location": "Tennis Teen Competitive 2        North Vancouver Tennis Centre",
+    "schedule": "2:30pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710963-5685",
+    "name": "Must be assessed by NVTC staff prior to registration.                        Tennis",
+    "description": "Must be assessed by NVTC staff prior to registration.                        Tennis Teen Competitive 3       North Vancouver Tennis Centre                         Court 1",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 1,
+    "location": "Tennis Teen Competitive 3       North Vancouver Tennis Centre",
+    "schedule": "5:30pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710963-5767",
+    "name": "National Tournament Team -Term 1- 2 days/week       North Vancouver Tennis Centre",
+    "description": "National Tournament Team -Term 1- 2 days/week       North Vancouver Tennis Centre                        Wed, Thu, Sun       Sep 10 - Dec 18       2:00pm - 3:25pm                        10",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 1,
+    "location": "week       North Vancouver Tennis Centre",
+    "schedule": "2:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710967-6005",
+    "name": "Tennis Orange Ball Play-it 9-10yrs       North Vancouver Tennis Centre",
+    "description": "Tennis Orange Ball Play-it 9-10yrs       North Vancouver Tennis Centre                         Court 3                        Mon, Fri       Jul 21 - 25       10:00am - 10:55am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 110.25,
+    "location": "10yrs       North Vancouver Tennis Centre",
+    "schedule": "10:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710975-6336",
+    "name": "Tennis Play-it Teen 13-16yrs       North Vancouver Tennis Centre",
+    "description": "Tennis Play-it Teen 13-16yrs       North Vancouver Tennis Centre                         Court 3                        Mon, Fri       Jul 21 - 25       1:00pm - 2:25pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 165.4,
+    "location": "16yrs       North Vancouver Tennis Centre",
+    "schedule": "1:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710976-6447",
+    "name": "10U/12U Tournament Team Program-Summer       North Vancouver Tennis Centre",
+    "description": "10U/12U Tournament Team Program-Summer       North Vancouver Tennis Centre                         Court 4                        Mon, Tue, Wed, Thu       Jul 28 - 31       9:00am - 2:25pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 529.2,
+    "location": "Summer       North Vancouver Tennis Centre",
+    "schedule": "9:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710976-6522",
+    "name": "Tennis Red Ball Try-it 7-8yrs       North Vancouver Tennis Centre",
+    "description": "Tennis Red Ball Try-it 7-8yrs       North Vancouver Tennis Centre                         Court 1                        Mon, Fri       Jul 21 - 25       9:00am - 9:55am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 99.25,
+    "location": "8yrs       North Vancouver Tennis Centre",
+    "schedule": "9:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710985-6849",
+    "name": "Tennis Teen Try-it 13-16yrs       North Vancouver Tennis Centre",
+    "description": "Tennis Teen Try-it 13-16yrs       North Vancouver Tennis Centre                         Court 1                        Mon, Fri       Jul 21 - 25       1:00pm - 2:25pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 148.85,
+    "location": "16yrs       North Vancouver Tennis Centre",
+    "schedule": "1:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710986-6961",
+    "name": "Spin and Strength 10-15yrs       Delbrook Community Recreation Centre",
+    "description": "Spin and Strength 10-15yrs       Delbrook Community Recreation Centre                         Fitness Studio                        Fri       Jul 11 - 25       4:15pm - 5:15pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 46.76,
+    "location": "15yrs       Delbrook Community Recreation Centre",
+    "schedule": "4:15pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710987-7063",
+    "name": "Swim Adapted Lessons 3-12yrs       Karen Magnussen Community Recreation Centre",
+    "description": "Swim Adapted Lessons 3-12yrs       Karen Magnussen Community Recreation Centre                         Games Pool                        Mon, Fri       Jul 14 - 25       12:15pm - 12:45pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 88.2,
+    "location": "12yrs       Karen Magnussen Community Recreation Centre                         Games Pool",
+    "schedule": "12:15pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391710999-7427",
+    "name": "Swim Adapted Lessons Parent Participation 3-6yrs       Delbrook Community Recreation Cen",
+    "description": "Swim Adapted Lessons Parent Participation 3-6yrs       Delbrook Community Recreation Centre                         Leisure Pool Games                        Sun       Aug 3 - 24       5:3",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 35.28,
+    "location": "6yrs       Delbrook Community Recreation Centre                         Leisure Pool",
+    "schedule": "5:30pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming",
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711000-7487",
+    "name": "Swim Advanced 11-17yrs       Delbrook Community Recreation Centre",
+    "description": "Swim Advanced 11-17yrs       Delbrook Community Recreation Centre                         Lane 1                        Mon, Tue, Wed, Thu, Fri       Aug 11 - 22       12:00pm - 12:45pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 94.9,
+    "location": "17yrs       Delbrook Community Recreation Centre",
+    "schedule": "12:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711000-7509",
+    "name": "Swim Beginner 10-17yrs       Ron Andrews Community Recreation Centre",
+    "description": "Swim Beginner 10-17yrs       Ron Andrews Community Recreation Centre                         Lane 2                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       12:45pm - 1:30",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "17yrs       Ron Andrews Community Recreation Centre",
+    "schedule": "12:45pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711002-7645",
+    "name": "Swim Intermediate 11-17yrs       Delbrook Community Recreation Centre",
+    "description": "Swim Intermediate 11-17yrs       Delbrook Community Recreation Centre                         Lane 3                        Tue, Thu       Aug 5 - 28       6:45pm - 7:30pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 75.92,
+    "location": "17yrs       Delbrook Community Recreation Centre",
+    "schedule": "6:45pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711002-7686",
+    "name": "Swim Junior Masters 1 (11-17yrs)       Harry Jerome Community Recreation Centre",
+    "description": "Swim Junior Masters 1 (11-17yrs)       Harry Jerome Community Recreation Centre                         Lane 5                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       11:",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 113.85,
+    "location": "Harry Jerome Community Recreation Centre",
+    "schedule": "11:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711004-7803",
+    "name": "Swim Junior Masters 2 (11-17yrs)       Harry Jerome Community Recreation Centre",
+    "description": "Swim Junior Masters 2 (11-17yrs)       Harry Jerome Community Recreation Centre                         Lane 5                        Mon, Tue, Wed, Thu, Fri       Aug 11 - 22       11:00a",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 126.5,
+    "location": "Harry Jerome Community Recreation Centre",
+    "schedule": "11:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711004-7882",
+    "name": "Swim Parent Participation 1 Guppies 6-18mos       Delbrook Community Recreation Centre",
+    "description": "Swim Parent Participation 1 Guppies 6-18mos       Delbrook Community Recreation Centre                         Leisure Pool Games                        Mon, Tue, Wed, Thu, Fri       Jul 2",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 77.04,
+    "location": "18mos       Delbrook Community Recreation Centre                         Leisure Pool",
+    "schedule": "11:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming",
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711005-7942",
+    "name": "Swim Parent Participation 2 Clownfish 18mos-3yrs       Delbrook Community Recreation Cen",
+    "description": "Swim Parent Participation 2 Clownfish 18mos-3yrs       Delbrook Community Recreation Centre                         Leisure Pool Games                        Mon, Tue, Wed, Thu, Fri",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 77.04,
+    "location": "3yrs       Delbrook Community Recreation Centre                         Leisure Pool",
+    "schedule": "11:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming",
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711005-8002",
+    "name": "Swim Parent Participation Sea Otters 2-4yrs       Karen Magnussen Community Recreation C",
+    "description": "Swim Parent Participation Sea Otters 2-4yrs       Karen Magnussen Community Recreation Centre                         Games Pool                        Mon, Tue, Wed, Thu, Fri       Jul 28",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 81.9,
+    "location": "4yrs       Karen Magnussen Community Recreation Centre                         Games Pool",
+    "schedule": "9:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming",
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711010-8176",
+    "name": "Swim Tiny Tots 1 Tadpoles 3-6yrs       Delbrook Community Recreation Centre",
+    "description": "Swim Tiny Tots 1 Tadpoles 3-6yrs       Delbrook Community Recreation Centre                         Leisure Pool Games                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 79.38,
+    "location": "6yrs       Delbrook Community Recreation Centre                         Leisure Pool",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711047-8729",
+    "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs       Karen Magnussen Community Recreation Centre",
+    "description": "Swim Tiny Tots 2 Jellyfish 3-6yrs       Karen Magnussen Community Recreation Centre                         Games Pool                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 79.38,
+    "location": "6yrs       Karen Magnussen Community Recreation Centre                         Games Pool",
+    "schedule": "9:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711123-9493",
+    "name": "Swim Tiny Tots 3 Seahorses 3-6yrs       Karen Magnussen Community Recreation Centre",
+    "description": "Swim Tiny Tots 3 Seahorses 3-6yrs       Karen Magnussen Community Recreation Centre                         Games Pool                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 77.04,
+    "location": "6yrs       Karen Magnussen Community Recreation Centre                         Games Pool",
+    "schedule": "9:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711151-9952",
+    "name": "Swim Tiny Tots 4 Seals 3-6yrs       Karen Magnussen Community Recreation Centre",
+    "description": "Swim Tiny Tots 4 Seals 3-6yrs       Karen Magnussen Community Recreation Centre                         Games Pool                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 77.04,
+    "location": "6yrs       Karen Magnussen Community Recreation Centre                         Games Pool",
+    "schedule": "10:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711180-10430",
+    "name": "Swim Tiny Tots 5 Sting Rays 3-6yrs       Delbrook Community Recreation Centre",
+    "description": "Swim Tiny Tots 5 Sting Rays 3-6yrs       Delbrook Community Recreation Centre                         Current Channel                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "6yrs       Delbrook Community Recreation Centre",
+    "schedule": "11:00am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711184-10603",
+    "name": "Swim Tiny Tots 6 Orcas 3-6yrs       Delbrook Community Recreation Centre",
+    "description": "Swim Tiny Tots 6 Orcas 3-6yrs       Delbrook Community Recreation Centre                         Lane 1                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       12:00pm -",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "6yrs       Delbrook Community Recreation Centre",
+    "schedule": "12:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711186-10682",
+    "name": "Swimmer 1 (6-12yrs)       Delbrook Community Recreation Centre                         L",
+    "description": "Swimmer 1 (6-12yrs)       Delbrook Community Recreation Centre                         Leisure Pool Games                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:15am -",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 56.97,
+    "location": "Delbrook Community Recreation Centre                         Leisure Pool",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711209-11065",
+    "name": "Swimmer 2 (6-12yrs)       Delbrook Community Recreation Centre                         L",
+    "description": "Swimmer 2 (6-12yrs)       Delbrook Community Recreation Centre                         Leisure Pool Games                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:45am -",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 56.97,
+    "location": "Delbrook Community Recreation Centre                         Leisure Pool",
+    "schedule": "9:45am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711235-11467",
+    "name": "Swimmer 3 (6-12yrs)       Delbrook Community Recreation Centre                         L",
+    "description": "Swimmer 3 (6-12yrs)       Delbrook Community Recreation Centre                         Lane 2                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:15am - 10:00am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "Delbrook Community Recreation Centre",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711264-11888",
+    "name": "Swimmer 4 (6-12yrs)       Harry Jerome Community Recreation Centre",
+    "description": "Swimmer 4 (6-12yrs)       Harry Jerome Community Recreation Centre                         Lane 4                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:15am - 10:00am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "Harry Jerome Community Recreation Centre",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711299-12347",
+    "name": "Swimmer 5 (6-12yrs)       Delbrook Community Recreation Centre                         L",
+    "description": "Swimmer 5 (6-12yrs)       Delbrook Community Recreation Centre                         Lane 1                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:15am - 10:00am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "Delbrook Community Recreation Centre",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711320-12692",
+    "name": "Swimmer 6 (6-12yrs)       Harry Jerome Community Recreation Centre",
+    "description": "Swimmer 6 (6-12yrs)       Harry Jerome Community Recreation Centre                         Lane 6                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:15am - 10:00am",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 85.41,
+    "location": "Harry Jerome Community Recreation Centre",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711337-12999",
+    "name": "Swimmer 7 - Rookie Patrol (8-12yrs)       Delbrook Community Recreation Centre",
+    "description": "Swimmer 7 - Rookie Patrol (8-12yrs)       Delbrook Community Recreation Centre                         Lane 3                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9:15",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 113.85,
+    "location": "Delbrook Community Recreation Centre",
+    "schedule": "9:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711345-13173",
+    "name": "Swimmer 8 - Ranger Patrol (8-12yrs)       Ron Andrews Community Recreation Centre",
+    "description": "Swimmer 8 - Ranger Patrol (8-12yrs)       Ron Andrews Community Recreation Centre                         Lane 1                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       9",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 113.85,
+    "location": "Ron Andrews Community Recreation Centre",
+    "schedule": "9:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711348-13309",
+    "name": "Swimmer 9 - Star Patrol (8-12yrs)       Ron Andrews Community Recreation Centre",
+    "description": "Swimmer 9 - Star Patrol (8-12yrs)       Ron Andrews Community Recreation Centre                         Lane 1                        Mon, Tue, Wed, Thu, Fri       Jul 28 - Aug 8       12:",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 113.85,
+    "location": "Ron Andrews Community Recreation Centre",
+    "schedule": "12:15pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Swimming"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711351-13426",
+    "name": "The NVRC offers a progressive skill based basketball program.  Move through the leve",
+    "description": "The NVRC offers a progressive skill based basketball program.  Move through the levels: (1) 'Learn The Skills' (2) 'Learn the Game' (3) 'Play The Game'.                        Basketba",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 54.54,
+    "location": "12yrs       Parkgate Community Centre",
+    "schedule": "4:45pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Sports"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711351-13472",
+    "name": "Volleyball Learn the Skills 9-12yrs       Parkgate Community Centre",
+    "description": "Volleyball Learn the Skills 9-12yrs       Parkgate Community Centre                         Gymnasium Quadrants AB                        Thu       Jul 10 - 31       5:45pm - 6:45pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 36.36,
+    "location": "12yrs       Parkgate Community Centre",
+    "schedule": "5:45pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711352-13529",
+    "name": "Volleyball Learn the Game 12-16yrs       Parkgate Community Centre",
+    "description": "Volleyball Learn the Game 12-16yrs       Parkgate Community Centre                         Gymnasium Quadrants AB                        Thu       Jul 10 - 31       7:00pm - 8:00pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 36.36,
+    "location": "16yrs       Parkgate Community Centre",
+    "schedule": "7:00pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711352-13586",
+    "name": "Explore the wonderful world of visual arts. Children engage in creative expression a",
+    "description": "Explore the wonderful world of visual arts. Children engage in creative expression and explore various art mediums.                        Little Artists 3-5yrs       Lynn Creek Commun",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 24.82,
+    "location": "5yrs       Lynn Creek Community Recreation Centre",
+    "schedule": "10:15am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711352-13608",
+    "name": "Crafters Corners       Lynn Creek Community Recreation Centre",
+    "description": "Crafters Corners       Lynn Creek Community Recreation Centre                         Creekview Room                        Sun       Aug 10 - 17       11:30am - 1:00pm",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 37.22,
+    "location": "Crafters Corners       Lynn Creek Community Recreation Centre",
+    "schedule": "11:30am",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "Arts & Crafts"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711352-13629",
+    "name": "Yoga Youth                                  Yoga 10-15yrs       Delbrook Community Recre",
+    "description": "Yoga Youth                                  Yoga 10-15yrs       Delbrook Community Recreation Centre                         Maple Room                        Mon       Jul 28 - Aug 25",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 56.64,
+    "location": "15yrs       Delbrook Community Recreation Centre",
+    "schedule": "4:15pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  },
+  {
+    "id": "nvrc-1753391711352-13632",
+    "name": "Yoga 10-15yrs       Delbrook Community Recreation Centre                         Maple R",
+    "description": "Yoga 10-15yrs       Delbrook Community Recreation Centre                         Maple Room                        Mon       Jul 28 - Aug 25       4:15pm - 5:15pm                        10",
+    "ageRange": {
+      "min": 0,
+      "max": 18
+    },
+    "cost": 56.64,
+    "location": "15yrs       Delbrook Community Recreation Centre",
+    "schedule": "4:15pm",
+    "dates": "",
+    "registrationUrl": "",
+    "activityType": [
+      "General"
+    ],
+    "provider": "North Vancouver Recreation & Culture",
+    "featured": false
+  }
+]

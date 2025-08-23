@@ -221,12 +221,8 @@ async function runDetailedCloudScraper() {
     
     // Run the enhanced scraper (it handles detail fetching internally)
     console.log('\n📊 Running enhanced parallel scraper...');
-<<<<<<< HEAD:backend/scraper-detailed-cloud-job.js
-    const activities = await scraper.scrape();
-=======
     const scraperResult = await scraper.scrape();
     const activities = scraperResult.activities || [];
->>>>>>> feec035 (fix: resolve scraper job error by handling enhanced scraper return format):scraper-detailed-cloud-job.js
     
     console.log(`\n✅ Enhanced scraper completed. Found ${activities.length} activities`);
     
@@ -236,92 +232,6 @@ async function runDetailedCloudScraper() {
       return;
     }
     
-<<<<<<< HEAD:backend/scraper-detailed-cloud-job.js
-    // Activities are already enhanced by the parallel scraper
-    const enhancedActivities = activities;
-    
-    // Log enhanced data statistics
-    const sessionsCount = enhancedActivities.filter(a => a.sessions && a.sessions.length > 0).length;
-    const multiSessionCount = enhancedActivities.filter(a => a.hasMultipleSessions).length;
-    const prereqCount = enhancedActivities.filter(a => a.hasPrerequisites).length;
-    const enhancedCount = enhancedActivities.filter(a => 
-      a.instructor || a.sessions?.length > 0 || a.prerequisites?.length > 0
-    ).length;
-    
-    console.log('\n📊 Enhanced Data Statistics:');
-    console.log(`   - Activities with sessions: ${sessionsCount}`);
-    console.log(`   - Multi-session activities: ${multiSessionCount}`);
-    console.log(`   - Activities with prerequisites: ${prereqCount}`);
-    console.log(`   - Activities with enhanced details: ${enhancedCount}`);
-    
-    // Update database using activity service
-    console.log('\n💾 Updating database with enhanced activity data...');
-    
-    // Transform activities to match service format
-    const transformedActivities = enhancedActivities.map(activity => ({
-      // Basic fields
-      id: activity.id || activity.externalId,  // Use internal ID for database
-      name: activity.name,
-      category: activity.category,
-      subcategory: activity.subcategory,
-      description: activity.alert || activity.description,
-      location: activity.location,
-      schedule: activity.schedule,
-      dates: activity.dates,
-      ageRange: activity.ageRange,
-      cost: activity.cost,
-      spotsAvailable: activity.spotsAvailable,
-      
-      // Registration info
-      courseId: activity.courseId || activity.code,  // Use site's course ID (e.g., 00371053)
-      registrationUrl: activity.registrationUrl,
-      registrationStatus: activity.registrationStatus,
-      registrationButtonText: activity.registrationButtonText,
-      detailUrl: activity.detailUrl,
-      
-      // Enhanced fields from registration page
-      instructor: activity.instructor,
-      fullDescription: activity.fullDescription,
-      whatToBring: activity.whatToBring,
-      fullAddress: activity.fullAddress,
-      latitude: activity.latitude,
-      longitude: activity.longitude,
-      directRegistrationUrl: activity.directRegistrationUrl,
-      contactInfo: activity.contactInfo,
-      
-      // New fields
-      sessions: activity.sessions,
-      prerequisites: activity.prerequisites,
-      hasMultipleSessions: activity.hasMultipleSessions,
-      sessionCount: activity.sessionCount,
-      hasPrerequisites: activity.hasPrerequisites,
-      
-      // Date range if available
-      dateRange: activity.dateRange,
-      registrationDate: activity.registrationDate
-    }));
-    
-    const updateResult = await activityService.upsertActivities(
-      transformedActivities,
-      provider.id
-    );
-    
-    console.log('\n✅ Database update completed:');
-    console.log(`   - Created: ${updateResult.created}`);
-    console.log(`   - Updated: ${updateResult.updated}`);
-    console.log(`   - Deactivated: ${updateResult.deactivated}`);
-    console.log(`   - Errors: ${updateResult.errors.length}`);
-    
-    if (updateResult.errors.length > 0) {
-      console.error('\n❌ Errors encountered:');
-      updateResult.errors.slice(0, 5).forEach(error => {
-        console.error(`   - Activity ${error.activityId}: ${error.error}`);
-      });
-      if (updateResult.errors.length > 5) {
-        console.error(`   ... and ${updateResult.errors.length - 5} more errors`);
-      }
-    }
-=======
     // The enhanced scraper already saved to database and provides stats
     const stats = scraperResult.stats || {};
     console.log('\n📊 Database Update Statistics:');
@@ -329,9 +239,6 @@ async function runDetailedCloudScraper() {
     console.log(`   - Updated: ${stats.updated || 0}`);
     console.log(`   - Removed: ${stats.removed || 0}`);
     console.log(`   - Unchanged: ${stats.unchanged || 0}`);
-    
-    // Database already updated by enhanced scraper
->>>>>>> feec035 (fix: resolve scraper job error by handling enhanced scraper return format):scraper-detailed-cloud-job.js
     
     // Complete the job
     const endTime = new Date();

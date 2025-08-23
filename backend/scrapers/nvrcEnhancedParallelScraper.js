@@ -667,28 +667,45 @@ class NVRCEnhancedParallelScraper {
           }
         }
         
-        // Create or update location
+        // Create or update location - check by name only
         let location = null;
         if (activity.location) {
-          location = await this.prisma.location.upsert({
-            where: {
-              name_address: {
-                name: activity.location,
-                address: ''
-              }
-            },
-            update: {
-              city: 'North Vancouver',
-              province: 'BC'
-            },
-            create: {
-              name: activity.location,
-              address: '',
-              city: 'North Vancouver',
-              province: 'BC',
-              facility: this.determineFacilityType(activity.location)
+          // First try to find existing location by name
+          location = await this.prisma.location.findFirst({
+            where: { 
+              name: activity.location 
             }
           });
+          
+          if (!location) {
+            // Create new location if it doesn't exist
+            location = await this.prisma.location.create({
+              data: {
+                name: activity.location,
+                address: activity.fullAddress || '',  // Use full address if available
+                city: 'North Vancouver',
+                province: 'BC',
+                postalCode: '',
+                facility: this.determineFacilityType(activity.location),
+                latitude: activity.latitude || null,
+                longitude: activity.longitude || null
+              }
+            });
+            console.log(`  📍 Created new location: ${activity.location}`);
+          } else {
+            // Update location if we have better address info
+            if (!location.address && activity.fullAddress) {
+              await this.prisma.location.update({
+                where: { id: location.id },
+                data: {
+                  address: activity.fullAddress,
+                  latitude: activity.latitude || location.latitude,
+                  longitude: activity.longitude || location.longitude
+                }
+              });
+              console.log(`  📍 Updated location address: ${activity.location}`);
+            }
+          }
         }
         
         // Generate external ID

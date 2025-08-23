@@ -1,0 +1,19 @@
+
+> kidsactivitytracker-backend@1.0.0 start
+> node server.js
+
+❌ NVRC Real Data scraper not available: Unexpected token ')'
+Kids Activity Tracker API running on http://localhost:3000
+
+Available endpoints:
+- POST /api/scrape/nvrc (main endpoint - uses interactive scraper)
+- GET /api/scrape/nvrc-interactive (test interactive scraper directly)
+- POST /api/activities/search
+- GET /api/activities/:id
+- POST /api/register
+- POST /api/refresh
+
+✅ Server is ready to receive requests!
+📝 Note: First scrape may take 30-60 seconds to load all results
+🔍 Checking for cached data...
+❌ Real data scraping failed: Real data scraper not available
