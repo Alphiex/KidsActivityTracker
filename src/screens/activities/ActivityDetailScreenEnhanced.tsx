@@ -406,6 +406,18 @@ const ActivityDetailScreenEnhanced = () => {
                 </Text>
               </View>
             </View>
+            {activity.registrationDate && (
+              <View style={styles.statusRight}>
+                <Text style={[styles.registrationDateLabel, { color: colors.textSecondary }]}>
+                  Registration Opens
+                </Text>
+                <Text style={[styles.registrationDateValue, { color: colors.text }]}>
+                  {typeof activity.registrationDate === 'string' ? 
+                    activity.registrationDate : 
+                    formatDate(new Date(activity.registrationDate))}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -423,11 +435,13 @@ const ActivityDetailScreenEnhanced = () => {
 
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
             <MaterialCommunityIcons name="clock-outline" size={24} color={colors.primary} />
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Time</Text>
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Duration</Text>
             <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={2}>
-              {activity.startTime && activity.endTime ? 
-                `${activity.startTime} - ${activity.endTime}` : 
-                activity.schedule || 'TBD'}
+              {activity.sessions && activity.sessions.length > 0 ? 
+                `${activity.sessions.length} session${activity.sessions.length > 1 ? 's' : ''}` : 
+                (activity.startTime && activity.endTime ? 
+                  `${activity.startTime} - ${activity.endTime}` : 
+                  activity.schedule || 'TBD')}
             </Text>
           </View>
 
@@ -464,12 +478,10 @@ const ActivityDetailScreenEnhanced = () => {
           </View>
 
           <View style={[styles.detailCard, { backgroundColor: colors.surface }]}>
-            <MaterialCommunityIcons name="calendar-clock" size={24} color={colors.primary} />
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Registration</Text>
+            <MaterialCommunityIcons name="account-check" size={24} color={colors.primary} />
+            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Instructor</Text>
             <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={2}>
-              {activity.registrationEndDate ? 
-                `Ends ${formatDate(new Date(activity.registrationEndDate))}` : 
-                'Open'}
+              {activity.instructor || 'TBD'}
             </Text>
           </View>
         </View>
@@ -599,7 +611,7 @@ const ActivityDetailScreenEnhanced = () => {
                   <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
                     {activity.prerequisites}
                   </Text>
-                ) : Array.isArray(activity.prerequisites) ? (
+                ) : Array.isArray(activity.prerequisites) && activity.prerequisites.length > 0 ? (
                   <View>
                     {activity.prerequisites.map((prereq, index) => (
                       <View key={index} style={styles.prerequisiteItem}>
@@ -610,14 +622,14 @@ const ActivityDetailScreenEnhanced = () => {
                         />
                         <View style={styles.prerequisiteContent}>
                           <Text style={[styles.prerequisiteName, { color: colors.text }]}>
-                            {prereq.name}
+                            {typeof prereq === 'string' ? prereq : prereq.name}
                           </Text>
-                          {prereq.description && (
+                          {typeof prereq === 'object' && prereq.courseId && (
                             <Text style={[styles.prerequisiteDescription, { color: colors.textSecondary }]}>
-                              {prereq.description}
+                              Course ID: {prereq.courseId}
                             </Text>
                           )}
-                          {prereq.url && (
+                          {typeof prereq === 'object' && prereq.url && (
                             <TouchableOpacity
                               onPress={() => Linking.openURL(prereq.url)}
                               style={styles.prerequisiteLink}
@@ -680,15 +692,13 @@ const ActivityDetailScreenEnhanced = () => {
               <Icon name="location-on" size={24} color={colors.primary} />
               <View style={styles.locationTextContainer}>
                 <Text style={[styles.locationName, { color: colors.text }]}>
-                  {typeof activity.location === 'string' 
-                    ? activity.location 
-                    : activity.location?.name || activity.locationName || 'Location'}
+                  {activity.locationName || activity.facility || 
+                   (typeof activity.location === 'string' ? activity.location : activity.location?.name) || 
+                   'Location'}
                 </Text>
-                {(activity.fullAddress || (typeof activity.location === 'object' && activity.location?.address)) && (
-                  <Text style={[styles.locationAddress, { color: colors.textSecondary }]}>
-                    {activity.fullAddress || (typeof activity.location === 'object' ? activity.location.address : '')}
-                  </Text>
-                )}
+                <Text style={[styles.locationAddress, { color: colors.textSecondary }]}>
+                  {getFullAddress(activity)}
+                </Text>
               </View>
             </View>
 
@@ -915,6 +925,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  statusRight: {
+    alignItems: 'flex-end',
+  },
+  registrationDateLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  registrationDateValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   actionButtonsContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -1005,6 +1026,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  detailSubtext: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -1091,6 +1116,32 @@ const styles = StyleSheet.create({
   sessionInstructorText: {
     fontSize: 14,
     marginLeft: 4,
+  },
+  sessionNotes: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginLeft: 32,
+    marginTop: 4,
+  },
+  sessionNotesText: {
+    fontSize: 14,
+    marginLeft: 4,
+    flex: 1,
+  },
+  courseIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  courseIdContent: {
+    marginLeft: 12,
+  },
+  courseIdLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  courseIdValue: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Prerequisite styles
   prerequisiteItem: {
