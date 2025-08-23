@@ -221,7 +221,12 @@ async function runDetailedCloudScraper() {
     
     // Run the enhanced scraper (it handles detail fetching internally)
     console.log('\n📊 Running enhanced parallel scraper...');
+<<<<<<< HEAD:backend/scraper-detailed-cloud-job.js
     const activities = await scraper.scrape();
+=======
+    const scraperResult = await scraper.scrape();
+    const activities = scraperResult.activities || [];
+>>>>>>> feec035 (fix: resolve scraper job error by handling enhanced scraper return format):scraper-detailed-cloud-job.js
     
     console.log(`\n✅ Enhanced scraper completed. Found ${activities.length} activities`);
     
@@ -231,6 +236,7 @@ async function runDetailedCloudScraper() {
       return;
     }
     
+<<<<<<< HEAD:backend/scraper-detailed-cloud-job.js
     // Activities are already enhanced by the parallel scraper
     const enhancedActivities = activities;
     
@@ -315,24 +321,30 @@ async function runDetailedCloudScraper() {
         console.error(`   ... and ${updateResult.errors.length - 5} more errors`);
       }
     }
+=======
+    // The enhanced scraper already saved to database and provides stats
+    const stats = scraperResult.stats || {};
+    console.log('\n📊 Database Update Statistics:');
+    console.log(`   - Created: ${stats.created || 0}`);
+    console.log(`   - Updated: ${stats.updated || 0}`);
+    console.log(`   - Removed: ${stats.removed || 0}`);
+    console.log(`   - Unchanged: ${stats.unchanged || 0}`);
+    
+    // Database already updated by enhanced scraper
+>>>>>>> feec035 (fix: resolve scraper job error by handling enhanced scraper return format):scraper-detailed-cloud-job.js
     
     // Complete the job
     const endTime = new Date();
     const duration = Math.round((endTime - startTime) / 1000);
     
     await scrapeJobService.completeJob(scrapeJob.id, {
-      activitiesFound: enhancedActivities.length,
-      activitiesCreated: updateResult.created,
-      activitiesUpdated: updateResult.updated,
-      activitiesDeactivated: updateResult.deactivated,
-      errors: updateResult.errors.length,
+      activitiesFound: activities.length,
+      activitiesCreated: stats.created || 0,
+      activitiesUpdated: stats.updated || 0,
+      activitiesDeactivated: stats.removed || 0,
+      errors: 0,
       duration,
-      enhancedStats: {
-        sessionsCount,
-        multiSessionCount,
-        prereqCount,
-        enhancedCount
-      }
+      enhancedStats: scraperResult.stats
     });
     
     console.log(`\n🎉 Job completed successfully in ${duration} seconds`);
@@ -342,14 +354,9 @@ async function runDetailedCloudScraper() {
       const filename = `nvrc_enhanced_activities_${new Date().toISOString().split('T')[0]}.json`;
       require('fs').writeFileSync(filename, JSON.stringify({
         timestamp: new Date().toISOString(),
-        activitiesCount: enhancedActivities.length,
-        enhancedStats: {
-          sessionsCount,
-          multiSessionCount,
-          prereqCount,
-          enhancedCount
-        },
-        activities: enhancedActivities
+        activitiesCount: activities.length,
+        enhancedStats: scraperResult.stats,
+        activities: activities
       }, null, 2));
       console.log(`💾 Raw data saved to: ${filename}`);
     }
