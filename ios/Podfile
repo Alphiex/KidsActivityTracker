@@ -34,6 +34,8 @@ target 'KidsActivityTracker' do
     :path => config[:reactNativePath],
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
+    # Enable Hermes
+    :hermes_enabled => true,
     # Disable the new architecture for now
     :fabric_enabled => false,
     :new_arch_enabled => false

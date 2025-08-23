@@ -61,6 +61,10 @@ app.get('/health', (req, res) => {
 // ============= Authentication Routes =============
 app.use('/api/auth', authRoutes);
 
+// ============= Test Routes (temporary) =============
+const testRoutes = require('./test-db');
+app.use('/api/test', testRoutes);
+
 // ============= Activity Endpoints =============
 
 // Search activities with filters

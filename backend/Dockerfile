@@ -58,7 +58,8 @@ COPY --from=builder /app/api ./api
 COPY --from=builder /app/database ./database
 COPY --from=builder /app/services ./services
 COPY --from=builder /app/scrapers ./scrapers
-COPY --from=builder /app/generated ./generated
+# Don't copy generated - we already generated it above
+# COPY --from=builder /app/generated ./generated
 
 # Copy scraper job files
 COPY --from=builder /app/scraper-detailed-cloud-job.js ./

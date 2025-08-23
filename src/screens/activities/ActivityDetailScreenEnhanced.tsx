@@ -70,30 +70,7 @@ const ActivityDetailScreenEnhanced = () => {
     );
   }
   
-  console.log('ActivityDetailScreenEnhanced received activity:', serializedActivity?.name);
-  console.log('Location data:', {
-    latitude: serializedActivity?.latitude,
-    longitude: serializedActivity?.longitude,
-    location: serializedActivity?.location,
-    fullAddress: serializedActivity?.fullAddress,
-  });
   
-  // Debug logging for missing fields
-  console.log('DEBUG - Activity data received:', {
-    name: serializedActivity?.name,
-    registrationStatus: serializedActivity?.registrationStatus,
-    dates: serializedActivity?.dates,
-    fullDescription: serializedActivity?.fullDescription,
-    courseId: serializedActivity?.courseId,
-    externalId: serializedActivity?.externalId,
-    spotsAvailable: serializedActivity?.spotsAvailable,
-    totalSpots: serializedActivity?.totalSpots,
-    instructor: serializedActivity?.instructor,
-    startTime: serializedActivity?.startTime,
-    endTime: serializedActivity?.endTime,
-    sessions: serializedActivity?.sessions?.length || 0,
-    prerequisites: serializedActivity?.prerequisites,
-  });
   
   let activity: Activity = freshActivity || serializedActivity;
   
