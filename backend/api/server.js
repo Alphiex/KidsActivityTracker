@@ -332,7 +332,15 @@ app.get('/api/v1/providers/:id/stats', async (req, res) => {
 app.get('/api/v1/locations', async (req, res) => {
   try {
     const prisma = require('../database/config/database');
+    // Only get locations that have active activities
     const locations = await prisma.location.findMany({
+      where: {
+        activities: {
+          some: {
+            isActive: true
+          }
+        }
+      },
       include: {
         _count: {
           select: {
@@ -343,9 +351,32 @@ app.get('/api/v1/locations', async (req, res) => {
       orderBy: { name: 'asc' }
     });
     
+    // Filter out bad location names and transform to expected format
+    const cleanedLocations = locations
+      .filter(loc => {
+        const name = loc.name;
+        // Check if name is too long (likely a description)
+        if (name.length > 100) return false;
+        // Check if name contains newlines or special formatting
+        if (name.includes('\n') || name.includes('\r')) return false;
+        // Check if name contains activity keywords
+        if (name.match(/lesson|class|program|registration|#\d{6}/i)) return false;
+        return true;
+      })
+      .map(loc => ({
+        id: loc.id,
+        name: loc.name.trim(),
+        address: loc.address,
+        city: loc.city,
+        province: loc.province,
+        postalCode: loc.postalCode,
+        facility: loc.facility,
+        activityCount: loc._count.activities
+      }));
+    
     res.json({
       success: true,
-      locations
+      locations: cleanedLocations
     });
   } catch (error) {
     console.error('Error fetching locations:', error);
@@ -360,18 +391,122 @@ app.get('/api/v1/locations', async (req, res) => {
 app.get('/api/v1/categories', async (req, res) => {
   try {
     const prisma = require('../database/config/database');
-    const categories = await prisma.activity.findMany({
-      where: { isActive: true },
-      distinct: ['category'],
-      select: { category: true }
-    });
     
+    // Get categories with activity counts
+    const categories = await prisma.activity.groupBy({
+      by: ['category'],
+      where: {
+        isActive: true,
+        category: {
+          not: null
+        }
+      },
+      _count: {
+        _all: true
+      },
+      orderBy: {
+        _count: {
+          _all: 'desc'
+        }
+      }
+    });
+
+    const categoriesWithCounts = categories.map(cat => ({
+      name: cat.category,
+      count: cat._count._all
+    }));
+
     res.json({
       success: true,
-      categories: categories.map(c => c.category).sort()
+      categories: categoriesWithCounts
     });
   } catch (error) {
     console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get age groups with activity counts
+app.get('/api/v1/age-groups', async (req, res) => {
+  try {
+    const ageGroups = [
+      { id: '0-2', name: '0-2 years', min: 0, max: 2 },
+      { id: '3-5', name: '3-5 years', min: 3, max: 5 },
+      { id: '6-8', name: '6-8 years', min: 6, max: 8 },
+      { id: '9-12', name: '9-12 years', min: 9, max: 12 },
+      { id: '13+', name: '13+ years', min: 13, max: 99 }
+    ];
+
+    const prisma = require('../database/config/database');
+    
+    // Get counts for each age group
+    const groupsWithCounts = await Promise.all(
+      ageGroups.map(async (group) => {
+        const count = await prisma.activity.count({
+          where: {
+            isActive: true,
+            ageMin: { lte: group.max },
+            ageMax: { gte: group.min }
+          }
+        });
+        return {
+          ...group,
+          count
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      ageGroups: groupsWithCounts
+    });
+  } catch (error) {
+    console.error('Error fetching age groups:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get activity types (subcategories) with counts
+app.get('/api/v1/activity-types', async (req, res) => {
+  try {
+    const prisma = require('../database/config/database');
+    
+    // Get subcategories with activity counts
+    const activityTypes = await prisma.activity.groupBy({
+      by: ['subcategory'],
+      where: {
+        isActive: true,
+        subcategory: {
+          not: null
+        }
+      },
+      _count: {
+        _all: true
+      },
+      orderBy: {
+        _count: {
+          _all: 'desc'
+        }
+      }
+    });
+
+    const typesWithCounts = activityTypes.map(type => ({
+      name: type.subcategory,
+      count: type._count._all
+    }));
+
+    res.json({
+      success: true,
+      activityTypes: typesWithCounts
+    });
+  } catch (error) {
+    console.error('Error fetching activity types:', error);
     res.status(500).json({
       success: false,
       error: error.message
