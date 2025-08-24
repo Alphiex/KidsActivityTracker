@@ -85,7 +85,7 @@ const HomeScreen = () => {
         
         setStats({
           newActivitiesCount: statsData.newActivitiesLastWeek || 15, // Mock value
-          totalActivities: statsData.totalActivities || 0,
+          totalActivities: statsData.totalActive || 0, // Use actual count from API
           lastUpdated: new Date(),
         });
       } catch (statsError) {

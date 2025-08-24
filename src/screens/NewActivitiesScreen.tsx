@@ -30,7 +30,7 @@ const NewActivitiesScreen = () => {
       
       // Get all activities and filter by date
       // In a real app, this would be a specific API endpoint for new activities
-      const allActivities = await activityService.searchActivities({});
+      const allActivities = await activityService.searchActivities({ limit: 200 }); // Get more activities to find new ones
       
       // Filter activities added in the last 7 days
       const oneWeekAgo = new Date();
