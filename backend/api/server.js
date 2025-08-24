@@ -402,19 +402,17 @@ app.get('/api/v1/categories', async (req, res) => {
         }
       },
       _count: {
-        _all: true
-      },
-      orderBy: {
-        _count: {
-          _all: 'desc'
-        }
+        category: true
       }
     });
 
-    const categoriesWithCounts = categories.map(cat => ({
-      name: cat.category,
-      count: cat._count._all
-    }));
+    // Sort by count descending
+    const categoriesWithCounts = categories
+      .map(cat => ({
+        name: cat.category,
+        count: cat._count.category
+      }))
+      .sort((a, b) => b.count - a.count);
 
     res.json({
       success: true,
@@ -487,19 +485,17 @@ app.get('/api/v1/activity-types', async (req, res) => {
         }
       },
       _count: {
-        _all: true
-      },
-      orderBy: {
-        _count: {
-          _all: 'desc'
-        }
+        subcategory: true
       }
     });
 
-    const typesWithCounts = activityTypes.map(type => ({
-      name: type.subcategory,
-      count: type._count._all
-    }));
+    // Sort by count descending
+    const typesWithCounts = activityTypes
+      .map(type => ({
+        name: type.subcategory,
+        count: type._count.subcategory
+      }))
+      .sort((a, b) => b.count - a.count);
 
     res.json({
       success: true,
