@@ -396,18 +396,16 @@ app.get('/api/v1/categories', async (req, res) => {
     const categories = await prisma.activity.groupBy({
       by: ['category'],
       where: {
-        isActive: true,
-        NOT: {
-          category: null
-        }
+        isActive: true
       },
       _count: {
         category: true
       }
     });
 
-    // Sort by count descending
+    // Filter out null categories and sort by count descending
     const categoriesWithCounts = categories
+      .filter(cat => cat.category !== null && cat.category !== '')
       .map(cat => ({
         name: cat.category,
         count: cat._count.category
@@ -479,18 +477,16 @@ app.get('/api/v1/activity-types', async (req, res) => {
     const activityTypes = await prisma.activity.groupBy({
       by: ['subcategory'],
       where: {
-        isActive: true,
-        NOT: {
-          subcategory: null
-        }
+        isActive: true
       },
       _count: {
         subcategory: true
       }
     });
 
-    // Sort by count descending
+    // Filter out null subcategories and sort by count descending
     const typesWithCounts = activityTypes
+      .filter(type => type.subcategory !== null && type.subcategory !== '')
       .map(type => ({
         name: type.subcategory,
         count: type._count.subcategory
