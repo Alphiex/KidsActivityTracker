@@ -237,10 +237,22 @@ async function extractComprehensiveDetails(page) {
       data.ageRestrictions = `${ageMatch[1]} to ${ageMatch[2]} years`;
     }
     
-    // Look for instructor in sessions or main content
-    const instructorMatch = pageText.match(/Instructor[:\s]*([^\n]+)/i);
-    if (instructorMatch) {
-      data.instructor = instructorMatch[1].trim();
+    // Look for instructor - must be preceded by "Instructor" label and followed by a name
+    // Pattern looks for "Instructor" followed by optional colon/space, then a capitalized name
+    const instructorSection = document.querySelector('.bm-instructor-name');
+    if (instructorSection) {
+      data.instructor = instructorSection.textContent.trim();
+    } else {
+      // Fallback: Look for pattern like "Instructor: John Doe" or "Instructor John Doe"
+      // Must have capital letter after "Instructor" to indicate a name
+      const instructorMatch = pageText.match(/\bInstructor\s*:?\s*([A-Z][a-zA-Z\s\-\.]+?)(?=\n|$|[,])/);
+      if (instructorMatch) {
+        const potentialName = instructorMatch[1].trim();
+        // Validate it looks like a name (at least 2 characters, not a sentence)
+        if (potentialName.length >= 2 && potentialName.length <= 50 && !potentialName.includes(' will ') && !potentialName.includes(' are ')) {
+          data.instructor = potentialName;
+        }
+      }
     }
     
     return data;

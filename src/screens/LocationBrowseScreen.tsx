@@ -19,9 +19,21 @@ import { Activity } from '../types';
 
 const { width, height } = Dimensions.get('window');
 
+interface LocationData {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  facility?: string;
+  activityCount: number;
+}
+
 interface LocationGroup {
   location: string;
-  activities: Activity[];
+  locationData?: LocationData;
+  activities?: Activity[];
   count: number;
 }
 
@@ -30,9 +42,9 @@ const LocationBrowseScreen = () => {
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
   
-  const [locationGroups, setLocationGroups] = useState<LocationGroup[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-  const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
+  const [locations, setLocations] = useState<LocationData[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+  const [locationActivities, setLocationActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -55,42 +67,15 @@ const LocationBrowseScreen = () => {
   const loadLocationData = async () => {
     try {
       setIsLoading(true);
-      const allActivities = await activityService.searchActivities({});
+      // Use the locations API endpoint to get locations with activity counts
+      const locationData = await activityService.getLocations();
       
-      // Group activities by location
-      const groups = allActivities.reduce((acc, activity) => {
-        let location = 'Unknown Location';
-        
-        // Handle various location formats
-        if (activity.location) {
-          if (typeof activity.location === 'string') {
-            location = activity.location;
-          } else if (typeof activity.location === 'object' && activity.location.name) {
-            location = activity.location.name;
-          }
-        } else if (activity.locationName) {
-          location = activity.locationName;
-        } else if (activity.facility) {
-          location = activity.facility;
-        }
-        
-        if (!acc[location]) {
-          acc[location] = [];
-        }
-        acc[location].push(activity);
-        return acc;
-      }, {} as { [key: string]: Activity[] });
-
-      // Convert to array and sort by count
-      const groupArray = Object.entries(groups)
-        .map(([location, activities]) => ({
-          location,
-          activities,
-          count: activities.length,
-        }))
-        .sort((a, b) => b.count - a.count);
-
-      setLocationGroups(groupArray);
+      // Sort by activity count descending
+      const sortedLocations = locationData
+        .filter(loc => loc.activityCount > 0)
+        .sort((a, b) => b.activityCount - a.activityCount);
+      
+      setLocations(sortedLocations);
     } catch (error) {
       console.error('Error loading location data:', error);
     } finally {
@@ -104,26 +89,36 @@ const LocationBrowseScreen = () => {
     loadLocationData();
   };
 
-  const selectLocation = (location: string) => {
-    const group = locationGroups.find(g => g.location === location);
-    if (group) {
-      setSelectedLocation(location);
-      setFilteredActivities(group.activities);
+  const selectLocation = async (location: LocationData) => {
+    setSelectedLocation(location);
+    setIsLoading(true);
+    
+    try {
+      // Fetch activities for the selected location
+      const activities = await activityService.searchActivities({
+        locations: [location.name]
+      });
+      setLocationActivities(activities);
+    } catch (error) {
+      console.error('Error loading location activities:', error);
+      setLocationActivities([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const clearSelection = () => {
     setSelectedLocation(null);
-    setFilteredActivities([]);
+    setLocationActivities([]);
   };
 
-  const renderLocationCard = ({ item, index }: { item: LocationGroup; index: number }) => {
+  const renderLocationCard = ({ item, index }: { item: LocationData; index: number }) => {
     const colors = locationColors[index % locationColors.length];
     
     return (
       <TouchableOpacity
         style={styles.locationCard}
-        onPress={() => selectLocation(item.location)}
+        onPress={() => selectLocation(item)}
         activeOpacity={0.8}
       >
         <LinearGradient
@@ -135,27 +130,27 @@ const LocationBrowseScreen = () => {
           <View style={styles.locationHeader}>
             <Icon name="map-marker" size={40} color="#fff" />
             <View style={styles.locationBadge}>
-              <Text style={styles.locationCount}>{item.count}</Text>
+              <Text style={styles.locationCount}>{item.activityCount}</Text>
             </View>
           </View>
           <Text style={styles.locationName} numberOfLines={2}>
-            {item.location}
+            {item.name}
           </Text>
           <Text style={styles.locationSubtext}>
-            {item.count} {item.count === 1 ? 'activity' : 'activities'}
+            {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
           </Text>
         </LinearGradient>
       </TouchableOpacity>
     );
   };
 
-  const renderLocationList = ({ item, index }: { item: LocationGroup; index: number }) => {
+  const renderLocationList = ({ item, index }: { item: LocationData; index: number }) => {
     const colors = locationColors[index % locationColors.length];
     
     return (
       <TouchableOpacity
         style={styles.locationListItem}
-        onPress={() => selectLocation(item.location)}
+        onPress={() => selectLocation(item)}
       >
         <LinearGradient
           colors={colors}
@@ -164,9 +159,9 @@ const LocationBrowseScreen = () => {
           <Icon name="map-marker" size={24} color="#fff" />
         </LinearGradient>
         <View style={styles.locationListContent}>
-          <Text style={styles.locationListName}>{item.location}</Text>
+          <Text style={styles.locationListName}>{item.name}</Text>
           <Text style={styles.locationListSubtext}>
-            {item.count} {item.count === 1 ? 'activity' : 'activities'}
+            {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
           </Text>
         </View>
         <Icon name="chevron-right" size={24} color="#ccc" />
@@ -211,9 +206,9 @@ const LocationBrowseScreen = () => {
               <Icon name="close" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.headerTitle}>{selectedLocation}</Text>
+          <Text style={styles.headerTitle}>{selectedLocation.name}</Text>
           <Text style={styles.headerSubtitle}>
-            {filteredActivities.length} {filteredActivities.length === 1 ? 'activity' : 'activities'} available
+            {locationActivities.length} {locationActivities.length === 1 ? 'activity' : 'activities'} available
           </Text>
         </View>
       ) : (
@@ -235,7 +230,7 @@ const LocationBrowseScreen = () => {
           </View>
           <Text style={styles.headerTitle}>Browse by Location</Text>
           <Text style={styles.headerSubtitle}>
-            {locationGroups.length} locations with activities
+            {locations.length} locations with activities
           </Text>
         </View>
       )}
@@ -245,9 +240,9 @@ const LocationBrowseScreen = () => {
   const renderLocationsGrid = () => (
     <FlatList
       key="grid-view"
-      data={locationGroups}
+      data={locations}
       renderItem={renderLocationCard}
-      keyExtractor={(item) => item.location}
+      keyExtractor={(item) => item.id}
       numColumns={2}
       columnWrapperStyle={styles.locationRow}
       contentContainerStyle={styles.gridContent}
@@ -261,9 +256,9 @@ const LocationBrowseScreen = () => {
   const renderLocationsList = () => (
     <FlatList
       key="list-view"
-      data={locationGroups}
+      data={locations}
       renderItem={renderLocationList}
-      keyExtractor={(item) => item.location}
+      keyExtractor={(item) => item.id}
       contentContainerStyle={styles.listContent}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -281,13 +276,19 @@ const LocationBrowseScreen = () => {
           <Text style={styles.loadingText}>Loading locations...</Text>
         </View>
       ) : selectedLocation ? (
-        <FlatList
-          data={filteredActivities}
-          renderItem={renderActivityItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.activityList}
-          showsVerticalScrollIndicator={false}
-        />
+        isLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading activities...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={locationActivities}
+            renderItem={renderActivityItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.activityList}
+            showsVerticalScrollIndicator={false}
+          />
+        )
       ) : (
         <View style={{ flex: 1 }} key={viewMode}>
           {viewMode === 'grid' ? renderLocationsGrid() : renderLocationsList()}
