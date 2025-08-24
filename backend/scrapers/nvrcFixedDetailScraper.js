@@ -119,14 +119,60 @@ async function extractComprehensiveDetails(page) {
       data.registrationDate = regEndMatch[1] + ' ' + regEndMatch[2];
     }
     
-    // Extract cost
-    const costMatch = pageText.match(/Course Fee[^$]*\$(\d+(?:\.\d{2})?)/i);
-    if (costMatch) {
-      data.cost = parseFloat(costMatch[1]);
+    // Extract cost - try multiple patterns
+    let costFound = false;
+    
+    // Pattern 1: Look for price tag elements with class bm-price-tag
+    const priceElements = document.querySelectorAll('.bm-price-tag');
+    if (priceElements.length > 0) {
+      const priceText = priceElements[0].textContent.trim();
+      const priceMatch = priceText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+      if (priceMatch) {
+        data.cost = parseFloat(priceMatch[1].replace(/,/g, ''));
+        costFound = true;
+      }
     }
     
-    // Check if cost includes tax
-    if (pageText.includes('Plus Tax') || pageText.includes('+ tax')) {
+    // Pattern 2: Course Fee pattern (fallback)
+    if (!costFound) {
+      const costMatch = pageText.match(/Course Fee[^$]*\$(\d+(?:,\d{3})*(?:\.\d{2})?)/i);
+      if (costMatch) {
+        data.cost = parseFloat(costMatch[1].replace(/,/g, ''));
+        costFound = true;
+      }
+    }
+    
+    // Pattern 3: Look for any price pattern with dollar sign
+    if (!costFound) {
+      // Find all dollar amounts and pick the most likely course fee
+      const dollarAmounts = pageText.matchAll(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g);
+      const amounts = [];
+      for (const match of dollarAmounts) {
+        const amount = parseFloat(match[1].replace(/,/g, ''));
+        // Skip very small amounts (likely not course fees)
+        if (amount > 5) {
+          amounts.push({ amount, context: pageText.substring(pageText.indexOf(match[0]) - 20, pageText.indexOf(match[0]) + 50) });
+        }
+      }
+      
+      // Look for amounts near words like "fee", "cost", "price", or in fee tables
+      for (const item of amounts) {
+        if (item.context.match(/fee|cost|price|lesson|program|course/i)) {
+          data.cost = item.amount;
+          costFound = true;
+          break;
+        }
+      }
+      
+      // If still not found, take the first reasonable amount
+      if (!costFound && amounts.length > 0) {
+        data.cost = amounts[0].amount;
+      }
+    }
+    
+    // Check if cost includes tax - look for nearby tax indicators
+    const taxIndicator = document.querySelector('.bm-taxable-state-tag');
+    if (taxIndicator || pageText.includes('Plus Tax') || pageText.includes('+ tax') || pageText.includes('+ Tax')) {
       data.costIncludesTax = false;
     } else {
       data.costIncludesTax = true;
