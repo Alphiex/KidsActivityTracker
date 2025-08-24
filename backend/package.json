@@ -19,7 +19,8 @@
     "db:reset": "prisma migrate reset",
     "docker:build": "docker build -t kids-activity-api .",
     "docker:run": "docker run -p 3000:3000 --env-file .env kids-activity-api",
-    "gcp:deploy": "gcloud builds submit --config=cloudbuild.yaml ."
+    "gcp:deploy": "gcloud builds submit --config=cloudbuild.yaml .",
+    "test": "echo 'No tests configured yet' && exit 0"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
