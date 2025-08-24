@@ -397,8 +397,8 @@ app.get('/api/v1/categories', async (req, res) => {
       by: ['category'],
       where: {
         isActive: true,
-        category: {
-          not: null
+        NOT: {
+          category: null
         }
       },
       _count: {
@@ -480,8 +480,8 @@ app.get('/api/v1/activity-types', async (req, res) => {
       by: ['subcategory'],
       where: {
         isActive: true,
-        subcategory: {
-          not: null
+        NOT: {
+          subcategory: null
         }
       },
       _count: {
