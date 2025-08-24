@@ -126,13 +126,13 @@ class ActivityService {
             where: {
               providerId_externalId: {
                 providerId,
-                externalId: activity.id
+                externalId: activity.externalId || activity.courseId || activity.id
               }
             },
             create: {
               ...activityData,
               providerId,
-              externalId: activity.id
+              externalId: activity.externalId || activity.courseId || activity.id
             },
             update: activityData,
             include: {
@@ -149,7 +149,8 @@ class ActivityService {
           }
 
           // Track significant changes
-          if (existingIds.has(activity.id)) {
+          const activityExternalId = activity.externalId || activity.courseId || activity.id;
+          if (existingIds.has(activityExternalId)) {
             await this.trackChanges(tx, upserted.id, activityData);
           }
           
