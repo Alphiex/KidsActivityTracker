@@ -146,6 +146,11 @@ export interface Filter {
   locations?: string[];
   maxCost?: number;
   providers?: string[];
+  categories?: string;
+  search?: string;
+  subcategory?: string;
+  hideClosedActivities?: boolean;
+  hideFullActivities?: boolean;
 }
 
 export interface ScraperConfig {

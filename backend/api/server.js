@@ -78,8 +78,11 @@ app.get('/api/v1/activities', async (req, res) => {
       categories: req.query.categories ? req.query.categories.split(',') : undefined,
       locations: req.query.locations ? req.query.locations.split(',') : undefined,
       providers: req.query.providers ? req.query.providers.split(',') : undefined,
-      search: req.query.q,
+      search: req.query.q || req.query.search,
+      subcategory: req.query.subcategory,
       isActive: req.query.include_inactive !== 'true',
+      excludeClosed: req.query.exclude_closed === 'true',
+      excludeFull: req.query.exclude_full === 'true',
       page: req.query.page ? parseInt(req.query.page) : 1,
       limit: req.query.limit ? parseInt(req.query.limit) : 50
     };
@@ -287,6 +290,49 @@ app.get('/api/v1/users/:userId/recommendations', async (req, res) => {
   }
 });
 
+// Get user statistics
+app.get('/api/v1/users/:userId/stats', verifyToken, async (req, res) => {
+  try {
+    const prisma = require('../database/config/database');
+    const userId = req.params.userId;
+    
+    // Get favorites count
+    const favoritesCount = await prisma.favorite.count({
+      where: { userId }
+    });
+    
+    // Get children count
+    const childrenCount = await prisma.child.count({
+      where: { userId }
+    });
+    
+    // Get enrolled activities count (activities that children are enrolled in)
+    const enrolledCount = await prisma.childActivity.count({
+      where: {
+        child: {
+          userId
+        },
+        status: 'enrolled'
+      }
+    });
+    
+    res.json({
+      success: true,
+      stats: {
+        favorites: favoritesCount,
+        children: childrenCount,
+        enrolled: enrolledCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // ============= Provider Endpoints =============
 
 // Get all providers
@@ -472,6 +518,7 @@ app.get('/api/v1/age-groups', async (req, res) => {
 app.get('/api/v1/activity-types', async (req, res) => {
   try {
     const prisma = require('../database/config/database');
+    const { consolidateActivityTypes } = require('../utils/activityTypeConsolidation');
     
     // Get subcategories with activity counts
     const activityTypes = await prisma.activity.groupBy({
@@ -484,18 +531,24 @@ app.get('/api/v1/activity-types', async (req, res) => {
       }
     });
 
-    // Filter out null subcategories and sort by count descending
+    // Filter out null subcategories
     const typesWithCounts = activityTypes
       .filter(type => type.subcategory !== null && type.subcategory !== '')
       .map(type => ({
         name: type.subcategory,
         count: type._count.subcategory
-      }))
-      .sort((a, b) => b.count - a.count);
+      }));
+
+    // Consolidate similar activity types
+    const consolidatedTypes = consolidateActivityTypes(typesWithCounts);
+    
+    // Debug logging
+    console.log('Activity types before consolidation:', typesWithCounts.filter(t => t.name.toLowerCase().includes('swim')));
+    console.log('Activity types after consolidation:', consolidatedTypes.filter(t => t.name.toLowerCase().includes('swim')));
 
     res.json({
       success: true,
-      activityTypes: typesWithCounts
+      activityTypes: consolidatedTypes
     });
   } catch (error) {
     console.error('Error fetching activity types:', error);

@@ -102,8 +102,18 @@ const SearchScreen = () => {
       filters.costMax = priceRange.max;
     }
     
+    // Apply user preference for hiding closed activities
+    if (preferences.hideClosedActivities) {
+      filters.hideClosedActivities = true;
+    }
+    
+    // Apply user preference for hiding full activities
+    if (preferences.hideFullActivities) {
+      filters.hideFullActivities = true;
+    }
+    
     setSearchFilters(filters);
-  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, anyPrice]);
+  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, anyPrice, preferences.hideClosedActivities, preferences.hideFullActivities]);
 
   const handleSearch = (text: string) => {
     setSearchText(text);

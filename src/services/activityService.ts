@@ -171,7 +171,7 @@ class ActivityService {
         params.cost_max = filters.maxCost;
       }
       if (filters.activityTypes && filters.activityTypes.length > 0) {
-        params.category = filters.activityTypes[0]; // Backend expects single category
+        params.categories = filters.activityTypes.join(','); // Send as comma-separated list
       }
       if (filters.categories) {
         params.category = filters.categories;
@@ -181,6 +181,21 @@ class ActivityService {
       }
       if (filters.search) {
         params.search = filters.search; // Backend expects 'search' not 'q'
+      }
+      
+      // Add subcategory filter if specified
+      if (filters.subcategory) {
+        params.subcategory = filters.subcategory;
+      }
+      
+      // Add closed activities filter if specified
+      if (filters.hideClosedActivities === true) {
+        params.exclude_closed = true;
+      }
+      
+      // Add full activities filter if specified
+      if (filters.hideFullActivities === true) {
+        params.exclude_full = true;
       }
       
       // Add limit to reduce response size initially
@@ -471,13 +486,27 @@ class ActivityService {
   /**
    * Get reference data
    */
-  async getCategories(): Promise<string[]> {
+  async getCategories(): Promise<any[]> {
     try {
       const response = await this.api.get(API_CONFIG.ENDPOINTS.CATEGORIES);
       
       return response.data.success ? response.data.categories : [];
     } catch (error) {
       console.error('Error fetching categories:', error);
+      return [];
+    }
+  }
+
+  async getActivityTypes(): Promise<Array<{ name: string; count: number }>> {
+    try {
+      // Add cache-busting timestamp to force fresh data
+      const response = await this.api.get('/api/v1/activity-types', {
+        params: { _t: Date.now() }
+      });
+      
+      return response.data.success ? response.data.activityTypes : [];
+    } catch (error) {
+      console.error('Error fetching activity types:', error);
       return [];
     }
   }

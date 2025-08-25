@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
 const { extractComprehensiveDetails } = require('./nvrcFixedDetailScraper');
+const { parseActivityType, extractAgeRangeFromText } = require('./utils/activityTypeParser');
 // const { normalizeLocationName, determineFacilityType } = require('../improve-location-handling');
 
 // Helper functions for location normalization
@@ -830,13 +831,41 @@ class NVRCEnhancedParallelScraper {
           }
         }
         
+        // Parse activity type to separate type from age range
+        const parsedType = parseActivityType(activity.activityType);
+        
+        // Extract age range from activity details if not already present
+        let ageMin = activity.ageRange?.min;
+        let ageMax = activity.ageRange?.max;
+        
+        // Use parsed age range if we don't have one
+        if ((ageMin === null || ageMin === undefined) && parsedType.ageMin !== null) {
+          ageMin = parsedType.ageMin;
+        }
+        if ((ageMax === null || ageMax === undefined) && parsedType.ageMax !== null) {
+          ageMax = parsedType.ageMax;
+        }
+        
+        // If still no age range, try to extract from description
+        if ((ageMin === null || ageMin === undefined) && activity.ageRestrictions) {
+          const extractedAge = extractAgeRangeFromText(activity.ageRestrictions);
+          if (extractedAge.min !== null) {
+            ageMin = extractedAge.min;
+            ageMax = extractedAge.max;
+          }
+        }
+        
+        // Default age range if still not found
+        if (ageMin === null || ageMin === undefined) ageMin = 0;
+        if (ageMax === null || ageMax === undefined) ageMax = 18;
+        
         // Prepare activity data with all new fields
         const activityData = {
           providerId,
           externalId,
-          name: activity.name || `${activity.activityType} - ${activity.activitySection}`,
-          category: activity.section,
-          subcategory: activity.activityType,
+          name: activity.name || `${parsedType.type} - ${activity.activitySection}`,
+          category: parsedType.category || activity.section,
+          subcategory: parsedType.type,
           description: activity.fullDescription || activity.activitySection,
           schedule: `${activity.daysOfWeek?.join(', ') || ''} ${activity.time || ''}`.trim(),
           dates: dateRangeString || activity.dates, // Add dates string field
@@ -847,8 +876,8 @@ class NVRCEnhancedParallelScraper {
           registrationEndTime: activity.registrationEndTime,
           startTime: activity.startTime,
           endTime: activity.endTime,
-          ageMin: activity.ageRange?.min || 0,
-          ageMax: activity.ageRange?.max || 18,
+          ageMin: ageMin,
+          ageMax: ageMax,
           cost: activity.cost || activity.price || 0,
           costIncludesTax: activity.costIncludesTax !== undefined ? activity.costIncludesTax : true,
           taxAmount: activity.taxAmount,

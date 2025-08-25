@@ -270,7 +270,10 @@ class ActivityService {
       locations,
       providers,
       search,
+      subcategory,
       isActive = true,
+      excludeClosed = false,
+      excludeFull = false,
       page = 1,
       limit = 50
     } = filters;
@@ -307,6 +310,13 @@ class ActivityService {
       };
     }
 
+    // Subcategory filter
+    if (subcategory) {
+      // Simply match the subcategory exactly - the database already has clean subcategories
+      // without age ranges thanks to the fix-activity-types.js script
+      where.subcategory = subcategory;
+    }
+
     // Search filter
     if (search) {
       where.OR = [
@@ -315,6 +325,27 @@ class ActivityService {
         { subcategory: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } }
       ];
+    }
+
+    // Exclude closed activities filter
+    if (excludeClosed || excludeFull) {
+      where.NOT = [];
+      
+      if (excludeClosed) {
+        // Exclude activities with registration status indicating they are closed or cancelled
+        where.NOT.push(
+          { registrationStatus: { contains: 'closed', mode: 'insensitive' } },
+          { registrationStatus: { contains: 'cancelled', mode: 'insensitive' } }
+        );
+        
+        // Also exclude full if excludeClosed is true (backward compatibility)
+        where.NOT.push({ registrationStatus: { contains: 'full', mode: 'insensitive' } });
+      }
+      
+      if (excludeFull && !excludeClosed) {
+        // Only exclude full activities if excludeFull is true and excludeClosed is false
+        where.NOT.push({ registrationStatus: { contains: 'full', mode: 'insensitive' } });
+      }
     }
 
     const skip = (page - 1) * limit;

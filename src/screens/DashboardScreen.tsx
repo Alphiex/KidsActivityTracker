@@ -31,44 +31,129 @@ const DashboardScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const { colors, isDark } = useTheme();
   const { isConnected } = useNetworkStatus();
+  const [recommendedCount, setRecommendedCount] = useState(0);
+  const [loadingRecommended, setLoadingRecommended] = useState(true);
   const [stats, setStats] = useState({
     matchingActivities: 0,
     newThisWeek: 0,
     savedFavorites: 0,
     upcomingEvents: 0,
   });
+  const [categories, setCategories] = useState<Array<{ name: string; count: number; icon: string }>>([]);
+  const [activityTypes, setActivityTypes] = useState<Array<{ name: string; count: number; icon: string }>>([]);
 
-  const categoryColors = {
-    'Team Sports': ['#FF6B6B', '#FF8787'],
-    'Martial Arts': ['#4ECDC4', '#44A08D'],
-    'Racquet Sports': ['#A8E6CF', '#7FD1B3'],
-    'Aquatic Leadership': ['#FFD93D', '#FFB73D'],
-    'Swimming': ['#00C9FF', '#0099CC'],
-    'Camps': ['#C06EFF', '#9B59FF'],
-    'All': ['#4B9BFF', '#2E7FFF'],
-    'Other': ['#95E1D3', '#6FC9B8'],
+  // Define category configurations
+  const categoryIcons = {
+    'Sports': 'basketball',
+    'Arts': 'palette',
+    'Music': 'music-note',
+    'Science': 'flask',
+    'Dance': 'dance-ballroom',
+    'Education': 'school',
+    'Outdoor': 'tree',
+    'Indoor': 'home',
+    'Swimming': 'swim',
+    'Martial Arts': 'karate',
+    'Drama': 'drama-masks',
+    'Technology': 'laptop',
+    'Team Sports': 'basketball',
+    'Racquet Sports': 'tennis',
+    'Aquatic Leadership': 'pool',
+    'Camps': 'tent',
   };
 
-  const quickActionCards = [
-    {
-      title: 'Browse by Location',
-      icon: 'map-marker-radius',
-      gradient: ['#667eea', '#764ba2'],
-      onPress: () => navigation.navigate('LocationBrowse'),
-    },
-    {
-      title: 'Favorites',
-      icon: 'heart',
-      gradient: ['#f093fb', '#f5576c'],
-      onPress: () => {
-        try {
-          navigation.navigate('Favorites' as never);
-        } catch (error) {
-          console.error('Navigation error:', error);
-        }
-      },
-    },
-  ];
+  // Define activity type icons
+  const activityTypeIcons = {
+    // Water sports
+    'Swimming': 'swim',
+    'Swimming Lessons': 'swim',
+    'Private Lessons Swimming': 'swim',
+    'Swimming - Aquatic Leadership': 'whistle',
+    
+    // Sports
+    'Tennis': 'tennis',
+    'Basketball': 'basketball',
+    'Soccer': 'soccer',
+    'Baseball': 'baseball',
+    'Football': 'football',
+    'Hockey': 'hockey-sticks',
+    'Golf': 'golf',
+    'Sports': 'basketball',
+    'Skating': 'skate',
+    'Climbing': 'terrain',
+    
+    // Arts & Music
+    'Dance': 'dance-ballroom',
+    'Art': 'palette',
+    'Visual Arts': 'palette',
+    'Music': 'music-note',
+    'Private Lessons Music': 'piano',
+    'Drama': 'drama-masks',
+    'Pottery': 'pot',
+    
+    // Fitness & Movement
+    'Gymnastics': 'gymnastics',
+    'Martial Arts': 'karate',
+    'Yoga': 'yoga',
+    'Fitness': 'dumbbell',
+    'Spin': 'bike',
+    
+    // Education & Skills
+    'Cooking': 'chef-hat',
+    'STEM': 'flask',
+    'Learn & Play': 'puzzle',
+    'General Programs': 'star',
+    'Certifications & Leadership': 'certificate',
+    'School Programs': 'school',
+    
+    // Camps
+    'Camp': 'tent',
+    'Part Day Camp': 'clock-time-three',
+    'Full Day Camp': 'clock-time-eight',
+    'Single Day': 'calendar-today',
+    'Outdoor Adventure': 'hiking',
+    
+    // Special Events
+    'Community & Special Events': 'calendar-star',
+  };
+
+  const loadRecommendedCount = async () => {
+    try {
+      setLoadingRecommended(true);
+      const activityService = ActivityService.getInstance();
+      
+      // Create filters based on user preferences
+      const filters: any = {};
+      
+      // Apply user preference filters
+      if (preferences.hideClosedActivities) {
+        filters.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        filters.hideFullActivities = true;
+      }
+      
+      // Apply other preference filters
+      if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
+        filters.categories = preferences.preferredCategories.join(',');
+      }
+      if (preferences.locations && preferences.locations.length > 0) {
+        filters.locations = preferences.locations;
+      }
+      if (preferences.priceRange) {
+        filters.maxCost = preferences.priceRange.max;
+      }
+      
+      // Get activities based on preferences - use higher limit to get actual count
+      const activities = await activityService.searchActivities({ ...filters, limit: 1000 });
+      setRecommendedCount(activities.length);
+    } catch (error) {
+      console.error('Error loading recommended count:', error);
+      setRecommendedCount(0);
+    } finally {
+      setLoadingRecommended(false);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -85,8 +170,48 @@ const DashboardScreen = () => {
       const activityService = ActivityService.getInstance();
       const favoritesService = FavoritesService.getInstance();
       
+      // Load recommended count
+      loadRecommendedCount();
+      
+      // Fetch categories
+      try {
+        const categoriesData = await activityService.getCategories();
+        const categoriesWithIcons = categoriesData
+          .slice(0, 5) // Show only top 5 categories
+          .map(cat => ({
+            ...cat,
+            icon: categoryIcons[cat.name] || 'tag',
+          }));
+        setCategories(categoriesWithIcons);
+      } catch (catError) {
+        console.error('Error fetching categories:', catError);
+      }
+      
+      // Fetch activity types
+      try {
+        const activityTypesData = await activityService.getActivityTypes();
+        console.log('Activity types from API:', activityTypesData.filter(t => t.name.toLowerCase().includes('swim')));
+        const activityTypesWithIcons = activityTypesData
+          .slice(0, 6) // Show only top 6 activity types
+          .map(type => ({
+            ...type,
+            icon: activityTypeIcons[type.name] || 'tag',
+          }));
+        setActivityTypes(activityTypesWithIcons);
+      } catch (typeError) {
+        console.error('Error fetching activity types:', typeError);
+      }
+      
       // Load activities with pagination limit
-      const allActivities = await activityService.searchActivities({ limit: 100 });
+      const searchParams: any = { limit: 200 };
+      if (preferences.hideClosedActivities) {
+        searchParams.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        searchParams.hideFullActivities = true;
+      }
+      
+      const allActivities = await activityService.searchActivities(searchParams);
       
       // Get favorites count
       const favorites = await favoritesService.getFavorites();
@@ -96,7 +221,7 @@ const DashboardScreen = () => {
         preferencesService.matchesPreferences(activity)
       ).length;
 
-      // Get new activities count
+      // Get new activities count (last 7 days)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const newThisWeek = allActivities.filter(activity => {
@@ -150,6 +275,21 @@ const DashboardScreen = () => {
     loadDashboardData();
   };
 
+  const navigateToRecommended = () => {
+    navigation.navigate('RecommendedActivities');
+  };
+
+  const navigateToActivityType = (activityType: string) => {
+    navigation.navigate('ActivityType', { 
+      category: activityType,
+      isActivityType: true 
+    });
+  };
+
+  const navigateToAllActivityTypes = () => {
+    navigation.navigate('AllActivityTypes');
+  };
+
   const renderHeader = () => (
     <LinearGradient
       colors={[colors.gradientStart, colors.gradientEnd]}
@@ -159,9 +299,9 @@ const DashboardScreen = () => {
     >
       <View style={styles.headerContent}>
         <View>
-          <Text style={styles.greeting}>Welcome back!</Text>
+          <Text style={styles.greeting}>Discover Activities</Text>
           <Text style={styles.subtitle}>
-            {stats.matchingActivities} activities match your interests
+            Find the perfect activities for your kids
           </Text>
         </View>
         <TouchableOpacity
@@ -171,48 +311,152 @@ const DashboardScreen = () => {
           <Icon name="cog" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
-
-      {/* Quick Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Icon name="star" size={20} color="#FFD700" />
-          <Text style={styles.statNumber}>{stats.savedFavorites}</Text>
-          <Text style={styles.statLabel}>Favorites</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Icon name="new-box" size={20} color="#4CAF50" />
-          <Text style={styles.statNumber}>{stats.newThisWeek}</Text>
-          <Text style={styles.statLabel}>New</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Icon name="calendar-check" size={20} color="#FF9800" />
-          <Text style={styles.statNumber}>{stats.upcomingEvents}</Text>
-          <Text style={styles.statLabel}>This Week</Text>
-        </View>
-      </View>
     </LinearGradient>
   );
 
+  const renderRecommended = () => (
+    <TouchableOpacity onPress={navigateToRecommended} activeOpacity={0.8}>
+      <LinearGradient
+        colors={['#9C27B0', '#7B1FA2']}
+        style={styles.recommendedCard}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.recommendedContent}>
+          <View style={styles.recommendedLeft}>
+            <Icon name="star" size={40} color="#fff" />
+            <View style={styles.recommendedTextContainer}>
+              <Text style={styles.recommendedTitle}>Recommended for You</Text>
+              <Text style={styles.recommendedCount}>
+                {loadingRecommended ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  `${recommendedCount} activities match your preferences`
+                )}
+              </Text>
+            </View>
+          </View>
+          <Icon name="chevron-right" size={30} color="#fff" />
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
 
   const renderQuickActions = () => (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.quickActionsGrid}>
-        {quickActionCards.map((card, index) => (
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => navigation.navigate('LocationBrowse')}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#2196F3', '#1976D2']}
+            style={styles.quickActionGradient}
+          >
+            <Icon name="map-marker" size={30} color="#fff" />
+            <Text style={styles.quickActionText}>Browse by Location</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => navigation.navigate('Favorites')}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#FF5722', '#E64A19']}
+            style={styles.quickActionGradient}
+          >
+            <Icon name="heart" size={30} color="#fff" />
+            <Text style={styles.quickActionText}>Favourites</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderDiscoverActivities = () => (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Discover Activities</Text>
+      
+      {/* New This Week Card */}
+      <TouchableOpacity onPress={() => navigation.navigate('NewActivities')} activeOpacity={0.8}>
+        <LinearGradient
+          colors={['#4CAF50', '#45a049']}
+          style={styles.discoverCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.discoverContent}>
+            <View style={styles.discoverLeft}>
+              <Icon name="new-box" size={35} color="#fff" />
+              <View style={styles.discoverTextContainer}>
+                <Text style={styles.discoverTitle}>New This Week</Text>
+                <Text style={styles.discoverSubtext}>{stats.newThisWeek} new activities</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={24} color="#fff" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Budget Friendly Card */}
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('ActivityType', { 
+          category: 'Budget Friendly',
+          filters: { maxCost: preferences.maxBudgetFriendlyAmount || 20 }
+        })} 
+        activeOpacity={0.8} 
+        style={styles.discoverCardWrapper}
+      >
+        <LinearGradient
+          colors={['#FFC107', '#F57C00']}
+          style={styles.discoverCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.discoverContent}>
+            <View style={styles.discoverLeft}>
+              <Icon name="cash" size={35} color="#fff" />
+              <View style={styles.discoverTextContainer}>
+                <Text style={styles.discoverTitle}>Budget Friendly</Text>
+                <Text style={styles.discoverSubtext}>Under ${preferences.maxBudgetFriendlyAmount || 20}</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={24} color="#fff" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderActivityTypes = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse by Activity Type</Text>
+        <TouchableOpacity onPress={navigateToAllActivityTypes}>
+          <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.categoriesGrid}>
+        {activityTypes.map((type, index) => (
           <TouchableOpacity
             key={index}
-            style={styles.quickActionCard}
-            onPress={card.onPress}
-            activeOpacity={0.8}
+            style={styles.categoryCard}
+            onPress={() => navigateToActivityType(type.name)}
+            activeOpacity={0.7}
           >
             <LinearGradient
-              colors={card.gradient}
-              style={styles.quickActionGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+              colors={[colors.cardBackground, colors.background]}
+              style={styles.categoryGradient}
             >
-              <Icon name={card.icon} size={32} color="#fff" />
-              <Text style={styles.quickActionText}>{card.title}</Text>
+              <Icon name={type.icon} size={40} color={colors.primary} />
+              <Text style={[styles.categoryName, { color: colors.text }]}>{type.name}</Text>
+              <Text style={[styles.categoryCount, { color: colors.textSecondary }]}>
+                {type.count} activities
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         ))}
@@ -223,59 +467,34 @@ const DashboardScreen = () => {
   const renderCategories = () => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse Categories</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse by Category</Text>
         <TouchableOpacity onPress={() => navigation.navigate('AllCategories')}>
           <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryScroll}
-      >
-        {Object.entries(categoryColors).map(([category, colors]) => (
+      <View style={styles.categoriesGrid}>
+        {categories.map((category, index) => (
           <TouchableOpacity
-            key={category}
+            key={index}
             style={styles.categoryCard}
-            onPress={() => {
-              if (category === 'All') {
-                navigation.navigate('Search');
-              } else {
-                navigation.navigate('ActivityType', { category });
-              }
-            }}
-            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ActivityType', { category: category.name })}
+            activeOpacity={0.7}
           >
             <LinearGradient
-              colors={colors}
+              colors={[colors.cardBackground, colors.background]}
               style={styles.categoryGradient}
             >
-              <Icon 
-                name={getCategoryIcon(category)} 
-                size={40} 
-                color="#fff" 
-              />
-              <Text style={styles.categoryName}>{category}</Text>
+              <Icon name={category.icon} size={40} color={colors.primary} />
+              <Text style={[styles.categoryName, { color: colors.text }]}>{category.name}</Text>
+              <Text style={[styles.categoryCount, { color: colors.textSecondary }]}>
+                {category.count} activities
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
-
-  const getCategoryIcon = (category: string) => {
-    const icons = {
-      'Team Sports': 'basketball',
-      'Martial Arts': 'karate',
-      'Racquet Sports': 'tennis',
-      'Aquatic Leadership': 'pool',
-      'Swimming': 'swim',
-      'Camps': 'tent',
-      'All': 'star',
-      'Other': 'tag',
-    };
-    return icons[category] || 'tag';
-  };
 
   if (loading && !refreshing) {
     return (
@@ -317,76 +536,11 @@ const DashboardScreen = () => {
       }
     >
       {renderHeader()}
+      {renderRecommended()}
       {renderQuickActions()}
-      
-      {/* Dashboard Actions */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Discover Activities</Text>
-        <View style={styles.dashboardActionsGrid}>
-
-          {/* New This Week */}
-          <TouchableOpacity
-            style={styles.dashboardActionCard}
-            onPress={() => navigation.navigate('NewActivities')}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#43e97b', '#38f9d7']}
-              style={styles.dashboardActionGradient}
-            >
-              <Icon name="new-box" size={32} color="#fff" />
-              <Text style={styles.dashboardActionTitle}>New This Week</Text>
-              <Text style={styles.dashboardActionCount}>{stats.newThisWeek} activities</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Budget Friendly */}
-          <TouchableOpacity
-            style={styles.dashboardActionCard}
-            onPress={() => navigation.navigate('ActivityType', { 
-              category: 'All',
-              filters: { maxCost: preferences.budgetFriendlyThreshold || 20 }
-            })}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#4facfe', '#00f2fe']}
-              style={styles.dashboardActionGradient}
-            >
-              <Icon name="cash-multiple" size={32} color="#fff" />
-              <Text style={styles.dashboardActionTitle}>Budget Friendly</Text>
-              <Text style={styles.dashboardActionCount}>Under ${preferences.budgetFriendlyThreshold || 20}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-      
+      {renderDiscoverActivities()}
+      {renderActivityTypes()}
       {renderCategories()}
-      
-      {/* Personalized Recommendations */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recommended for You</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Recommendations')}>
-            <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity 
-          style={styles.recommendationCard}
-          onPress={() => navigation.navigate('Recommendations')}
-        >
-          <LinearGradient
-            colors={['#FF6B6B', '#FF8787']}
-            style={styles.recommendationGradient}
-          >
-            <Icon name="lightbulb-on" size={40} color="#fff" />
-            <Text style={styles.recommendationText}>
-              View personalized recommendations based on your preferences
-            </Text>
-            <Icon name="chevron-right" size={24} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
     </ScrollView>
   );
 };
@@ -407,7 +561,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
   },
   greeting: {
     fontSize: 28,
@@ -424,26 +577,41 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 15,
+  recommendedCard: {
+    margin: 20,
+    marginBottom: 10,
+    padding: 20,
+    borderRadius: 15,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  statItem: {
+  recommendedContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  statNumber: {
-    fontSize: 24,
+  recommendedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  recommendedTextContainer: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  recommendedTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 5,
   },
-  statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
+  recommendedCount: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.9,
+    marginTop: 4,
   },
   section: {
     marginTop: 25,
@@ -465,142 +633,97 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontWeight: '600',
   },
-  filterScroll: {
+  quickActionsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 10,
   },
-  filterChip: {
-    flexDirection: 'row',
+  quickActionCard: {
+    width: '48%',
+  },
+  quickActionGradient: {
+    padding: 20,
+    borderRadius: 15,
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-    elevation: 2,
+    justifyContent: 'center',
+    height: 110,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
   },
-  filterChipText: {
-    marginLeft: 6,
+  quickActionText: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 10,
+    textAlign: 'center',
   },
-  quickActionsGrid: {
+  discoverCardWrapper: {
+    marginTop: 12,
+  },
+  discoverCard: {
+    padding: 16,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
+  },
+  discoverContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  discoverLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  discoverTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  discoverTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  discoverSubtext: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.9,
+    marginTop: 2,
+  },
+  categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  quickActionCard: {
-    width: (width - 50) / 2,
-    marginBottom: 15,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-  },
-  quickActionGradient: {
-    padding: 20,
-    borderRadius: 20,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  quickActionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  dashboardActionsGrid: {
-    marginTop: 10,
-  },
-  dashboardActionCard: {
-    marginBottom: 15,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-  },
-  dashboardActionGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  dashboardActionTitle: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 15,
-  },
-  dashboardActionCount: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  categoryScroll: {
-    marginTop: 10,
-  },
   categoryCard: {
-    marginRight: 15,
-    width: 100,
-    height: 100,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+    width: '48%',
+    marginBottom: 15,
   },
   categoryGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 20,
+    padding: 20,
+    borderRadius: 15,
     alignItems: 'center',
-    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
   },
   categoryName: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  recommendationCard: {
-    marginTop: 10,
-    marginBottom: 30,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-  },
-  recommendationGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  recommendationText: {
-    flex: 1,
-    color: '#fff',
     fontSize: 16,
-    fontWeight: '500',
-    marginHorizontal: 15,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  categoryCount: {
+    fontSize: 14,
+    marginTop: 5,
   },
   centerContent: {
     justifyContent: 'center',

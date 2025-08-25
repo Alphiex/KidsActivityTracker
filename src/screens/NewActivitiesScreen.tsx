@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService from '../services/activityService';
+import PreferencesService from '../services/preferencesService';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -27,10 +28,24 @@ const NewActivitiesScreen = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
       
       // Get all activities and filter by date
       // In a real app, this would be a specific API endpoint for new activities
-      const allActivities = await activityService.searchActivities({ limit: 200 }); // Get more activities to find new ones
+      const searchParams: any = { limit: 200 }; // Get more activities to find new ones
+      
+      // Apply user preference for hiding closed activities
+      if (preferences.hideClosedActivities) {
+        searchParams.hideClosedActivities = true;
+      }
+      
+      // Apply user preference for hiding full activities
+      if (preferences.hideFullActivities) {
+        searchParams.hideFullActivities = true;
+      }
+      
+      const allActivities = await activityService.searchActivities(searchParams);
       
       // Filter activities added in the last 7 days
       const oneWeekAgo = new Date();

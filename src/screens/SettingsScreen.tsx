@@ -14,6 +14,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatPrice } from '../utils/formatters';
+import { APP_CONFIG } from '../config/app';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
@@ -105,6 +106,42 @@ const SettingsScreen = () => {
       ],
     },
     {
+      title: 'Activity Filters',
+      icon: 'filter',
+      items: [
+        {
+          title: 'Hide Closed Activities',
+          subtitle: 'Don\'t show activities that are full or closed',
+          icon: 'cancel',
+          toggle: true,
+          value: preferences.hideClosedActivities,
+          onToggle: (value: boolean) => {
+            const updatedPreferences = { ...preferences, hideClosedActivities: value };
+            setPreferences(updatedPreferences);
+            preferencesService.updatePreferences(updatedPreferences);
+          },
+        },
+        {
+          title: 'Hide Full Activities',
+          subtitle: 'Don\'t show activities that are full',
+          icon: 'account-multiple-remove',
+          toggle: true,
+          value: preferences.hideFullActivities,
+          onToggle: (value: boolean) => {
+            const updatedPreferences = { ...preferences, hideFullActivities: value };
+            setPreferences(updatedPreferences);
+            preferencesService.updatePreferences(updatedPreferences);
+          },
+        },
+        {
+          title: 'Budget Friendly Amount',
+          subtitle: `Activities under $${preferences.maxBudgetFriendlyAmount || 20}`,
+          icon: 'cash',
+          onPress: () => showBudgetFriendlyDialog(),
+        },
+      ],
+    },
+    {
       title: 'Display',
       icon: 'palette',
       items: [
@@ -162,7 +199,7 @@ const SettingsScreen = () => {
       items: [
         {
           title: 'Version',
-          subtitle: '1.0.0',
+          subtitle: APP_CONFIG.version,
           icon: 'tag',
         },
         {
@@ -255,6 +292,32 @@ const SettingsScreen = () => {
     );
   };
 
+  const showBudgetFriendlyDialog = () => {
+    Alert.prompt(
+      'Budget Friendly Amount',
+      'Enter the maximum amount for budget friendly activities',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'OK', 
+          onPress: (value: string | undefined) => {
+            const amount = parseInt(value || '20');
+            if (!isNaN(amount) && amount > 0) {
+              const updatedPreferences = { ...preferences, maxBudgetFriendlyAmount: amount };
+              setPreferences(updatedPreferences);
+              preferencesService.updatePreferences(updatedPreferences);
+            } else {
+              Alert.alert('Invalid Amount', 'Please enter a valid number greater than 0');
+            }
+          }
+        },
+      ],
+      'plain-text',
+      String(preferences.maxBudgetFriendlyAmount || 20),
+      'numeric'
+    );
+  };
+
   const renderSettingItem = (item: any) => {
     if (item.toggle) {
       return (
@@ -336,7 +399,7 @@ const SettingsScreen = () => {
 
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-          Kids Activity Tracker v1.0.0
+          {APP_CONFIG.name} v{APP_CONFIG.version}
         </Text>
         <Text style={[styles.footerSubtext, { color: colors.textSecondary }]}>
           Made with ❤️ for busy parents

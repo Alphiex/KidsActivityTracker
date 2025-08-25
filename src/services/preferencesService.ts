@@ -45,8 +45,11 @@ class PreferencesService {
         priceDrops: true,
         weeklyDigest: true,
       },
-      theme: 'light',
+      theme: 'dark',
       viewType: 'card',
+      hideClosedActivities: true, // Default to hiding closed activities
+      hideFullActivities: false, // Default to showing full activities
+      maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
       hasCompletedOnboarding: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

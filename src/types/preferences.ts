@@ -45,6 +45,11 @@ export interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   viewType: 'card' | 'list' | 'compact';
   
+  // Activity filtering preferences
+  hideClosedActivities: boolean;
+  hideFullActivities: boolean;
+  maxBudgetFriendlyAmount: number;
+  
   // Onboarding
   hasCompletedOnboarding: boolean;
   createdAt: string;

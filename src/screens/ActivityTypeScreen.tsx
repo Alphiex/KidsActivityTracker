@@ -11,6 +11,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService from '../services/activityService';
+import PreferencesService from '../services/preferencesService';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -19,7 +20,7 @@ import { Activity } from '../types';
 const ActivityTypeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { category, filters } = route.params as { category: string; filters?: any };
+  const { category, filters, isActivityType } = route.params as { category: string; filters?: any; isActivityType?: boolean };
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,17 +31,35 @@ const ActivityTypeScreen = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
       
       let searchParams: any = {};
       
-      // Add category filter if not "All"
-      if (category !== 'All') {
-        searchParams.activityTypes = [category];
+      // Add filter based on whether it's a category or activity type
+      if (category !== 'All' && category !== 'Budget Friendly') {
+        if (isActivityType) {
+          // For activity types, use the subcategory filter
+          searchParams.subcategory = category;
+        } else {
+          // For categories, use the categories filter
+          searchParams.categories = category;
+        }
       }
       
       // Apply additional filters if provided
       if (filters) {
         searchParams = { ...searchParams, ...filters };
+      }
+      
+      // Apply user preference for hiding closed activities
+      if (preferences.hideClosedActivities) {
+        searchParams.hideClosedActivities = true;
+      }
+      
+      // Apply user preference for hiding full activities
+      if (preferences.hideFullActivities) {
+        searchParams.hideFullActivities = true;
       }
       
       const fetchedActivities = await activityService.searchActivities(searchParams);

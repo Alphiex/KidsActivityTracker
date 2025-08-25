@@ -12,10 +12,10 @@ declare global {
 }
 export declare const verifyToken: (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>>>;
 export declare const optionalAuth: (req: Request, res: Response, next: NextFunction) => Promise<void>;
-export declare const apiLimiter: import("express-rate-limit").RateLimitRequestHandler;
-export declare const authLimiter: import("express-rate-limit").RateLimitRequestHandler;
-export declare const passwordResetLimiter: import("express-rate-limit").RateLimitRequestHandler;
-export declare const emailVerificationLimiter: import("express-rate-limit").RateLimitRequestHandler;
+export declare const apiLimiter: (req: Request, res: Response, next: NextFunction) => void;
+export declare const authLimiter: (req: Request, res: Response, next: NextFunction) => void;
+export declare const passwordResetLimiter: (req: Request, res: Response, next: NextFunction) => void;
+export declare const emailVerificationLimiter: (req: Request, res: Response, next: NextFunction) => void;
 export declare const csrfProtection: (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>>;
 export declare const validateBody: (schema: any) => (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>>;
 export declare const checkPermission: (permission: string) => (req: Request, res: Response, next: NextFunction) => Promise<Response<any, Record<string, any>>>;

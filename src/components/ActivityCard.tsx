@@ -20,6 +20,7 @@ import ChildActivityStatus from './activities/ChildActivityStatus';
 import { formatPrice } from '../utils/formatters';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
+import { consolidateActivityTypes } from '../utils/activityTypeConsolidation';
 
 const { width } = Dimensions.get('window');
 
@@ -133,12 +134,23 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
 
   const getActivityIcon = (type: string) => {
     const iconMap: { [key: string]: string } = {
+      // Original lowercase keys
       camps: 'tent',
       sports: 'basketball',
       arts: 'palette',
       swimming: 'swim',
       education: 'school',
       general: 'star',
+      
+      // Consolidated activity types
+      'Swimming': 'swim',
+      'Music': 'music-note',
+      'Sports': 'basketball',
+      'Skating': 'skate',
+      'Visual Arts': 'palette',
+      'Dance': 'dance-ballroom',
+      'Martial Arts': 'karate',
+      'Camps': 'tent',
     };
     return iconMap[type] || 'star';
   };
@@ -321,7 +333,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           </View>
 
           <View style={styles.activityIcons}>
-            {activity.activityType.slice(0, 3).map((type) => (
+            {consolidateActivityTypes(activity.activityType).slice(0, 3).map((type) => (
               <View 
                 key={type} 
                 style={[

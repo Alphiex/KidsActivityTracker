@@ -94,10 +94,25 @@ const LocationBrowseScreen = () => {
     setIsLoading(true);
     
     try {
+      // Get user preferences
+      const preferences = preferencesService.getPreferences();
+      
       // Fetch activities for the selected location
-      const activities = await activityService.searchActivities({
+      const searchParams: any = {
         locations: [location.name]
-      });
+      };
+      
+      // Apply user preference for hiding closed activities
+      if (preferences.hideClosedActivities) {
+        searchParams.hideClosedActivities = true;
+      }
+      
+      // Apply user preference for hiding full activities
+      if (preferences.hideFullActivities) {
+        searchParams.hideFullActivities = true;
+      }
+      
+      const activities = await activityService.searchActivities(searchParams);
       setLocationActivities(activities);
     } catch (error) {
       console.error('Error loading location activities:', error);

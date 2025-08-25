@@ -31,6 +31,9 @@ import RecommendationsScreen from '../screens/RecommendationsScreen';
 import TestNavigationScreen from '../screens/TestNavigationScreen';
 import NavigationErrorBoundary from '../components/NavigationErrorBoundary';
 import SharingManagementScreen from '../screens/SharingManagementScreen';
+import AllCategoriesScreen from '../screens/AllCategoriesScreen';
+import RecommendedActivitiesScreen from '../screens/RecommendedActivitiesScreen';
+import AllActivityTypesScreen from '../screens/AllActivityTypesScreen';
 
 // Import Preference Screens
 import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
@@ -59,6 +62,9 @@ const HomeStack = () => (
     <Stack.Screen name="ActivityType" component={ActivityTypeScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
+    <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
+    <Stack.Screen name="AllActivityTypes" component={AllActivityTypesScreen} />
+    <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="Favorites" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />

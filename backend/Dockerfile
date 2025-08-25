@@ -58,6 +58,7 @@ COPY --from=builder /app/api ./api
 COPY --from=builder /app/database ./database
 COPY --from=builder /app/services ./services
 COPY --from=builder /app/scrapers ./scrapers
+COPY --from=builder /app/utils ./utils
 # Don't copy generated - we already generated it above
 # COPY --from=builder /app/generated ./generated
 

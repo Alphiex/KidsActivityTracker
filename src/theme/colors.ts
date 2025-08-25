@@ -50,12 +50,23 @@ export const Colors = {
   
   // Activity type colors
   activities: {
+    // Original lowercase keys for backward compatibility
     camps: '#4A90E2',
     sports: '#FF9800',
     arts: '#9C27B0',
     swimming: '#00BCD4',
     education: '#8BC34A',
     general: '#607D8B',
+    
+    // Consolidated activity types (capitalized)
+    'Swimming': '#00BCD4',
+    'Music': '#9C27B0',
+    'Sports': '#FF9800',
+    'Skating': '#03A9F4',
+    'Visual Arts': '#E91E63',
+    'Dance': '#EC407A',
+    'Martial Arts': '#F44336',
+    'Camps': '#4A90E2',
   },
   
   // Gradient colors
