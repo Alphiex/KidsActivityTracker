@@ -532,7 +532,6 @@ const styles = StyleSheet.create({
   daysText: {
     fontWeight: '700',
     fontSize: 14,
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   scheduleRow: {
