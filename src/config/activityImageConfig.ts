@@ -275,49 +275,8 @@ export const activityImageMappings: ActivityImageMapping[] = [
   },
 ];
 
-// Function to get the appropriate image key for an activity
-export function getActivityImageKey(category: string, subcategory?: string): string {
-  // First try to find exact match with subcategory
-  if (subcategory) {
-    const exactMatch = activityImageMappings.find(
-      m => m.category === category && m.subcategory === subcategory
-    );
-    if (exactMatch) return exactMatch.imageKey;
-  }
-  
-  // Then try category-only match
-  const categoryMatch = activityImageMappings.find(
-    m => m.category === category && !m.subcategory
-  );
-  if (categoryMatch) return categoryMatch.imageKey;
-  
-  // Fallback based on common keywords
-  const lowerCategory = category.toLowerCase();
-  const lowerSubcategory = subcategory?.toLowerCase() || '';
-  const combined = `${lowerCategory} ${lowerSubcategory}`;
-  
-  if (combined.includes('swim')) return ACTIVITY_IMAGES.SWIMMING_POOL;
-  if (combined.includes('basketball')) return ACTIVITY_IMAGES.BASKETBALL;
-  if (combined.includes('soccer') || combined.includes('football')) return ACTIVITY_IMAGES.SOCCER;
-  if (combined.includes('tennis')) return ACTIVITY_IMAGES.TENNIS;
-  if (combined.includes('dance')) return ACTIVITY_IMAGES.DANCE_STUDIO;
-  if (combined.includes('ballet')) return ACTIVITY_IMAGES.BALLET;
-  if (combined.includes('art') || combined.includes('paint')) return ACTIVITY_IMAGES.ART_SUPPLIES;
-  if (combined.includes('pottery') || combined.includes('clay')) return ACTIVITY_IMAGES.POTTERY;
-  if (combined.includes('music')) return ACTIVITY_IMAGES.MUSIC_INSTRUMENTS;
-  if (combined.includes('fitness') || combined.includes('gym')) return ACTIVITY_IMAGES.FITNESS;
-  if (combined.includes('yoga')) return ACTIVITY_IMAGES.YOGA;
-  if (combined.includes('climb')) return ACTIVITY_IMAGES.CLIMBING_WALL;
-  if (combined.includes('martial') || combined.includes('karate')) return ACTIVITY_IMAGES.MARTIAL_ARTS;
-  if (combined.includes('cook')) return ACTIVITY_IMAGES.COOKING;
-  if (combined.includes('camp')) return ACTIVITY_IMAGES.SUMMER_CAMP;
-  if (combined.includes('outdoor')) return ACTIVITY_IMAGES.OUTDOOR_ADVENTURE;
-  if (combined.includes('early years') || combined.includes('toddler')) return ACTIVITY_IMAGES.TODDLER_PLAY;
-  if (combined.includes('skat')) return ACTIVITY_IMAGES.ICE_SKATING;
-  
-  // Default fallback
-  return ACTIVITY_IMAGES.COMMUNITY_CENTER;
-}
+// Note: The actual getActivityImageKey function is in utils/activityHelpers.ts
+// This config file just defines the mappings and constants
 
 // Get search terms for downloading images
 export function getSearchTermsForActivity(category: string, subcategory?: string): string[] {
