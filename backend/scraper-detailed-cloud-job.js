@@ -1,5 +1,6 @@
 const { PrismaClient } = require('./generated/prisma');
 const NVRCEnhancedParallelScraper = require('./scrapers/nvrcEnhancedParallelScraper');
+const { extractComprehensiveDetails } = require('./scrapers/nvrcComprehensiveDetailScraper');
 const activityService = require('./database/services/activityService');
 const providerService = require('./database/services/providerService');
 const scrapeJobService = require('./database/services/scrapeJobService');
@@ -41,51 +42,23 @@ async function fetchDetailedInfo(activities) {
             const url = activity.registrationUrl || activity.detailUrl;
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
             
-            // Extract detailed information
-            const details = await page.evaluate(() => {
-              const data = {
-                sessions: [],
-                prerequisites: []
-              };
-              
-              // Look for session information
-              const sessionElements = document.querySelectorAll('.session-info, .date-time-info, [class*="session"]');
-              sessionElements.forEach((elem, idx) => {
-                const text = elem.textContent.trim();
-                if (text && text.includes(':')) {
-                  data.sessions.push({
-                    sessionNumber: idx + 1,
-                    date: text.match(/[A-Z][a-z]+ \d+/)?.[0] || '',
-                    startTime: text.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)?.[0] || '',
-                    endTime: text.match(/\d{1,2}:\d{2}\s*(AM|PM)/gi)?.[1] || ''
-                  });
-                }
-              });
-              
-              // Look for prerequisites
-              const prereqElements = document.querySelectorAll('.prerequisite, [class*="prereq"]');
-              prereqElements.forEach(elem => {
-                const link = elem.querySelector('a');
-                if (link) {
-                  data.prerequisites.push({
-                    name: link.textContent.trim(),
-                    url: link.href
-                  });
-                }
-              });
-              
-              // Get instructor info
-              const instructorElem = document.querySelector('.instructor, [class*="instructor"]');
-              data.instructor = instructorElem?.textContent.trim() || '';
-              
-              return data;
-            });
+            // Extract detailed information using the comprehensive extractor
+            const details = await extractComprehensiveDetails(page);
             
             await page.close();
             
             return {
               ...activity,
-              ...details,
+              // Use the properly extracted dates from the detail page
+              startDate: details.startDate || activity.startDate,
+              endDate: details.endDate || activity.endDate,
+              startTime: details.startTime || activity.startTime,
+              endTime: details.endTime || activity.endTime,
+              sessions: details.sessions || [],
+              prerequisites: details.prerequisites || [],
+              instructor: details.instructor,
+              fullDescription: details.fullDescription,
+              whatToBring: details.whatToBring,
               hasMultipleSessions: details.sessions.length > 1,
               sessionCount: details.sessions.length,
               hasPrerequisites: details.prerequisites.length > 0

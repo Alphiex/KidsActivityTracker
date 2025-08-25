@@ -91,8 +91,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
       // If schedule is a string, clean up day abbreviations
       let cleaned = schedule;
       
-      // Replace any incorrect day abbreviations with proper ones
+      // Replace any incorrect day abbreviations with proper 3-letter ones
       const dayReplacements: { [key: string]: string } = {
+        // 4-letter uppercase versions
         'MONS': 'Mon',
         'TUES': 'Tue',
         'WEDS': 'Wed',
@@ -101,6 +102,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         'FRIS': 'Fri',
         'SATS': 'Sat',
         'SUNS': 'Sun',
+        // 4-letter mixed case versions
+        'Mons': 'Mon',
+        'Tues': 'Tue',
+        'Weds': 'Wed',
+        'Thurs': 'Thu',
+        'Thur': 'Thu',
+        'Fris': 'Fri',
+        'Sats': 'Sat',
+        'Suns': 'Sun',
+        // 3-letter uppercase versions
         'MON': 'Mon',
         'TUE': 'Tue',
         'WED': 'Wed',

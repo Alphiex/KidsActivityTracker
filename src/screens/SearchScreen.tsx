@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import Slider from '@react-native-community/slider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ActivityCard from '../components/ActivityCard';
 import PaginatedActivityList from '../components/PaginatedActivityList';
 import ActivityService from '../services/activityService';
@@ -34,13 +35,17 @@ const SearchScreen = () => {
   const [searchText, setSearchText] = useState('');
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams>({});
   const [showFilters, setShowFilters] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showRecentSearches, setShowRecentSearches] = useState(true);
+  const [activeQuickFilters, setActiveQuickFilters] = useState<string[]>([]);
+  
+  // Default searches for new users
+  const DEFAULT_SEARCHES = [
     'Swimming lessons',
     'Art classes',
     'Soccer',
     'Dance',
-  ]);
-  const [showRecentSearches, setShowRecentSearches] = useState(true);
+  ];
 
   // Filter states
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -73,6 +78,58 @@ const SearchScreen = () => {
     { id: 'starting-soon', label: 'Starting Soon', icon: 'clock-fast' },
   ];
 
+  // Load recent searches on mount
+  useEffect(() => {
+    loadRecentSearches();
+  }, []);
+
+  // Save recent searches whenever they change
+  useEffect(() => {
+    if (recentSearches.length > 0) {
+      saveRecentSearches();
+    }
+  }, [recentSearches]);
+
+  // Auto-save search after user stops typing for 2 seconds
+  useEffect(() => {
+    if (searchText && searchText.trim()) {
+      const timer = setTimeout(() => {
+        const trimmedSearch = searchText.trim();
+        // Don't duplicate if it's already the most recent
+        if (recentSearches[0] !== trimmedSearch) {
+          const filtered = recentSearches.filter(s => s.toLowerCase() !== trimmedSearch.toLowerCase());
+          setRecentSearches([trimmedSearch, ...filtered.slice(0, 4)]);
+        }
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [searchText]);
+
+  const loadRecentSearches = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('recentSearches');
+      if (saved) {
+        const searches = JSON.parse(saved);
+        setRecentSearches(searches);
+      } else {
+        // Use default searches for new users
+        setRecentSearches(DEFAULT_SEARCHES);
+      }
+    } catch (error) {
+      console.error('Error loading recent searches:', error);
+      setRecentSearches(DEFAULT_SEARCHES);
+    }
+  };
+
+  const saveRecentSearches = async () => {
+    try {
+      await AsyncStorage.setItem('recentSearches', JSON.stringify(recentSearches));
+    } catch (error) {
+      console.error('Error saving recent searches:', error);
+    }
+  };
+
   useEffect(() => {
     // Update search filters when criteria change
     const filters: ActivitySearchParams = {};
@@ -102,6 +159,11 @@ const SearchScreen = () => {
       filters.costMax = priceRange.max;
     }
     
+    // Apply selected days filter
+    if (selectedDays.length > 0) {
+      filters.daysOfWeek = selectedDays;
+    }
+    
     // Apply user preference for hiding closed activities
     if (preferences.hideClosedActivities) {
       filters.hideClosedActivities = true;
@@ -113,35 +175,97 @@ const SearchScreen = () => {
     }
     
     setSearchFilters(filters);
-  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, anyPrice, preferences.hideClosedActivities, preferences.hideFullActivities]);
+  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, anyPrice, selectedDays, preferences.hideClosedActivities, preferences.hideFullActivities]);
 
   const handleSearch = (text: string) => {
     setSearchText(text);
-    if (text && !recentSearches.includes(text)) {
-      setRecentSearches([text, ...recentSearches.slice(0, 4)]);
+  };
+
+  const handleSearchSubmit = () => {
+    // Add to recent searches when user submits (e.g., presses search/enter)
+    if (searchText && searchText.trim()) {
+      const trimmedSearch = searchText.trim();
+      // Remove if already exists and add to front
+      const filtered = recentSearches.filter(s => s.toLowerCase() !== trimmedSearch.toLowerCase());
+      // Keep only 5 recent searches
+      setRecentSearches([trimmedSearch, ...filtered.slice(0, 4)]);
     }
   };
 
   const handleRecentSearchPress = (search: string) => {
     setSearchText(search);
+    // Also add to recent when selecting from list
+    const filtered = recentSearches.filter(s => s.toLowerCase() !== search.toLowerCase());
+    setRecentSearches([search, ...filtered.slice(0, 4)]);
   };
 
   const handleQuickFilter = (filterId: string) => {
-    switch (filterId) {
-      case 'weekend':
-        setSelectedDays(['Saturday', 'Sunday']);
-        Alert.alert('Info', 'Weekend filter is coming soon!');
-        break;
-      case 'free':
-        setAnyPrice(false);
-        setPriceRange({ min: 0, max: 0 });
-        break;
-      case 'nearme':
-        Alert.alert('Info', 'Location-based filtering is coming soon!');
-        break;
-      case 'starting-soon':
-        Alert.alert('Info', 'Start date filtering is coming soon!');
-        break;
+    // Toggle the filter
+    const isActive = activeQuickFilters.includes(filterId);
+    
+    if (isActive) {
+      // Remove the filter
+      setActiveQuickFilters(prev => prev.filter(id => id !== filterId));
+      
+      // Clear the specific filter settings
+      switch (filterId) {
+        case 'weekend':
+          setSelectedDays([]);
+          break;
+        case 'free':
+          setAnyPrice(true);
+          setPriceRange({ min: 0, max: 1000 });
+          break;
+        case 'nearme':
+          setSelectedLocations([]);
+          break;
+        case 'starting-soon':
+          // Clear date filters by resetting searchFilters
+          setSearchFilters(prev => {
+            const { startDateAfter, startDateBefore, ...rest } = prev;
+            return rest;
+          });
+          break;
+      }
+    } else {
+      // Add the filter
+      setActiveQuickFilters(prev => [...prev, filterId]);
+      
+      switch (filterId) {
+        case 'weekend':
+          // Set weekend days filter - use abbreviated names for API
+          setSelectedDays(['Sat', 'Sun']);
+          break;
+        case 'free':
+          // Set free activities filter
+          setAnyPrice(false);
+          setPriceRange({ min: 0, max: 0 });
+          break;
+        case 'nearme':
+          // For now, filter by common North Vancouver locations
+          // In the future, this could use actual geolocation
+          const nearbyLocations = [
+            'Ron Andrews Community Recreation Centre',
+            'Delbrook Community Recreation Centre',
+            'John Braithwaite Community Centre',
+            'Karen Magnussen Community Recreation Centre',
+            'North Vancouver Tennis Centre'
+          ];
+          setSelectedLocations(nearbyLocations.slice(0, 1)); // Select first location
+          break;
+        case 'starting-soon':
+          // Activities starting within the next 2 weeks
+          const today = new Date();
+          const twoWeeksFromNow = new Date();
+          twoWeeksFromNow.setDate(today.getDate() + 14);
+          
+          setSearchFilters(prev => ({
+            ...prev,
+            startDateAfter: today.toISOString(),
+            startDateBefore: twoWeeksFromNow.toISOString()
+          }));
+          break;
+      }
     }
   };
 
@@ -154,6 +278,12 @@ const SearchScreen = () => {
     setSelectedDays([]);
     setSelectedTimes({ morning: false, afternoon: false, evening: false });
     setSearchText('');
+    setActiveQuickFilters([]);
+    // Reset search filters to only include user preferences
+    setSearchFilters({
+      hideClosedActivities: preferences.hideClosedActivities,
+      hideFullActivities: preferences.hideFullActivities
+    });
   };
 
   const applyFilters = () => {
@@ -318,26 +448,26 @@ const SearchScreen = () => {
               <Text style={styles.filterSectionTitle}>Days of Week</Text>
               <View style={styles.daysGrid}>
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
-                  const fullDay = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][index];
+                  // Use abbreviated names for both display and state
                   return (
                     <TouchableOpacity
                       key={day}
                       style={[
                         styles.dayChip,
-                        selectedDays.includes(fullDay) && styles.dayChipSelected,
+                        selectedDays.includes(day) && styles.dayChipSelected,
                       ]}
                       onPress={() => {
                         setSelectedDays((prev) =>
-                          prev.includes(fullDay)
-                            ? prev.filter((d) => d !== fullDay)
-                            : [...prev, fullDay]
+                          prev.includes(day)
+                            ? prev.filter((d) => d !== day)
+                            : [...prev, day]
                         );
                       }}
                     >
                       <Text
                         style={[
                           styles.dayChipText,
-                          selectedDays.includes(fullDay) && styles.dayChipTextSelected,
+                          selectedDays.includes(day) && styles.dayChipTextSelected,
                         ]}
                       >
                         {day}
@@ -407,6 +537,8 @@ const SearchScreen = () => {
               placeholderTextColor={colors.textSecondary}
               value={searchText}
               onChangeText={handleSearch}
+              onSubmitEditing={handleSearchSubmit}
+              returnKeyType="search"
             />
             {searchText !== '' && (
               <TouchableOpacity onPress={() => setSearchText('')}>
@@ -433,22 +565,51 @@ const SearchScreen = () => {
           showsHorizontalScrollIndicator={false}
           style={styles.quickFilters}
         >
-          {popularFilters.map((filter) => (
-            <TouchableOpacity
-              key={filter.id}
-              style={styles.quickFilterChip}
-              onPress={() => handleQuickFilter(filter.id)}
-            >
-              <Icon name={filter.icon} size={16} color="#fff" />
-              <Text style={styles.quickFilterText}>{filter.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {popularFilters.map((filter) => {
+            const isActive = activeQuickFilters.includes(filter.id);
+            return (
+              <TouchableOpacity
+                key={filter.id}
+                style={[
+                  styles.quickFilterChip,
+                  isActive && styles.quickFilterChipActive
+                ]}
+                onPress={() => handleQuickFilter(filter.id)}
+              >
+                <Icon 
+                  name={filter.icon} 
+                  size={16} 
+                  color={isActive ? colors.primary || '#667eea' : '#fff'} 
+                />
+                <Text 
+                  style={[
+                    styles.quickFilterText,
+                    isActive && styles.quickFilterTextActive
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </LinearGradient>
 
       {showRecentSearches && recentSearches.length > 0 ? (
         <View style={[styles.recentSearches, { backgroundColor: colors.background }]}>
-          <Text style={[styles.recentSearchesTitle, { color: colors.text }]}>Recent Searches</Text>
+          <View style={styles.recentSearchesHeader}>
+            <Text style={[styles.recentSearchesTitle, { color: colors.text }]}>Recent Searches</Text>
+            {recentSearches.length > 0 && !DEFAULT_SEARCHES.every((d, i) => d === recentSearches[i]) && (
+              <TouchableOpacity 
+                onPress={() => {
+                  setRecentSearches(DEFAULT_SEARCHES);
+                  AsyncStorage.setItem('recentSearches', JSON.stringify(DEFAULT_SEARCHES));
+                }}
+              >
+                <Text style={[styles.clearText, { color: colors.primary || '#667eea' }]}>Clear</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {recentSearches.map((search, index) => (
             <TouchableOpacity
               key={index}
@@ -545,6 +706,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  quickFilterChipActive: {
+    backgroundColor: '#fff',
+    borderColor: '#667eea',
   },
   quickFilterText: {
     color: '#fff',
@@ -552,15 +719,28 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: '500',
   },
+  quickFilterTextActive: {
+    color: '#667eea',
+    fontWeight: '600',
+  },
   recentSearches: {
     flex: 1,
     padding: 20,
+  },
+  recentSearchesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
   recentSearchesTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 15,
+  },
+  clearText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   recentSearchItem: {
     flexDirection: 'row',

@@ -2223,6 +2223,8 @@ PODS:
     - SocketRocket
   - RNCAsyncStorage (2.2.0):
     - React-Core
+  - RNCPicker (2.11.1):
+    - React-Core
   - RNGestureHandler (2.27.2):
     - boost
     - DoubleConversion
@@ -2549,6 +2551,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCPicker (from `../node_modules/@react-native-picker/picker`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - "RNNotifee (from `../node_modules/@notifee/react-native`)"
   - RNReanimated (from `../node_modules/react-native-reanimated`)
@@ -2723,6 +2726,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNCPicker:
+    :path: "../node_modules/@react-native-picker/picker"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNNotifee:
@@ -2818,6 +2823,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 439c427ccc115d71d16cc84256e5fbdc7fcef57a
   ReactCommon: 592ef441605638b95e533653259254b4bd35ff4f
   RNCAsyncStorage: b44e8a4e798c3e1f56bffccd0f591f674fb9198f
+  RNCPicker: da0f1c9411208c1ca52bc98383db54a06e0a3862
   RNGestureHandler: 27d6ec365f5093dd3377d453678bfcde0ad4ba4e
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
   RNReanimated: 708af0d5ab84731574825d11a6c5abee580aa621

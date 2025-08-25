@@ -63,8 +63,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 
 // ============= Test Routes (temporary) =============
-const testRoutes = require('./test-db');
-app.use('/api/test', testRoutes);
+// Removed test routes
 
 // ============= Activity Endpoints =============
 
@@ -74,6 +73,7 @@ app.get('/api/v1/activities', async (req, res) => {
     const filters = {
       ageMin: req.query.age_min ? parseInt(req.query.age_min) : undefined,
       ageMax: req.query.age_max ? parseInt(req.query.age_max) : undefined,
+      costMin: req.query.cost_min ? parseFloat(req.query.cost_min) : undefined,
       costMax: req.query.cost_max ? parseFloat(req.query.cost_max) : undefined,
       categories: req.query.categories ? req.query.categories.split(',') : undefined,
       locations: req.query.locations ? req.query.locations.split(',') : 
@@ -81,9 +81,10 @@ app.get('/api/v1/activities', async (req, res) => {
       providers: req.query.providers ? req.query.providers.split(',') : undefined,
       search: req.query.q || req.query.search,
       subcategory: req.query.subcategory,
+      daysOfWeek: req.query.days_of_week ? req.query.days_of_week.split(',') : undefined,
       isActive: req.query.include_inactive !== 'true',
-      excludeClosed: req.query.exclude_closed === 'true',
-      excludeFull: req.query.exclude_full === 'true',
+      excludeClosed: req.query.exclude_closed === 'true' || req.query.hide_closed_activities === 'true',
+      excludeFull: req.query.exclude_full === 'true' || req.query.hide_full_activities === 'true',
       // Date filters for API-level filtering
       createdAfter: req.query.created_after,
       updatedAfter: req.query.updated_after,
@@ -216,14 +217,15 @@ app.get('/api/v1/users/:email', async (req, res) => {
 // ============= Favorites Endpoints =============
 
 // Add favorite
-app.post('/api/v1/favorites', async (req, res) => {
+app.post('/api/v1/favorites', verifyToken, async (req, res) => {
   try {
-    const { userId, activityId, notes } = req.body;
+    const { activityId, notes } = req.body;
+    const userId = req.userId; // From auth token
     
-    if (!userId || !activityId) {
+    if (!activityId) {
       return res.status(400).json({
         success: false,
-        error: 'userId and activityId are required'
+        error: 'activityId is required'
       });
     }
 
@@ -243,9 +245,10 @@ app.post('/api/v1/favorites', async (req, res) => {
 });
 
 // Remove favorite
-app.delete('/api/v1/favorites/:userId/:activityId', async (req, res) => {
+app.delete('/api/v1/favorites/:activityId', verifyToken, async (req, res) => {
   try {
-    await userService.removeFavorite(req.params.userId, req.params.activityId);
+    const userId = req.userId; // From auth token
+    await userService.removeFavorite(userId, req.params.activityId);
     
     res.json({
       success: true,
@@ -253,6 +256,31 @@ app.delete('/api/v1/favorites/:userId/:activityId', async (req, res) => {
     });
   } catch (error) {
     console.error('Error removing favorite:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get favorites (requires authentication)
+app.get('/api/v1/favorites', verifyToken, async (req, res) => {
+  try {
+    // Use the authenticated user's ID from the token
+    const userId = req.userId;
+    const includeInactive = req.query.include_inactive === 'true';
+    
+    const favorites = await userService.getUserFavorites(
+      userId, 
+      includeInactive
+    );
+    
+    res.json({
+      success: true,
+      favorites
+    });
+  } catch (error) {
+    console.error('Error fetching favorites:', error);
     res.status(500).json({
       success: false,
       error: error.message

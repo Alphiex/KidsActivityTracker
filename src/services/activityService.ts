@@ -306,9 +306,51 @@ class ActivityService {
         };
       }
 
-      console.log('Searching activities with pagination:', params);
+      // Convert parameters to match backend API
+      const apiParams = { ...params };
       
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
+      // Convert daysOfWeek array to comma-separated string for API
+      if (params.daysOfWeek && Array.isArray(params.daysOfWeek)) {
+        apiParams.days_of_week = params.daysOfWeek.join(',');
+        delete apiParams.daysOfWeek;
+      }
+      
+      // Convert date filters to match backend
+      if (params.startDateAfter) {
+        apiParams.start_date_after = params.startDateAfter;
+        delete apiParams.startDateAfter;
+      }
+      
+      if (params.startDateBefore) {
+        apiParams.start_date_before = params.startDateBefore;
+        delete apiParams.startDateBefore;
+      }
+      
+      // Convert hide filters to exclude filters for backend
+      if (params.hideClosedActivities) {
+        apiParams.exclude_closed = true;
+        delete apiParams.hideClosedActivities;
+      }
+      
+      if (params.hideFullActivities) {
+        apiParams.exclude_full = true;
+        delete apiParams.hideFullActivities;
+      }
+      
+      // Convert cost filters
+      if (params.costMin !== undefined) {
+        apiParams.cost_min = params.costMin;
+        delete apiParams.costMin;
+      }
+      
+      if (params.costMax !== undefined) {
+        apiParams.cost_max = params.costMax;
+        delete apiParams.costMax;
+      }
+      
+      console.log('Searching activities with pagination:', apiParams);
+      
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params: apiParams });
       
       if (response.data && response.data.success) {
         const activities = response.data.activities.map((activity: any) => ({

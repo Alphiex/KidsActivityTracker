@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { standardizeSchedule } = require('../../utils/dayFormatter');
 
 class ActivityService {
   /**
@@ -89,7 +90,7 @@ class ActivityService {
             category: activity.category,
             subcategory: activity.subcategory,
             description: activity.alert || activity.description,
-            schedule: activity.schedule,
+            schedule: standardizeSchedule(activity.schedule),
             dateStart: parseDate(activity.dateRange?.start),
             dateEnd: parseDate(activity.dateRange?.end),
             registrationDate: parseDate(activity.registrationDate),
@@ -265,12 +266,14 @@ class ActivityService {
     const {
       ageMin,
       ageMax,
+      costMin,
       costMax,
       categories,
       locations,
       providers,
       search,
       subcategory,
+      daysOfWeek, // For filtering by days
       isActive = true,
       excludeClosed = false,
       excludeFull = false,
@@ -286,15 +289,38 @@ class ActivityService {
 
     // Age filter
     if (ageMin !== undefined || ageMax !== undefined) {
-      where.AND = [
+      if (!where.AND) {
+        where.AND = [];
+      }
+      where.AND.push(
         { ageMin: { lte: ageMax || 18 } },
         { ageMax: { gte: ageMin || 0 } }
-      ];
+      );
     }
 
     // Cost filter
-    if (costMax !== undefined) {
+    if (costMin !== undefined && costMax !== undefined) {
+      where.cost = { gte: costMin, lte: costMax };
+    } else if (costMin !== undefined) {
+      where.cost = { gte: costMin };
+    } else if (costMax !== undefined) {
       where.cost = { lte: costMax };
+    }
+
+    // Days of week filter
+    if (daysOfWeek && daysOfWeek.length > 0) {
+      // Filter by schedule field containing any of the specified days
+      const daysCondition = {
+        OR: daysOfWeek.map(day => ({
+          schedule: { contains: day, mode: 'insensitive' }
+        }))
+      };
+      
+      // If where.AND doesn't exist, create it
+      if (!where.AND) {
+        where.AND = [];
+      }
+      where.AND.push(daysCondition);
     }
 
     // Date filters
@@ -333,83 +359,40 @@ class ActivityService {
 
     // Subcategory filter
     if (subcategory) {
-      // Map consolidated types to their actual subcategories in the database
-      const subcategoryMappings = {
-        'Swimming': [
-          'Swimming (0-6yrs)',
-          'Swimming (0-6yrs PP)',
-          'Swimming (6-12yrs)',
-          'Swimming (10-18yrs)',
-          'Swimming - Aquatic Leadership (10-18yrs)',
-          'Private Lessons Swimming (All Ages)'
-        ],
-        'Music': [
-          'Music (0-6yrs PP)',
-          'Music (5-13yrs)',
-          'Music (10-18yrs)',
-          'Private Lessons Music (All Ages)',
-          'Arts Music (0-6yrs PP)',
-          'Arts Music (5-13yrs)',
-          'Arts Music (10-18yrs)'
-        ],
-        'Sports': [
-          'Sports (0-6yrs)',
-          'Sports (0-6yrs PP)',
-          'Sports (5-13yrs)',
-          'Sports (10-18yrs)'
-        ],
-        'Skating': [
-          'Skating (0-6yrs)',
-          'Skating (0-6yrs PP)',
-          'Skating (5-13yrs)'
-        ],
-        'Martial Arts': [
-          'Martial Arts (0-6yrs)',
-          'Martial Arts (0-6yrs PP)',
-          'Martial Arts (5-13yrs)',
-          'Martial Arts (10-20yrs)'
-        ],
-        'Visual Arts': [
-          'Arts Visual (0-6yrs)',
-          'Arts Visual (0-6yrs PP)',
-          'Arts Visual (5-13yrs)',
-          'Arts Visual (10-18yrs)',
-          'Arts Visual (All Ages & Family)'
-        ],
-        'Dance': [
-          'Arts Dance (0-6yrs)',
-          'Arts Dance (0-6yrs PP)',
-          'Arts Dance (5-13yrs)'
-        ],
-        'Camps': [
-          'Camps Part Day (0-6yrs)',
-          'Camps Part Day (5-13yrs)',
-          'Camps Full Day (5-13yrs)',
-          'Camps Single Day (5-13yrs)'
+      // For browse by activity type, use pattern matching
+      // This catches all variations like "Swimming", "Swimmer 1", "Swim Parent", etc.
+      
+      // Special cases for broad categories that need pattern matching
+      const categoryPatterns = {
+        'Swimming': 'Swim', // Matches Swimming, Swimmer, Swim Parent, etc.
+        'Camps': 'Camp',     // Matches Part Day Camp, Full Day Camp, etc.
+      };
+      
+      // Use the pattern if available, otherwise use the subcategory as-is
+      const searchPattern = categoryPatterns[subcategory] || subcategory;
+      where.subcategory = { contains: searchPattern, mode: 'insensitive' };
+    }
+
+    // Search filter - search across multiple fields
+    if (search) {
+      const searchCondition = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { category: { contains: search, mode: 'insensitive' } },
+          { subcategory: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { locationName: { contains: search, mode: 'insensitive' } },
+          { fullDescription: { contains: search, mode: 'insensitive' } },
+          { instructor: { contains: search, mode: 'insensitive' } },
+          { provider: { name: { contains: search, mode: 'insensitive' } } }
         ]
       };
       
-      // Check if this is a consolidated type that needs expansion
-      if (subcategoryMappings[subcategory]) {
-        where.subcategory = { in: subcategoryMappings[subcategory] };
-      } else {
-        // For activity types not in the mapping, try pattern matching
-        // This handles cases like "Tennis", "Fitness", etc.
-        where.OR = [
-          { subcategory: { contains: subcategory, mode: 'insensitive' } },
-          { subcategory: subcategory }
-        ];
+      // Add search condition to AND array to combine with other filters
+      if (!where.AND) {
+        where.AND = [];
       }
-    }
-
-    // Search filter
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { category: { contains: search, mode: 'insensitive' } },
-        { subcategory: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
-      ];
+      where.AND.push(searchCondition);
     }
 
     // Exclude closed and/or full activities filter

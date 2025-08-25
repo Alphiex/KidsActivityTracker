@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
-const { extractComprehensiveDetails } = require('./nvrcFixedDetailScraper');
+const { extractComprehensiveDetails } = require('./nvrcComprehensiveDetailScraper');
 const { parseActivityType, extractAgeRangeFromText } = require('./utils/activityTypeParser');
 // const { normalizeLocationName, determineFacilityType } = require('../improve-location-handling');
 
@@ -223,6 +223,7 @@ class NVRCEnhancedParallelScraper {
     try {
       browser = await puppeteer.launch({
         headless: this.options.headless,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
 
@@ -328,6 +329,7 @@ class NVRCEnhancedParallelScraper {
     try {
       browser = await puppeteer.launch({
         headless: this.options.headless,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
 
@@ -556,6 +558,7 @@ class NVRCEnhancedParallelScraper {
     try {
       browser = await puppeteer.launch({
         headless: this.options.headless,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

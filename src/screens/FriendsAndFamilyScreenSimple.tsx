@@ -11,10 +11,12 @@ import {
   Alert,
   Dimensions,
   FlatList,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import childrenService from '../services/childrenService';
@@ -30,15 +32,55 @@ const FriendsAndFamilyScreenSimple = () => {
   const [childName, setChildName] = useState('');
   const [childDateOfBirth, setChildDateOfBirth] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Date picker state
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const currentDay = new Date().getDate();
+  
+  const [selectedYear, setSelectedYear] = useState(currentYear - 5);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedDay, setSelectedDay] = useState(currentDay);
 
   const childColors = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#F7B731', '#5F27CD',
     '#00d2d3', '#ff9ff3', '#54a0ff', '#48dbfb', '#1dd1a1',
   ];
+  
+  // Generate date options
+  const yearOptions = Array.from({ length: 18 }, (_, i) => currentYear - i);
+  const monthOptions = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
+
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
+  const dayOptions = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   useEffect(() => {
     loadChildren();
   }, []);
+  
+  // Adjust day if it exceeds days in the selected month
+  useEffect(() => {
+    if (selectedDay > daysInMonth) {
+      setSelectedDay(daysInMonth);
+    }
+  }, [selectedMonth, selectedYear, daysInMonth, selectedDay]);
 
   const loadChildren = async () => {
     try {
@@ -58,15 +100,17 @@ const FriendsAndFamilyScreenSimple = () => {
   };
 
   const handleAddChild = async () => {
-    if (!childName.trim() || !childDateOfBirth.trim()) {
-      Alert.alert('Error', 'Please enter both name and date of birth');
+    if (!childName.trim()) {
+      Alert.alert('Error', 'Please enter child\'s name');
       return;
     }
+    
+    const dateOfBirth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
 
     try {
       await childrenService.createChild({
         name: childName.trim(),
-        dateOfBirth: childDateOfBirth,
+        dateOfBirth: dateOfBirth,
       });
       
       await loadChildren();
@@ -79,7 +123,9 @@ const FriendsAndFamilyScreenSimple = () => {
   const resetModal = () => {
     setShowAddChildModal(false);
     setChildName('');
-    setChildDateOfBirth('');
+    setSelectedYear(currentYear - 5);
+    setSelectedMonth(currentMonth);
+    setSelectedDay(currentDay);
   };
 
   const calculateAge = (dateOfBirth: string): number => {
@@ -197,16 +243,64 @@ const FriendsAndFamilyScreenSimple = () => {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Icon name="cake-variant" size={24} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Date of Birth (YYYY-MM-DD)"
-                placeholderTextColor={colors.textSecondary}
-                value={childDateOfBirth}
-                onChangeText={setChildDateOfBirth}
-                keyboardType="default"
-              />
+            <View style={styles.dateSection}>
+              <View style={styles.dateSectionHeader}>
+                <Icon name="cake-variant" size={24} color={colors.textSecondary} />
+                <Text style={[styles.dateSectionTitle, { color: colors.text }]}>Date of Birth</Text>
+              </View>
+              
+              <View style={styles.datePickerContainer}>
+                {/* Year Picker */}
+                <View style={styles.pickerWrapper}>
+                  <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Year</Text>
+                  <View style={[styles.pickerBox, { backgroundColor: colors.inputBackground || '#f5f5f5', borderColor: colors.border }]}>
+                    <Picker
+                      selectedValue={selectedYear}
+                      onValueChange={setSelectedYear}
+                      style={[styles.picker, { color: colors.text }]}
+                      itemStyle={styles.pickerItem}
+                    >
+                      {yearOptions.map(year => (
+                        <Picker.Item key={year} label={year.toString()} value={year} color={colors.text} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Month Picker */}
+                <View style={styles.pickerWrapper}>
+                  <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Month</Text>
+                  <View style={[styles.pickerBox, { backgroundColor: colors.inputBackground || '#f5f5f5', borderColor: colors.border }]}>
+                    <Picker
+                      selectedValue={selectedMonth}
+                      onValueChange={setSelectedMonth}
+                      style={[styles.picker, { color: colors.text }]}
+                      itemStyle={styles.pickerItem}
+                    >
+                      {monthOptions.map(month => (
+                        <Picker.Item key={month.value} label={month.label} value={month.value} color={colors.text} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Day Picker */}
+                <View style={styles.pickerWrapper}>
+                  <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Day</Text>
+                  <View style={[styles.pickerBox, { backgroundColor: colors.inputBackground || '#f5f5f5', borderColor: colors.border }]}>
+                    <Picker
+                      selectedValue={selectedDay}
+                      onValueChange={setSelectedDay}
+                      style={[styles.picker, { color: colors.text }]}
+                      itemStyle={styles.pickerItem}
+                    >
+                      {dayOptions.map(day => (
+                        <Picker.Item key={day} label={day.toString()} value={day} color={colors.text} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+              </View>
             </View>
 
             <View style={styles.modalButtons}>
@@ -395,6 +489,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  dateSection: {
+    marginBottom: 20,
+  },
+  dateSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dateSectionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  datePickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  pickerWrapper: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  pickerLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  pickerBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: Platform.OS === 'ios' ? 120 : 50,
+    width: '100%',
+  },
+  pickerItem: {
+    fontSize: 16,
+    height: Platform.OS === 'ios' ? 120 : 50,
   },
 });
 

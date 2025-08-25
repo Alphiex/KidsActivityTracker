@@ -7,8 +7,11 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useRoute } from '@react-navigation/native';
 import { Activity } from '../../types';
 import { useStore } from '../../store';
@@ -18,6 +21,10 @@ import ActivityService from '../../services/activityService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import { formatPrice } from '../../utils/formatters';
+import { getActivityImageByKey } from '../../assets/images';
+import { getActivityImageKey } from '../../utils/activityHelpers';
+
+const { width } = Dimensions.get('window');
 
 const ActivityDetailScreen = () => {
   const route = useRoute();
@@ -96,22 +103,48 @@ const ActivityDetailScreen = () => {
     }
   };
 
+  // Debug logging
+  console.log('Activity detail - category:', activity.category);
+  console.log('Activity detail - subcategory:', activity.subcategory);
+  console.log('Activity detail - activityType:', activity.activityType);
+  
+  const imageKey = getActivityImageKey(
+    activity.category || (activity.activityType && activity.activityType[0]) || '', 
+    activity.subcategory
+  );
+  console.log('Image key:', imageKey);
+  
+  const imageSource = getActivityImageByKey(imageKey);
+  console.log('Image source:', imageSource);
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{activity.name}</Text>
-        <TouchableOpacity
-          onPress={handleToggleFavorite}
-          style={styles.favoriteButton}
-          disabled={loading}
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ImageBackground 
+        source={imageSource || require('../../assets/images/activities/sports_general.jpg')}
+        style={styles.headerImage}
+        resizeMode="cover"
+        defaultSource={require('../../assets/images/activities/sports_general.jpg')}
+      >
+        <LinearGradient
+          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+          style={styles.headerGradient}
         >
-          <Icon
-            name={isFavorite ? 'favorite' : 'favorite-border'}
-            size={28}
-            color={isFavorite ? '#e74c3c' : '#666'}
-          />
-        </TouchableOpacity>
-      </View>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>{activity.name}</Text>
+            <TouchableOpacity
+              onPress={handleToggleFavorite}
+              style={styles.favoriteButton}
+              disabled={loading}
+            >
+              <Icon
+                name={isFavorite ? 'favorite' : 'favorite-border'}
+                size={32}
+                color={isFavorite ? '#FF6B6B' : '#fff'}
+              />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
 
       <View style={styles.section}>
         <Text style={styles.description}>{activity.description}</Text>
@@ -263,29 +296,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    backgroundColor: 'white',
+  headerImage: {
+    width: width,
+    height: 250,
+  },
+  headerGradient: {
+    flex: 1,
+    justifyContent: 'flex-end',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
     flex: 1,
     marginRight: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   favoriteButton: {
     padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
   },
   section: {
     backgroundColor: 'white',
     padding: 20,
-    marginTop: 10,
+    marginTop: -10,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   description: {
     fontSize: 16,
@@ -296,6 +341,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginTop: 10,
     paddingVertical: 10,
+    borderRadius: 15,
   },
   detailRow: {
     flexDirection: 'row',
@@ -330,6 +376,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginTop: 10,
     padding: 20,
+    borderRadius: 15,
   },
   sectionTitle: {
     fontSize: 18,

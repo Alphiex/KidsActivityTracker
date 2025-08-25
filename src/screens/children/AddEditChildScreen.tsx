@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Picker } from '@react-native-picker/picker';
 // TODO: Install these dependencies
-// import DateTimePicker from '@react-native-community/datetimepicker';
 // import * as ImagePicker from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -57,10 +57,27 @@ const AddEditChildScreen: React.FC = () => {
     : null;
 
   const [name, setName] = useState(existingChild?.name || '');
-  const [dateOfBirth, setDateOfBirth] = useState(
-    existingChild?.dateOfBirth ? new Date(existingChild.dateOfBirth) : new Date()
+  
+  // Date picker state
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const currentDay = new Date().getDate();
+  
+  const [selectedYear, setSelectedYear] = useState(
+    existingChild?.dateOfBirth 
+      ? new Date(existingChild.dateOfBirth).getFullYear() 
+      : currentYear - 5
   );
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(
+    existingChild?.dateOfBirth 
+      ? new Date(existingChild.dateOfBirth).getMonth() + 1
+      : currentMonth
+  );
+  const [selectedDay, setSelectedDay] = useState(
+    existingChild?.dateOfBirth 
+      ? new Date(existingChild.dateOfBirth).getDate()
+      : currentDay
+  );
   const [selectedInterests, setSelectedInterests] = useState<string[]>(
     existingChild?.interests || []
   );
@@ -69,21 +86,37 @@ const AddEditChildScreen: React.FC = () => {
   const [avatarUri, setAvatarUri] = useState(existingChild?.avatar || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDateOfBirth(selectedDate);
-    }
+  // Generate date options
+  const yearOptions = Array.from({ length: 18 }, (_, i) => currentYear - i);
+  const monthOptions = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
+
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
   };
 
-  const handleDatePickerPress = () => {
-    // TODO: Show native date picker when dependency is installed
-    Alert.alert(
-      'Date Picker',
-      'Native date picker will be available once @react-native-community/datetimepicker is installed.\n\nFor now, using default date.',
-      [{ text: 'OK' }]
-    );
-  };
+  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
+  const dayOptions = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  // Adjust day if it exceeds days in the selected month
+  useEffect(() => {
+    if (selectedDay > daysInMonth) {
+      setSelectedDay(daysInMonth);
+    }
+  }, [selectedMonth, selectedYear, daysInMonth, selectedDay]);
+
 
   const toggleInterest = (interest: string) => {
     setSelectedInterests(prev =>
@@ -109,7 +142,7 @@ const AddEditChildScreen: React.FC = () => {
 
     const childData = {
       name: name.trim(),
-      dateOfBirth: dateOfBirth.toISOString().split('T')[0],
+      dateOfBirth: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`,
       interests: selectedInterests,
       allergies: allergies ? allergies.split(',').map(a => a.trim()) : undefined,
       medicalInfo: medicalInfo.trim() || undefined,
@@ -162,13 +195,6 @@ const AddEditChildScreen: React.FC = () => {
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -221,25 +247,59 @@ const AddEditChildScreen: React.FC = () => {
             {/* Date of Birth */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of Birth</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={handleDatePickerPress}
-              >
-                <Text style={styles.dateText}>{formatDate(dateOfBirth)}</Text>
-                <Icon name="calendar-today" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
+              <View style={styles.datePickerContainer}>
+                {/* Year Picker */}
+                <View style={styles.pickerWrapper}>
+                  <Text style={styles.pickerLabel}>Year</Text>
+                  <View style={styles.pickerBox}>
+                    <Picker
+                      selectedValue={selectedYear}
+                      onValueChange={setSelectedYear}
+                      style={styles.picker}
+                      itemStyle={styles.pickerItem}
+                    >
+                      {yearOptions.map(year => (
+                        <Picker.Item key={year} label={year.toString()} value={year} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
 
-            {/* TODO: Uncomment when @react-native-community/datetimepicker is installed
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateOfBirth}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-                maximumDate={new Date()}
-              />
-            )} */}
+                {/* Month Picker */}
+                <View style={styles.pickerWrapper}>
+                  <Text style={styles.pickerLabel}>Month</Text>
+                  <View style={styles.pickerBox}>
+                    <Picker
+                      selectedValue={selectedMonth}
+                      onValueChange={setSelectedMonth}
+                      style={styles.picker}
+                      itemStyle={styles.pickerItem}
+                    >
+                      {monthOptions.map(month => (
+                        <Picker.Item key={month.value} label={month.label} value={month.value} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Day Picker */}
+                <View style={styles.pickerWrapper}>
+                  <Text style={styles.pickerLabel}>Day</Text>
+                  <View style={styles.pickerBox}>
+                    <Picker
+                      selectedValue={selectedDay}
+                      onValueChange={setSelectedDay}
+                      style={styles.picker}
+                      itemStyle={styles.pickerItem}
+                    >
+                      {dayOptions.map(day => (
+                        <Picker.Item key={day} label={day.toString()} value={day} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+              </View>
+            </View>
 
             {/* Interests */}
             <View style={styles.inputGroup}>
@@ -397,20 +457,36 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  dateButton: {
+  datePickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  pickerWrapper: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  pickerLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  pickerBox: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    overflow: 'hidden',
   },
-  dateText: {
-    fontSize: 16,
+  picker: {
+    height: Platform.OS === 'ios' ? 120 : 50,
+    width: '100%',
     color: '#333',
+  },
+  pickerItem: {
+    fontSize: 16,
+    height: Platform.OS === 'ios' ? 120 : 50,
   },
   interestsGrid: {
     flexDirection: 'row',

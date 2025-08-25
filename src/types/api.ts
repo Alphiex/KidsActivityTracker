@@ -20,6 +20,11 @@ export interface ActivitySearchParams extends PaginationParams {
   costMin?: number;
   costMax?: number;
   location?: string;
+  daysOfWeek?: string[];
+  startDateAfter?: string;
+  startDateBefore?: string;
+  hideClosedActivities?: boolean;
+  hideFullActivities?: boolean;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
 }

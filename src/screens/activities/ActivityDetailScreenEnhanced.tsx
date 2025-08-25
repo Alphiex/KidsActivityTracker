@@ -10,6 +10,7 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  ImageBackground,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,6 +30,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 import childrenService from '../../services/childrenService';
 import { shareActivityViaEmail } from '../../utils/sharing';
+import { getActivityImageByKey } from '../../assets/images';
+import { getActivityImageKey } from '../../utils/activityHelpers';
 const activityService = ActivityService.getInstance();
 
 const { width } = Dimensions.get('window');
@@ -311,9 +314,16 @@ const ActivityDetailScreenEnhanced = () => {
         bounces={false}
       >
         {/* Hero Header */}
-        <View style={styles.heroContainer}>
+        <ImageBackground
+          source={getActivityImageByKey(getActivityImageKey(
+            activity.category || (activity.activityType && activity.activityType[0]) || '', 
+            activity.subcategory
+          )) || require('../../assets/images/activities/sports_general.jpg')}
+          style={styles.heroContainer}
+          resizeMode="cover"
+        >
           <LinearGradient
-            colors={[colors.primary, colors.primary + 'DD']}
+            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
             style={styles.heroGradient}
           >
             <TouchableOpacity
@@ -321,7 +331,7 @@ const ActivityDetailScreenEnhanced = () => {
               onPress={() => navigation.goBack()}
             >
               <View style={styles.backButtonCircle}>
-                <Icon name="arrow-back" size={24} color={colors.primary} />
+                <Icon name="arrow-back" size={24} color="#fff" />
               </View>
             </TouchableOpacity>
             
@@ -334,7 +344,7 @@ const ActivityDetailScreenEnhanced = () => {
                 <Icon
                   name={isFavorite ? 'favorite' : 'favorite-border'}
                   size={24}
-                  color={isFavorite ? '#FF4444' : colors.primary}
+                  color={isFavorite ? '#FF6B6B' : '#fff'}
                 />
               </View>
             </TouchableOpacity>
@@ -347,7 +357,7 @@ const ActivityDetailScreenEnhanced = () => {
               )}
             </View>
           </LinearGradient>
-        </View>
+        </ImageBackground>
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsContainer}>
@@ -844,7 +854,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -863,7 +873,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -882,16 +892,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 2 },
+    textShadowRadius: 4,
   },
   subcategory: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.9)',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   card: {
     margin: 16,
