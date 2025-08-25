@@ -312,9 +312,73 @@ class ActivityService {
 
     // Subcategory filter
     if (subcategory) {
-      // Simply match the subcategory exactly - the database already has clean subcategories
-      // without age ranges thanks to the fix-activity-types.js script
-      where.subcategory = subcategory;
+      // Map consolidated types to their actual subcategories in the database
+      const subcategoryMappings = {
+        'Swimming': [
+          'Swimming (0-6yrs)',
+          'Swimming (0-6yrs PP)',
+          'Swimming (6-12yrs)',
+          'Swimming (10-18yrs)',
+          'Swimming - Aquatic Leadership (10-18yrs)',
+          'Private Lessons Swimming (All Ages)'
+        ],
+        'Music': [
+          'Music (0-6yrs PP)',
+          'Music (5-13yrs)',
+          'Music (10-18yrs)',
+          'Private Lessons Music (All Ages)',
+          'Arts Music (0-6yrs PP)',
+          'Arts Music (5-13yrs)',
+          'Arts Music (10-18yrs)'
+        ],
+        'Sports': [
+          'Sports (0-6yrs)',
+          'Sports (0-6yrs PP)',
+          'Sports (5-13yrs)',
+          'Sports (10-18yrs)'
+        ],
+        'Skating': [
+          'Skating (0-6yrs)',
+          'Skating (0-6yrs PP)',
+          'Skating (5-13yrs)'
+        ],
+        'Martial Arts': [
+          'Martial Arts (0-6yrs)',
+          'Martial Arts (0-6yrs PP)',
+          'Martial Arts (5-13yrs)',
+          'Martial Arts (10-20yrs)'
+        ],
+        'Visual Arts': [
+          'Arts Visual (0-6yrs)',
+          'Arts Visual (0-6yrs PP)',
+          'Arts Visual (5-13yrs)',
+          'Arts Visual (10-18yrs)',
+          'Arts Visual (All Ages & Family)'
+        ],
+        'Dance': [
+          'Arts Dance (0-6yrs)',
+          'Arts Dance (0-6yrs PP)',
+          'Arts Dance (5-13yrs)'
+        ],
+        'Camps': [
+          'Camps Part Day (0-6yrs)',
+          'Camps Part Day (5-13yrs)',
+          'Camps Full Day (5-13yrs)',
+          'Camps Single Day (5-13yrs)'
+        ]
+      };
+      
+      // Check if this is a consolidated type that needs expansion
+      if (subcategoryMappings[subcategory]) {
+        where.subcategory = { in: subcategoryMappings[subcategory] };
+      } else {
+        // For activity types not in the mapping, try pattern matching
+        // This handles cases like "Tennis", "Fitness", etc.
+        where.OR = [
+          { subcategory: { contains: subcategory, mode: 'insensitive' } },
+          { subcategory: subcategory }
+        ];
+      }
     }
 
     // Search filter

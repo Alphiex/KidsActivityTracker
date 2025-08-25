@@ -90,6 +90,7 @@ const AllActivityTypesScreen: React.FC = () => {
     
     // Other activities
     'Skating': { icon: 'skate', colors: ['#00BCD4', '#0097A7'] },
+    'Skate': { icon: 'skate', colors: ['#00BCD4', '#0097A7'] },  // Alternative name
     'Climbing': { icon: 'terrain', colors: ['#FF5722', '#E64A19'] },
     'Golf': { icon: 'golf', colors: ['#4CAF50', '#388E3C'] },
     'Chess': { icon: 'chess-knight', colors: ['#607D8B', '#455A64'] },

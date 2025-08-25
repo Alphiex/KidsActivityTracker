@@ -14,6 +14,11 @@ export const mapCategoryToActivityType = (category: string): ActivityType => {
     return ActivityType.CAMPS;
   }
   
+  // Check for skating (separate from other sports)
+  if (categoryLower.includes('skating') || categoryLower.includes('skate')) {
+    return ActivityType.SPORTS; // Still categorize as sports but handle image separately
+  }
+  
   // Check for sports
   if (categoryLower.includes('sport') || 
       categoryLower.includes('basketball') || 
@@ -27,7 +32,6 @@ export const mapCategoryToActivityType = (category: string): ActivityType => {
       categoryLower.includes('karate') ||
       categoryLower.includes('gymnastics') ||
       categoryLower.includes('climbing') ||
-      categoryLower.includes('skating') ||
       categoryLower.includes('fitness')) {
     return ActivityType.SPORTS;
   }
@@ -83,6 +87,11 @@ export const getActivityImageKey = (category: string, subcategory?: string): str
     return 'dance';
   }
   
+  // Skating activities
+  if (categoryLower.includes('skating') || categoryLower.includes('skate')) {
+    return 'ice_skating';
+  }
+  
   // Team sports
   if (categoryLower.includes('basketball')) return 'basketball';
   if (categoryLower.includes('soccer') || categoryLower.includes('football')) return 'soccer';
@@ -95,19 +104,21 @@ export const getActivityImageKey = (category: string, subcategory?: string): str
   if (categoryLower.includes('badminton')) return 'badminton';
   if (categoryLower.includes('racquet')) return 'racquet_sports';
   
-  // Arts and crafts
-  if (categoryLower.includes('art') || categoryLower.includes('paint') || 
-      categoryLower.includes('draw') || categoryLower.includes('craft')) {
-    return 'arts_crafts';
+  // Music (check before arts to avoid false matches)
+  if (categoryLower.includes('music') || categoryLower.includes('piano') || 
+      categoryLower.includes('guitar') || categoryLower.includes('drum')) {
+    return 'music';
   }
+  
+  // Pottery (check before arts_crafts)
   if (categoryLower.includes('pottery') || categoryLower.includes('clay')) {
     return 'pottery';
   }
   
-  // Music
-  if (categoryLower.includes('music') || categoryLower.includes('piano') || 
-      categoryLower.includes('guitar') || categoryLower.includes('drum')) {
-    return 'music';
+  // Arts and crafts (more general, check last)
+  if (categoryLower.includes('art') || categoryLower.includes('paint') || 
+      categoryLower.includes('draw') || categoryLower.includes('craft')) {
+    return 'arts_crafts';
   }
   
   // Fitness and wellness
@@ -118,13 +129,15 @@ export const getActivityImageKey = (category: string, subcategory?: string): str
   if (categoryLower.includes('yoga')) return 'yoga';
   if (categoryLower.includes('climb')) return 'climbing';
   
+  // Cooking (check early to avoid arts match)
+  if (categoryLower.includes('cook') || categoryLower.includes('culinary')) {
+    return 'cooking';
+  }
+  
   // Educational
   if (categoryLower.includes('stem') || categoryLower.includes('science') || 
       categoryLower.includes('technology') || categoryLower.includes('engineering')) {
     return 'stem';
-  }
-  if (categoryLower.includes('cook') || categoryLower.includes('culinary')) {
-    return 'cooking';
   }
   if (categoryLower.includes('language')) return 'language';
   

@@ -132,6 +132,49 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
     return null;
   };
 
+  const extractDaysFromSessions = (sessions: typeof activity.sessions) => {
+    if (!sessions || sessions.length === 0) return null;
+    
+    const uniqueDays = [...new Set(sessions.map(s => s.dayOfWeek).filter(Boolean))];
+    if (uniqueDays.length === 0) return null;
+    
+    // Sort days in order (Monday to Sunday)
+    const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    uniqueDays.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    
+    // Check for common patterns
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const isWeekdays = uniqueDays.length === 5 && uniqueDays.every(day => weekdays.includes(day));
+    
+    if (isWeekdays) {
+      return 'Weekdays';
+    } else if (uniqueDays.length === 7) {
+      return 'Daily';
+    } else if (uniqueDays.length === 2 && 
+               uniqueDays.includes('Saturday') && 
+               uniqueDays.includes('Sunday')) {
+      return 'Weekends';
+    } else if (uniqueDays.length === 1) {
+      return uniqueDays[0] + 's'; // e.g., "Mondays"
+    } else {
+      // For multiple days, use full names if 3 or fewer, abbreviations if more
+      if (uniqueDays.length <= 3) {
+        return uniqueDays.join(', ');
+      } else {
+        const dayAbbrev: { [key: string]: string } = {
+          'Monday': 'Mon',
+          'Tuesday': 'Tue',
+          'Wednesday': 'Wed',
+          'Thursday': 'Thu',
+          'Friday': 'Fri',
+          'Saturday': 'Sat',
+          'Sunday': 'Sun'
+        };
+        return uniqueDays.map(day => dayAbbrev[day] || day).join(', ');
+      }
+    }
+  };
+
   const getActivityIcon = (type: string) => {
     const iconMap: { [key: string]: string } = {
       // Original lowercase keys
@@ -230,6 +273,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
             <Icon name="calendar-range" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.dateRangeText, { color: colors.text }]}>
               {formatDateRange(activity.dateRange.start, activity.dateRange.end)}
+            </Text>
+          </View>
+        )}
+
+        {/* Display days of the week prominently */}
+        {activity.sessions && activity.sessions.length > 0 && extractDaysFromSessions(activity.sessions) && (
+          <View style={[styles.infoRow, styles.daysRow]}>
+            <Icon name="calendar-week" size={16} color={Colors.secondary} />
+            <Text style={[styles.infoText, styles.daysText, { color: colors.text }]}>
+              {extractDaysFromSessions(activity.sessions)}
             </Text>
           </View>
         )}
@@ -467,6 +520,20 @@ const styles = StyleSheet.create({
   dateRangeText: {
     fontWeight: '600',
     fontSize: 13,
+  },
+  daysRow: {
+    backgroundColor: Colors.secondary + '20',
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: Theme.spacing.xs,
+    borderRadius: Theme.borderRadius.sm,
+    marginHorizontal: -Theme.spacing.xs,
+    marginBottom: Theme.spacing.xs,
+  },
+  daysText: {
+    fontWeight: '700',
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   scheduleRow: {
     backgroundColor: Colors.primary + '10',

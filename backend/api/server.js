@@ -76,7 +76,8 @@ app.get('/api/v1/activities', async (req, res) => {
       ageMax: req.query.age_max ? parseInt(req.query.age_max) : undefined,
       costMax: req.query.cost_max ? parseFloat(req.query.cost_max) : undefined,
       categories: req.query.categories ? req.query.categories.split(',') : undefined,
-      locations: req.query.locations ? req.query.locations.split(',') : undefined,
+      locations: req.query.locations ? req.query.locations.split(',') : 
+                 req.query.location ? [req.query.location] : undefined,
       providers: req.query.providers ? req.query.providers.split(',') : undefined,
       search: req.query.q || req.query.search,
       subcategory: req.query.subcategory,
@@ -86,6 +87,14 @@ app.get('/api/v1/activities', async (req, res) => {
       page: req.query.page ? parseInt(req.query.page) : 1,
       limit: req.query.limit ? parseInt(req.query.limit) : 50
     };
+    
+    // Debug logging
+    console.log('API Request filters:', {
+      subcategory: filters.subcategory,
+      categories: filters.categories,
+      locations: filters.locations,
+      costMax: filters.costMax
+    });
 
     const result = await activityService.searchActivities(filters);
     
