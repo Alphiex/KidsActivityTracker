@@ -1,5 +1,0 @@
-npm error Missing script: "test:scraper"
-npm error
-npm error To see a list of scripts, run:
-npm error   npm run
-npm error A complete log of this run can be found in: /Users/mike/.npm/_logs/2025-07-23T16_19_15_503Z-debug-0.log

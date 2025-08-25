@@ -1,23 +1,42 @@
 # Kids Activity Tracker
 
-A React Native mobile application for discovering and tracking children's activities in North Vancouver and surrounding areas. The app helps parents find sports, camps, arts, and other activities for their children based on age, location, cost, and interests.
+A comprehensive React Native application for discovering and managing kids' activities in North Vancouver. The app provides real-time activity information, personalized recommendations, and seamless registration capabilities.
 
-## Features
+## 🌟 Features
 
-- **Activity Discovery**: Browse thousands of activities from local recreation centers
-- **Advanced Search**: Filter by category, age range, location, and price
-- **Favorites**: Save activities for quick access
-- **Personalized Recommendations**: Get activity suggestions based on your preferences
-- **Dark Mode**: Full dark mode support for comfortable viewing
-- **Offline Support**: View cached data when offline with network status indicators
-- **Real-time Updates**: Activities are automatically updated from provider websites
+### Core Functionality
+- **Activity Discovery**: Browse 1000+ kids activities from local recreation centers
+- **Smart Search**: Filter by age, location, price, activity type, and schedule
+- **Personalized Recommendations**: AI-powered suggestions based on your preferences
+- **Real-time Updates**: Live activity status including availability and registration
+- **Favorites Management**: Save and track your favorite activities
+- **Global Filters**: Hide full or closed activities across all searches
 
-## Tech Stack
+### User Experience
+- **Kid-Friendly Images**: All activities feature appropriate, engaging visuals
+- **Dark Mode Support**: System-aware theme switching
+- **Offline Capability**: Browse previously loaded activities without internet
+- **Fast Performance**: API-level filtering for optimal speed
+
+## 🛠️ Tech Stack
 
 ### Mobile App (React Native)
 - **Framework**: React Native 0.76.6
 - **State Management**: Redux Toolkit with Redux Persist
 - **Navigation**: React Navigation v6
+- **UI Components**: React Native Paper, Vector Icons
+- **Storage**: AsyncStorage, MMKV for preferences
+- **Networking**: Axios with retry logic
+- **Maps**: React Native Maps
+
+### Backend (Node.js)
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Database**: PostgreSQL with Prisma ORM
+- **Caching**: Redis
+- **Authentication**: JWT
+- **Scraping**: Puppeteer
+- **Deployment**: Google Cloud Run
 - **UI Components**: Custom components with React Native Vector Icons
 - **Styling**: StyleSheet with theme support
 - **Storage**: MMKV for secure storage, AsyncStorage for preferences

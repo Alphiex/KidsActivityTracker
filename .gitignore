@@ -73,3 +73,36 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Archives and backups
+archive_*/
+*_backup_*/
+*.backup
+*.old
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test files (outside of __tests__)
+test-*.js
+test-*.sh
+*-test.js
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+*~
+
+# Image backups
+src/assets/images/activities_backup_*/
+
+# Generated files
+generated/
+dist/
+build/
+
