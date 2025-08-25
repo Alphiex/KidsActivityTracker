@@ -13,7 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import LoadingIndicator from '../components/LoadingIndicator';
-import { ActivityCard } from '../components/ActivityCard';
+import ActivityCard from '../components/ActivityCard';
 import { Colors } from '../theme';
 import { Activity } from '../types';
 
@@ -32,6 +32,8 @@ const RecommendedActivitiesScreen = () => {
       setError(null);
       const activityService = ActivityService.getInstance();
       
+      console.log('Loading recommended activities with preferences:', preferences);
+      
       // Create filters based on user preferences
       const filters: any = { limit: 1000 };
       
@@ -43,10 +45,32 @@ const RecommendedActivitiesScreen = () => {
         filters.hideFullActivities = true;
       }
       
-      // Apply other preference filters
+      // Apply category filters - handle both preferredCategories and activity types
       if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
-        filters.categories = preferences.preferredCategories.join(',');
+        // Check if these are activity types or categories
+        const consolidatedTypes = ['Swimming', 'Dance', 'Sports', 'Skating', 'Visual Arts', 'Music'];
+        const hasActivityTypes = preferences.preferredCategories.some(cat => consolidatedTypes.includes(cat));
+        
+        if (hasActivityTypes) {
+          // If we have activity types, use subcategory filter for those
+          const activityTypes = preferences.preferredCategories.filter(cat => consolidatedTypes.includes(cat));
+          if (activityTypes.length === 1) {
+            filters.subcategory = activityTypes[0];
+          } else if (activityTypes.length > 0) {
+            filters.subcategory = activityTypes.join(',');
+          }
+          
+          // Other categories use the categories filter
+          const otherCategories = preferences.preferredCategories.filter(cat => !consolidatedTypes.includes(cat));
+          if (otherCategories.length > 0) {
+            filters.categories = otherCategories.join(',');
+          }
+        } else {
+          // All are regular categories
+          filters.categories = preferences.preferredCategories.join(',');
+        }
       }
+      
       if (preferences.locations && preferences.locations.length > 0) {
         filters.locations = preferences.locations;
       }
@@ -64,7 +88,10 @@ const RecommendedActivitiesScreen = () => {
         };
       }
       
+      console.log('Applying filters for recommended activities:', filters);
+      
       const fetchedActivities = await activityService.searchActivities(filters);
+      console.log(`Fetched ${fetchedActivities.length} recommended activities`);
       setActivities(fetchedActivities);
     } catch (err: any) {
       console.error('Error loading recommended activities:', err);
@@ -177,12 +204,30 @@ const RecommendedActivitiesScreen = () => {
       <View style={styles.centerContainer}>
         <Icon name="search-off" size={60} color={Colors.textSecondary} />
         <Text style={styles.emptyText}>No activities match your preferences</Text>
-        <Text style={styles.emptySubtext}>Try adjusting your preferences in settings</Text>
+        <Text style={styles.emptySubtext}>
+          {preferences.preferredCategories?.length > 0 
+            ? `Looking for: ${preferences.preferredCategories.join(', ')}` 
+            : 'No categories selected'}
+        </Text>
+        {preferences.priceRange && (
+          <Text style={styles.emptySubtext}>Max price: ${preferences.priceRange.max}</Text>
+        )}
+        {preferences.ageRanges && preferences.ageRanges[0] && (
+          <Text style={styles.emptySubtext}>
+            Age range: {preferences.ageRanges[0].min}-{preferences.ageRanges[0].max} years
+          </Text>
+        )}
         <TouchableOpacity 
           style={styles.settingsButton} 
-          onPress={() => navigation.navigate('Settings')}
+          onPress={() => navigation.navigate('Profile' as never)}
         >
-          <Text style={styles.settingsButtonText}>Go to Settings</Text>
+          <Text style={styles.settingsButtonText}>Adjust Preferences</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.settingsButton, { marginTop: 10 }]} 
+          onPress={onRefresh}
+        >
+          <Text style={styles.settingsButtonText}>Refresh</Text>
         </TouchableOpacity>
       </View>
     );

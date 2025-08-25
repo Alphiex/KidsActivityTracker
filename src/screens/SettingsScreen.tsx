@@ -106,12 +106,13 @@ const SettingsScreen = () => {
       ],
     },
     {
-      title: 'Activity Filters',
-      icon: 'filter',
+      title: 'Global Activity Filters',
+      icon: 'earth',
+      description: 'These settings apply to all activity searches',
       items: [
         {
           title: 'Hide Closed Activities',
-          subtitle: 'Don\'t show activities that are full or closed',
+          subtitle: 'Hide activities with closed registration across all searches',
           icon: 'cancel',
           toggle: true,
           value: preferences.hideClosedActivities,
@@ -123,7 +124,7 @@ const SettingsScreen = () => {
         },
         {
           title: 'Hide Full Activities',
-          subtitle: 'Don\'t show activities that are full',
+          subtitle: 'Hide activities that are at capacity across all searches',
           icon: 'account-multiple-remove',
           toggle: true,
           value: preferences.hideFullActivities,
@@ -133,6 +134,13 @@ const SettingsScreen = () => {
             preferencesService.updatePreferences(updatedPreferences);
           },
         },
+      ],
+    },
+    {
+      title: 'Recommended For You Filters',
+      icon: 'star',
+      description: 'Additional filters for your personalized recommendations',
+      items: [
         {
           title: 'Budget Friendly Amount',
           subtitle: `Activities under $${preferences.maxBudgetFriendlyAmount || 20}`,
@@ -384,6 +392,11 @@ const SettingsScreen = () => {
             <Icon name={section.icon} size={20} color={colors.primary} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
           </View>
+          {section.description && (
+            <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
+              {section.description}
+            </Text>
+          )}
           <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
             {section.items.map((item, itemIndex) => (
               <View key={itemIndex}>
@@ -443,6 +456,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginLeft: 10,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 30,
+    marginBottom: 8,
+    marginTop: -5,
   },
   sectionContent: {
     backgroundColor: '#fff',

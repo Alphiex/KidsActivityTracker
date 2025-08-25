@@ -176,6 +176,9 @@ class ActivityService {
       if (filters.categories) {
         params.category = filters.categories;
       }
+      if (filters.subcategory) {
+        params.subcategory = filters.subcategory; // For activity type filtering
+      }
       if (filters.locations && filters.locations.length > 0) {
         params.location = filters.locations[0]; // Backend expects single location
       }
@@ -198,8 +201,22 @@ class ActivityService {
         params.exclude_full = true;
       }
       
-      // Add limit to reduce response size initially
-      params.limit = 50;
+      // Add date filters for API-level filtering
+      if (filters.createdAfter) {
+        params.created_after = filters.createdAfter;
+      }
+      if (filters.updatedAfter) {
+        params.updated_after = filters.updatedAfter;
+      }
+      if (filters.startDateAfter) {
+        params.start_date_after = filters.startDateAfter;
+      }
+      if (filters.startDateBefore) {
+        params.start_date_before = filters.startDateBefore;
+      }
+      
+      // Add limit - use filter limit or default to 50
+      params.limit = filters.limit || 50;
 
       console.log('Searching activities with params:', params);
 

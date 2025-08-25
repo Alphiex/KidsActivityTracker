@@ -31,9 +31,16 @@ const NewActivitiesScreen = () => {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       
-      // Get all activities and filter by date
-      // In a real app, this would be a specific API endpoint for new activities
-      const searchParams: any = { limit: 200 }; // Get more activities to find new ones
+      // Calculate date for one week ago
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      // Use API-level filtering for new activities
+      const searchParams: any = { 
+        limit: 50,
+        // Filter by updated date at API level for better performance
+        updatedAfter: oneWeekAgo.toISOString()
+      };
       
       // Apply user preference for hiding closed activities
       if (preferences.hideClosedActivities) {
@@ -45,23 +52,10 @@ const NewActivitiesScreen = () => {
         searchParams.hideFullActivities = true;
       }
       
-      const allActivities = await activityService.searchActivities(searchParams);
+      const newActivities = await activityService.searchActivities(searchParams);
       
-      // Filter activities added in the last 7 days
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      
-      const newActivities = allActivities.filter(activity => {
-        // Check if activity has a createdAt or scrapedAt date
-        const activityDate = activity.scrapedAt || activity.createdAt;
-        if (activityDate) {
-          return new Date(activityDate) >= oneWeekAgo;
-        }
-        // If no date available, include it as "new" for demo purposes
-        return true;
-      });
-      
-      // Sort by date, newest first
+      // Activities are already filtered by date at API level
+      // Just sort by date, newest first
       newActivities.sort((a, b) => {
         const dateA = new Date(a.scrapedAt || a.createdAt || 0);
         const dateB = new Date(b.scrapedAt || b.createdAt || 0);

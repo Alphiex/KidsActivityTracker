@@ -35,13 +35,32 @@ const RecommendationsScreen = () => {
       // Get user preferences
       const preferences = preferencesService.getPreferences();
       
-      // For now, just get activities that match user preferences
-      const allActivities = await activityService.searchActivities({});
+      // Build filters from preferences for API-level filtering
+      const filters: any = { limit: 20 };
       
-      // Filter based on preferences
-      const recommended = allActivities.filter(activity => 
-        preferencesService.matchesPreferences(activity)
-      ).slice(0, 20); // Limit to 20 recommendations
+      if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
+        filters.activityTypes = preferences.preferredCategories;
+      }
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        // Use the first age range for simplicity
+        const ageRange = preferences.ageRanges[0];
+        filters.ageRange = ageRange;
+      }
+      if (preferences.locations && preferences.locations.length > 0) {
+        filters.locations = preferences.locations;
+      }
+      if (preferences.priceRange) {
+        filters.maxCost = preferences.priceRange.max;
+      }
+      if (preferences.hideClosedActivities) {
+        filters.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        filters.hideFullActivities = true;
+      }
+      
+      // Get activities matching preferences from API
+      const recommended = await activityService.searchActivities(filters);
       
       setRecommendations(recommended);
     } catch (error) {

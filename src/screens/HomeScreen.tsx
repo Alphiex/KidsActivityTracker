@@ -135,19 +135,17 @@ const HomeScreen = () => {
           searchParams.hideFullActivities = true;
         }
         
-        const allActivities = await activityService.searchActivities(searchParams);
-        
-        // Filter activities added in the last 7 days
+        // Get new activities count using API-level date filtering
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         
-        const newActivities = allActivities.filter(activity => {
-          const activityDate = activity.scrapedAt || activity.createdAt;
-          if (activityDate) {
-            return new Date(activityDate) >= oneWeekAgo;
-          }
-          return false;
-        });
+        const newActivitiesParams: any = {
+          ...searchParams,
+          updatedAfter: oneWeekAgo.toISOString(),
+          limit: 50
+        };
+        
+        const newActivities = await activityService.searchActivities(newActivitiesParams);
         
         const statsData = await activityService.getStatistics();
         setStats({

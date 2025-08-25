@@ -88,8 +88,35 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
     if (!schedule) return null;
     
     if (typeof schedule === 'string') {
-      // If schedule is a string, return it as is
-      return schedule;
+      // If schedule is a string, clean up day abbreviations
+      let cleaned = schedule;
+      
+      // Replace any incorrect day abbreviations with proper ones
+      const dayReplacements: { [key: string]: string } = {
+        'MONS': 'Mon',
+        'TUES': 'Tue',
+        'WEDS': 'Wed',
+        'THURS': 'Thu',
+        'THUR': 'Thu',
+        'FRIS': 'Fri',
+        'SATS': 'Sat',
+        'SUNS': 'Sun',
+        'MON': 'Mon',
+        'TUE': 'Tue',
+        'WED': 'Wed',
+        'THU': 'Thu',
+        'FRI': 'Fri',
+        'SAT': 'Sat',
+        'SUN': 'Sun'
+      };
+      
+      Object.entries(dayReplacements).forEach(([wrong, correct]) => {
+        // Use word boundary to avoid replacing parts of other words
+        const regex = new RegExp(`\\b${wrong}\\b`, 'g');
+        cleaned = cleaned.replace(regex, correct);
+      });
+      
+      return cleaned;
     }
     
     // If schedule is an object with days and times

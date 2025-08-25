@@ -39,8 +39,17 @@ const ActivityTypeScreen = () => {
       // Add filter based on whether it's a category or activity type
       if (category !== 'All' && category !== 'Budget Friendly') {
         if (isActivityType) {
-          // For activity types, use the subcategory filter
-          searchParams.subcategory = category;
+          // For activity types (like Swimming, Dance, etc.), check if it's a consolidated type
+          // These should use subcategory to match against the actual database subcategories
+          const consolidatedTypes = ['Swimming', 'Dance', 'Sports', 'Skating', 'Visual Arts', 'Music'];
+          if (consolidatedTypes.includes(category)) {
+            searchParams.subcategory = category;
+          } else {
+            // For other activity types, try both category and subcategory
+            searchParams.categories = category;
+            // Also try as subcategory in case it's a specific activity
+            searchParams.subcategory = category;
+          }
         } else {
           // For categories, use the categories filter
           searchParams.categories = category;

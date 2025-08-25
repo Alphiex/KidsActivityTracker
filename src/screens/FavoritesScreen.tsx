@@ -45,12 +45,8 @@ const FavoritesScreen = () => {
   const loadFavorites = async () => {
     try {
       setIsLoading(true);
-      const favoritesList = favoritesService.getFavorites();
-      const allActivities = await activityService.searchActivities({});
-      
-      const favoriteActivities = allActivities.filter(activity =>
-        favoritesList.some(fav => fav.activityId === activity.id)
-      );
+      // Use the API's favorites endpoint directly
+      const favoriteActivities = await activityService.getFavorites();
       
       // Check capacity for each favorite
       favoriteActivities.forEach(activity => {

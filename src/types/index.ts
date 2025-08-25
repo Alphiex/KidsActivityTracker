@@ -151,6 +151,7 @@ export interface Filter {
   subcategory?: string;
   hideClosedActivities?: boolean;
   hideFullActivities?: boolean;
+  limit?: number;
 }
 
 export interface ScraperConfig {

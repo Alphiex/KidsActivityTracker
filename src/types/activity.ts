@@ -118,6 +118,8 @@ export interface Filter {
   locations?: string[];
   maxCost?: number;
   providers?: string[];
+  categories?: string;
+  subcategory?: string;
   search?: string;
   limit?: number;
   page?: number;
