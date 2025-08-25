@@ -492,6 +492,7 @@ class NVRCEnhancedParallelScraper {
             price: parseFloat(itemText.match(/\\$([0-9,]+(?:\\.\\d{2})?)/)?.[1]?.replace(',', '') || '0'),
             availability: (() => {
               if (itemText.includes('Closed')) return 'Closed';
+              if (itemText.includes('Full')) return 'Full';
               if (itemText.includes('Waitlist')) return 'Waitlist';
               if (itemText.includes('Sign Up')) return 'Open';
               const hasLink = itemRow.querySelector('a[href*="BookMe4"], a[href*="courseId"]');
@@ -886,7 +887,10 @@ class NVRCEnhancedParallelScraper {
           locationId: location?.id,
           locationName: activity.location,
           registrationUrl: activity.registrationUrl,
-          registrationStatus: activity.registrationStatus || (activity.spotsAvailable > 0 ? 'Open' : 'Unknown'),
+          registrationStatus: activity.registrationStatus || (
+            activity.spotsAvailable === 0 ? 'Full' : 
+            activity.spotsAvailable > 0 ? 'Open' : 'Unknown'
+          ),
           courseId: activity.courseId || activity.code,  // Use site's course ID (e.g., 00371053), not internal ID
           isActive: true,
           lastSeenAt: new Date(),

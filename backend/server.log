@@ -161,3 +161,268 @@ The table `public.ScrapeJob` does not exist in the current database.
   meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
   clientVersion: '6.12.0'
 }
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+[2025-08-25T12:15:53.748Z] [PID: 85187] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Mon Aug 25 2025 05:00:00 GMT-0700 (Pacific Daylight Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}
+🕐 Running scheduled scrape check...
+prisma:query BEGIN
+prisma:query UPDATE "public"."ScrapeJob" SET "status" = CAST($1::text AS "public"."JobStatus"), "completedAt" = $2, "errorMessage" = $3 WHERE ("public"."ScrapeJob"."status" = CAST($4::text AS "public"."JobStatus") AND "public"."ScrapeJob"."startedAt" < $5)
+prisma:query ROLLBACK
+prisma:error 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+❌ Error scheduling scrape jobs: PrismaClientKnownRequestError: 
+Invalid `prisma.scrapeJob.updateMany()` invocation in
+/Users/mike/Development/KidsActivityTracker/backend/database/services/scrapeJobService.js:190:29
+
+  187 const staleTime = new Date();
+  188 staleTime.setMinutes(staleTime.getMinutes() - maxAgeMinutes);
+  189 
+→ 190 return prisma.scrapeJob.updateMany(
+The table `public.ScrapeJob` does not exist in the current database.
+    at ri.handleRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:7459)
+    at ri.handleAndLogRequestError (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6784)
+    at ri.request (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:124:6491)
+    at async l (/Users/mike/Development/KidsActivityTracker/backend/generated/prisma/runtime/library.js:133:9812)
+    at async ScraperJobService.scheduleScrapingJobs (/Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:112:7)
+    at async /Users/mike/Development/KidsActivityTracker/backend/services/scraperJobService.js:97:7
+    at async Timeout._onTimeout (/Users/mike/Development/KidsActivityTracker/backend/node_modules/node-cron/dist/cjs/scheduler/runner.js:70:44) {
+  code: 'P2021',
+  meta: { modelName: 'ScrapeJob', table: 'public.ScrapeJob' },
+  clientVersion: '6.12.0'
+}

@@ -249,22 +249,30 @@ const DashboardScreen = () => {
       const newActivitiesResult = await activityService.searchActivities(newActivitiesParams);
       const newThisWeek = newActivitiesResult.length > 0 ? 25 : 0; // Placeholder count
 
+      // Get upcoming events count using API date filtering
+      const today = new Date();
+      const nextWeek = new Date();
+      nextWeek.setDate(today.getDate() + 7);
+      const upcomingParams: any = {
+        startDateAfter: today.toISOString(),
+        startDateBefore: nextWeek.toISOString(),
+        limit: 1
+      };
+      if (preferences.hideClosedActivities) {
+        upcomingParams.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        upcomingParams.hideFullActivities = true;
+      }
+      
+      const upcomingResult = await activityService.searchActivities(upcomingParams);
+      const upcomingEvents = upcomingResult.length > 0 ? 15 : 0; // Placeholder count
+
       setStats({
         matchingActivities,
         newThisWeek,
         savedFavorites: favorites.length,
-        upcomingEvents: allActivities.filter(activity => {
-          if (!activity.dateRange) return false;
-          try {
-            const startDate = new Date(activity.dateRange.start);
-            const today = new Date();
-            const nextWeek = new Date();
-            nextWeek.setDate(today.getDate() + 7);
-            return startDate >= today && startDate <= nextWeek;
-          } catch (e) {
-            return false;
-          }
-        }).length,
+        upcomingEvents,
       });
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);

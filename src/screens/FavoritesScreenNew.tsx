@@ -38,19 +38,10 @@ const FavoritesScreenNew = () => {
   const loadFavorites = async () => {
     try {
       setIsLoading(true);
-      const favoritesService = FavoritesService.getInstance();
       const activityService = ActivityService.getInstance();
       
-      const favoritesList = favoritesService.getFavorites();
-      console.log('Favorites list:', favoritesList);
-      
-      const allActivities = await activityService.searchActivities({});
-      console.log('All activities count:', allActivities.length);
-      
-      const favoriteActivities = allActivities.filter(activity =>
-        favoritesList.some(fav => fav.activityId === activity.id)
-      );
-      
+      // Use the API's favorites endpoint directly for better performance
+      const favoriteActivities = await activityService.getFavorites();
       console.log('Favorite activities found:', favoriteActivities.length);
       setFavorites(favoriteActivities);
     } catch (error) {
