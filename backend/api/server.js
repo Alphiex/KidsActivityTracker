@@ -84,6 +84,11 @@ app.get('/api/v1/activities', async (req, res) => {
       isActive: req.query.include_inactive !== 'true',
       excludeClosed: req.query.exclude_closed === 'true',
       excludeFull: req.query.exclude_full === 'true',
+      // Date filters for API-level filtering
+      createdAfter: req.query.created_after,
+      updatedAfter: req.query.updated_after,
+      startDateAfter: req.query.start_date_after,
+      startDateBefore: req.query.start_date_before,
       page: req.query.page ? parseInt(req.query.page) : 1,
       limit: req.query.limit ? parseInt(req.query.limit) : 50
     };

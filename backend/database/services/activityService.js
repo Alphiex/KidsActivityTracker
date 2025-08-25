@@ -274,6 +274,10 @@ class ActivityService {
       isActive = true,
       excludeClosed = false,
       excludeFull = false,
+      createdAfter, // For new activities
+      updatedAfter, // For recently updated activities
+      startDateAfter, // For activities starting after a date
+      startDateBefore, // For activities starting before a date
       page = 1,
       limit = 50
     } = filters;
@@ -291,6 +295,23 @@ class ActivityService {
     // Cost filter
     if (costMax !== undefined) {
       where.cost = { lte: costMax };
+    }
+
+    // Date filters
+    if (createdAfter) {
+      where.createdAt = { gte: new Date(createdAfter) };
+    }
+    
+    if (updatedAfter) {
+      where.updatedAt = { gte: new Date(updatedAfter) };
+    }
+    
+    if (startDateAfter) {
+      where.dateStart = { gte: new Date(startDateAfter) };
+    }
+    
+    if (startDateBefore) {
+      where.dateStart = { lte: new Date(startDateBefore) };
     }
 
     // Category filter
@@ -391,7 +412,7 @@ class ActivityService {
       ];
     }
 
-    // Exclude closed activities filter
+    // Exclude closed and/or full activities filter
     if (excludeClosed || excludeFull) {
       where.NOT = [];
       
@@ -401,14 +422,14 @@ class ActivityService {
           { registrationStatus: { contains: 'closed', mode: 'insensitive' } },
           { registrationStatus: { contains: 'cancelled', mode: 'insensitive' } }
         );
-        
-        // Also exclude full if excludeClosed is true (backward compatibility)
-        where.NOT.push({ registrationStatus: { contains: 'full', mode: 'insensitive' } });
       }
       
-      if (excludeFull && !excludeClosed) {
-        // Only exclude full activities if excludeFull is true and excludeClosed is false
-        where.NOT.push({ registrationStatus: { contains: 'full', mode: 'insensitive' } });
+      if (excludeFull) {
+        // Exclude activities that are full
+        where.NOT.push(
+          { registrationStatus: { contains: 'full', mode: 'insensitive' } },
+          { spotsAvailable: 0 }  // Also check if spots available is 0
+        );
       }
     }
 
