@@ -54,6 +54,8 @@ const LocationBrowseScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [totalActivitiesCount, setTotalActivitiesCount] = useState(0);
+  const [unfilteredCount, setUnfilteredCount] = useState(0);
+  const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
 
@@ -141,10 +143,34 @@ const LocationBrowseScreen = () => {
       setTotalActivitiesCount(result.total);
       setHasMore(result.hasMore);
       setCurrentOffset(50);
+      
+      // If global filters are applied, also get unfiltered count to show difference
+      if (preferences.hideClosedActivities || preferences.hideFullActivities) {
+        const unfilteredParams: any = {
+          location: location.name,
+          limit: 1,  // We only need the count
+          offset: 0
+        };
+        
+        try {
+          const unfilteredResult = await activityService.searchActivitiesPaginated(unfilteredParams);
+          setUnfilteredCount(unfilteredResult.total);
+          setFilteredOutCount(unfilteredResult.total - result.total);
+        } catch (error) {
+          console.error('Error fetching unfiltered count:', error);
+          setUnfilteredCount(result.total);
+          setFilteredOutCount(0);
+        }
+      } else {
+        setUnfilteredCount(result.total);
+        setFilteredOutCount(0);
+      }
     } catch (error) {
       console.error('Error loading location activities:', error);
       setLocationActivities([]);
       setTotalActivitiesCount(0);
+      setUnfilteredCount(0);
+      setFilteredOutCount(0);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -188,6 +214,8 @@ const LocationBrowseScreen = () => {
     setSelectedLocation(null);
     setLocationActivities([]);
     setTotalActivitiesCount(0);
+    setUnfilteredCount(0);
+    setFilteredOutCount(0);
     setCurrentOffset(0);
     setHasMore(false);
   };
@@ -288,8 +316,11 @@ const LocationBrowseScreen = () => {
           </View>
           <Text style={styles.headerTitle}>{selectedLocation.name}</Text>
           <Text style={styles.headerSubtitle}>
-            {totalActivitiesCount} {totalActivitiesCount === 1 ? 'activity' : 'activities'} available
-            {locationActivities.length < totalActivitiesCount && ` (showing ${locationActivities.length})`}
+            {filteredOutCount > 0 ? (
+              `${totalActivitiesCount} ${totalActivitiesCount === 1 ? 'activity' : 'activities'} (${filteredOutCount} filtered out from global settings)`
+            ) : (
+              `${totalActivitiesCount} ${totalActivitiesCount === 1 ? 'activity' : 'activities'} available`
+            )}
           </Text>
         </View>
       ) : (

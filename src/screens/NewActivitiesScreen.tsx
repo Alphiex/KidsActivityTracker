@@ -25,6 +25,8 @@ const NewActivitiesScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [unfilteredCount, setUnfilteredCount] = useState(0);
+  const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
 
@@ -73,6 +75,28 @@ const NewActivitiesScreen = () => {
       
       if (reset) {
         setActivities(result.items);
+        
+        // If global filters are applied, also get unfiltered count to show difference
+        if (preferences.hideClosedActivities || preferences.hideFullActivities) {
+          const unfilteredParams: any = { 
+            limit: 1,  // We only need the count
+            offset: 0,
+            updatedAfter: oneWeekAgo.toISOString()
+          };
+          
+          try {
+            const unfilteredResult = await activityService.searchActivitiesPaginated(unfilteredParams);
+            setUnfilteredCount(unfilteredResult.total);
+            setFilteredOutCount(unfilteredResult.total - result.total);
+          } catch (error) {
+            console.error('Error fetching unfiltered count:', error);
+            setUnfilteredCount(result.total);
+            setFilteredOutCount(0);
+          }
+        } else {
+          setUnfilteredCount(result.total);
+          setFilteredOutCount(0);
+        }
       } else {
         setActivities(prev => [...prev, ...result.items]);
       }
@@ -148,8 +172,11 @@ const NewActivitiesScreen = () => {
       <Icon name="new-box" size={50} color="#fff" />
       <Text style={styles.headerTitle}>New This Week</Text>
       <Text style={styles.headerSubtitle}>
-        {totalCount} new {totalCount === 1 ? 'activity' : 'activities'} added
-        {activities.length < totalCount && ` (showing ${activities.length})`}
+        {filteredOutCount > 0 ? (
+          `${totalCount} new ${totalCount === 1 ? 'activity' : 'activities'} (${filteredOutCount} filtered out from global settings)`
+        ) : (
+          `${totalCount} new ${totalCount === 1 ? 'activity' : 'activities'} added`
+        )}
       </Text>
     </LinearGradient>
   );

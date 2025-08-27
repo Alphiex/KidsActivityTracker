@@ -28,6 +28,8 @@ const ActivityTypeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [unfilteredCount, setUnfilteredCount] = useState(0);
+  const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
 
@@ -87,6 +89,28 @@ const ActivityTypeScreen = () => {
       
       if (reset) {
         setActivities(result.items);
+        
+        // If global filters are applied, also get unfiltered count to show difference
+        if (preferences.hideClosedActivities || preferences.hideFullActivities) {
+          const unfilteredParams: any = { ...searchParams };
+          delete unfilteredParams.hideClosedActivities;
+          delete unfilteredParams.hideFullActivities;
+          unfilteredParams.limit = 1;  // We only need the count
+          unfilteredParams.offset = 0;
+          
+          try {
+            const unfilteredResult = await activityService.searchActivitiesPaginated(unfilteredParams);
+            setUnfilteredCount(unfilteredResult.total);
+            setFilteredOutCount(unfilteredResult.total - result.total);
+          } catch (error) {
+            console.error('Error fetching unfiltered count:', error);
+            setUnfilteredCount(result.total);
+            setFilteredOutCount(0);
+          }
+        } else {
+          setUnfilteredCount(result.total);
+          setFilteredOutCount(0);
+        }
       } else {
         setActivities(prev => [...prev, ...result.items]);
       }
@@ -162,8 +186,11 @@ const ActivityTypeScreen = () => {
     >
       <Text style={styles.categoryTitle}>{category}</Text>
       <Text style={styles.categorySubtitle}>
-        {totalCount} {totalCount === 1 ? 'activity' : 'activities'} found
-        {activities.length < totalCount && ` (showing ${activities.length})`}
+        {filteredOutCount > 0 ? (
+          `${totalCount} ${totalCount === 1 ? 'activity' : 'activities'} (${filteredOutCount} filtered out from global settings)`
+        ) : (
+          `${totalCount} ${totalCount === 1 ? 'activity' : 'activities'} found`
+        )}
       </Text>
     </LinearGradient>
   );
