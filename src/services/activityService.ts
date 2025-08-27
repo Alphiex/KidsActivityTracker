@@ -173,22 +173,26 @@ class ActivityService {
       if (filters.activityTypes && filters.activityTypes.length > 0) {
         params.categories = filters.activityTypes.join(','); // Send as comma-separated list
       }
+      if (filters.category) {
+        params.category = filters.category; // For age-based categories
+      }
       if (filters.categories) {
-        params.category = filters.categories;
+        params.categories = filters.categories; // Legacy support
       }
       if (filters.subcategory) {
         params.subcategory = filters.subcategory; // For activity type filtering
+      }
+      if (filters.activityType) {
+        params.activityType = filters.activityType;
+      }
+      if (filters.activitySubtype) {
+        params.activitySubtype = filters.activitySubtype;
       }
       if (filters.locations && filters.locations.length > 0) {
         params.location = filters.locations[0]; // Backend expects single location
       }
       if (filters.search) {
         params.search = filters.search; // Backend expects 'search' not 'q'
-      }
-      
-      // Add subcategory filter if specified
-      if (filters.subcategory) {
-        params.subcategory = filters.subcategory;
       }
       
       // Add closed activities filter if specified
@@ -549,23 +553,51 @@ class ActivityService {
     try {
       const response = await this.api.get(API_CONFIG.ENDPOINTS.CATEGORIES);
       
-      return response.data.success ? response.data.categories : [];
+      // API returns data field, not categories
+      return response.data.success ? response.data.data : [];
     } catch (error) {
       console.error('Error fetching categories:', error);
       return [];
     }
   }
 
-  async getActivityTypes(): Promise<Array<{ name: string; count: number }>> {
+  async getActivityTypesWithCounts(): Promise<Array<{ code: string; name: string; activityCount: number }>> {
     try {
-      // Add cache-busting timestamp to force fresh data
-      const response = await this.api.get('/api/v1/activity-types', {
-        params: { _t: Date.now() }
-      });
+      const response = await this.api.get('/api/v1/reference/activity-types');
       
-      return response.data.success ? response.data.activityTypes : [];
+      return response.data.success ? response.data.data : [];
     } catch (error) {
-      console.error('Error fetching activity types:', error);
+      console.error('Error fetching activity types with counts:', error);
+      return [];
+    }
+  }
+
+  async getActivityTypeDetails(typeCode: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/api/v1/reference/activity-types/${encodeURIComponent(typeCode)}`);
+      return response.data.success ? response.data.data : null;
+    } catch (error) {
+      console.error('Error fetching activity type details:', error);
+      return null;
+    }
+  }
+
+  async getCities(): Promise<any[]> {
+    try {
+      const response = await this.api.get('/api/v1/cities');
+      return response.data.success ? response.data.data : [];
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      return [];
+    }
+  }
+
+  async getCityLocations(city: string): Promise<any[]> {
+    try {
+      const response = await this.api.get(`/api/v1/cities/${encodeURIComponent(city)}/locations`);
+      return response.data.success ? response.data.data.locations : [];
+    } catch (error) {
+      console.error('Error fetching city locations:', error);
       return [];
     }
   }
@@ -603,6 +635,63 @@ class ActivityService {
     } catch (error) {
       console.error('Error fetching statistics:', error);
       return null;
+    }
+  }
+
+  /**
+   * Get activity type details with subtypes
+   */
+  async getActivityTypeDetails(activityTypeCode: string): Promise<any> {
+    try {
+      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.ACTIVITY_TYPES}/${activityTypeCode}`);
+      
+      if (response.data.success) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching activity type details:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all activity types for preferences
+   */
+  async getActivityTypes(): Promise<string[]> {
+    try {
+      const response = await this.api.get('/api/v1/preferences/activity-types');
+      
+      if (response.data.success) {
+        return response.data.activityTypes || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching activity types:', error);
+      // Return a default list if the API fails
+      return [
+        'Swimming & Aquatics',
+        'Team Sports',
+        'Individual Sports',
+        'Racquet Sports',
+        'Martial Arts',
+        'Dance',
+        'Visual Arts',
+        'Music',
+        'Performing Arts',
+        'Skating & Wheels',
+        'Gymnastics & Movement',
+        'Camps',
+        'STEM & Education',
+        'Fitness & Wellness',
+        'Outdoor & Adventure',
+        'Culinary Arts',
+        'Language & Culture',
+        'Special Needs Programs',
+        'Multi-Sport',
+        'Life Skills & Leadership',
+        'Early Development'
+      ];
     }
   }
 

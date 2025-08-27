@@ -15,6 +15,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const {
       search,
       category,
+      categories,
       ageMin,
       ageMax,
       costMin,
@@ -33,6 +34,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const params = {
       search: search as string,
       category: category as string,
+      categories: categories as string,
       ageMin: ageMin ? parseInt(ageMin as string) : undefined,
       ageMax: ageMax ? parseInt(ageMax as string) : undefined,
       costMin: costMin ? parseFloat(costMin as string) : undefined,

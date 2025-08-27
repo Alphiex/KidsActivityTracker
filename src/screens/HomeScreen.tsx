@@ -28,6 +28,7 @@ const HomeScreen = () => {
     lastUpdated: null as Date | null,
   });
   const [categories, setCategories] = useState<Array<{ name: string; count: number; icon: string }>>([]);
+  const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count: number; icon: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingRecommended, setLoadingRecommended] = useState(true);
   
@@ -36,6 +37,12 @@ const HomeScreen = () => {
 
   // Define category icons
   const categoryIcons = {
+    'School Age (5-13)': 'school',
+    'Youth (10-18)': 'account-group',
+    'Baby and Parent (0-1)': 'baby-carriage',
+    'Early Years Solo (0-6)': 'human-child',
+    'Early Years with Parent (0-6)': 'mother-heart',
+    // Legacy mappings
     'Sports': 'basketball',
     'Arts': 'palette',
     'Music': 'music-note',
@@ -50,13 +57,41 @@ const HomeScreen = () => {
     'Technology': 'laptop',
   };
 
+  // Define activity type icons
+  const activityTypeIcons = {
+    'Swimming & Aquatics': 'swim',
+    'Team Sports': 'basketball',
+    'Individual Sports': 'run',
+    'Racquet Sports': 'tennis',
+    'Martial Arts': 'karate',
+    'Dance': 'dance-ballroom',
+    'Visual Arts': 'palette',
+    'Music': 'music',
+    'Performing Arts': 'drama-masks',
+    'Skating & Wheels': 'roller-skating',
+    'Gymnastics & Movement': 'gymnastics',
+    'Camps': 'tent',
+    'STEM & Education': 'flask',
+    'Fitness & Wellness': 'yoga',
+    'Outdoor & Adventure': 'tree',
+    'Culinary Arts': 'chef-hat',
+    'Language & Culture': 'earth',
+    'Special Needs Programs': 'human-handsup',
+    'Multi-Sport': 'soccer',
+    'Life Skills & Leadership': 'account-group',
+    'Early Development': 'baby-face',
+  };
+
   const loadRecommendedCount = async () => {
     try {
       setLoadingRecommended(true);
       const activityService = ActivityService.getInstance();
       
       // Create filters based on user preferences
-      const filters: any = {};
+      const filters: any = {
+        limit: 1, // Only need 1 item to get the total count
+        offset: 0
+      };
       
       // Apply user preference filters
       if (preferences.hideClosedActivities) {
@@ -77,9 +112,9 @@ const HomeScreen = () => {
         filters.maxCost = preferences.priceRange.max;
       }
       
-      // Get activities based on preferences
-      const activities = await activityService.searchActivities(filters);
-      setRecommendedCount(activities.length);
+      // Use paginated method to get the actual total count
+      const response = await activityService.searchActivitiesPaginated(filters);
+      setRecommendedCount(response.total);
     } catch (error) {
       console.error('Error loading recommended count:', error);
       setRecommendedCount(0);
@@ -122,6 +157,35 @@ const HomeScreen = () => {
           icon: categoryIcons[cat.name] || 'tag',
         }));
         setCategories(categoriesWithIcons);
+      }
+
+      // Fetch activity types with counts
+      try {
+        const types = await activityService.getActivityTypesWithCounts();
+        // Show first 6 activity types
+        const typesWithIcons = types.slice(0, 6).map(type => ({
+          code: type.code,
+          name: type.name,
+          count: type.activityCount,
+          icon: activityTypeIcons[type.name] || 'tag',
+        }));
+        setActivityTypes(typesWithIcons);
+      } catch (typeError) {
+        console.error('Error fetching activity types:', typeError);
+        // Use fallback activity types if API fails
+        const fallbackTypes = [
+          { code: 'swimming-aquatics', name: 'Swimming & Aquatics', count: 0 },
+          { code: 'team-sports', name: 'Team Sports', count: 0 },
+          { code: 'martial-arts', name: 'Martial Arts', count: 0 },
+          { code: 'dance', name: 'Dance', count: 0 },
+          { code: 'visual-arts', name: 'Visual Arts', count: 0 },
+          { code: 'camps', name: 'Camps', count: 0 },
+        ];
+        const typesWithIcons = fallbackTypes.map(type => ({
+          ...type,
+          icon: activityTypeIcons[type.name] || 'tag',
+        }));
+        setActivityTypes(typesWithIcons);
       }
 
       // Fetch statistics for new activities count
@@ -183,6 +247,10 @@ const HomeScreen = () => {
 
   const navigateToActivityType = (category: string) => {
     navigation.navigate('ActivityType', { category });
+  };
+
+  const navigateToAllActivityTypes = () => {
+    navigation.navigate('AllActivityTypes');
   };
 
   const navigateToNewActivities = () => {
@@ -372,7 +440,38 @@ const HomeScreen = () => {
               >
                 <Icon name={category.icon} size={40} color={Colors.primary} />
                 <Text style={styles.categoryName}>{category.name}</Text>
-                <Text style={styles.categoryCount}>{category.count} activities</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Browse by Activity Type Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Browse by Activity Type</Text>
+          <TouchableOpacity onPress={navigateToAllActivityTypes}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.categoriesGrid}>
+          {activityTypes.map((actType, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.categoryCard}
+              onPress={() => navigation.navigate('ActivityTypeDetail' as never, { 
+                typeCode: actType.code,
+                typeName: actType.name 
+              } as never)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={[Colors.cardBackground, Colors.background]}
+                style={styles.categoryGradient}
+              >
+                <Icon name={actType.icon} size={40} color={Colors.primary} />
+                <Text style={styles.categoryName} numberOfLines={2}>{actType.name}</Text>
+                <Text style={styles.categoryCount}>{actType.count} activities</Text>
               </LinearGradient>
             </TouchableOpacity>
           ))}
@@ -564,7 +663,7 @@ const styles = StyleSheet.create({
   categoryCount: {
     fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 5,
+    marginTop: 4,
   },
   errorText: {
     fontSize: 16,

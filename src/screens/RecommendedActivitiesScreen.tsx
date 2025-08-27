@@ -21,84 +21,98 @@ const RecommendedActivitiesScreen = () => {
   const navigation = useNavigation();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentOffset, setCurrentOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   
   const preferencesService = PreferencesService.getInstance();
   const preferences = preferencesService.getPreferences();
+  const ITEMS_PER_PAGE = 50;
 
-  const loadRecommendedActivities = async () => {
+  const buildFilters = () => {
+    const filters: any = {};
+    
+    // Apply user preference filters
+    if (preferences.hideClosedActivities) {
+      filters.hideClosedActivities = true;
+    }
+    if (preferences.hideFullActivities) {
+      filters.hideFullActivities = true;
+    }
+    
+    // Apply activity type filters from preferredCategories
+    if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
+      filters.categories = preferences.preferredCategories.join(',');
+    }
+    
+    if (preferences.locations && preferences.locations.length > 0) {
+      filters.locations = preferences.locations;
+    }
+    if (preferences.priceRange) {
+      filters.maxCost = preferences.priceRange.max;
+    }
+    
+    // Apply age range if set
+    if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+      const ageRange = preferences.ageRanges[0];
+      filters.ageRange = {
+        min: ageRange.min,
+        max: ageRange.max
+      };
+    }
+    
+    return filters;
+  };
+
+  const loadRecommendedActivities = async (isRefresh = false) => {
     try {
+      if (isRefresh) {
+        setRefreshing(true);
+        setCurrentOffset(0);
+        setActivities([]);
+      } else if (!isRefresh && !hasMore) {
+        return;
+      }
+      
       setError(null);
       const activityService = ActivityService.getInstance();
       
-      console.log('Loading recommended activities with preferences:', preferences);
+      const filters = buildFilters();
+      filters.limit = ITEMS_PER_PAGE;
+      filters.offset = isRefresh ? 0 : currentOffset;
       
-      // Create filters based on user preferences
-      const filters: any = { limit: 1000 };
+      console.log('Loading recommended activities with filters:', filters);
       
-      // Apply user preference filters
-      if (preferences.hideClosedActivities) {
-        filters.hideClosedActivities = true;
-      }
-      if (preferences.hideFullActivities) {
-        filters.hideFullActivities = true;
-      }
+      const response = await activityService.searchActivitiesPaginated(filters);
+      console.log(`Fetched ${response.items.length} activities, total: ${response.total}`);
       
-      // Apply category filters - handle both preferredCategories and activity types
-      if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
-        // Check if these are activity types or categories
-        const consolidatedTypes = ['Swimming', 'Dance', 'Sports', 'Skating', 'Visual Arts', 'Music'];
-        const hasActivityTypes = preferences.preferredCategories.some(cat => consolidatedTypes.includes(cat));
-        
-        if (hasActivityTypes) {
-          // If we have activity types, use subcategory filter for those
-          const activityTypes = preferences.preferredCategories.filter(cat => consolidatedTypes.includes(cat));
-          if (activityTypes.length === 1) {
-            filters.subcategory = activityTypes[0];
-          } else if (activityTypes.length > 0) {
-            filters.subcategory = activityTypes.join(',');
-          }
-          
-          // Other categories use the categories filter
-          const otherCategories = preferences.preferredCategories.filter(cat => !consolidatedTypes.includes(cat));
-          if (otherCategories.length > 0) {
-            filters.categories = otherCategories.join(',');
-          }
-        } else {
-          // All are regular categories
-          filters.categories = preferences.preferredCategories.join(',');
-        }
+      if (isRefresh) {
+        setActivities(response.items);
+        setCurrentOffset(ITEMS_PER_PAGE);
+      } else {
+        setActivities(prev => [...prev, ...response.items]);
+        setCurrentOffset(prev => prev + ITEMS_PER_PAGE);
       }
       
-      if (preferences.locations && preferences.locations.length > 0) {
-        filters.locations = preferences.locations;
-      }
-      if (preferences.priceRange) {
-        filters.maxCost = preferences.priceRange.max;
-      }
-      
-      // Apply age range if set
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
-        // Use the first age range
-        const ageRange = preferences.ageRanges[0];
-        filters.ageRange = {
-          min: ageRange.min,
-          max: ageRange.max
-        };
-      }
-      
-      console.log('Applying filters for recommended activities:', filters);
-      
-      const fetchedActivities = await activityService.searchActivities(filters);
-      console.log(`Fetched ${fetchedActivities.length} recommended activities`);
-      setActivities(fetchedActivities);
+      setTotalCount(response.total);
+      setHasMore(response.hasMore);
     } catch (err: any) {
       console.error('Error loading recommended activities:', err);
       setError(err.message || 'Failed to load recommended activities. Please try again.');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!isLoadingMore && hasMore) {
+      setIsLoadingMore(true);
+      await loadRecommendedActivities(false);
     }
   };
 
@@ -113,12 +127,11 @@ const RecommendedActivitiesScreen = () => {
         fontWeight: 'bold',
       },
     });
-    loadRecommendedActivities();
+    loadRecommendedActivities(true);
   }, [navigation]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    loadRecommendedActivities();
+    loadRecommendedActivities(true);
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
@@ -199,7 +212,7 @@ const RecommendedActivitiesScreen = () => {
     );
   }
 
-  if (activities.length === 0) {
+  if (!isLoading && activities.length === 0) {
     return (
       <View style={styles.centerContainer}>
         <Icon name="search-off" size={60} color={Colors.textSecondary} />
@@ -233,6 +246,28 @@ const RecommendedActivitiesScreen = () => {
     );
   }
 
+  const renderFooter = () => {
+    if (isLoadingMore) {
+      return (
+        <View style={styles.footerLoader}>
+          <LoadingIndicator size="small" color={Colors.primary} />
+          <Text style={styles.loadingMoreText}>Loading more activities...</Text>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.footerContainer}>
+        <Text style={styles.footerText}>
+          Showing {activities.length} of {totalCount} activities
+        </Text>
+        {!hasMore && activities.length > 0 && (
+          <Text style={styles.endText}>All activities loaded</Text>
+        )}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -245,11 +280,9 @@ const RecommendedActivitiesScreen = () => {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ListFooterComponent={
-          <Text style={styles.footerText}>
-            {activities.length} {activities.length === 1 ? 'activity' : 'activities'} found
-          </Text>
-        }
+        ListFooterComponent={renderFooter}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );
@@ -360,6 +393,25 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 20,
     marginBottom: 30,
+  },
+  footerContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  footerLoader: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingMoreText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  endText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
 

@@ -2,12 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activityService = exports.EnhancedActivityService = void 0;
 const prisma_1 = require("../../generated/prisma");
+const { convertToActivityTypes } = require('../../constants/activityTypes');
 class EnhancedActivityService {
     constructor() {
         this.prisma = new prisma_1.PrismaClient();
     }
     async searchActivities(params) {
-        const { search, category, ageMin, ageMax, costMin, costMax, startDate, endDate, dayOfWeek, location, providerId, limit = 50, offset = 0, sortBy = 'dateStart', sortOrder = 'asc', includeInactive = false } = params;
+        const { search, category, categories, ageMin, ageMax, costMin, costMax, startDate, endDate, dayOfWeek, location, providerId, limit = 50, offset = 0, sortBy = 'dateStart', sortOrder = 'asc', includeInactive = false } = params;
         const where = {
             isActive: includeInactive ? undefined : true
         };
@@ -21,7 +22,27 @@ class EnhancedActivityService {
             ];
         }
         if (category) {
-            where.category = category;
+            const categoryRecord = await this.prisma.category.findUnique({
+                where: { code: category }
+            });
+            if (categoryRecord) {
+                where.categories = {
+                    some: { categoryId: categoryRecord.id }
+                };
+            }
+            else {
+                where.category = category;
+            }
+        }
+        else if (categories) {
+            const categoryList = categories.split(',').map(c => c.trim()).filter(c => c);
+            if (categoryList.length > 0) {
+                const activityTypes = convertToActivityTypes(categoryList);
+                where.OR = [
+                    { activityType: { in: activityTypes } },
+                    { category: { in: categoryList } }
+                ];
+            }
         }
         if (ageMin !== undefined || ageMax !== undefined) {
             const andConditions = [];

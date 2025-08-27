@@ -2,6 +2,7 @@ import { Prisma } from '../../generated/prisma';
 interface SearchParams {
     search?: string;
     category?: string;
+    categories?: string;
     ageMin?: number;
     ageMax?: number;
     costMin?: number;
@@ -98,6 +99,10 @@ export declare class EnhancedActivityService {
             hasMultipleSessions: boolean;
             sessionCount: number;
             hasPrerequisites: boolean;
+            activityType: string | null;
+            activitySubtype: string | null;
+            requiresParent: boolean;
+            parentInvolvement: string | null;
         })[];
         pagination: {
             total: number;
@@ -184,6 +189,10 @@ export declare class EnhancedActivityService {
         hasMultipleSessions: boolean;
         sessionCount: number;
         hasPrerequisites: boolean;
+        activityType: string | null;
+        activitySubtype: string | null;
+        requiresParent: boolean;
+        parentInvolvement: string | null;
     }>;
     getActivityByProviderAndCourseId(providerId: string, courseId: string): Promise<{
         provider: {
@@ -259,6 +268,10 @@ export declare class EnhancedActivityService {
         hasMultipleSessions: boolean;
         sessionCount: number;
         hasPrerequisites: boolean;
+        activityType: string | null;
+        activitySubtype: string | null;
+        requiresParent: boolean;
+        parentInvolvement: string | null;
     }>;
     getUpcomingActivities(params: {
         limit?: number;
@@ -342,6 +355,10 @@ export declare class EnhancedActivityService {
             hasMultipleSessions: boolean;
             sessionCount: number;
             hasPrerequisites: boolean;
+            activityType: string | null;
+            activitySubtype: string | null;
+            requiresParent: boolean;
+            parentInvolvement: string | null;
         })[];
         pagination: {
             total: number;

@@ -7,10 +7,11 @@ const router = (0, express_1.Router)();
 const activityService = new activityService_enhanced_1.EnhancedActivityService();
 router.get('/', auth_1.optionalAuth, async (req, res) => {
     try {
-        const { search, category, ageMin, ageMax, costMin, costMax, startDate, endDate, dayOfWeek, location, providerId, limit = '50', offset = '0', sortBy = 'dateStart', sortOrder = 'asc' } = req.query;
+        const { search, category, categories, ageMin, ageMax, costMin, costMax, startDate, endDate, dayOfWeek, location, providerId, limit = '50', offset = '0', sortBy = 'dateStart', sortOrder = 'asc' } = req.query;
         const params = {
             search: search,
             category: category,
+            categories: categories,
             ageMin: ageMin ? parseInt(ageMin) : undefined,
             ageMax: ageMax ? parseInt(ageMax) : undefined,
             costMin: costMin ? parseFloat(costMin) : undefined,

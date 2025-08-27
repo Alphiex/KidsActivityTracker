@@ -1,8 +1,10 @@
 import { PrismaClient, Activity, Prisma } from '../../generated/prisma';
+const { convertToActivityTypes } = require('../../constants/activityTypes');
 
 interface SearchParams {
   search?: string;
   category?: string;
+  categories?: string; // Comma-separated list of categories or activity types
   ageMin?: number;
   ageMax?: number;
   costMin?: number;
@@ -30,6 +32,7 @@ export class EnhancedActivityService {
     const {
       search,
       category,
+      categories,
       ageMin,
       ageMax,
       costMin,
@@ -63,9 +66,36 @@ export class EnhancedActivityService {
       ];
     }
 
-    // Category filter
+    // Category filter - use categories junction table
     if (category) {
-      where.category = category;
+      // First find the category by code
+      const categoryRecord = await this.prisma.category.findUnique({
+        where: { code: category }
+      });
+      
+      if (categoryRecord) {
+        where.categories = {
+          some: { categoryId: categoryRecord.id }
+        };
+      } else {
+        // Fallback to old category field for backwards compatibility
+        where.category = category;
+      }
+    } else if (categories) {
+      // Handle multiple categories (comma-separated) - typically activity types
+      const categoryList = categories.split(',').map(c => c.trim()).filter(c => c);
+      
+      if (categoryList.length > 0) {
+        // Convert categories to activity types (handles both legacy and new names)
+        const activityTypes = convertToActivityTypes(categoryList);
+        
+        // Search for activities matching any of the activity types
+        where.OR = [
+          { activityType: { in: activityTypes } },
+          // Also check the legacy category field as fallback
+          { category: { in: categoryList } }
+        ];
+      }
     }
 
     // Age range filter

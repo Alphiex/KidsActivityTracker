@@ -72,7 +72,7 @@ app.use('/api', setupRoutes);
 app.use('/api/v1/activities', activitiesRoutes);
 
 // Reference data routes (v1 API)
-app.use('/api/v1', referenceRoutes);
+app.use('/api/v1/reference', referenceRoutes);
 
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {

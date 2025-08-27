@@ -47,7 +47,7 @@ app.use('/api/sharing', sharing_1.default);
 app.use('/api/shared-activities', sharedActivities_1.default);
 app.use('/api', setup_1.default);
 app.use('/api/v1/activities', activities_1.default);
-app.use('/api/v1', reference_1.default);
+app.use('/api/v1/reference', reference_1.default);
 app.get('/api/protected', auth_2.verifyToken, (req, res) => {
     res.json({
         success: true,
