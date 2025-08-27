@@ -461,11 +461,28 @@ class NVRCEnhancedParallelScraper {
             dates: itemText.match(/([A-Z][a-z]{2}\\s+\\d{1,2}\\s*-\\s*[A-Z][a-z]{2}\\s+\\d{1,2})/)?.[1],
             daysOfWeek: (() => {
               const days = [];
-              const dayPatterns = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 
-                                  'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-              dayPatterns.forEach(day => {
-                if (itemText.includes(day)) {
-                  days.push(day.substring(0, 3));
+              // Map of any day variation to proper 3-letter abbreviation
+              const dayMappings = {
+                'Monday': 'Mon', 'Mondays': 'Mon', 'MONDAY': 'Mon', 'MONS': 'Mon', 'Mons': 'Mon',
+                'Tuesday': 'Tue', 'Tuesdays': 'Tue', 'TUESDAY': 'Tue', 'TUES': 'Tue', 'Tues': 'Tue',
+                'Wednesday': 'Wed', 'Wednesdays': 'Wed', 'WEDNESDAY': 'Wed', 'WEDS': 'Wed', 'Weds': 'Wed',
+                'Thursday': 'Thu', 'Thursdays': 'Thu', 'THURSDAY': 'Thu', 'THURS': 'Thu', 'Thurs': 'Thu', 'THUR': 'Thu', 'Thur': 'Thu',
+                'Friday': 'Fri', 'Fridays': 'Fri', 'FRIDAY': 'Fri', 'FRIS': 'Fri', 'Fris': 'Fri',
+                'Saturday': 'Sat', 'Saturdays': 'Sat', 'SATURDAY': 'Sat', 'SATS': 'Sat', 'Sats': 'Sat',
+                'Sunday': 'Sun', 'Sundays': 'Sun', 'SUNDAY': 'Sun', 'SUNS': 'Sun', 'Suns': 'Sun',
+                // Also include proper abbreviations
+                'Mon': 'Mon', 'MON': 'Mon',
+                'Tue': 'Tue', 'TUE': 'Tue',
+                'Wed': 'Wed', 'WED': 'Wed',
+                'Thu': 'Thu', 'THU': 'Thu',
+                'Fri': 'Fri', 'FRI': 'Fri',
+                'Sat': 'Sat', 'SAT': 'Sat',
+                'Sun': 'Sun', 'SUN': 'Sun'
+              };
+              
+              Object.entries(dayMappings).forEach(([pattern, abbrev]) => {
+                if (itemText.includes(pattern)) {
+                  days.push(abbrev);
                 }
               });
               return [...new Set(days)];

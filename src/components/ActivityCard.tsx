@@ -93,16 +93,23 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
       
       // Replace any incorrect day abbreviations with proper 3-letter ones
       const dayReplacements: { [key: string]: string } = {
-        // 4-letter uppercase versions
-        'MONS': 'Mon',
-        'TUES': 'Tue',
-        'WEDS': 'Wed',
-        'THURS': 'Thu',
-        'THUR': 'Thu',
-        'FRIS': 'Fri',
-        'SATS': 'Sat',
-        'SUNS': 'Sun',
-        // 4-letter mixed case versions
+        // Full day names - replace with abbreviations
+        'Monday': 'Mon',
+        'Tuesday': 'Tue',
+        'Wednesday': 'Wed',
+        'Thursday': 'Thu',
+        'Friday': 'Fri',
+        'Saturday': 'Sat',
+        'Sunday': 'Sun',
+        // Plural full day names
+        'Mondays': 'Mon',
+        'Tuesdays': 'Tue',
+        'Wednesdays': 'Wed',
+        'Thursdays': 'Thu',
+        'Fridays': 'Fri',
+        'Saturdays': 'Sat',
+        'Sundays': 'Sun',
+        // Wrong abbreviations
         'Mons': 'Mon',
         'Tues': 'Tue',
         'Weds': 'Wed',
@@ -110,20 +117,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         'Thur': 'Thu',
         'Fris': 'Fri',
         'Sats': 'Sat',
-        'Suns': 'Sun',
-        // 3-letter uppercase versions
-        'MON': 'Mon',
-        'TUE': 'Tue',
-        'WED': 'Wed',
-        'THU': 'Thu',
-        'FRI': 'Fri',
-        'SAT': 'Sat',
-        'SUN': 'Sun'
+        'Suns': 'Sun'
       };
       
       Object.entries(dayReplacements).forEach(([wrong, correct]) => {
         // Use word boundary to avoid replacing parts of other words
-        const regex = new RegExp(`\\b${wrong}\\b`, 'g');
+        // Case insensitive replacement
+        const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
         cleaned = cleaned.replace(regex, correct);
       });
       
