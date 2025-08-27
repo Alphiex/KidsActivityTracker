@@ -21,11 +21,20 @@ const NewActivitiesScreen = () => {
   const navigation = useNavigation();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentOffset, setCurrentOffset] = useState(0);
 
-  const loadNewActivities = async () => {
+  const loadNewActivities = async (reset = false) => {
     try {
+      if (reset) {
+        setActivities([]);
+        setCurrentOffset(0);
+      }
+      
       setError(null);
       const activityService = ActivityService.getInstance();
       const preferencesService = PreferencesService.getInstance();
@@ -35,9 +44,10 @@ const NewActivitiesScreen = () => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       
-      // Use API-level filtering for new activities
+      // Use paginated API for new activities
       const searchParams: any = { 
         limit: 50,
+        offset: reset ? 0 : currentOffset,
         // Filter by updated date at API level for better performance
         updatedAfter: oneWeekAgo.toISOString()
       };
@@ -52,24 +62,39 @@ const NewActivitiesScreen = () => {
         searchParams.hideFullActivities = true;
       }
       
-      const newActivities = await activityService.searchActivities(searchParams);
+      const result = await activityService.searchActivitiesPaginated(searchParams);
       
-      // Activities are already filtered by date at API level
-      // Just sort by date, newest first
-      newActivities.sort((a, b) => {
+      // Sort by date, newest first
+      result.items.sort((a, b) => {
         const dateA = new Date(a.scrapedAt || a.createdAt || 0);
         const dateB = new Date(b.scrapedAt || b.createdAt || 0);
         return dateB.getTime() - dateA.getTime();
       });
       
-      setActivities(newActivities);
+      if (reset) {
+        setActivities(result.items);
+      } else {
+        setActivities(prev => [...prev, ...result.items]);
+      }
+      
+      setTotalCount(result.total);
+      setHasMore(result.hasMore);
+      setCurrentOffset(prev => prev + result.items.length);
     } catch (err: any) {
       console.error('Error loading new activities:', err);
       setError(err.message || 'Failed to load new activities. Please try again.');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
+      setIsLoadingMore(false);
     }
+  };
+
+  const loadMore = async () => {
+    if (!hasMore || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    await loadNewActivities(false);
   };
 
   useEffect(() => {
@@ -83,12 +108,12 @@ const NewActivitiesScreen = () => {
         fontWeight: 'bold',
       },
     });
-    loadNewActivities();
+    loadNewActivities(true);
   }, [navigation]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadNewActivities();
+    loadNewActivities(true);
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
@@ -123,7 +148,8 @@ const NewActivitiesScreen = () => {
       <Icon name="new-box" size={50} color="#fff" />
       <Text style={styles.headerTitle}>New This Week</Text>
       <Text style={styles.headerSubtitle}>
-        {activities.length} new {activities.length === 1 ? 'activity' : 'activities'} added
+        {totalCount} new {totalCount === 1 ? 'activity' : 'activities'} added
+        {activities.length < totalCount && ` (showing ${activities.length})`}
       </Text>
     </LinearGradient>
   );
@@ -142,7 +168,7 @@ const NewActivitiesScreen = () => {
       <View style={styles.centerContainer}>
         <Icon name="alert-circle" size={60} color={Colors.error} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadNewActivities}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => loadNewActivities(true)}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -177,6 +203,25 @@ const NewActivitiesScreen = () => {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => {
+          if (isLoadingMore) {
+            return (
+              <View style={styles.loadingMore}>
+                <Text style={styles.loadingMoreText}>Loading more activities...</Text>
+              </View>
+            );
+          }
+          if (!hasMore && activities.length > 0) {
+            return (
+              <View style={styles.endOfList}>
+                <Text style={styles.endOfListText}>All new activities loaded</Text>
+              </View>
+            );
+          }
+          return null;
+        }}
       />
     </View>
   );
@@ -283,6 +328,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingMore: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  endOfList: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endOfListText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
 });
 

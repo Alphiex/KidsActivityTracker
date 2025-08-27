@@ -24,17 +24,29 @@ const ActivityTypeScreen = () => {
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentOffset, setCurrentOffset] = useState(0);
 
-  const loadActivities = async () => {
+  const loadActivities = async (reset = false) => {
     try {
+      if (reset) {
+        setActivities([]);
+        setCurrentOffset(0);
+      }
+      
       setError(null);
       const activityService = ActivityService.getInstance();
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       
-      let searchParams: any = {};
+      let searchParams: any = {
+        limit: 50,
+        offset: reset ? 0 : currentOffset
+      };
       
       // Add filter based on whether it's a category or activity type
       if (category !== 'All' && category !== 'Budget Friendly') {
@@ -71,15 +83,32 @@ const ActivityTypeScreen = () => {
         searchParams.hideFullActivities = true;
       }
       
-      const fetchedActivities = await activityService.searchActivities(searchParams);
-      setActivities(fetchedActivities);
+      const result = await activityService.searchActivitiesPaginated(searchParams);
+      
+      if (reset) {
+        setActivities(result.items);
+      } else {
+        setActivities(prev => [...prev, ...result.items]);
+      }
+      
+      setTotalCount(result.total);
+      setHasMore(result.hasMore);
+      setCurrentOffset(prev => prev + result.items.length);
     } catch (err: any) {
       console.error('Error loading activities:', err);
       setError(err.message || 'Failed to load activities. Please try again.');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
+      setIsLoadingMore(false);
     }
+  };
+
+  const loadMore = async () => {
+    if (!hasMore || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    await loadActivities(false);
   };
 
   useEffect(() => {
@@ -100,12 +129,12 @@ const ActivityTypeScreen = () => {
         fontWeight: 'bold',
       },
     });
-    loadActivities();
+    loadActivities(true);
   }, [category, navigation]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadActivities();
+    loadActivities(true);
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
@@ -133,7 +162,8 @@ const ActivityTypeScreen = () => {
     >
       <Text style={styles.categoryTitle}>{category}</Text>
       <Text style={styles.categorySubtitle}>
-        {activities.length} {activities.length === 1 ? 'activity' : 'activities'} found
+        {totalCount} {totalCount === 1 ? 'activity' : 'activities'} found
+        {activities.length < totalCount && ` (showing ${activities.length})`}
       </Text>
     </LinearGradient>
   );
@@ -152,7 +182,7 @@ const ActivityTypeScreen = () => {
       <View style={styles.centerContainer}>
         <Icon name="alert-circle" size={60} color={Colors.error} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadActivities}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => loadActivities(true)}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -187,6 +217,25 @@ const ActivityTypeScreen = () => {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => {
+          if (isLoadingMore) {
+            return (
+              <View style={styles.loadingMore}>
+                <Text style={styles.loadingMoreText}>Loading more activities...</Text>
+              </View>
+            );
+          }
+          if (!hasMore && activities.length > 0) {
+            return (
+              <View style={styles.endOfList}>
+                <Text style={styles.endOfListText}>All activities loaded</Text>
+              </View>
+            );
+          }
+          return null;
+        }}
       />
     </View>
   );
@@ -269,6 +318,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingMore: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  endOfList: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endOfListText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
 });
 
