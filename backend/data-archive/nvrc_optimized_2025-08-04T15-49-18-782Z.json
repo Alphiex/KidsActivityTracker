@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-08-04T15:49:18.785Z",
+  "totalActivities": 2,
+  "activities": [
+    {
+      "id": "365586",
+      "courseId": "365586",
+      "name": "Art Studio Drop-in $5.50 Parkgate Friday 10:00am-2:00pm  \n10:00 am - 02:00 pm\nParkgate Community Cen",
+      "price": "5.50",
+      "category": "Art Studio Schedules"
+    },
+    {
+      "id": "359367",
+      "courseId": "359367",
+      "name": "Hobby Studio Drop-in $5 Lynn Creek Saturday 8:00am-10:00am  \n08:00 am - 10:00 am\nLynn Creek Communit",
+      "price": "5",
+      "category": "Art Studio Schedules"
+    }
+  ]
+}

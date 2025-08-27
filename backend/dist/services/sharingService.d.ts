@@ -29,73 +29,8 @@ interface SharedChildWithActivities extends Child {
 export declare class SharingService {
     configureSharing(userId: string, config: ShareConfiguration): Promise<ActivityShare>;
     getUserShares(userId: string): Promise<{
-        myShares: ({
-            sharedWithUser: {
-                name: string;
-                email: string;
-                id: string;
-            };
-            profiles: ({
-                child: {
-                    name: string;
-                    id: string;
-                    dateOfBirth: Date;
-                    avatarUrl: string;
-                };
-            } & {
-                id: string;
-                createdAt: Date;
-                childId: string;
-                activityShareId: string;
-                canViewInterested: boolean;
-                canViewRegistered: boolean;
-                canViewCompleted: boolean;
-                canViewNotes: boolean;
-            })[];
-        } & {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            isActive: boolean;
-            sharingUserId: string;
-            sharedWithUserId: string;
-            permissionLevel: string;
-            expiresAt: Date | null;
-        })[];
-        sharedWithMe: ({
-            sharingUser: {
-                name: string;
-                email: string;
-                id: string;
-            };
-            profiles: ({
-                child: {
-                    name: string;
-                    id: string;
-                    dateOfBirth: Date;
-                    avatarUrl: string;
-                    interests: string[];
-                };
-            } & {
-                id: string;
-                createdAt: Date;
-                childId: string;
-                activityShareId: string;
-                canViewInterested: boolean;
-                canViewRegistered: boolean;
-                canViewCompleted: boolean;
-                canViewNotes: boolean;
-            })[];
-        } & {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            isActive: boolean;
-            sharingUserId: string;
-            sharedWithUserId: string;
-            permissionLevel: string;
-            expiresAt: Date | null;
-        })[];
+        myShares: any;
+        sharedWithMe: any;
     }>;
     getSharedChildren(userId: string, sharingUserId?: string): Promise<SharedChildWithActivities[]>;
     updateShare(shareId: string, userId: string, data: UpdateShareData): Promise<ActivityShare>;
@@ -103,9 +38,9 @@ export declare class SharingService {
     removeChildFromShare(shareId: string, childId: string, userId: string): Promise<void>;
     addChildToShare(shareId: string, childId: string, userId: string, permissions: UpdateChildPermissionData): Promise<ActivityShareProfile>;
     getSharingStats(userId: string): Promise<{
-        sharingWith: number;
-        sharedWithMe: number;
-        childrenShared: number;
+        sharingWith: any;
+        sharedWithMe: any;
+        childrenShared: any;
     }>;
     cleanupExpiredShares(): Promise<number>;
     hasAccessToChild(viewerId: string, childId: string): Promise<boolean>;

@@ -1,0 +1,457 @@
+{
+  "activityTypes": [
+    {
+      "type": "Swimming & Aquatics",
+      "description": "All water-based activities",
+      "subtypes": [
+        "Learn to Swim",
+        "Competitive Swimming",
+        "Diving",
+        "Water Polo",
+        "Synchronized Swimming",
+        "Aqua Fitness",
+        "Lifeguard Training",
+        "Water Safety",
+        "Snorkeling",
+        "Open Water Swimming",
+        "Aquatic Leadership",
+        "Adapted Swimming"
+      ]
+    },
+    {
+      "type": "Team Sports",
+      "description": "Sports played in teams",
+      "subtypes": [
+        "Basketball",
+        "Soccer",
+        "Volleyball",
+        "Baseball",
+        "Softball",
+        "Hockey",
+        "Ice Hockey",
+        "Field Hockey",
+        "Football",
+        "Rugby",
+        "Lacrosse",
+        "Cricket",
+        "Water Polo",
+        "Ultimate Frisbee",
+        "Handball",
+        "Netball"
+      ]
+    },
+    {
+      "type": "Racquet Sports",
+      "description": "Sports using racquets or paddles",
+      "subtypes": [
+        "Tennis",
+        "Badminton",
+        "Squash",
+        "Pickleball",
+        "Table Tennis",
+        "Racquetball",
+        "Padel Tennis"
+      ]
+    },
+    {
+      "type": "Martial Arts",
+      "description": "Combat and self-defense sports",
+      "subtypes": [
+        "Karate",
+        "Taekwondo",
+        "Judo",
+        "Aikido",
+        "Kung Fu",
+        "Brazilian Jiu-Jitsu",
+        "Mixed Martial Arts",
+        "Krav Maga",
+        "Boxing",
+        "Kickboxing",
+        "Muay Thai",
+        "Wrestling",
+        "Fencing",
+        "Capoeira"
+      ]
+    },
+    {
+      "type": "Dance",
+      "description": "All forms of dance",
+      "subtypes": [
+        "Ballet",
+        "Jazz Dance",
+        "Hip Hop",
+        "Contemporary",
+        "Tap Dance",
+        "Ballroom",
+        "Latin Dance",
+        "Irish Dance",
+        "Folk Dance",
+        "Breakdancing",
+        "Modern Dance",
+        "Creative Movement",
+        "Dance Fitness",
+        "Cultural Dance"
+      ]
+    },
+    {
+      "type": "Gymnastics & Movement",
+      "description": "Gymnastics and acrobatic activities",
+      "subtypes": [
+        "Artistic Gymnastics",
+        "Rhythmic Gymnastics",
+        "Trampoline",
+        "Tumbling",
+        "Acrobatics",
+        "Parkour",
+        "Ninja Training",
+        "Circus Skills",
+        "Cheerleading"
+      ]
+    },
+    {
+      "type": "Skating & Wheels",
+      "description": "Activities on skates or wheels",
+      "subtypes": [
+        "Ice Skating",
+        "Figure Skating",
+        "Speed Skating",
+        "Roller Skating",
+        "Inline Skating",
+        "Skateboarding",
+        "Scootering",
+        "BMX"
+      ]
+    },
+    {
+      "type": "Visual Arts",
+      "description": "Creative visual arts and crafts",
+      "subtypes": [
+        "Drawing",
+        "Painting",
+        "Mixed Media",
+        "Pottery & Ceramics",
+        "Sculpture",
+        "Photography",
+        "Digital Art",
+        "Printmaking",
+        "Jewelry Making",
+        "Crafts",
+        "Fashion Design",
+        "Animation",
+        "Comic Art",
+        "Art History"
+      ]
+    },
+    {
+      "type": "Performing Arts",
+      "description": "Theatre and performance",
+      "subtypes": [
+        "Drama",
+        "Musical Theatre",
+        "Improv",
+        "Puppetry",
+        "Magic",
+        "Stand-up Comedy",
+        "Voice Acting",
+        "Stage Production",
+        "Film Making"
+      ]
+    },
+    {
+      "type": "Music",
+      "description": "Musical instruction and performance",
+      "subtypes": [
+        "Piano",
+        "Guitar",
+        "Violin",
+        "Drums",
+        "Voice/Singing",
+        "Ukulele",
+        "Band",
+        "Orchestra",
+        "Music Theory",
+        "Music Production",
+        "DJ Skills",
+        "Woodwinds",
+        "Brass Instruments",
+        "Music Appreciation"
+      ]
+    },
+    {
+      "type": "STEM & Technology",
+      "description": "Science, technology, engineering, math",
+      "subtypes": [
+        "Coding & Programming",
+        "Robotics",
+        "3D Printing",
+        "Science Experiments",
+        "Engineering",
+        "Mathematics",
+        "Video Game Design",
+        "Web Design",
+        "App Development",
+        "Electronics",
+        "Astronomy",
+        "Chemistry",
+        "Physics",
+        "Biology"
+      ]
+    },
+    {
+      "type": "Outdoor & Adventure",
+      "description": "Outdoor activities and adventure sports",
+      "subtypes": [
+        "Hiking",
+        "Rock Climbing",
+        "Camping",
+        "Kayaking",
+        "Canoeing",
+        "Sailing",
+        "Mountain Biking",
+        "Orienteering",
+        "Survival Skills",
+        "Archery",
+        "Fishing",
+        "Nature Education",
+        "Geocaching",
+        "Outdoor Leadership"
+      ]
+    },
+    {
+      "type": "Individual Sports",
+      "description": "Sports typically played individually",
+      "subtypes": [
+        "Golf",
+        "Bowling",
+        "Track & Field",
+        "Cross Country Running",
+        "Cycling",
+        "Triathlon",
+        "Weight Training",
+        "Powerlifting",
+        "Bodybuilding"
+      ]
+    },
+    {
+      "type": "Winter Sports",
+      "description": "Snow and winter activities",
+      "subtypes": [
+        "Skiing",
+        "Snowboarding",
+        "Cross-Country Skiing",
+        "Snowshoeing",
+        "Ice Climbing",
+        "Curling",
+        "Biathlon",
+        "Sledding",
+        "Snow Play"
+      ]
+    },
+    {
+      "type": "Fitness & Wellness",
+      "description": "General fitness and wellness activities",
+      "subtypes": [
+        "Yoga",
+        "Pilates",
+        "Spin/Cycling",
+        "CrossFit",
+        "Boot Camp",
+        "Zumba",
+        "Aerobics",
+        "Strength Training",
+        "Cardio Training",
+        "Meditation",
+        "Mindfulness",
+        "Nutrition Education"
+      ]
+    },
+    {
+      "type": "Life Skills & Leadership",
+      "description": "Practical skills and leadership development",
+      "subtypes": [
+        "Babysitting",
+        "First Aid",
+        "Home Alone Safety",
+        "Leadership Training",
+        "Public Speaking",
+        "Debate",
+        "Model UN",
+        "Student Council",
+        "Peer Mentoring",
+        "Community Service",
+        "Financial Literacy"
+      ]
+    },
+    {
+      "type": "Culinary Arts",
+      "description": "Cooking and food preparation",
+      "subtypes": [
+        "Basic Cooking",
+        "Baking",
+        "International Cuisine",
+        "Healthy Cooking",
+        "Cake Decorating",
+        "Food Science",
+        "Nutrition",
+        "Restaurant Skills",
+        "Food Safety"
+      ]
+    },
+    {
+      "type": "Languages & Culture",
+      "description": "Language learning and cultural activities",
+      "subtypes": [
+        "French",
+        "Spanish",
+        "Mandarin",
+        "Sign Language",
+        "ESL/English",
+        "Cultural Studies",
+        "Language Immersion",
+        "Creative Writing",
+        "Literature"
+      ]
+    },
+    {
+      "type": "Games & Recreation",
+      "description": "Recreational games and activities",
+      "subtypes": [
+        "Chess",
+        "Board Games",
+        "Card Games",
+        "Video Gaming/Esports",
+        "Dungeons & Dragons",
+        "Trivia",
+        "Puzzle Solving",
+        "Escape Rooms",
+        "Laser Tag",
+        "Mini Golf"
+      ]
+    },
+    {
+      "type": "Early Development",
+      "description": "Activities for early childhood development",
+      "subtypes": [
+        "Play & Learn",
+        "Sensory Play",
+        "Motor Skills Development",
+        "Music & Movement",
+        "Story Time",
+        "Social Skills",
+        "Kindergarten Readiness",
+        "Toddler Activities",
+        "Parent & Tot Classes"
+      ]
+    },
+    {
+      "type": "Camps",
+      "description": "Day and overnight camps",
+      "subtypes": [
+        "Day Camp",
+        "Sports Camp",
+        "Art Camp",
+        "Science Camp",
+        "Adventure Camp",
+        "Overnight Camp",
+        "Specialty Camp",
+        "Leadership Camp",
+        "Music Camp",
+        "Theatre Camp",
+        "Tech Camp",
+        "Nature Camp"
+      ]
+    },
+    {
+      "type": "Special Events",
+      "description": "One-time or seasonal events",
+      "subtypes": [
+        "Kids Night Out",
+        "Birthday Parties",
+        "Holiday Events",
+        "Workshops",
+        "Clinics",
+        "Tournaments",
+        "Showcases",
+        "Field Trips",
+        "Guest Speakers"
+      ]
+    },
+    {
+      "type": "Adaptive & Inclusive",
+      "description": "Programs for children with special needs",
+      "subtypes": [
+        "Adaptive Sports",
+        "Therapeutic Recreation",
+        "Special Olympics",
+        "Sensory-Friendly Programs",
+        "Inclusive Programs",
+        "Behavioral Support",
+        "Physical Therapy",
+        "Occupational Therapy"
+      ]
+    },
+    {
+      "type": "Academic Support",
+      "description": "Educational support and tutoring",
+      "subtypes": [
+        "Math Tutoring",
+        "Reading Support",
+        "Writing Skills",
+        "Homework Help",
+        "Study Skills",
+        "Test Preparation",
+        "College Prep",
+        "Summer Learning",
+        "STEM Tutoring"
+      ]
+    },
+    {
+      "type": "Multi-Sport",
+      "description": "Programs covering multiple sports",
+      "subtypes": [
+        "Sport Sampler",
+        "Multi-Sport Camp",
+        "Seasonal Sports",
+        "FUNdamentals",
+        "Physical Literacy"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "baby-parent",
+      "name": "Baby & Parent",
+      "ageRange": "0-1",
+      "description": "Activities for babies with parent participation",
+      "requiresParent": true
+    },
+    {
+      "id": "early-years-solo",
+      "name": "Early Years Solo",
+      "ageRange": "0-6",
+      "description": "Activities for young children without parent participation",
+      "requiresParent": false
+    },
+    {
+      "id": "early-years-parent",
+      "name": "Early Years with Parent",
+      "ageRange": "0-6",
+      "description": "Activities for young children with parent participation",
+      "requiresParent": true
+    },
+    {
+      "id": "school-age",
+      "name": "School Age",
+      "ageRange": "5-13",
+      "description": "Activities for school-aged children",
+      "requiresParent": false
+    },
+    {
+      "id": "youth",
+      "name": "Youth",
+      "ageRange": "10-18",
+      "description": "Activities for teenagers and young adults",
+      "requiresParent": false
+    }
+  ]
+}

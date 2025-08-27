@@ -1,0 +1,172 @@
+{
+  "url": "https://www.nvrc.ca/perfectmind/api/activities?programs%5BEarly%20Years%3A%20On%20My%20Own%5D=Early%20Years%3A%20On%20My%20Own&programs%5BEarly%20Years%3A%20Parent%20Participation%5D=Early%20Years%3A%20Parent%20Participation&programs%5BSchool%20Age%5D=School%20Age&programs%5BYouth%5D=Youth&form_build_id=form-BO0YwobjYmqAPmhuI7b73TKomfJDiK2TCkg1BOMnteM&form_id=perfectmind_search_block_form",
+  "data": {
+    "data": {
+      "fitness": {
+        "activities": {
+          "fitness_spin": {
+            "id": "fitness_spin",
+            "group": "Fitness",
+            "group_id": "fitness",
+            "name": "Spin",
+            "keywords": "Fitness Spin",
+            "Services": [
+              "Fitness Spin Training Youth"
+            ]
+          },
+          "fitness_strength_cardio": {
+            "id": "fitness_strength_cardio",
+            "group": "Fitness",
+            "group_id": "fitness",
+            "name": "Strength & Cardio",
+            "keywords": "Fitness Strength\r\nFitness Cardio\r\nFitness Centre\r\nFitness Small Group",
+            "Services": [
+              "Fitness Small Group Training Youth"
+            ]
+          },
+          "fitness_yoga": {
+            "id": "fitness_yoga",
+            "group": "Fitness",
+            "group_id": "fitness",
+            "name": "Yoga",
+            "keywords": "Yoga",
+            "Services": [
+              "Yoga Youth"
+            ]
+          }
+        },
+        "group": {
+          "id": "fitness",
+          "name": "Fitness"
+        }
+      },
+      "activities": {
+        "activities": {
+          "activities_aquatic_leadership": {
+            "id": "activities_aquatic_leadership",
+            "group": "Activities",
+            "group_id": "activities",
+            "name": "Aquatic Leadership",
+            "keywords": "Aquatic Emergency\r\nBCRPA\r\nBronze\r\nLifeguard\r\nLifesaving\r\nSwim Instructor\r\nWater Safety",
+            "Services": [
+              "Bronze Star"
+            ]
+          },
+          "activities_camps": {
+            "id": "activities_camps",
+            "group": "Activities",
+            "group_id": "activities",
+            "name": "Camps",
+            "keywords": "After Camp\r\nBefore Camp\r\nCamp\r\nCampers",
+            "Services": [
+              "Camp Youth"
+            ]
+          },
+          "activities_certifications_and_leadership": {
+            "id": "activities_certifications_and_leadership",
+            "group": "Activities",
+            "group_id": "activities",
+            "name": "Certifications and Leadership",
+            "keywords": "Advisory Committee\r\nBabysitter Training\r\nFood Safe\r\nFoodsafe\r\nHigh five Principles\r\nHome Alone\r\nInternet Safety\r\nPreteen Leadership\r\nResponsible",
+            "Services": [
+              "Home Alone 10yrs+"
+            ]
+          },
+          "activities_learn_and_play": {
+            "id": "activities_learn_and_play",
+            "group": "Activities",
+            "group_id": "activities",
+            "name": "Learn and Play",
+            "keywords": "Afternoon Adventures\r\nArt & Action\r\nDiscover This\r\nDiscover This!\r\nGive Me\r\nHola\r\nImagine This\r\nKids Club\r\nLicensed Preschool\r\nLittle Ones\r\nLittle Steps\r\nLonsdale Licensed\r\nOutdoor Adventures\r\nPreschool",
+            "Services": [
+              "Sandpiper Licensed Preschool"
+            ]
+          },
+          "activities_martial_arts": {
+            "id": "activities_martial_arts",
+            "group": "Activities",
+            "group_id": "activities",
+            "name": "Martial Arts",
+            "keywords": "Capoeira\r\nJu-jitsu\r\nKarate\r\nKi Aikido\r\nKung Fu\r\nMartial Arts\r\nMeditation\r\nQi Gong\r\nSelf Defense\r\nTaekwondo\r\nTai Chi",
+            "Services": [
+              "Taekwondo Youth"
+            ]
+          },
+          "activities_swimming": {
+            "id": "activities_swimming",
+            "group": "Activities",
+            "group_id": "activities",
+            "name": "Swimming",
+            "keywords": "Swim\r\nSwim4Life\r\nSwimming\r\nSwimmer\r\n~Swim Instructor Recertification",
+            "Services": [
+              "Swimmer 9 - Star Patrol (8-12yrs)"
+            ]
+          }
+        },
+        "group": {
+          "id": "activities",
+          "name": "Activities"
+        }
+      },
+      "sports": {
+        "activities": {
+          "sports_racquet_sports": {
+            "id": "sports_racquet_sports",
+            "group": "Sports",
+            "group_id": "sports",
+            "name": "Racquet Sports",
+            "keywords": "Badminton\r\nPickleball\r\nSquash\r\nTennis\r\n~Tennis Private Lesson\r\nxTennis",
+            "Services": [
+              "Tennis Try-it Teen"
+            ]
+          },
+          "sports_team_sports": {
+            "id": "sports_team_sports",
+            "group": "Sports",
+            "group_id": "sports",
+            "name": "Team Sports",
+            "keywords": "Basketball\r\nDodgeball\r\nFloor Hockey\r\nNetball\r\nRugby\r\nSoccer\r\nSportball\r\nVolleyball",
+            "Services": [
+              "Volleyball Youth"
+            ]
+          }
+        },
+        "group": {
+          "id": "sports",
+          "name": "Sports"
+        }
+      },
+      "arts_culture": {
+        "activities": {
+          "arts_culture_dance": {
+            "id": "arts_culture_dance",
+            "group": "Arts & Culture",
+            "group_id": "arts_culture",
+            "name": "Dance",
+            "keywords": "Ballet\r\nDance Adult\r\nDance Ballroom\r\nDance Cultural\r\nDance Early Years\r\nDance Family\r\nDance Parent\r\nDance School Age\r\nDance Youth\r\nGrit\r\nICanDance",
+            "Services": [
+              "Dance School Age"
+            ]
+          },
+          "arts_culture_visual_arts": {
+            "id": "arts_culture_visual_arts",
+            "group": "Arts & Culture",
+            "group_id": "arts_culture",
+            "name": "Visual Arts",
+            "keywords": "Textile\r\nArt Studio\r\nArt Visual\r\nArt Workshops\r\nDrawing\r\nMixed Media\r\nMusic Kaleidoscope\r\nPainting\r\nPhotography\r\nPrint Making\r\nQuilting",
+            "Services": [
+              "Mixed Media School Age"
+            ]
+          }
+        },
+        "group": {
+          "id": "arts_culture",
+          "name": "Arts & Culture"
+        }
+      }
+    },
+    "method": "GET",
+    "status": 200
+  },
+  "timestamp": "2025-07-25T02:04:44.569Z"
+}

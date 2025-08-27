@@ -18,6 +18,7 @@ const sharedActivities_1 = __importDefault(require("./routes/sharedActivities"))
 const setup_1 = __importDefault(require("./routes/setup"));
 const activities_1 = __importDefault(require("./routes/activities"));
 const reference_1 = __importDefault(require("./routes/reference"));
+const cities_1 = __importDefault(require("./routes/cities"));
 const auth_2 = require("./middleware/auth");
 dotenv_1.default.config();
 const prisma = new prisma_1.PrismaClient();
@@ -48,6 +49,7 @@ app.use('/api/shared-activities', sharedActivities_1.default);
 app.use('/api', setup_1.default);
 app.use('/api/v1/activities', activities_1.default);
 app.use('/api/v1/reference', reference_1.default);
+app.use('/api/v1/cities', cities_1.default);
 app.get('/api/protected', auth_2.verifyToken, (req, res) => {
     res.json({
         success: true,

@@ -1,0 +1,171 @@
+{
+  "timestamp": "2025-08-04T03:41:48.698Z",
+  "url": "https://nvrc.perfectmind.com/23734/Clients/BookMe4?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False",
+  "totalActivities": 20,
+  "activities": [
+    {
+      "id": "activity_0",
+      "courseId": null,
+      "name": "Skip to main content",
+      "time": null,
+      "date": null,
+      "price": 2,
+      "location": "Cates Park",
+      "rawText": "\n\n\n\n\n\n  window.dataLayer = window.dataLayer || [];\n\n  function gtag(){dataLayer.push(arguments);}\n\n  gtag('js', new Date());\n\n \n\n  gtag('config', 'UA-6688967-3');\n\n\n\n\n\n\n\n\nwindow.dataLayer = window.dat"
+    },
+    {
+      "id": "activity_99",
+      "courseId": null,
+      "name": "Filters",
+      "time": null,
+      "date": null,
+      "price": 2,
+      "location": "Cates Park",
+      "rawText": "\n    \n               \n                   \n               \n               \n                   \n                                                                               Filters                    "
+    },
+    {
+      "id": "354396",
+      "courseId": "354396",
+      "category": "Fitness Studio Workout Schedules",
+      "name": "Filters                        Reset",
+      "time": "07:00 am - 09:00 am",
+      "price": null
+    },
+    {
+      "id": "354436",
+      "courseId": "354436",
+      "category": "Youth Services Schedules",
+      "name": "Filters                        Reset",
+      "time": "3:30pm-5:30pm",
+      "price": 6
+    },
+    {
+      "id": "354448",
+      "courseId": "354448",
+      "category": "Youth Services Schedules",
+      "name": "Youth Night Lynn Creek Saturday 6:30-8:30pm (Grade 6-9)",
+      "time": "06:30 pm - 08:30 pm",
+      "price": 6
+    },
+    {
+      "id": "Youth Services Schedules_181",
+      "courseId": null,
+      "category": "Youth Services Schedules",
+      "name": "06:30 pm - 08:30 pm",
+      "time": "06:30 pm - 08:30 pm",
+      "price": 6
+    },
+    {
+      "id": "Youth Services Schedules_185",
+      "courseId": null,
+      "category": "Youth Services Schedules",
+      "name": "$6.00",
+      "time": null,
+      "price": 6
+    },
+    {
+      "id": "355810",
+      "courseId": "355810",
+      "category": "Arts Dance",
+      "name": "Filters                        Reset",
+      "time": "02:00 pm - 04:00 pm",
+      "price": 5.63
+    },
+    {
+      "id": "Arts Dance_80",
+      "courseId": null,
+      "category": "Arts Dance",
+      "name": "$5.63",
+      "time": null,
+      "price": 5.63
+    },
+    {
+      "id": "356092",
+      "courseId": "356092",
+      "category": "Arts Dance",
+      "name": "Sunday Tea Dance",
+      "time": "02:00 pm - 04:00 pm",
+      "price": 5.63
+    },
+    {
+      "id": "356373",
+      "courseId": "356373",
+      "category": "Arts Dance",
+      "name": "Sunday Tea Dance",
+      "time": "02:00 pm - 04:00 pm",
+      "price": 5.63
+    },
+    {
+      "id": "366855",
+      "courseId": "366855",
+      "category": "Arts Woodworking",
+      "name": "Filters                        Reset",
+      "time": "02:30 pm - 05:30 pm",
+      "price": 47.25
+    },
+    {
+      "id": "Arts Woodworking_80",
+      "courseId": null,
+      "category": "Arts Woodworking",
+      "name": "$47.25",
+      "time": null,
+      "price": 47.25
+    },
+    {
+      "id": "366858",
+      "courseId": "366858",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Wednesday 9:30am-12:30pm",
+      "time": "9:30am-12:30pm",
+      "price": 47.25
+    },
+    {
+      "id": "366857",
+      "courseId": "366857",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Friday 6:30-9:30pm",
+      "time": "06:30 pm - 09:30 pm",
+      "price": 47.25
+    },
+    {
+      "id": "366856",
+      "courseId": "366856",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Sunday 2:00-5:00pm",
+      "time": "02:00 pm - 05:00 pm",
+      "price": 47.25
+    },
+    {
+      "id": "366861",
+      "courseId": "366861",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Tuesday 2:30-5:30pm",
+      "time": "02:30 pm - 05:30 pm",
+      "price": 47.25
+    },
+    {
+      "id": "366864",
+      "courseId": "366864",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Wednesday 9:30am-12:30pm",
+      "time": "9:30am-12:30pm",
+      "price": 47.25
+    },
+    {
+      "id": "366860",
+      "courseId": "366860",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Friday 6:30-9:30pm",
+      "time": "06:30 pm - 09:30 pm",
+      "price": 47.25
+    },
+    {
+      "id": "366863",
+      "courseId": "366863",
+      "category": "Arts Woodworking",
+      "name": "Woodworking Studio Time Sunday 2:00-5:00pm",
+      "time": "02:00 pm - 05:00 pm",
+      "price": 47.25
+    }
+  ]
+}

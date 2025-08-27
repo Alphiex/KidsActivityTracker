@@ -1,0 +1,106 @@
+// Add these to the existing Activity model:
+
+model Activity {
+  // ... existing fields ...
+  
+  // NEW FIELDS FOR CATEGORY REFACTOR
+  activityType      String?     // "Swimming & Aquatics", "Team Sports", etc.
+  activitySubtype   String?     // "Basketball", "Learn to Swim", etc.
+  requiresParent    Boolean     @default(false)
+  parentInvolvement String?     // "full", "partial", "drop-off", "none"
+  
+  // NEW RELATIONSHIPS
+  categories        ActivityCategory[]
+  
+  // NEW INDEXES
+  @@index([activityType])
+  @@index([activityType, activitySubtype])
+  @@index([requiresParent])
+}
+
+// NEW MODELS TO ADD:
+
+model Category {
+  id            String    @id @default(uuid())
+  code          String    @unique  // "baby-parent", "school-age", etc.
+  name          String    // "Baby & Parent", "School Age", etc.
+  ageMin        Int       // Minimum age
+  ageMax        Int       // Maximum age
+  requiresParent Boolean  // Whether parent participation is required
+  description   String?
+  displayOrder  Int       // For UI ordering
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  activities    ActivityCategory[]
+  
+  @@index([code])
+}
+
+model ActivityCategory {
+  id          String    @id @default(uuid())
+  activityId  String
+  categoryId  String
+  isPrimary   Boolean   @default(false)  // Mark primary category
+  confidence  Float     @default(1.0)     // Confidence score for auto-categorization
+  source      String    @default("auto")  // "auto", "manual", "scraper", "migration"
+  createdAt   DateTime  @default(now())
+  
+  activity    Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id])
+  
+  @@unique([activityId, categoryId])
+  @@index([activityId])
+  @@index([categoryId])
+}
+
+model ActivityType {
+  id          String    @id @default(uuid())
+  code        String    @unique  // "swimming-aquatics", "team-sports", "other-activity"
+  name        String    // "Swimming & Aquatics", "Team Sports", "Other Activity"
+  description String?
+  iconName    String?   // For UI icons
+  imageUrl    String?   // Default image for this activity type
+  displayOrder Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  subtypes    ActivitySubtype[]
+  
+  @@index([code])
+}
+
+model ActivitySubtype {
+  id              String    @id @default(uuid())
+  activityTypeId  String
+  code            String    // "basketball", "learn-to-swim", "other"
+  name            String    // "Basketball", "Learn to Swim", "Other"
+  description     String?
+  imageUrl        String?   // Specific image for this subtype
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  activityType    ActivityType @relation(fields: [activityTypeId], references: [id], onDelete: Cascade)
+  
+  @@unique([activityTypeId, code])
+  @@index([activityTypeId])
+}
+
+model UnmappedActivity {
+  id                  String    @id @default(uuid())
+  activityId          String
+  originalCategory    String?
+  originalSubcategory String?
+  scraperText         String?   @db.Text
+  reviewed            Boolean   @default(false)
+  mappedType          String?   // Type after manual review
+  mappedSubtype       String?   // Subtype after manual review
+  notes               String?
+  createdAt           DateTime  @default(now())
+  reviewedAt          DateTime?
+  reviewedBy          String?   // User who reviewed
+  
+  @@index([reviewed])
+  @@index([activityId])
+  @@index([createdAt])
+}

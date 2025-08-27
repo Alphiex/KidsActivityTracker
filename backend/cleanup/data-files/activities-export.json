@@ -1,0 +1,872 @@
+[
+  {
+    "id": "006837ba-812a-4af3-8f05-dc2461ea743e",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEventd2ac245f-9e29-4046-8d65-e9c0a872e9bb",
+    "name": "Swimmer 3 (6-12yrs)",
+    "category": "Swimming",
+    "subcategory": "Swimmer 3 (6-12yrs)",
+    "description": "Pre-requisite Swimmer 2 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+    "schedule": "Mon, Tue, Wed, Thu, Fri 9:15am - 10:00am",
+    "dateStart": "2025-07-25T00:45:02.389Z",
+    "dateEnd": "2025-07-25T00:45:02.389Z",
+    "registrationDate": "2025-05-21T13:00:00.000Z",
+    "ageMin": 6,
+    "ageMax": 18,
+    "cost": 94.9,
+    "spotsAvailable": 0,
+    "totalSpots": null,
+    "locationId": "fb530fe0-df30-4302-b9cb-4f72a63c1b3c",
+    "locationName": "Delbrook Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=d2ac245f-9e29-4046-8d65-e9c0a872e9bb",
+    "courseId": "00352232",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.514Z",
+    "rawData": {
+      "id": "ProgramsEventd2ac245f-9e29-4046-8d65-e9c0a872e9bb",
+      "cost": 94.9,
+      "name": "Swimmer 3 (6-12yrs)",
+      "alert": "Pre-requisite Swimmer 2 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+      "dates": "Aug 11 - 22",
+      "ageRange": {
+        "max": 18,
+        "min": 6
+      },
+      "category": "Swimming",
+      "courseId": "00352232",
+      "facility": "Lane 2",
+      "location": "Delbrook Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Tue, Wed, Thu, Fri 9:15am - 10:00am",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.389Z",
+        "start": "2025-07-25T00:45:02.389Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.389Z",
+      "subcategory": "Swimmer 3 (6-12yrs)",
+      "activityType": [
+        "Swimming"
+      ],
+      "spotsAvailable": 0,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=d2ac245f-9e29-4046-8d65-e9c0a872e9bb",
+      "registrationDate": "May 21, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.515Z",
+    "updatedAt": "2025-07-25T00:45:03.515Z",
+    "location": {
+      "id": "fb530fe0-df30-4302-b9cb-4f72a63c1b3c",
+      "name": "Delbrook Community Recreation Centre",
+      "address": "Lane 2",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Lane 2",
+      "createdAt": "2025-07-25T00:14:35.496Z",
+      "updatedAt": "2025-07-25T00:45:03.600Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "0104667e-c660-416b-b359-d7a7f0d30789",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEvent22d4cb8f-570b-464d-8ebe-ba5571c02648",
+    "name": "Kitchen Creations Camp 9-12yrs",
+    "category": "Camps",
+    "subcategory": "Camp Cooking School Age",
+    "description": "Please notify Programmer, at the time of registration, of any food allergies or special dietary concerns. Our team cannot guarantee accommodations, but try our very best to do so!",
+    "schedule": "Mon, Tue, Wed, Thu, Fri 9:00am - 11:30am",
+    "dateStart": "2025-07-25T00:45:02.375Z",
+    "dateEnd": "2025-07-25T00:45:02.375Z",
+    "registrationDate": "2025-05-22T11:00:00.000Z",
+    "ageMin": 8,
+    "ageMax": 18,
+    "cost": 218.1,
+    "spotsAvailable": 0,
+    "totalSpots": null,
+    "locationId": "877e248d-df0c-478c-9c17-a24afceff97c",
+    "locationName": "Parkgate Community Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=22d4cb8f-570b-464d-8ebe-ba5571c02648",
+    "courseId": "00354391",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:02.839Z",
+    "rawData": {
+      "id": "ProgramsEvent22d4cb8f-570b-464d-8ebe-ba5571c02648",
+      "cost": 218.1,
+      "name": "Kitchen Creations Camp 9-12yrs",
+      "alert": "Please notify Programmer, at the time of registration, of any food allergies or special dietary concerns. Our team cannot guarantee accommodations, but try our very best to do so!",
+      "dates": "Aug 25 - 29",
+      "ageRange": {
+        "max": 18,
+        "min": 8
+      },
+      "category": "Camps",
+      "courseId": "00354391",
+      "facility": "Seniors Multipurpose 07/08",
+      "location": "Parkgate Community Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Tue, Wed, Thu, Fri 9:00am - 11:30am",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.375Z",
+        "start": "2025-07-25T00:45:02.375Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.375Z",
+      "subcategory": "Camp Cooking School Age",
+      "activityType": [
+        "Camps"
+      ],
+      "spotsAvailable": 0,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=22d4cb8f-570b-464d-8ebe-ba5571c02648",
+      "registrationDate": "May 22, 2025 7:00am"
+    },
+    "createdAt": "2025-07-25T00:45:02.840Z",
+    "updatedAt": "2025-07-25T00:45:02.840Z",
+    "location": {
+      "id": "877e248d-df0c-478c-9c17-a24afceff97c",
+      "name": "Parkgate Community Centre",
+      "address": "Seniors Multipurpose 07/08",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Seniors Multipurpose 07/08",
+      "createdAt": "2025-07-25T00:14:35.303Z",
+      "updatedAt": "2025-07-25T00:45:02.842Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "011250a4-5db0-4929-affb-9eeb2b798969",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEventb78e8c91-a82a-41b9-b8f5-24a0cd965a78",
+    "name": "Lonsdale Preschool 2025-2026 3-4yrs T/TH PM",
+    "category": "Learn and Play",
+    "subcategory": "Lonsdale Licensed Preschool",
+    "description": "You will be charged a non-refundable $30 administration fee at the time of registration. You have the option to pay in full for the preschool year or scheduled monthly payments. The first payment is a deposit which will also cover your final month of preschool. It will be charged on August 1st 2025. Subsequent monthly payments will be charged on the first of the month.  Those registering after August 1st 2025 will be charged the deposit at the time of registration and scheduled payments will start on the 1st of the following month.  Monthly fee is: $148.00",
+    "schedule": "Tue, Thu 12:30pm - 3:30pm",
+    "dateStart": "2025-07-25T00:45:02.381Z",
+    "dateEnd": "2025-07-25T00:45:02.381Z",
+    "registrationDate": "2025-02-22T14:00:00.000Z",
+    "ageMin": 3,
+    "ageMax": 18,
+    "cost": 1,
+    "spotsAvailable": 15,
+    "totalSpots": null,
+    "locationId": "ae1c943a-cf20-4ba2-a9fa-801772dbf59b",
+    "locationName": "Memorial Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=b78e8c91-a82a-41b9-b8f5-24a0cd965a78",
+    "courseId": "00346756",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.087Z",
+    "rawData": {
+      "id": "ProgramsEventb78e8c91-a82a-41b9-b8f5-24a0cd965a78",
+      "cost": 1,
+      "name": "Lonsdale Preschool 2025-2026 3-4yrs T/TH PM",
+      "alert": "You will be charged a non-refundable $30 administration fee at the time of registration. You have the option to pay in full for the preschool year or scheduled monthly payments. The first payment is a deposit which will also cover your final month of preschool. It will be charged on August 1st 2025. Subsequent monthly payments will be charged on the first of the month.  Those registering after August 1st 2025 will be charged the deposit at the time of registration and scheduled payments will start on the 1st of the following month.  Monthly fee is: $148.00",
+      "dates": "Sep 4, 2025 - Jun 18, 2026",
+      "ageRange": {
+        "max": 18,
+        "min": 3
+      },
+      "category": "Learn and Play",
+      "courseId": "00346756",
+      "facility": "Lonsdale Room",
+      "location": "Memorial Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Tue, Thu 12:30pm - 3:30pm",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.381Z",
+        "start": "2025-07-25T00:45:02.381Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.381Z",
+      "subcategory": "Lonsdale Licensed Preschool",
+      "activityType": [
+        "Learn and Play"
+      ],
+      "spotsAvailable": 15,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=b78e8c91-a82a-41b9-b8f5-24a0cd965a78",
+      "registrationDate": "February 22, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.088Z",
+    "updatedAt": "2025-07-25T00:45:03.088Z",
+    "location": {
+      "id": "ae1c943a-cf20-4ba2-a9fa-801772dbf59b",
+      "name": "Memorial Community Recreation Centre",
+      "address": "Lonsdale Room",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Lonsdale Room",
+      "createdAt": "2025-07-25T00:14:35.339Z",
+      "updatedAt": "2025-07-25T00:45:03.087Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "0137e53e-77c0-4a3a-9e96-b012dac31c07",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEventc554e44d-2a71-4e6b-846f-526230968955",
+    "name": "Swim Tiny Tots 5 Sting Rays 3-6yrs",
+    "category": "Swimming",
+    "subcategory": "Swim Tiny Tots 5 Sting Rays 3-6yrs",
+    "description": "Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+    "schedule": "Mon, Wed 5:45pm - 6:30pm",
+    "dateStart": "2025-07-25T00:45:02.388Z",
+    "dateEnd": "2025-07-25T00:45:02.388Z",
+    "registrationDate": "2025-05-21T13:00:00.000Z",
+    "ageMin": 3,
+    "ageMax": 18,
+    "cost": 66.43,
+    "spotsAvailable": 1,
+    "totalSpots": null,
+    "locationId": "921be458-41bd-4e8d-af15-1db98cc1482b",
+    "locationName": "Karen Magnussen Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=c554e44d-2a71-4e6b-846f-526230968955",
+    "courseId": "00369638",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.445Z",
+    "rawData": {
+      "id": "ProgramsEventc554e44d-2a71-4e6b-846f-526230968955",
+      "cost": 66.43,
+      "name": "Swim Tiny Tots 5 Sting Rays 3-6yrs",
+      "alert": "Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+      "dates": "Aug 6 - 27",
+      "ageRange": {
+        "max": 18,
+        "min": 3
+      },
+      "category": "Swimming",
+      "courseId": "00369638",
+      "facility": "Games Pool",
+      "location": "Karen Magnussen Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Wed 5:45pm - 6:30pm",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.388Z",
+        "start": "2025-07-25T00:45:02.388Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.388Z",
+      "subcategory": "Swim Tiny Tots 5 Sting Rays 3-6yrs",
+      "activityType": [
+        "Swimming"
+      ],
+      "spotsAvailable": 1,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=c554e44d-2a71-4e6b-846f-526230968955",
+      "registrationDate": "May 21, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.446Z",
+    "updatedAt": "2025-07-25T00:45:03.446Z",
+    "location": {
+      "id": "921be458-41bd-4e8d-af15-1db98cc1482b",
+      "name": "Karen Magnussen Community Recreation Centre",
+      "address": "Games Pool",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Games Pool",
+      "createdAt": "2025-07-25T00:14:35.484Z",
+      "updatedAt": "2025-07-25T00:45:03.495Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "016fa499-cf1f-404e-b6a3-68276121a702",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEvent55dadb7c-7828-405e-a773-1eb95f1f2a68",
+    "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+    "category": "Swimming",
+    "subcategory": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+    "description": "Must have completed Swim Tiny Tots 1 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+    "schedule": "Tue, Thu 9:30am - 10:00am",
+    "dateStart": "2025-07-25T00:45:02.387Z",
+    "dateEnd": "2025-07-25T00:45:02.387Z",
+    "registrationDate": "2025-05-21T13:00:00.000Z",
+    "ageMin": 3,
+    "ageMax": 18,
+    "cost": 70.56,
+    "spotsAvailable": 0,
+    "totalSpots": null,
+    "locationId": "921be458-41bd-4e8d-af15-1db98cc1482b",
+    "locationName": "Karen Magnussen Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=55dadb7c-7828-405e-a773-1eb95f1f2a68",
+    "courseId": "00351946",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.343Z",
+    "rawData": {
+      "id": "ProgramsEvent55dadb7c-7828-405e-a773-1eb95f1f2a68",
+      "cost": 70.56,
+      "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+      "alert": "Must have completed Swim Tiny Tots 1 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+      "dates": "Aug 5 - 28",
+      "ageRange": {
+        "max": 18,
+        "min": 3
+      },
+      "category": "Swimming",
+      "courseId": "00351946",
+      "facility": "Games Pool",
+      "location": "Karen Magnussen Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Tue, Thu 9:30am - 10:00am",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.387Z",
+        "start": "2025-07-25T00:45:02.387Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.387Z",
+      "subcategory": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+      "activityType": [
+        "Swimming"
+      ],
+      "spotsAvailable": 0,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=55dadb7c-7828-405e-a773-1eb95f1f2a68",
+      "registrationDate": "May 21, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.344Z",
+    "updatedAt": "2025-07-25T00:45:03.344Z",
+    "location": {
+      "id": "921be458-41bd-4e8d-af15-1db98cc1482b",
+      "name": "Karen Magnussen Community Recreation Centre",
+      "address": "Games Pool",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Games Pool",
+      "createdAt": "2025-07-25T00:14:35.484Z",
+      "updatedAt": "2025-07-25T00:45:03.495Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "0289e981-d43e-45d1-b812-d6e6e72c5187",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEvent572d5d6d-aade-4dc6-859e-e7a5842ca2c0",
+    "name": "Camp Lynn Creek Outdoors 8-12yrs",
+    "category": "Camps",
+    "subcategory": "Camp Lynn Creek Outdoors 8-12yrs",
+    "description": null,
+    "schedule": "Mon, Tue, Wed, Thu, Fri 8:45am - 4:15pm",
+    "dateStart": "2025-07-25T00:45:02.378Z",
+    "dateEnd": "2025-07-25T00:45:02.378Z",
+    "registrationDate": "2025-05-22T11:00:00.000Z",
+    "ageMin": 8,
+    "ageMax": 18,
+    "cost": 279.8,
+    "spotsAvailable": 24,
+    "totalSpots": null,
+    "locationId": "fbe61759-4a07-4da5-b5d8-7e6f79dbc66b",
+    "locationName": "Lynn Creek Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=572d5d6d-aade-4dc6-859e-e7a5842ca2c0",
+    "courseId": "00353275",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:02.965Z",
+    "rawData": {
+      "id": "ProgramsEvent572d5d6d-aade-4dc6-859e-e7a5842ca2c0",
+      "cost": 279.8,
+      "name": "Camp Lynn Creek Outdoors 8-12yrs",
+      "alert": "",
+      "dates": "Aug 11 - 15",
+      "ageRange": {
+        "max": 18,
+        "min": 8
+      },
+      "category": "Camps",
+      "courseId": "00353275",
+      "facility": "Seylynn Park",
+      "location": "Lynn Creek Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Tue, Wed, Thu, Fri 8:45am - 4:15pm",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.378Z",
+        "start": "2025-07-25T00:45:02.378Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.378Z",
+      "subcategory": "Camp Lynn Creek Outdoors 8-12yrs",
+      "activityType": [
+        "Camps"
+      ],
+      "spotsAvailable": 24,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=572d5d6d-aade-4dc6-859e-e7a5842ca2c0",
+      "registrationDate": "May 22, 2025 7:00am"
+    },
+    "createdAt": "2025-07-25T00:45:02.966Z",
+    "updatedAt": "2025-07-25T00:45:02.966Z",
+    "location": {
+      "id": "fbe61759-4a07-4da5-b5d8-7e6f79dbc66b",
+      "name": "Lynn Creek Community Recreation Centre",
+      "address": "Seylynn Park",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Seylynn Park",
+      "createdAt": "2025-07-25T00:14:35.360Z",
+      "updatedAt": "2025-07-25T00:45:02.967Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "02919a71-1bc1-4c33-945c-0fa255cbf0b5",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEvent12c2c0df-3792-4dc5-a036-91031e06ad78",
+    "name": "Kitchen Creations Camp 6-8yrs",
+    "category": "Camps",
+    "subcategory": "Camp Cooking School Age",
+    "description": "Please notify Programmer, at the time of registration, of any food allergies or special dietary concerns. Our team cannot guarantee accommodations, but try our very best to do so!",
+    "schedule": "Mon, Tue, Wed, Thu, Fri 12:30pm - 3:00pm",
+    "dateStart": "2025-07-25T00:45:02.375Z",
+    "dateEnd": "2025-07-25T00:45:02.375Z",
+    "registrationDate": "2025-05-22T11:00:00.000Z",
+    "ageMin": 5,
+    "ageMax": 18,
+    "cost": 218.1,
+    "spotsAvailable": 0,
+    "totalSpots": null,
+    "locationId": "877e248d-df0c-478c-9c17-a24afceff97c",
+    "locationName": "Parkgate Community Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=12c2c0df-3792-4dc5-a036-91031e06ad78",
+    "courseId": "00354386",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:02.842Z",
+    "rawData": {
+      "id": "ProgramsEvent12c2c0df-3792-4dc5-a036-91031e06ad78",
+      "cost": 218.1,
+      "name": "Kitchen Creations Camp 6-8yrs",
+      "alert": "Please notify Programmer, at the time of registration, of any food allergies or special dietary concerns. Our team cannot guarantee accommodations, but try our very best to do so!",
+      "dates": "Aug 25 - 29",
+      "ageRange": {
+        "max": 18,
+        "min": 5
+      },
+      "category": "Camps",
+      "courseId": "00354386",
+      "facility": "Seniors Multipurpose 07/08",
+      "location": "Parkgate Community Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Tue, Wed, Thu, Fri 12:30pm - 3:00pm",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.375Z",
+        "start": "2025-07-25T00:45:02.375Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.375Z",
+      "subcategory": "Camp Cooking School Age",
+      "activityType": [
+        "Camps"
+      ],
+      "spotsAvailable": 0,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=12c2c0df-3792-4dc5-a036-91031e06ad78",
+      "registrationDate": "May 22, 2025 7:00am"
+    },
+    "createdAt": "2025-07-25T00:45:02.842Z",
+    "updatedAt": "2025-07-25T00:45:02.842Z",
+    "location": {
+      "id": "877e248d-df0c-478c-9c17-a24afceff97c",
+      "name": "Parkgate Community Centre",
+      "address": "Seniors Multipurpose 07/08",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Seniors Multipurpose 07/08",
+      "createdAt": "2025-07-25T00:14:35.303Z",
+      "updatedAt": "2025-07-25T00:45:02.842Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "02d67b66-bfb3-4cc2-95aa-6c2cb87bc87c",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEventb96fd930-cc8e-4781-a6bd-c289bf43b4fa",
+    "name": "Delbrook Preschool 2025-2026 3-4yrs T/TH PM",
+    "category": "Learn and Play",
+    "subcategory": "Delbrook Licensed Preschool",
+    "description": "You will be charged a non-refundable $30 administration fee at the time of registration. You have the option to pay in full for the preschool year or scheduled monthly payments. The first payment is a deposit which will also cover your final month of preschool. It will be charged on August 1st 2025. Subsequent monthly payments will be charged on the first of the month.  Those registering after August 1st 2025 will be charged the deposit at the time of registration and scheduled payments will start on the 1st of the following month.  Monthly fee is: $148.00",
+    "schedule": "Tue, Thu 12:30pm - 3:30pm",
+    "dateStart": "2025-07-25T00:45:02.380Z",
+    "dateEnd": "2025-07-25T00:45:02.380Z",
+    "registrationDate": "2025-02-22T14:00:00.000Z",
+    "ageMin": 3,
+    "ageMax": 18,
+    "cost": 1,
+    "spotsAvailable": 13,
+    "totalSpots": null,
+    "locationId": "60226281-1c3d-478f-b113-2e4ac60be68e",
+    "locationName": "Delbrook Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=b96fd930-cc8e-4781-a6bd-c289bf43b4fa",
+    "courseId": "00346769",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.082Z",
+    "rawData": {
+      "id": "ProgramsEventb96fd930-cc8e-4781-a6bd-c289bf43b4fa",
+      "cost": 1,
+      "name": "Delbrook Preschool 2025-2026 3-4yrs T/TH PM",
+      "alert": "You will be charged a non-refundable $30 administration fee at the time of registration. You have the option to pay in full for the preschool year or scheduled monthly payments. The first payment is a deposit which will also cover your final month of preschool. It will be charged on August 1st 2025. Subsequent monthly payments will be charged on the first of the month.  Those registering after August 1st 2025 will be charged the deposit at the time of registration and scheduled payments will start on the 1st of the following month.  Monthly fee is: $148.00",
+      "dates": "Sep 4, 2025 - Jun 18, 2026",
+      "ageRange": {
+        "max": 18,
+        "min": 3
+      },
+      "category": "Learn and Play",
+      "courseId": "00346769",
+      "facility": "Cedar Room",
+      "location": "Delbrook Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Tue, Thu 12:30pm - 3:30pm",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.380Z",
+        "start": "2025-07-25T00:45:02.380Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.380Z",
+      "subcategory": "Delbrook Licensed Preschool",
+      "activityType": [
+        "Learn and Play"
+      ],
+      "spotsAvailable": 13,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=b96fd930-cc8e-4781-a6bd-c289bf43b4fa",
+      "registrationDate": "February 22, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.082Z",
+    "updatedAt": "2025-07-25T00:45:03.082Z",
+    "location": {
+      "id": "60226281-1c3d-478f-b113-2e4ac60be68e",
+      "name": "Delbrook Community Recreation Centre",
+      "address": "Cedar Room",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Cedar Room",
+      "createdAt": "2025-07-25T00:14:35.304Z",
+      "updatedAt": "2025-07-25T00:45:03.082Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "03ea8bec-122e-4d36-9764-92f127a65b31",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEvent94472c14-43f7-423d-bd83-44998dc9d459",
+    "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+    "category": "Swimming",
+    "subcategory": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+    "description": "No class August 4th. Must have completed Swim Tiny Tots 1 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+    "schedule": "Mon, Tue, Wed, Thu, Fri 10:30am - 11:00am",
+    "dateStart": "2025-07-28T04:00:00.000Z",
+    "dateEnd": "2025-08-08T04:00:00.000Z",
+    "registrationDate": "2025-05-21T13:00:00.000Z",
+    "ageMin": 3,
+    "ageMax": 18,
+    "cost": 79.38,
+    "spotsAvailable": 1,
+    "totalSpots": null,
+    "locationId": "921be458-41bd-4e8d-af15-1db98cc1482b",
+    "locationName": "Karen Magnussen Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=94472c14-43f7-423d-bd83-44998dc9d459",
+    "courseId": "00351213",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.338Z",
+    "rawData": {
+      "id": "ProgramsEvent94472c14-43f7-423d-bd83-44998dc9d459",
+      "cost": 79.38,
+      "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+      "alert": "No class August 4th. Must have completed Swim Tiny Tots 1 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+      "dates": "Jul 28 - Aug 8",
+      "ageRange": {
+        "max": 18,
+        "min": 3
+      },
+      "category": "Swimming",
+      "courseId": "00351213",
+      "facility": "Games Pool",
+      "location": "Karen Magnussen Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Tue, Wed, Thu, Fri 10:30am - 11:00am",
+      "dateRange": {
+        "end": "2025-08-08T04:00:00.000Z",
+        "start": "2025-07-28T04:00:00.000Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.387Z",
+      "subcategory": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+      "activityType": [
+        "Swimming"
+      ],
+      "spotsAvailable": 1,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=94472c14-43f7-423d-bd83-44998dc9d459",
+      "registrationDate": "May 21, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.339Z",
+    "updatedAt": "2025-07-25T00:45:03.339Z",
+    "location": {
+      "id": "921be458-41bd-4e8d-af15-1db98cc1482b",
+      "name": "Karen Magnussen Community Recreation Centre",
+      "address": "Games Pool",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Games Pool",
+      "createdAt": "2025-07-25T00:14:35.484Z",
+      "updatedAt": "2025-07-25T00:45:03.495Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  },
+  {
+    "id": "03f37faa-c805-4f9c-be5d-8e324409ba76",
+    "providerId": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+    "externalId": "ProgramsEvent262c1731-f6e0-403d-ac9d-fcea8c99463e",
+    "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+    "category": "Swimming",
+    "subcategory": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+    "description": "Must have completed Swim Tiny Tots 1 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+    "schedule": "Mon, Tue, Wed, Thu, Fri 9:30am - 10:00am",
+    "dateStart": "2025-07-25T00:45:02.387Z",
+    "dateEnd": "2025-07-25T00:45:02.387Z",
+    "registrationDate": "2025-05-21T13:00:00.000Z",
+    "ageMin": 3,
+    "ageMax": 18,
+    "cost": 88.2,
+    "spotsAvailable": 2,
+    "totalSpots": null,
+    "locationId": "921be458-41bd-4e8d-af15-1db98cc1482b",
+    "locationName": "Karen Magnussen Community Recreation Centre",
+    "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=262c1731-f6e0-403d-ac9d-fcea8c99463e",
+    "courseId": "00351267",
+    "isActive": true,
+    "lastSeenAt": "2025-07-25T00:45:03.361Z",
+    "rawData": {
+      "id": "ProgramsEvent262c1731-f6e0-403d-ac9d-fcea8c99463e",
+      "cost": 88.2,
+      "name": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+      "alert": "Must have completed Swim Tiny Tots 1 or equivalent. Children registered in the wrong level will be withdrawn.  Swim assessments can be done by the aquatic staff and are available during public swim sessions.",
+      "dates": "Aug 11 - 22",
+      "ageRange": {
+        "max": 18,
+        "min": 3
+      },
+      "category": "Swimming",
+      "courseId": "00351267",
+      "facility": "Games Pool",
+      "location": "Karen Magnussen Community Recreation Centre",
+      "provider": "NVRC",
+      "schedule": "Mon, Tue, Wed, Thu, Fri 9:30am - 10:00am",
+      "dateRange": {
+        "end": "2025-07-25T00:45:02.387Z",
+        "start": "2025-07-25T00:45:02.387Z"
+      },
+      "scrapedAt": "2025-07-25T00:45:02.387Z",
+      "subcategory": "Swim Tiny Tots 2 Jellyfish 3-6yrs",
+      "activityType": [
+        "Swimming"
+      ],
+      "spotsAvailable": 2,
+      "registrationUrl": "https://nvrc.perfectmind.com/23734/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=a28b2c65-61af-407f-80d1-eaa58f30a94a&embed=False&redirectedFromEmbededMode=False&courseId=262c1731-f6e0-403d-ac9d-fcea8c99463e",
+      "registrationDate": "May 21, 2025 9:00am"
+    },
+    "createdAt": "2025-07-25T00:45:03.362Z",
+    "updatedAt": "2025-07-25T00:45:03.362Z",
+    "location": {
+      "id": "921be458-41bd-4e8d-af15-1db98cc1482b",
+      "name": "Karen Magnussen Community Recreation Centre",
+      "address": "Games Pool",
+      "city": "North Vancouver",
+      "province": "BC",
+      "postalCode": null,
+      "latitude": null,
+      "longitude": null,
+      "facility": "Games Pool",
+      "createdAt": "2025-07-25T00:14:35.484Z",
+      "updatedAt": "2025-07-25T00:45:03.495Z"
+    },
+    "provider": {
+      "id": "90a665a9-21a6-4cc3-a0d0-f42e17d913aa",
+      "name": "NVRC",
+      "website": "https://www.nvrc.ca",
+      "scraperConfig": {
+        "ageGroups": [
+          "0 - 6 years, Parent Participation",
+          "0 - 6 years, On My Own",
+          "5 - 13 years, School Age",
+          "10 - 18 years, Youth"
+        ],
+        "searchUrl": "https://www.nvrc.ca/programs-memberships/find-program",
+        "scraperClass": "nvrcWorkingHierarchicalScraper",
+        "timeoutMinutes": 30
+      },
+      "isActive": true,
+      "createdAt": "2025-07-25T00:09:48.059Z",
+      "updatedAt": "2025-07-25T00:09:48.059Z"
+    }
+  }
+]
