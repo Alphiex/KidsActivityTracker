@@ -15,6 +15,7 @@ import sharedActivitiesRoutes from './routes/sharedActivities';
 import setupRoutes from './routes/setup';
 import activitiesRoutes from './routes/activities';
 import referenceRoutes from './routes/reference';
+import citiesRoutes from './routes/cities';
 
 // Import middleware
 import { apiLimiter, verifyToken, optionalAuth } from './middleware/auth';
@@ -73,6 +74,9 @@ app.use('/api/v1/activities', activitiesRoutes);
 
 // Reference data routes (v1 API)
 app.use('/api/v1/reference', referenceRoutes);
+
+// Cities routes (v1 API)
+app.use('/api/v1/cities', citiesRoutes);
 
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {

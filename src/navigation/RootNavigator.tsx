@@ -26,6 +26,7 @@ import NewActivitiesScreen from '../screens/NewActivitiesScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
+import CityBrowseScreen from '../screens/CityBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import TestNavigationScreen from '../screens/TestNavigationScreen';
@@ -62,6 +63,7 @@ const HomeStack = () => (
     <Stack.Screen name="Dashboard" component={DashboardScreen} />
     <Stack.Screen name="ActivityType" component={ActivityTypeScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
+    <Stack.Screen name="CityBrowse" component={CityBrowseScreen} />
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
     <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
     <Stack.Screen name="AllActivityTypes" component={AllActivityTypesScreen} />

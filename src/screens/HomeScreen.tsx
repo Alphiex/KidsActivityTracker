@@ -265,7 +265,7 @@ const HomeScreen = () => {
   };
 
   const navigateToLocationBrowse = () => {
-    navigation.navigate('LocationBrowse');
+    navigation.navigate('CityBrowse');
   };
 
   const navigateToFavorites = () => {

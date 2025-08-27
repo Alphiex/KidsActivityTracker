@@ -9,7 +9,7 @@ import {
   Dimensions,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityCard from '../components/ActivityCard';
@@ -39,8 +39,12 @@ interface LocationGroup {
 
 const LocationBrowseScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
+  
+  // Get city filter from navigation params
+  const cityFilter = route.params?.city as string | undefined;
   
   const [locations, setLocations] = useState<LocationData[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
@@ -61,14 +65,26 @@ const LocationBrowseScreen = () => {
   ];
 
   useEffect(() => {
+    // Update navigation title if city is specified
+    if (cityFilter) {
+      navigation.setOptions({
+        title: `${cityFilter} Locations`,
+        headerShown: true,
+      });
+    }
     loadLocationData();
-  }, []);
+  }, [cityFilter]);
 
   const loadLocationData = async () => {
     try {
       setIsLoading(true);
       // Use the locations API endpoint to get locations with activity counts
-      const locationData = await activityService.getLocations();
+      let locationData = await activityService.getLocations();
+      
+      // Filter by city if specified
+      if (cityFilter) {
+        locationData = locationData.filter(loc => loc.city === cityFilter);
+      }
       
       // Sort by activity count descending
       const sortedLocations = locationData
