@@ -35,6 +35,8 @@ import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import RecommendedActivitiesScreen from '../screens/RecommendedActivitiesScreen';
 import AllActivityTypesScreen from '../screens/AllActivityTypesScreen';
 import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
+import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
+import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 
 // Import Preference Screens
 import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
@@ -98,8 +100,8 @@ const FriendsAndFamilyStack = () => (
     <Stack.Screen name="FriendsAndFamilyMain" component={FriendsAndFamilyScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="SharingManagement" component={SharingManagementScreen} />
-    <Stack.Screen name="ActivityHistory" component={ActivityDetailScreen} /> {/* TODO: Create dedicated screen */}
-    <Stack.Screen name="SharedActivities" component={ActivityDetailScreen} /> {/* TODO: Create dedicated screen */}
+    <Stack.Screen name="ActivityHistory" component={ActivityHistoryScreen} />
+    <Stack.Screen name="SharedActivities" component={SharedActivitiesScreen} />
   </Stack.Navigator>
 );
 

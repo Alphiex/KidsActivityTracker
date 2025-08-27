@@ -32,6 +32,7 @@ const DashboardScreen = () => {
   const { colors, isDark } = useTheme();
   const { isConnected } = useNetworkStatus();
   const [recommendedCount, setRecommendedCount] = useState(0);
+  console.log('Dashboard: Component rendering, recommendedCount state:', recommendedCount);
   const [loadingRecommended, setLoadingRecommended] = useState(true);
   const [stats, setStats] = useState({
     matchingActivities: 0,
@@ -118,35 +119,71 @@ const DashboardScreen = () => {
   };
 
   const loadRecommendedCount = async () => {
+    console.log('****** DASHBOARD loadRecommendedCount CALLED ******');
     try {
       setLoadingRecommended(true);
       const activityService = ActivityService.getInstance();
       
-      // Create filters based on user preferences
-      const filters: any = {};
+      // Use the state preferences to match RecommendedActivitiesScreen behavior
+      // RecommendedActivitiesScreen uses preferences from component level, not fresh ones
+      const currentPreferences = preferences; // Use state, not fresh
+      console.log('Dashboard: Current preferences:', JSON.stringify({
+        preferredCategories: currentPreferences.preferredCategories,
+        priceRange: currentPreferences.priceRange,
+        ageRanges: currentPreferences.ageRanges,
+        hideClosedActivities: currentPreferences.hideClosedActivities,
+        hideFullActivities: currentPreferences.hideFullActivities
+      }));
+      
+      // Create filters based on user preferences - MUST match RecommendedActivitiesScreen exactly
+      // Use limit: 1 for efficiency - we only need the total count, not the items
+      // The backend should return the FULL total regardless of limit
+      const filters: any = {
+        limit: 1,  // Small limit for efficiency - backend returns full total in pagination.total
+        offset: 0
+      };
       
       // Apply user preference filters
-      if (preferences.hideClosedActivities) {
+      if (currentPreferences.hideClosedActivities) {
         filters.hideClosedActivities = true;
       }
-      if (preferences.hideFullActivities) {
+      if (currentPreferences.hideFullActivities) {
         filters.hideFullActivities = true;
       }
       
-      // Apply other preference filters
-      if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
-        filters.categories = preferences.preferredCategories.join(',');
-      }
-      if (preferences.locations && preferences.locations.length > 0) {
-        filters.locations = preferences.locations;
-      }
-      if (preferences.priceRange) {
-        filters.maxCost = preferences.priceRange.max;
+      // Apply activity type filters from preferredCategories
+      if (currentPreferences.preferredCategories && currentPreferences.preferredCategories.length > 0) {
+        filters.categories = currentPreferences.preferredCategories.join(',');
       }
       
-      // Get activities based on preferences - use higher limit to get actual count
-      const activities = await activityService.searchActivities({ ...filters, limit: 1000 });
-      setRecommendedCount(activities.length);
+      if (currentPreferences.locations && currentPreferences.locations.length > 0) {
+        filters.locations = currentPreferences.locations;
+      }
+      
+      if (currentPreferences.priceRange) {
+        filters.maxCost = currentPreferences.priceRange.max;
+      }
+      
+      // Apply age range if set - THIS WAS MISSING!
+      if (currentPreferences.ageRanges && currentPreferences.ageRanges.length > 0) {
+        const ageRange = currentPreferences.ageRanges[0];
+        filters.ageRange = {
+          min: ageRange.min,
+          max: ageRange.max
+        };
+      }
+      
+      // Use searchActivitiesPaginated to get the EXACT same count as RecommendedActivitiesScreen
+      console.log('DASHBOARD: Filters being sent:', JSON.stringify(filters, null, 2));
+      const response = await activityService.searchActivitiesPaginated(filters);
+      console.log('DASHBOARD: API Response:', {
+        total: response.total,
+        itemsReturned: response.items?.length || 0,
+        hasMore: response.hasMore
+      });
+      const countToSet = response.total || 0;
+      console.log('****** DASHBOARD: Setting recommendedCount to:', countToSet, '******');
+      setRecommendedCount(countToSet);
     } catch (error) {
       console.error('Error loading recommended count:', error);
       setRecommendedCount(0);
@@ -156,6 +193,7 @@ const DashboardScreen = () => {
   };
 
   const loadDashboardData = async () => {
+    console.log('====== DASHBOARD: Starting loadDashboardData ======');
     try {
       setError(null);
       
@@ -167,11 +205,22 @@ const DashboardScreen = () => {
         return;
       }
       
+      // Refresh preferences to ensure we have the latest
+      const latestPreferences = preferencesService.getPreferences();
+      setPreferences(latestPreferences);
+      console.log('DASHBOARD: Preferences loaded:', JSON.stringify({
+        preferredCategories: latestPreferences.preferredCategories,
+        priceRange: latestPreferences.priceRange,
+        ageRanges: latestPreferences.ageRanges
+      }));
+      
       const activityService = ActivityService.getInstance();
       const favoritesService = FavoritesService.getInstance();
       
       // Load recommended count
-      loadRecommendedCount();
+      console.log('DASHBOARD: About to call loadRecommendedCount');
+      await loadRecommendedCount();
+      // Don't log recommendedCount here - it won't be updated yet due to React's async state
       
       // Fetch categories
       try {
@@ -291,8 +340,15 @@ const DashboardScreen = () => {
   };
 
   useEffect(() => {
+    console.log('Dashboard: Initial useEffect triggered');
     loadDashboardData();
   }, []);
+
+  // Add a separate effect to reload count when preferences change
+  useEffect(() => {
+    console.log('Dashboard: Preferences changed, reloading count');
+    loadRecommendedCount();
+  }, [preferences.preferredCategories?.join(','), preferences.priceRange?.max, preferences.ageRanges?.[0]?.min, preferences.ageRanges?.[0]?.max]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -338,7 +394,9 @@ const DashboardScreen = () => {
     </LinearGradient>
   );
 
-  const renderRecommended = () => (
+  const renderRecommended = () => {
+    console.log('Dashboard: Rendering recommended section, count:', recommendedCount, 'loading:', loadingRecommended);
+    return (
     <TouchableOpacity onPress={navigateToRecommended} activeOpacity={0.8}>
       <LinearGradient
         colors={['#9C27B0', '#7B1FA2']}
@@ -355,7 +413,10 @@ const DashboardScreen = () => {
                 {loadingRecommended ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  `${recommendedCount} activities match your preferences`
+                  (() => {
+                    console.log('Dashboard: Rendering count text, recommendedCount is:', recommendedCount);
+                    return `${recommendedCount} ${recommendedCount === 1 ? 'activity matches' : 'activities match'} your preferences`;
+                  })()
                 )}
               </Text>
             </View>
@@ -365,6 +426,7 @@ const DashboardScreen = () => {
       </LinearGradient>
     </TouchableOpacity>
   );
+  };
 
   const renderQuickActions = () => (
     <View style={styles.section}>

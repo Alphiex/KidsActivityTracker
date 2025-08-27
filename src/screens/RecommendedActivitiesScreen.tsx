@@ -25,6 +25,8 @@ const RecommendedActivitiesScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [unfilteredCount, setUnfilteredCount] = useState(0);
+  const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   
@@ -88,6 +90,27 @@ const RecommendedActivitiesScreen = () => {
       
       const response = await activityService.searchActivitiesPaginated(filters);
       console.log(`Fetched ${response.items.length} activities, total: ${response.total}`);
+      
+      // If global filters are applied, also get unfiltered count to show difference
+      if (isRefresh && (preferences.hideClosedActivities || preferences.hideFullActivities)) {
+        const unfilteredFilters = { ...filters };
+        delete unfilteredFilters.hideClosedActivities;
+        delete unfilteredFilters.hideFullActivities;
+        unfilteredFilters.limit = 1; // We only need the count
+        
+        try {
+          const unfilteredResponse = await activityService.searchActivitiesPaginated(unfilteredFilters);
+          setUnfilteredCount(unfilteredResponse.total);
+          setFilteredOutCount(unfilteredResponse.total - response.total);
+        } catch (error) {
+          console.error('Error fetching unfiltered count:', error);
+          setUnfilteredCount(response.total);
+          setFilteredOutCount(0);
+        }
+      } else {
+        setUnfilteredCount(response.total);
+        setFilteredOutCount(0);
+      }
       
       if (isRefresh) {
         setActivities(response.items);
@@ -160,7 +183,11 @@ const RecommendedActivitiesScreen = () => {
       <Icon name="star" size={50} color="#fff" />
       <Text style={styles.headerTitle}>Recommended Activities</Text>
       <Text style={styles.headerSubtitle}>
-        Based on your preferences
+        {filteredOutCount > 0 ? (
+          `${totalCount} activities (${filteredOutCount} filtered out from global settings)`
+        ) : (
+          `${totalCount} activities based on your preferences`
+        )}
       </Text>
       <View style={styles.preferencesInfo}>
         {preferences.preferredCategories && preferences.preferredCategories.length > 0 && (
@@ -184,6 +211,22 @@ const RecommendedActivitiesScreen = () => {
             <Icon name="attach-money" size={16} color="#fff" />
             <Text style={styles.preferenceText}>
               Max ${preferences.priceRange.max}
+            </Text>
+          </View>
+        )}
+        {preferences.hideClosedActivities && (
+          <View style={styles.preferenceChip}>
+            <Icon name="event-available" size={16} color="#fff" />
+            <Text style={styles.preferenceText}>
+              Hide closed
+            </Text>
+          </View>
+        )}
+        {preferences.hideFullActivities && (
+          <View style={styles.preferenceChip}>
+            <Icon name="people-outline" size={16} color="#fff" />
+            <Text style={styles.preferenceText}>
+              Hide full
             </Text>
           </View>
         )}

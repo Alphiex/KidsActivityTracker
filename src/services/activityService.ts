@@ -341,6 +341,13 @@ class ActivityService {
         delete apiParams.hideFullActivities;
       }
       
+      // Convert age range filter
+      if (params.ageRange) {
+        apiParams.age_min = params.ageRange.min;
+        apiParams.age_max = params.ageRange.max;
+        delete apiParams.ageRange;
+      }
+      
       // Convert cost filters
       if (params.costMin !== undefined) {
         apiParams.cost_min = params.costMin;
@@ -350,6 +357,12 @@ class ActivityService {
       if (params.costMax !== undefined) {
         apiParams.cost_max = params.costMax;
         delete apiParams.costMax;
+      }
+      
+      // Convert maxCost (alternative parameter)
+      if (params.maxCost !== undefined) {
+        apiParams.cost_max = params.maxCost;
+        delete apiParams.maxCost;
       }
       
       console.log('Searching activities with pagination:', apiParams);
@@ -394,13 +407,19 @@ class ActivityService {
           hasPrerequisites: activity.hasPrerequisites
         }));
         
+        // The backend returns the total in pagination.total
+        const total = response.data.pagination?.total || response.data.total || activities.length;
+        const currentPage = response.data.pagination?.page || 1;
+        const limit = response.data.pagination?.limit || params.limit || 50;
+        const totalPages = response.data.pagination?.pages || Math.ceil(total / limit);
+        
         return {
           items: activities,
-          total: response.data.total || activities.length,
-          limit: response.data.pagination?.limit || params.limit || 50,
-          offset: response.data.pagination?.offset || params.offset || 0,
-          hasMore: response.data.hasMore || false,
-          pages: response.data.pagination?.pages || 1
+          total: total,  // This is the FULL count regardless of pagination
+          limit: limit,
+          offset: params.offset || 0,
+          hasMore: currentPage < totalPages,
+          pages: totalPages
         };
       }
       
