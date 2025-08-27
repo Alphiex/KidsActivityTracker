@@ -372,7 +372,7 @@ const DashboardScreen = () => {
       <View style={styles.quickActionsGrid}>
         <TouchableOpacity
           style={styles.quickActionCard}
-          onPress={() => navigation.navigate('LocationBrowse')}
+          onPress={() => navigation.navigate('CityBrowse')}
           activeOpacity={0.7}
         >
           <LinearGradient
