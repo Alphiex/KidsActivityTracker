@@ -12,7 +12,6 @@ import { loadStoredAuth } from '../store/slices/authSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 
 // Import screens
-import HomeScreen from '../screens/HomeScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import SearchScreen from '../screens/SearchScreen';
 import FavoritesScreen from '../screens/FavoritesScreenNew';
