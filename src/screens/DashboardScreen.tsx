@@ -40,7 +40,7 @@ const DashboardScreen = () => {
     upcomingEvents: 0,
   });
   const [categories, setCategories] = useState<Array<{ name: string; count: number; icon: string }>>([]);
-  const [activityTypes, setActivityTypes] = useState<Array<{ name: string; count: number; icon: string }>>([]);
+  const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count: number; icon: string }>>([]);
 
   // Define category configurations
   const categoryIcons = {
@@ -187,17 +187,17 @@ const DashboardScreen = () => {
         console.error('Error fetching categories:', catError);
       }
       
-      // Fetch activity types
+      // Fetch activity types with counts
       try {
-        const activityTypesData = await activityService.getActivityTypes();
-        console.log('Activity types from API:', activityTypesData.filter(t => t.name.toLowerCase().includes('swim')));
-        const activityTypesWithIcons = activityTypesData
-          .slice(0, 6) // Show only top 6 activity types
-          .map(type => ({
-            ...type,
-            icon: activityTypeIcons[type.name] || 'tag',
-          }));
-        setActivityTypes(activityTypesWithIcons);
+        const types = await activityService.getActivityTypesWithCounts();
+        // Show first 6 activity types
+        const typesWithIcons = types.slice(0, 6).map(type => ({
+          code: type.code,
+          name: type.name,
+          count: type.activityCount,
+          icon: activityTypeIcons[type.name] || 'tag',
+        }));
+        setActivityTypes(typesWithIcons);
       } catch (typeError) {
         console.error('Error fetching activity types:', typeError);
       }
@@ -303,10 +303,10 @@ const DashboardScreen = () => {
     navigation.navigate('RecommendedActivities');
   };
 
-  const navigateToActivityType = (activityType: string) => {
-    navigation.navigate('ActivityType', { 
-      category: activityType,
-      isActivityType: true 
+  const navigateToActivityType = (type: { code: string; name: string }) => {
+    navigation.navigate('ActivityTypeDetail', { 
+      typeCode: type.code,
+      typeName: type.name
     });
   };
 
@@ -469,7 +469,7 @@ const DashboardScreen = () => {
           <TouchableOpacity
             key={index}
             style={styles.categoryCard}
-            onPress={() => navigateToActivityType(type.name)}
+            onPress={() => navigateToActivityType(type)}
             activeOpacity={0.7}
           >
             <LinearGradient

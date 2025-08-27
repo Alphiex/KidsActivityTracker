@@ -26,7 +26,7 @@ interface CityData {
 }
 
 const CityBrowseScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const activityService = ActivityService.getInstance();
   
   const [cities, setCities] = useState<CityData[]>([]);
@@ -85,6 +85,7 @@ const CityBrowseScreen = () => {
 
   const selectCity = (city: CityData) => {
     // Navigate to location browse screen with city filter
+    console.log('Navigating to LocationBrowse with city:', city.city);
     navigation.navigate('LocationBrowse', { city: city.city });
   };
 

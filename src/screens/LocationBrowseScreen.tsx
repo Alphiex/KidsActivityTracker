@@ -38,7 +38,7 @@ interface LocationGroup {
 }
 
 const LocationBrowseScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute();
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
