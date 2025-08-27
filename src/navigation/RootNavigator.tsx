@@ -34,6 +34,7 @@ import SharingManagementScreen from '../screens/SharingManagementScreen';
 import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import RecommendedActivitiesScreen from '../screens/RecommendedActivitiesScreen';
 import AllActivityTypesScreen from '../screens/AllActivityTypesScreen';
+import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
 
 // Import Preference Screens
 import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
@@ -64,6 +65,7 @@ const HomeStack = () => (
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
     <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
     <Stack.Screen name="AllActivityTypes" component={AllActivityTypesScreen} />
+    <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="Favorites" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
@@ -78,6 +80,7 @@ const SearchStack = () => (
     <Stack.Screen name="SearchMain" component={SearchScreen} />
     <Stack.Screen name="Filter" component={FilterScreen} />
     <Stack.Screen name="ActivityType" component={ActivityTypeScreen} />
+    <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
   </Stack.Navigator>
 );

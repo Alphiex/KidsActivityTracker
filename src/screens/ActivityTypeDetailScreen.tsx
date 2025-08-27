@@ -30,7 +30,7 @@ const ActivityTypeDetailScreen = () => {
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [subtypes, setSubtypes] = useState<Subtype[]>([]);
-  const [selectedSubtype, setSelectedSubtype] = useState<string | null>(null);
+  const [selectedSubtype, setSelectedSubtype] = useState<string | null | undefined>(undefined); // undefined = show subtypes, null = show all, string = show specific
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -132,35 +132,34 @@ const ActivityTypeDetailScreen = () => {
     loadActivities(true);
   };
 
-  const selectSubtype = (subtypeCode: string | null) => {
-    setSelectedSubtype(subtypeCode);
-    setActivities([]);
-    setCurrentOffset(0);
-    setHasMore(true);
-    loadActivities(true);
+  const selectSubtype = (subtypeName: string | null) => {
+    setSelectedSubtype(subtypeName);
+    if (subtypeName !== undefined) {
+      setActivities([]);
+      setCurrentOffset(0);
+      setHasMore(true);
+      loadActivities(true);
+    }
   };
 
-  const renderSubtype = ({ item }: { item: Subtype }) => (
+  const renderSubtypeCard = ({ item }: { item: Subtype }) => (
     <TouchableOpacity
-      style={[
-        styles.subtypeChip,
-        selectedSubtype === item.name && styles.subtypeChipSelected
-      ]}
-      onPress={() => selectSubtype(selectedSubtype === item.name ? null : item.name)}
+      style={styles.subtypeCard}
+      onPress={() => selectSubtype(item.name)}
       activeOpacity={0.7}
     >
-      <Text style={[
-        styles.subtypeText,
-        selectedSubtype === item.name && styles.subtypeTextSelected
-      ]}>
-        {item.name}
-      </Text>
-      <Text style={[
-        styles.subtypeCount,
-        selectedSubtype === item.name && styles.subtypeCountSelected
-      ]}>
-        {item.activityCount}
-      </Text>
+      <View style={styles.subtypeCardContent}>
+        <View style={styles.subtypeCardLeft}>
+          <Icon name="category" size={40} color={Colors.primary} />
+          <View style={styles.subtypeCardTextContainer}>
+            <Text style={styles.subtypeCardTitle}>{item.name}</Text>
+            <Text style={styles.subtypeCardCount}>
+              {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
+            </Text>
+          </View>
+        </View>
+        <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+      </View>
     </TouchableOpacity>
   );
 
@@ -181,57 +180,65 @@ const ActivityTypeDetailScreen = () => {
     />
   );
 
-  const renderHeader = () => (
-    <View>
-      <LinearGradient
-        colors={['#673AB7', '#512DA8']}
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>{typeName}</Text>
-        <Text style={styles.headerSubtitle}>
-          {totalCount} {totalCount === 1 ? 'activity' : 'activities'} available
-        </Text>
-      </LinearGradient>
-      
-      {subtypes.length > 0 && (
-        <View style={styles.subtypesSection}>
-          <Text style={styles.subtypesTitle}>Filter by Subtype</Text>
-          <FlatList
-            data={[{ code: 'all', name: 'All', activityCount: totalCount }, ...subtypes]}
-            renderItem={({ item }) => 
-              item.code === 'all' ? (
-                <TouchableOpacity
-                  style={[
-                    styles.subtypeChip,
-                    selectedSubtype === null && styles.subtypeChipSelected
-                  ]}
-                  onPress={() => selectSubtype(null)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.subtypeText,
-                    selectedSubtype === null && styles.subtypeTextSelected
-                  ]}>
-                    All
-                  </Text>
-                  <Text style={[
-                    styles.subtypeCount,
-                    selectedSubtype === null && styles.subtypeCountSelected
-                  ]}>
-                    {totalCount}
-                  </Text>
-                </TouchableOpacity>
-              ) : renderSubtype({ item })
-            }
-            keyExtractor={(item) => item.code}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.subtypesList}
-          />
+  const renderHeader = () => {
+    // If showing activities list
+    if (selectedSubtype !== undefined) {
+      return (
+        <View>
+          <LinearGradient
+            colors={['#673AB7', '#512DA8']}
+            style={styles.header}
+          >
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setSelectedSubtype(undefined)}
+            >
+              <Icon name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              {selectedSubtype || `All ${typeName}`}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {totalCount} {totalCount === 1 ? 'activity' : 'activities'} available
+            </Text>
+          </LinearGradient>
         </View>
-      )}
-    </View>
-  );
+      );
+    }
+
+    // Show subtypes selection
+    return (
+      <View>
+        <LinearGradient
+          colors={['#673AB7', '#512DA8']}
+          style={styles.header}
+        >
+          <Text style={styles.headerTitle}>{typeName}</Text>
+          <Text style={styles.headerSubtitle}>
+            Choose a category or view all activities
+          </Text>
+        </LinearGradient>
+        
+        <TouchableOpacity
+          style={styles.viewAllButton}
+          onPress={() => selectSubtype(null)}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#4CAF50', '#45a049']}
+            style={styles.viewAllGradient}
+          >
+            <Icon name="view-list" size={30} color="#fff" />
+            <View style={styles.viewAllTextContainer}>
+              <Text style={styles.viewAllTitle}>View All {typeName}</Text>
+              <Text style={styles.viewAllCount}>{totalCount} activities</Text>
+            </View>
+            <Icon name="chevron-right" size={24} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderFooter = () => {
     if (isLoadingMore) {
@@ -276,6 +283,26 @@ const ActivityTypeDetailScreen = () => {
     );
   }
 
+  // Show subtypes selection screen
+  if (selectedSubtype === undefined) {
+    return (
+      <View style={styles.container}>
+        <FlatList
+          data={subtypes}
+          renderItem={renderSubtypeCard}
+          keyExtractor={(item) => item.code}
+          ListHeaderComponent={renderHeader}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => loadTypeDetails()} />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
+    );
+  }
+
+  // Show activities list
   return (
     <View style={styles.container}>
       <FlatList
@@ -298,7 +325,7 @@ const ActivityTypeDetailScreen = () => {
               <Text style={styles.emptyText}>No activities found</Text>
               {selectedSubtype && (
                 <Text style={styles.emptySubtext}>
-                  Try selecting a different subtype or clear the filter
+                  Try selecting a different subtype or view all activities
                 </Text>
               )}
             </View>
@@ -385,6 +412,79 @@ const styles = StyleSheet.create({
   subtypeCountSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     color: '#fff',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 30,
+    padding: 8,
+  },
+  viewAllButton: {
+    margin: 16,
+    marginTop: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  viewAllGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+  },
+  viewAllTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  viewAllTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  viewAllCount: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 4,
+  },
+  subtypeCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  subtypeCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  subtypeCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  subtypeCardTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  subtypeCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  subtypeCardCount: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
   listContent: {
     paddingBottom: 20,

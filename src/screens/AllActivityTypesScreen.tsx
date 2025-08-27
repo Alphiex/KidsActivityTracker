@@ -19,8 +19,9 @@ import { useTheme } from '../contexts/ThemeContext';
 type NavigationProp = StackNavigationProp<any>;
 
 interface ActivityType {
+  code: string;
   name: string;
-  count: number;
+  activityCount: number;
   icon: string;
   color: string[];
 }
@@ -118,18 +119,22 @@ const AllActivityTypesScreen: React.FC = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
-      const activityTypesData = await activityService.getActivityTypes();
+      const activityTypesData = await activityService.getActivityTypesWithCounts();
       
       // Map activity types with their configurations
       const typesWithConfig = activityTypesData.map(type => {
         const config = activityTypeConfig[type.name] || defaultActivityTypeConfig;
         return {
+          code: type.code,
           name: type.name,
-          count: type.count,
+          activityCount: type.activityCount,
           icon: config.icon,
           color: config.colors,
         };
       });
+      
+      // Sort by count descending
+      typesWithConfig.sort((a, b) => b.activityCount - a.activityCount);
       
       setActivityTypes(typesWithConfig);
     } catch (err: any) {
@@ -160,10 +165,10 @@ const AllActivityTypesScreen: React.FC = () => {
     loadActivityTypes();
   };
 
-  const navigateToActivityType = (activityType: string) => {
-    navigation.navigate('ActivityType', { 
-      category: activityType,
-      isActivityType: true 
+  const navigateToActivityType = (item: ActivityType) => {
+    navigation.navigate('ActivityTypeDetail', { 
+      typeCode: item.code,
+      typeName: item.name
     });
   };
 
@@ -171,7 +176,7 @@ const AllActivityTypesScreen: React.FC = () => {
     return (
       <TouchableOpacity
         style={styles.activityTypeContainer}
-        onPress={() => navigateToActivityType(item.name)}
+        onPress={() => navigateToActivityType(item)}
         activeOpacity={0.8}
       >
         <LinearGradient
@@ -184,7 +189,7 @@ const AllActivityTypesScreen: React.FC = () => {
           <View style={styles.activityTypeInfo}>
             <Text style={styles.activityTypeName}>{item.name}</Text>
             <Text style={styles.activityTypeCount}>
-              {item.count} {item.count === 1 ? 'activity' : 'activities'}
+              {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
             </Text>
           </View>
           <Icon name="chevron-right" size={24} color="#fff" style={styles.chevron} />
