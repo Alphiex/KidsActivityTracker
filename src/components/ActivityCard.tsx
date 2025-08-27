@@ -13,6 +13,7 @@ import { Activity } from '../types';
 import { useAppSelector } from '../store';
 import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 import FavoritesService from '../services/favoritesService';
+import { fixDayAbbreviations } from '../utils/dayAbbreviations';
 import { Colors, Theme } from '../theme';
 import { getActivityImageByKey } from '../assets/images';
 import { useTheme } from '../contexts/ThemeContext';
@@ -88,46 +89,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
     if (!schedule) return null;
     
     if (typeof schedule === 'string') {
-      // If schedule is a string, clean up day abbreviations
-      let cleaned = schedule;
-      
-      // Replace any incorrect day abbreviations with proper 3-letter ones
-      const dayReplacements: { [key: string]: string } = {
-        // Full day names - replace with abbreviations
-        'Monday': 'Mon',
-        'Tuesday': 'Tue',
-        'Wednesday': 'Wed',
-        'Thursday': 'Thu',
-        'Friday': 'Fri',
-        'Saturday': 'Sat',
-        'Sunday': 'Sun',
-        // Plural full day names
-        'Mondays': 'Mon',
-        'Tuesdays': 'Tue',
-        'Wednesdays': 'Wed',
-        'Thursdays': 'Thu',
-        'Fridays': 'Fri',
-        'Saturdays': 'Sat',
-        'Sundays': 'Sun',
-        // Wrong abbreviations
-        'Mons': 'Mon',
-        'Tues': 'Tue',
-        'Weds': 'Wed',
-        'Thurs': 'Thu',
-        'Thur': 'Thu',
-        'Fris': 'Fri',
-        'Sats': 'Sat',
-        'Suns': 'Sun'
-      };
-      
-      Object.entries(dayReplacements).forEach(([wrong, correct]) => {
-        // Use word boundary to avoid replacing parts of other words
-        // Case insensitive replacement
-        const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
-        cleaned = cleaned.replace(regex, correct);
-      });
-      
-      return cleaned;
+      // Use our global utility to fix ALL day abbreviations
+      return fixDayAbbreviations(schedule);
     }
     
     // If schedule is an object with days and times
