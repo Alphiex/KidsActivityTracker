@@ -28,7 +28,6 @@ import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import CityBrowseScreen from '../screens/CityBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
-import TestNavigationScreen from '../screens/TestNavigationScreen';
 import NavigationErrorBoundary from '../components/NavigationErrorBoundary';
 import SharingManagementScreen from '../screens/SharingManagementScreen';
 import AllCategoriesScreen from '../screens/AllCategoriesScreen';
@@ -74,7 +73,6 @@ const HomeStack = () => (
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
-    <Stack.Screen name="TestNavigation" component={TestNavigationScreen} />
   </Stack.Navigator>
 );
 
