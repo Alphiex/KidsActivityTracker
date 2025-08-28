@@ -59,6 +59,7 @@ const FavoritesScreen = () => {
       
       // Fetch the actual activity details for each favorite
       const favoriteActivities: Activity[] = [];
+      const staleFavoriteIds: string[] = [];
       
       for (const fav of favoritesList) {
         try {
@@ -71,11 +72,33 @@ const FavoritesScreen = () => {
             // Check capacity for each favorite
             favoritesService.checkCapacityChange(activity);
           } else {
-            console.warn(`Activity ${fav.activityId} not found in backend`);
+            console.warn(`Activity ${fav.activityId} not found in backend, marking for removal`);
+            staleFavoriteIds.push(fav.activityId);
           }
         } catch (error) {
           console.error(`Error loading favorite activity ${fav.activityId}:`, error);
+          // If it's a 404 or network error suggesting the activity no longer exists, mark for removal
+          if (error instanceof Error && (error.message.includes('404') || error.message.includes('not found'))) {
+            console.warn(`Activity ${fav.activityId} appears to be deleted, marking for removal`);
+            staleFavoriteIds.push(fav.activityId);
+          }
           // Continue loading other favorites even if one fails
+        }
+      }
+      
+      // Clean up stale favorites
+      if (staleFavoriteIds.length > 0) {
+        console.log(`Removing ${staleFavoriteIds.length} stale favorite(s):`, staleFavoriteIds);
+        for (const staleId of staleFavoriteIds) {
+          favoritesService.removeFavorite(staleId);
+        }
+        
+        // Show notification only if many favorites were cleaned up
+        if (staleFavoriteIds.length > 3) {
+          const message = `Cleaned up ${staleFavoriteIds.length} outdated favorites that no longer exist`;
+          setTimeout(() => {
+            Alert.alert('Favorites Cleaned Up', message, [{ text: 'OK' }]);
+          }, 500);
         }
       }
       

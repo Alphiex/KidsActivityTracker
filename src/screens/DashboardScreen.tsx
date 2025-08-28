@@ -40,6 +40,7 @@ const DashboardScreen = () => {
     newThisWeek: 0,
     savedFavorites: 0,
     upcomingEvents: 0,
+    budgetFriendly: 0,
   });
   const [categories, setCategories] = useState<Array<{ name: string; count: number; icon: string }>>([]);
   const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count: number; icon: string }>>([]);
@@ -225,15 +226,17 @@ const DashboardScreen = () => {
       }
       
       // Get matching activities count
-      const matchingResult = await activityService.searchActivities({ ...preferencesFilters, limit: 1 });
-      const matchingActivities = matchingResult.length > 0 ? 100 : 0; // Placeholder count since we're just checking
+      const matchingParams = { ...preferencesFilters, limit: 1, offset: 0 };
+      const matchingResult = await activityService.searchActivitiesPaginated(matchingParams);
+      const matchingActivities = matchingResult.total || 0;
 
       // Get new activities count using API date filtering
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const newActivitiesParams: any = {
         updatedAfter: oneWeekAgo.toISOString(),
-        limit: 1
+        limit: 1,
+        offset: 0
       };
       if (preferences.hideClosedActivities) {
         newActivitiesParams.hideClosedActivities = true;
@@ -242,8 +245,8 @@ const DashboardScreen = () => {
         newActivitiesParams.hideFullActivities = true;
       }
       
-      const newActivitiesResult = await activityService.searchActivities(newActivitiesParams);
-      const newThisWeek = newActivitiesResult.length > 0 ? 25 : 0; // Placeholder count
+      const newActivitiesResult = await activityService.searchActivitiesPaginated(newActivitiesParams);
+      const newThisWeek = newActivitiesResult.total || 0;
 
       // Get upcoming events count using API date filtering
       const today = new Date();
@@ -252,7 +255,8 @@ const DashboardScreen = () => {
       const upcomingParams: any = {
         startDateAfter: today.toISOString(),
         startDateBefore: nextWeek.toISOString(),
-        limit: 1
+        limit: 1,
+        offset: 0
       };
       if (preferences.hideClosedActivities) {
         upcomingParams.hideClosedActivities = true;
@@ -261,14 +265,31 @@ const DashboardScreen = () => {
         upcomingParams.hideFullActivities = true;
       }
       
-      const upcomingResult = await activityService.searchActivities(upcomingParams);
-      const upcomingEvents = upcomingResult.length > 0 ? 15 : 0; // Placeholder count
+      const upcomingResult = await activityService.searchActivitiesPaginated(upcomingParams);
+      const upcomingEvents = upcomingResult.total || 0;
+
+      // Get budget-friendly activities count
+      const budgetFriendlyParams: any = {
+        maxCost: preferences.maxBudgetFriendlyAmount || 20,
+        limit: 1,
+        offset: 0
+      };
+      if (preferences.hideClosedActivities) {
+        budgetFriendlyParams.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        budgetFriendlyParams.hideFullActivities = true;
+      }
+      
+      const budgetFriendlyResult = await activityService.searchActivitiesPaginated(budgetFriendlyParams);
+      const budgetFriendly = budgetFriendlyResult.total || 0;
 
       setStats({
         matchingActivities,
         newThisWeek,
         savedFavorites: favorites.length,
         upcomingEvents,
+        budgetFriendly,
       });
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
@@ -279,6 +300,7 @@ const DashboardScreen = () => {
         newThisWeek: 0,
         savedFavorites: 0,
         upcomingEvents: 0,
+        budgetFriendly: 0,
       });
     } finally {
       setRefreshing(false);
@@ -404,6 +426,7 @@ const DashboardScreen = () => {
           >
             <Icon name="heart" size={30} color="#fff" />
             <Text style={styles.quickActionText}>Favourites</Text>
+            <Text style={styles.quickActionCount}>{stats.savedFavorites} activities</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -455,7 +478,7 @@ const DashboardScreen = () => {
               <Icon name="cash" size={35} color="#fff" />
               <View style={styles.discoverTextContainer}>
                 <Text style={styles.discoverTitle}>Budget Friendly</Text>
-                <Text style={styles.discoverSubtext}>Under ${preferences.maxBudgetFriendlyAmount || 20}</Text>
+                <Text style={styles.discoverSubtext}>{stats.budgetFriendly} activities under ${preferences.maxBudgetFriendlyAmount || 20}</Text>
               </View>
             </View>
             <Icon name="chevron-right" size={24} color="#fff" />
@@ -692,6 +715,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 10,
     textAlign: 'center',
+  },
+  quickActionCount: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#fff',
+    opacity: 0.9,
+    textAlign: 'center',
+    marginTop: 2,
   },
   discoverCardWrapper: {
     marginTop: 12,
