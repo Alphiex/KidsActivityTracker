@@ -7,8 +7,8 @@ const USE_MOCK_API = false; // Set to false to use real API
 const API_URLS = {
   // Local development
   LOCAL: Platform.select({
-    ios: 'http://localhost:3000',
-    android: 'http://10.0.2.2:3000',
+    ios: 'http://127.0.0.1:3001',
+    android: 'http://10.0.2.2:3001',
   }),
   
   // Production - Google Cloud Run deployment
@@ -57,6 +57,7 @@ const API_CONFIG = {
     PROVIDERS: '/api/v1/providers',
     LOCATIONS: '/api/v1/locations',
     CATEGORIES: '/api/v1/categories',
+    ACTIVITY_TYPES: '/api/v1/activity-types',
     
     // Legacy endpoints (for backward compatibility)
     SCRAPE_NVRC: '/api/scrape/nvrc',

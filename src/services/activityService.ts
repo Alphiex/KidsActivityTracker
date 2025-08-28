@@ -582,9 +582,12 @@ class ActivityService {
 
   async getActivityTypesWithCounts(): Promise<Array<{ code: string; name: string; activityCount: number }>> {
     try {
-      const response = await this.api.get('/api/v1/reference/activity-types');
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITY_TYPES);
       
-      return response.data.success ? response.data.data : [];
+      if (response.data && response.data.success) {
+        return response.data.data || [];
+      }
+      return [];
     } catch (error) {
       console.error('Error fetching activity types with counts:', error);
       return [];

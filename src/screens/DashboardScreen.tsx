@@ -185,6 +185,7 @@ const DashboardScreen = () => {
       // Fetch activity types with counts
       try {
         const types = await activityService.getActivityTypesWithCounts();
+        
         // Show first 6 activity types
         const typesWithIcons = types.slice(0, 6).map(type => ({
           code: type.code,
