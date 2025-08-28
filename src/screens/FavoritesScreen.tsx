@@ -48,10 +48,12 @@ const FavoritesScreen = () => {
       
       // Get locally stored favorite IDs
       const favoritesList = favoritesService.getFavorites();
-      console.log('Loading favorites, found:', favoritesList.length);
+      console.log('Loading favorites from local storage, found:', favoritesList.length);
       
       if (favoritesList.length === 0) {
         setFavorites([]);
+        setIsLoading(false);
+        setRefreshing(false);
         return;
       }
       
@@ -81,6 +83,10 @@ const FavoritesScreen = () => {
       console.log('Loaded favorite activities:', favoriteActivities.length);
     } catch (error) {
       console.error('Error loading favorites:', error);
+      // Don't show alert for expected errors like no auth
+      if (error?.response?.status !== 401) {
+        Alert.alert('Error', 'Failed to load favorites');
+      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -134,7 +140,7 @@ const FavoritesScreen = () => {
           text: 'Remove', 
           style: 'destructive',
           onPress: () => {
-            favoritesService.removeFavorite(activity.id);
+            favoritesService.toggleFavorite(activity);
             loadFavorites();
           }
         }
