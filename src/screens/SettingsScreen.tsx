@@ -28,10 +28,10 @@ const SettingsScreen = () => {
       icon: 'tune',
       items: [
         {
-          title: 'Categories',
-          subtitle: `${preferences.preferredCategories.length} selected`,
+          title: 'Activity Types',
+          subtitle: `${(preferences.preferredActivityTypes || []).length} selected`,
           icon: 'tag-multiple',
-          onPress: () => navigation.navigate('CategoryPreferences'),
+          onPress: () => navigation.navigate('ActivityTypePreferences'),
         },
         {
           title: 'Age Groups',

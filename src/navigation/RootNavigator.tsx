@@ -38,7 +38,7 @@ import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 
 // Import Preference Screens
-import CategoryPreferencesScreen from '../screens/preferences/CategoryPreferencesScreen';
+import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
 import AgePreferencesScreen from '../screens/preferences/AgePreferencesScreen';
 import LocationPreferencesScreen from '../screens/preferences/LocationPreferencesScreen';
 import BudgetPreferencesScreen from '../screens/preferences/BudgetPreferencesScreen';
@@ -110,7 +110,7 @@ const ProfileStack = () => (
     <Stack.Screen name="SiteAccounts" component={SiteAccountsScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
-    <Stack.Screen name="CategoryPreferences" component={CategoryPreferencesScreen} />
+    <Stack.Screen name="ActivityTypePreferences" component={ActivityTypePreferencesScreen} />
     <Stack.Screen name="AgePreferences" component={AgePreferencesScreen} />
     <Stack.Screen name="LocationPreferences" component={LocationPreferencesScreen} />
     <Stack.Screen name="BudgetPreferences" component={BudgetPreferencesScreen} />

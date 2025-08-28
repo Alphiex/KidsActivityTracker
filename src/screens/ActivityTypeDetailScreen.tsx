@@ -12,6 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService from '../services/activityService';
+import PreferencesService from '../services/preferencesService';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ActivityCard from '../components/ActivityCard';
 import { Colors } from '../theme';
@@ -67,12 +68,58 @@ const ActivityTypeDetailScreen = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
       
       // Load type details including subtypes
       const details = await activityService.getActivityTypeDetails(typeCode);
       if (details && details.subtypes) {
-        setSubtypes(details.subtypes);
-        setTotalCount(details.totalActivities);
+        // Get accurate counts for each subtype with global filters
+        const subtypesWithCounts = await Promise.all(details.subtypes.map(async (subtype: Subtype) => {
+          const countParams: any = {
+            activityType: typeName,
+            activitySubtype: subtype.name,
+            limit: 1,
+            offset: 0
+          };
+          
+          // Apply global filters
+          if (preferences.hideClosedActivities) {
+            countParams.hideClosedActivities = true;
+          }
+          if (preferences.hideFullActivities) {
+            countParams.hideFullActivities = true;
+          }
+          
+          const result = await activityService.searchActivitiesPaginated(countParams);
+          
+          return {
+            ...subtype,
+            activityCount: result.total || 0
+          };
+        }));
+        
+        // Filter out subtypes with 0 activities and sort by count
+        const activeSubtypes = subtypesWithCounts
+          .filter(s => s.activityCount > 0)
+          .sort((a, b) => b.activityCount - a.activityCount);
+        
+        setSubtypes(activeSubtypes);
+        
+        // Get total count for this activity type
+        const totalParams: any = {
+          activityType: typeName,
+          limit: 1,
+          offset: 0
+        };
+        if (preferences.hideClosedActivities) {
+          totalParams.hideClosedActivities = true;
+        }
+        if (preferences.hideFullActivities) {
+          totalParams.hideFullActivities = true;
+        }
+        const totalResult = await activityService.searchActivitiesPaginated(totalParams);
+        setTotalCount(totalResult.total || 0);
       }
       
       // Load initial activities
@@ -96,12 +143,22 @@ const ActivityTypeDetailScreen = () => {
       }
       
       const activityService = ActivityService.getInstance();
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
       
       const filters: any = {
         activityType: typeName,
         limit: ITEMS_PER_PAGE,
         offset: isRefresh ? 0 : currentOffset,
       };
+      
+      // Apply global filters
+      if (preferences.hideClosedActivities) {
+        filters.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        filters.hideFullActivities = true;
+      }
       
       // If a subtype is selected, filter by it
       if (selectedSubtype) {

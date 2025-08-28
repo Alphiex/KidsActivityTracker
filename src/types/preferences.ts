@@ -27,9 +27,12 @@ export interface UserPreferences {
     evening: boolean; // 5pm-9pm
   };
   
-  // Category preferences
+  // Category preferences (DEPRECATED - use preferredActivityTypes)
   preferredCategories: string[];
   excludedCategories: string[];
+  
+  // Activity type preferences
+  preferredActivityTypes: string[];
   
   // Notification preferences
   notifications: {

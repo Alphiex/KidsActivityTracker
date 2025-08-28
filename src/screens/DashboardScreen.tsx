@@ -187,14 +187,54 @@ const DashboardScreen = () => {
       try {
         const types = await activityService.getActivityTypesWithCounts();
         
-        // Show first 6 activity types
-        const typesWithIcons = types.slice(0, 6).map(type => ({
-          code: type.code,
-          name: type.name,
-          count: type.activityCount,
-          icon: getActivityTypeIcon(type.name),
+        // Get counts for each type including global filters
+        const typesWithCounts = await Promise.all(types.map(async (type) => {
+          // Get count with global filters applied
+          const countParams: any = {
+            activityType: type.name, // This will match all activities where activityType equals this
+            limit: 1,
+            offset: 0
+          };
+          
+          // Apply global filters
+          if (preferences.hideClosedActivities) {
+            countParams.hideClosedActivities = true;
+          }
+          if (preferences.hideFullActivities) {
+            countParams.hideFullActivities = true;
+          }
+          
+          const result = await activityService.searchActivitiesPaginated(countParams);
+          
+          return {
+            code: type.code,
+            name: type.name,
+            count: result.total || 0, // Use actual count from search
+            icon: getActivityTypeIcon(type.name),
+          };
         }));
-        setActivityTypes(typesWithIcons);
+        
+        // Sort by user preferences first, then by count
+        const preferredTypes = preferences.preferredActivityTypes || preferences.preferredCategories || [];
+        const sortedTypes = typesWithCounts.sort((a, b) => {
+          const aPreferred = preferredTypes.includes(a.name);
+          const bPreferred = preferredTypes.includes(b.name);
+          
+          if (aPreferred && !bPreferred) return -1;
+          if (!aPreferred && bPreferred) return 1;
+          
+          // If both are preferred or neither, sort by preference order then count
+          if (aPreferred && bPreferred) {
+            const aIndex = preferredTypes.indexOf(a.name);
+            const bIndex = preferredTypes.indexOf(b.name);
+            return aIndex - bIndex;
+          }
+          
+          return b.count - a.count;
+        });
+        
+        // Show first 6 activity types
+        setActivityTypes(sortedTypes.slice(0, 6));
       } catch (typeError) {
         console.error('Error fetching activity types:', typeError);
       }

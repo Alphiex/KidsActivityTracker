@@ -35,7 +35,8 @@ class PreferencesService {
         afternoon: true,
         evening: true,
       },
-      preferredCategories: [],
+      preferredCategories: [], // DEPRECATED - use preferredActivityTypes
+      preferredActivityTypes: [],
       excludedCategories: [],
       notifications: {
         enabled: true,
