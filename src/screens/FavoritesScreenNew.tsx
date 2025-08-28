@@ -38,15 +38,46 @@ const FavoritesScreenNew = () => {
   const loadFavorites = async () => {
     try {
       setIsLoading(true);
+      const favoritesService = FavoritesService.getInstance();
       const activityService = ActivityService.getInstance();
       
-      // Use the API's favorites endpoint directly for better performance
-      const favoriteActivities = await activityService.getFavorites();
-      console.log('Favorite activities found:', favoriteActivities.length);
+      // Get locally stored favorite IDs
+      const favoritesList = favoritesService.getFavorites();
+      console.log('Loading favorites from local storage, found:', favoritesList.length);
+      
+      if (favoritesList.length === 0) {
+        setFavorites([]);
+        return;
+      }
+      
+      // Fetch the actual activity details for each favorite
+      const favoriteActivities: Activity[] = [];
+      
+      for (const fav of favoritesList) {
+        try {
+          // Fetch activity details by ID
+          console.log('Fetching activity details for favorite:', fav.activityId);
+          const activity = await activityService.getActivityDetails(fav.activityId);
+          if (activity) {
+            console.log('Successfully fetched activity:', activity.name);
+            favoriteActivities.push(activity);
+          } else {
+            console.warn(`Activity ${fav.activityId} not found in backend`);
+          }
+        } catch (error) {
+          console.error(`Error loading favorite activity ${fav.activityId}:`, error);
+          // Continue loading other favorites even if one fails
+        }
+      }
+      
       setFavorites(favoriteActivities);
+      console.log('Loaded favorite activities:', favoriteActivities.length);
     } catch (error) {
       console.error('Error loading favorites:', error);
-      Alert.alert('Error', 'Failed to load favorites');
+      // Don't show alert for expected errors like no auth
+      if (error?.response?.status !== 401) {
+        Alert.alert('Error', 'Failed to load favorites');
+      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);

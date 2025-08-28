@@ -240,8 +240,12 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         </View>
         <TouchableOpacity
           onPress={() => {
+            console.log('Toggling favorite for activity:', activity.id, activity.name);
+            console.log('Current favorite status:', isFavorite);
             favoritesService.toggleFavorite(activity);
             setIsFavorite(!isFavorite);
+            console.log('New favorite status:', !isFavorite);
+            console.log('All favorites after toggle:', favoritesService.getFavorites());
           }}
           style={styles.favoriteButton}
         >
