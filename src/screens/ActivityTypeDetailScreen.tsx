@@ -51,6 +51,14 @@ const ActivityTypeDetailScreen = () => {
       headerTitleStyle: {
         fontWeight: 'bold',
       },
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('AllActivityTypes')}
+          style={{ marginRight: 15 }}
+        >
+          <Icon name="apps" size={24} color="#fff" />
+        </TouchableOpacity>
+      ),
     });
     loadTypeDetails();
   }, [navigation, typeName]);

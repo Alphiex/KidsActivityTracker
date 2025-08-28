@@ -18,6 +18,7 @@ import FavoritesService from '../services/favoritesService';
 import { Colors } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { getActivityTypeIcon } from '../utils/activityTypeIcons';
 import { Alert, ActivityIndicator } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -61,61 +62,6 @@ const DashboardScreen = () => {
     'Racquet Sports': 'tennis',
     'Aquatic Leadership': 'pool',
     'Camps': 'tent',
-  };
-
-  // Define activity type icons
-  const activityTypeIcons = {
-    // Water sports
-    'Swimming': 'swim',
-    'Swimming Lessons': 'swim',
-    'Private Lessons Swimming': 'swim',
-    'Swimming - Aquatic Leadership': 'whistle',
-    
-    // Sports
-    'Tennis': 'tennis',
-    'Basketball': 'basketball',
-    'Soccer': 'soccer',
-    'Baseball': 'baseball',
-    'Football': 'football',
-    'Hockey': 'hockey-sticks',
-    'Golf': 'golf',
-    'Sports': 'basketball',
-    'Skating': 'skate',
-    'Climbing': 'terrain',
-    
-    // Arts & Music
-    'Dance': 'dance-ballroom',
-    'Art': 'palette',
-    'Visual Arts': 'palette',
-    'Music': 'music-note',
-    'Private Lessons Music': 'piano',
-    'Drama': 'drama-masks',
-    'Pottery': 'pot',
-    
-    // Fitness & Movement
-    'Gymnastics': 'gymnastics',
-    'Martial Arts': 'karate',
-    'Yoga': 'yoga',
-    'Fitness': 'dumbbell',
-    'Spin': 'bike',
-    
-    // Education & Skills
-    'Cooking': 'chef-hat',
-    'STEM': 'flask',
-    'Learn & Play': 'puzzle',
-    'General Programs': 'star',
-    'Certifications & Leadership': 'certificate',
-    'School Programs': 'school',
-    
-    // Camps
-    'Camp': 'tent',
-    'Part Day Camp': 'clock-time-three',
-    'Full Day Camp': 'clock-time-eight',
-    'Single Day': 'calendar-today',
-    'Outdoor Adventure': 'hiking',
-    
-    // Special Events
-    'Community & Special Events': 'calendar-star',
   };
 
   const loadRecommendedCount = async () => {
@@ -244,7 +190,7 @@ const DashboardScreen = () => {
           code: type.code,
           name: type.name,
           count: type.activityCount,
-          icon: activityTypeIcons[type.name] || 'tag',
+          icon: getActivityTypeIcon(type.name),
         }));
         setActivityTypes(typesWithIcons);
       } catch (typeError) {

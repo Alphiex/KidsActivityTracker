@@ -15,6 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import ActivityService from '../services/activityService';
 import { Colors } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
+import { getActivityTypeIcon, getActivityTypeColors } from '../utils/activityTypeIcons';
 
 type NavigationProp = StackNavigationProp<any>;
 
@@ -34,86 +35,6 @@ const AllActivityTypesScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Define activity type configurations
-  const activityTypeConfig = {
-    // Water sports
-    'Swimming': { icon: 'swim', colors: ['#00BCD4', '#0097A7'] },
-    'Swimming Lessons': { icon: 'swim', colors: ['#00BCD4', '#0097A7'] },
-    'Private Lessons Swimming': { icon: 'swim', colors: ['#00ACC1', '#00838F'] },
-    'Swimming - Aquatic Leadership': { icon: 'whistle', colors: ['#0288D1', '#01579B'] },
-    'Aquatic': { icon: 'pool', colors: ['#03A9F4', '#0288D1'] },
-    'Water Safety': { icon: 'lifebuoy', colors: ['#00ACC1', '#00838F'] },
-    
-    // Racquet sports
-    'Tennis': { icon: 'tennis', colors: ['#8BC34A', '#689F38'] },
-    'Badminton': { icon: 'badminton', colors: ['#CDDC39', '#AFB42B'] },
-    'Squash': { icon: 'tennis-ball', colors: ['#FFC107', '#F57C00'] },
-    'Table Tennis': { icon: 'table-tennis', colors: ['#FF9800', '#E65100'] },
-    
-    // Team sports
-    'Basketball': { icon: 'basketball', colors: ['#FF5722', '#E64A19'] },
-    'Soccer': { icon: 'soccer', colors: ['#4CAF50', '#388E3C'] },
-    'Football': { icon: 'football', colors: ['#795548', '#5D4037'] },
-    'Baseball': { icon: 'baseball', colors: ['#F44336', '#D32F2F'] },
-    'Volleyball': { icon: 'volleyball', colors: ['#E91E63', '#C2185B'] },
-    'Hockey': { icon: 'hockey-sticks', colors: ['#3F51B5', '#303F9F'] },
-    
-    // Martial Arts
-    'Martial Arts': { icon: 'karate', colors: ['#F44336', '#D32F2F'] },
-    'Karate': { icon: 'karate', colors: ['#FF5722', '#E64A19'] },
-    'Taekwondo': { icon: 'karate', colors: ['#FF9800', '#F57C00'] },
-    'Judo': { icon: 'karate', colors: ['#FFC107', '#FFA000'] },
-    
-    // Dance & Performance
-    'Dance': { icon: 'dance-ballroom', colors: ['#E91E63', '#C2185B'] },
-    'Ballet': { icon: 'dance-ballroom', colors: ['#F06292', '#E91E63'] },
-    'Hip Hop': { icon: 'dance-ballroom', colors: ['#9C27B0', '#7B1FA2'] },
-    'Drama': { icon: 'drama-masks', colors: ['#673AB7', '#512DA8'] },
-    'Music': { icon: 'music-note', colors: ['#3F51B5', '#303F9F'] },
-    
-    // Fitness
-    'Fitness': { icon: 'dumbbell', colors: ['#FF5722', '#E64A19'] },
-    'Gymnastics': { icon: 'gymnastics', colors: ['#9C27B0', '#7B1FA2'] },
-    'Yoga': { icon: 'yoga', colors: ['#00BCD4', '#0097A7'] },
-    
-    // Educational
-    'STEM': { icon: 'flask', colors: ['#2196F3', '#1976D2'] },
-    'Science': { icon: 'flask', colors: ['#03A9F4', '#0288D1'] },
-    'Art': { icon: 'palette', colors: ['#FF5722', '#E64A19'] },
-    'Cooking': { icon: 'chef-hat', colors: ['#FF9800', '#F57C00'] },
-    'Languages': { icon: 'translate', colors: ['#607D8B', '#455A64'] },
-    
-    // Outdoor
-    'Camps': { icon: 'tent', colors: ['#4CAF50', '#388E3C'] },
-    'Day Camps': { icon: 'tent', colors: ['#8BC34A', '#689F38'] },
-    'Outdoor Adventure': { icon: 'hiking', colors: ['#795548', '#5D4037'] },
-    'Nature': { icon: 'leaf', colors: ['#4CAF50', '#388E3C'] },
-    
-    // Other activities
-    'Skating': { icon: 'skate', colors: ['#00BCD4', '#0097A7'] },
-    'Skate': { icon: 'skate', colors: ['#00BCD4', '#0097A7'] },  // Alternative name
-    'Climbing': { icon: 'terrain', colors: ['#FF5722', '#E64A19'] },
-    'Golf': { icon: 'golf', colors: ['#4CAF50', '#388E3C'] },
-    'Chess': { icon: 'chess-knight', colors: ['#607D8B', '#455A64'] },
-    'Board Games': { icon: 'dice-5', colors: ['#9C27B0', '#7B1FA2'] },
-    
-    // Additional activities from database
-    'Private Lessons Music': { icon: 'piano', colors: ['#673AB7', '#512DA8'] },
-    'General Programs': { icon: 'star', colors: ['#FF9800', '#F57C00'] },
-    'Certifications & Leadership': { icon: 'certificate', colors: ['#795548', '#5D4037'] },
-    'Part Day Camp': { icon: 'clock-time-three', colors: ['#4CAF50', '#388E3C'] },
-    'Full Day Camp': { icon: 'clock-time-eight', colors: ['#2E7D32', '#1B5E20'] },
-    'Learn & Play': { icon: 'puzzle', colors: ['#E91E63', '#C2185B'] },
-    'Spin': { icon: 'bike', colors: ['#F44336', '#D32F2F'] },
-    'Single Day': { icon: 'calendar-today', colors: ['#3F51B5', '#303F9F'] },
-    'School Programs': { icon: 'school', colors: ['#00BCD4', '#0097A7'] },
-  };
-
-  // Default configuration for unknown activity types
-  const defaultActivityTypeConfig = {
-    icon: 'tag',
-    colors: ['#9E9E9E', '#757575']
-  };
 
   const loadActivityTypes = async () => {
     try {
@@ -123,13 +44,12 @@ const AllActivityTypesScreen: React.FC = () => {
       
       // Map activity types with their configurations
       const typesWithConfig = activityTypesData.map(type => {
-        const config = activityTypeConfig[type.name] || defaultActivityTypeConfig;
         return {
           code: type.code,
           name: type.name,
           activityCount: type.activityCount,
-          icon: config.icon,
-          color: config.colors,
+          icon: getActivityTypeIcon(type.name),
+          color: getActivityTypeColors(type.name),
         };
       });
       
