@@ -196,10 +196,22 @@ const ActivityDetailScreenEnhanced = () => {
   const handleToggleFavorite = async () => {
     setLoading(true);
     try {
-      const activityService = ActivityService.getInstance();
-      await activityService.toggleFavorite(activity.id);
+      // Only use local FavoritesService for now since backend may not be ready
       favoritesService.toggleFavorite(activity);
       setIsFavorite(!isFavorite);
+      
+      // Optional: Try to sync with backend but don't fail if it doesn't work
+      try {
+        const activityService = ActivityService.getInstance();
+        if (!isFavorite) {
+          await activityService.addFavorite(activity.id);
+        } else {
+          await activityService.removeFavorite(activity.id);
+        }
+      } catch (apiError) {
+        // Silently fail API call - local storage is the source of truth
+        console.log('Backend sync failed, using local storage only');
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to update favorite status');
     } finally {

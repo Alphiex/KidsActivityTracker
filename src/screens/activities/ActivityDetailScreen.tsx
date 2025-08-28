@@ -18,6 +18,7 @@ import { useStore } from '../../store';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchActivityChildren } from '../../store/slices/childActivitiesSlice';
 import ActivityService from '../../services/activityService';
+import FavoritesService from '../../services/favoritesService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import { formatPrice } from '../../utils/formatters';
@@ -54,19 +55,23 @@ const ActivityDetailScreen = () => {
   const handleToggleFavorite = async () => {
     setLoading(true);
     try {
-      const activityService = ActivityService.getInstance();
-      if (isFavorite) {
-        const success = await activityService.removeFavorite(activity.id);
-        if (success) {
-          setIsFavorite(false);
-          toggleFavorite(activity.id);
+      // Use local FavoritesService as the primary source
+      const favoritesService = FavoritesService.getInstance();
+      favoritesService.toggleFavorite(activity);
+      setIsFavorite(!isFavorite);
+      toggleFavorite(activity.id);
+      
+      // Optional: Try to sync with backend but don't fail if it doesn't work
+      try {
+        const activityService = ActivityService.getInstance();
+        if (!isFavorite) {
+          await activityService.addFavorite(activity.id);
+        } else {
+          await activityService.removeFavorite(activity.id);
         }
-      } else {
-        const success = await activityService.addFavorite(activity.id);
-        if (success) {
-          setIsFavorite(true);
-          toggleFavorite(activity.id);
-        }
+      } catch (apiError) {
+        // Silently fail API call - local storage is the source of truth
+        console.log('Backend sync failed, using local storage only');
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update favorite status');
