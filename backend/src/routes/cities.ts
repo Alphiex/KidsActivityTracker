@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '../../generated/prisma';
+import { buildActivityWhereClause, extractGlobalFilters } from '../utils/activityFilters';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -18,14 +19,15 @@ interface CityData {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    // Get unique cities with counts
-    const cities = await prisma.location.groupBy({
+    console.log('🏙️ [Cities] Fetching cities with counts...');
+    const globalFilters = extractGlobalFilters(req.query);
+    console.log('🏙️ [Cities] Global filters:', globalFilters);
+    
+    // Get unique cities with counts - filter out null cities after grouping
+    const citiesRaw = await prisma.location.groupBy({
       by: ['city', 'province'],
       _count: {
         id: true
-      },
-      where: {
-        city: { not: null }
       },
       orderBy: {
         _count: {
@@ -34,16 +36,20 @@ router.get('/', async (req: Request, res: Response) => {
       }
     });
     
-    // Get activity counts per city
+    // Filter out null cities
+    const cities = citiesRaw.filter(c => c.city !== null);
+    
+    console.log(`🏙️ [Cities] Found ${cities.length} unique cities`);
+    
+    // Get activity counts per city with global filters
     const citiesWithActivityCounts = await Promise.all(
       cities.map(async (city) => {
         const activityCount = await prisma.activity.count({
-          where: {
+          where: buildActivityWhereClause({
             location: {
               city: city.city
-            },
-            isActive: true
-          }
+            }
+          }, globalFilters)
         });
         
         return {
@@ -65,11 +71,14 @@ router.get('/', async (req: Request, res: Response) => {
       data: validCities,
       total: validCities.length
     });
-  } catch (error) {
-    console.error('Error fetching cities:', error);
+  } catch (error: any) {
+    console.error('❌ [Cities] Error fetching cities:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch cities'
+      error: 'Failed to fetch cities',
+      details: error.message
     });
   }
 });
@@ -169,24 +178,33 @@ router.get('/:city/activities', async (req: Request, res: Response) => {
     };
     
     if (activityType) {
-      where.activityType = activityType;
-    }
-    
-    if (ageCategory) {
-      const category = await prisma.category.findUnique({
-        where: { code: ageCategory as string }
+      // Find the activity type by code
+      const activityTypeRecord = await prisma.activityType.findUnique({
+        where: { code: activityType as string }
       });
       
-      if (category) {
-        where.categories = {
-          some: { categoryId: category.id }
-        };
+      if (activityTypeRecord) {
+        where.activityTypeId = activityTypeRecord.id;
       }
     }
     
-    if (requiresParent !== undefined) {
-      where.requiresParent = requiresParent === 'true';
-    }
+    // TODO: Implement age category filtering once Category model is added
+    // if (ageCategory) {
+    //   const category = await prisma.category.findUnique({
+    //     where: { code: ageCategory as string }
+    //   });
+    //   
+    //   if (category) {
+    //     where.categories = {
+    //       some: { categoryId: category.id }
+    //     };
+    //   }
+    // }
+    
+    // TODO: Implement parent requirement filtering once field is added
+    // if (requiresParent !== undefined) {
+    //   where.requiresParent = requiresParent === 'true';
+    // }
     
     const skip = (pageNum - 1) * limitNum;
     
@@ -200,11 +218,8 @@ router.get('/:city/activities', async (req: Request, res: Response) => {
           provider: {
             select: { name: true }
           },
-          categories: {
-            include: {
-              category: true
-            }
-          }
+          activityType: true,
+          activitySubtype: true
         },
         orderBy: { dateStart: 'asc' }
       }),

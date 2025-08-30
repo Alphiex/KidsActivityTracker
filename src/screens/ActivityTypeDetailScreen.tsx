@@ -12,6 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService from '../services/activityService';
+import ActivityTypeService from '../services/activityTypeService';
 import PreferencesService from '../services/preferencesService';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ActivityCard from '../components/ActivityCard';
@@ -23,6 +24,8 @@ interface Subtype {
   name: string;
   activityCount: number;
 }
+
+// Removed getTypeVariations - now using exact database names
 
 const ActivityTypeDetailScreen = () => {
   const navigation = useNavigation();
@@ -64,6 +67,13 @@ const ActivityTypeDetailScreen = () => {
     loadTypeDetails();
   }, [navigation, typeName]);
 
+  // Load activities when selectedSubtype changes (but not on initial mount)
+  useEffect(() => {
+    if (selectedSubtype !== undefined && !isLoading) {
+      loadActivities(true);
+    }
+  }, [selectedSubtype]);
+
   const loadTypeDetails = async () => {
     try {
       setError(null);
@@ -71,59 +81,42 @@ const ActivityTypeDetailScreen = () => {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       
-      // Load type details including subtypes
-      const details = await activityService.getActivityTypeDetails(typeCode);
-      if (details && details.subtypes) {
-        // Get accurate counts for each subtype with global filters
-        const subtypesWithCounts = await Promise.all(details.subtypes.map(async (subtype: Subtype) => {
-          const countParams: any = {
-            activityType: typeName,
-            activitySubtype: subtype.name,
-            limit: 1,
-            offset: 0
-          };
-          
-          // Apply global filters
-          if (preferences.hideClosedActivities) {
-            countParams.hideClosedActivities = true;
-          }
-          if (preferences.hideFullActivities) {
-            countParams.hideFullActivities = true;
-          }
-          
-          const result = await activityService.searchActivitiesPaginated(countParams);
-          
-          return {
-            ...subtype,
-            activityCount: result.total || 0
-          };
-        }));
-        
-        // Filter out subtypes with 0 activities and sort by count
-        const activeSubtypes = subtypesWithCounts
+      // Get type details with subtypes from the API
+      const types = await activityService.getActivityTypesWithCounts();
+      const currentType = types.find(t => t.name === typeName);
+      
+      if (currentType && currentType.subtypes) {
+        // Use the subtypes from the API which already have counts
+        const subtypesWithCounts = currentType.subtypes
           .filter(s => s.activityCount > 0)
+          .map(subtype => ({
+            code: subtype.code,
+            name: subtype.name,
+            activityCount: subtype.activityCount
+          }))
           .sort((a, b) => b.activityCount - a.activityCount);
         
-        setSubtypes(activeSubtypes);
+        setSubtypes(subtypesWithCounts);
+        setTotalCount(currentType.activityCount);
+      } else {
+        // Fallback to old method if needed
+        const activityTypeService = ActivityTypeService.getInstance();
+        const typeInfo = await activityTypeService.getActivityTypeWithSubtypes(typeName);
         
-        // Get total count for this activity type
-        const totalParams: any = {
-          activityType: typeName,
-          limit: 1,
-          offset: 0
-        };
-        if (preferences.hideClosedActivities) {
-          totalParams.hideClosedActivities = true;
-        }
-        if (preferences.hideFullActivities) {
-          totalParams.hideFullActivities = true;
-        }
-        const totalResult = await activityService.searchActivitiesPaginated(totalParams);
-        setTotalCount(totalResult.total || 0);
+        const subtypesWithCounts = typeInfo.subtypes
+          .filter(s => s.count > 0)
+          .map(subtype => ({
+            code: subtype.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            name: subtype.name,
+            activityCount: subtype.count
+          }))
+          .sort((a, b) => b.activityCount - a.activityCount);
+        
+        setSubtypes(subtypesWithCounts);
+        setTotalCount(typeInfo.totalCount);
       }
       
-      // Load initial activities
-      await loadActivities(true);
+      // Don't load activities here - they will be loaded when selectedSubtype is set
     } catch (err: any) {
       console.error('Error loading type details:', err);
       setError(err.message || 'Failed to load activity type details');
@@ -143,11 +136,15 @@ const ActivityTypeDetailScreen = () => {
       }
       
       const activityService = ActivityService.getInstance();
+      const activityTypeService = ActivityTypeService.getInstance();
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       
+      // Get activities matching this exact type name from database
+      const allActivities: Activity[] = [];
+      
       const filters: any = {
-        activityType: typeName,
+        activityType: typeName, // Use exact type name from database
         limit: ITEMS_PER_PAGE,
         offset: isRefresh ? 0 : currentOffset,
       };
@@ -160,23 +157,32 @@ const ActivityTypeDetailScreen = () => {
         filters.hideFullActivities = true;
       }
       
-      // If a subtype is selected, filter by it
+      // If a subtype is selected, filter by it (using exact subtype name)
       if (selectedSubtype) {
         filters.activitySubtype = selectedSubtype;
       }
       
+      console.log('ActivityTypeDetailScreen: Searching with filters:', filters);
       const response = await activityService.searchActivitiesPaginated(filters);
+      console.log('ActivityTypeDetailScreen: Response:', {
+        itemCount: response.items?.length,
+        total: response.total,
+        firstItem: response.items?.[0]
+      });
       
-      if (isRefresh) {
-        setActivities(response.items);
-        setCurrentOffset(ITEMS_PER_PAGE);
-      } else {
-        setActivities(prev => [...prev, ...response.items]);
-        setCurrentOffset(prev => prev + ITEMS_PER_PAGE);
+      if (response.items && response.items.length > 0) {
+        allActivities.push(...response.items);
+        setTotalCount(response.total || 0);
+        setHasMore(response.hasMore);
       }
       
-      setTotalCount(response.total);
-      setHasMore(response.hasMore);
+      if (isRefresh) {
+        setActivities(allActivities);
+        setCurrentOffset(ITEMS_PER_PAGE);
+      } else {
+        setActivities(prev => [...prev, ...allActivities]);
+        setCurrentOffset(prev => prev + ITEMS_PER_PAGE);
+      }
     } catch (err: any) {
       console.error('Error loading activities:', err);
       setError(err.message || 'Failed to load activities');
@@ -203,7 +209,7 @@ const ActivityTypeDetailScreen = () => {
       setActivities([]);
       setCurrentOffset(0);
       setHasMore(true);
-      loadActivities(true);
+      // Don't call loadActivities here - it will be called by useEffect
     }
   };
 

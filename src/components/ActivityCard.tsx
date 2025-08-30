@@ -221,7 +221,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
       <View style={styles.imageContainer}>
         <OptimizedActivityImage 
           source={getActivityImageByKey(getActivityImageKey(
-            activity.category || (activity.activityType && activity.activityType[0]) || '', 
+            activity.category || (
+              Array.isArray(activity.activityType) 
+                ? activity.activityType[0] 
+                : activity.activityType?.name
+            ) || '', 
             activity.subcategory
           ))} 
           style={styles.image} 
@@ -391,7 +395,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           </View>
 
           <View style={styles.activityIcons}>
-            {consolidateActivityTypes(activity.activityType).slice(0, 3).map((type) => (
+            {consolidateActivityTypes(
+              Array.isArray(activity.activityType) 
+                ? activity.activityType 
+                : activity.activityType?.name 
+                  ? [activity.activityType.name] 
+                  : []
+            ).slice(0, 3).map((type) => (
               <View 
                 key={type} 
                 style={[

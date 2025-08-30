@@ -11,6 +11,24 @@ import * as SecureStore from '../utils/secureStorage';
 class ActivityService {
   private static instance: ActivityService;
   private api: AxiosInstance;
+  
+  /**
+   * Get global filter parameters from user preferences
+   */
+  private getGlobalFilterParams(): any {
+    const PreferencesService = require('./preferencesService').default;
+    const preferencesService = PreferencesService.getInstance();
+    const preferences = preferencesService.getPreferences();
+    
+    const params: any = {};
+    if (preferences.hideClosedActivities) {
+      params.hideClosedActivities = true;
+    }
+    if (preferences.hideFullActivities) {
+      params.hideFullActivities = true;
+    }
+    return params;
+  }
 
   private constructor() {
     // Log the API configuration
@@ -160,15 +178,17 @@ class ActivityService {
         return [];
       }
 
-      const params: any = {};
+      // Get global filters from preferences
+      const globalFilters = this.getGlobalFilterParams();
+      const params: any = { ...globalFilters };
 
       // Convert filter to API params - match backend parameter names
       if (filters.ageRange) {
-        params.age_min = filters.ageRange.min;
-        params.age_max = filters.ageRange.max;
+        params.ageMin = filters.ageRange.min;
+        params.ageMax = filters.ageRange.max;
       }
       if (filters.maxCost !== undefined) {
-        params.cost_max = filters.maxCost;
+        params.costMax = filters.maxCost;
       }
       if (filters.activityTypes && filters.activityTypes.length > 0) {
         params.categories = filters.activityTypes.join(','); // Send as comma-separated list
@@ -195,28 +215,28 @@ class ActivityService {
         params.search = filters.search; // Backend expects 'search' not 'q'
       }
       
-      // Add closed activities filter if specified
+      // Add closed activities filter if specified - use backend parameter name
       if (filters.hideClosedActivities === true) {
-        params.exclude_closed = true;
+        params.hideClosedActivities = true;
       }
       
-      // Add full activities filter if specified
+      // Add full activities filter if specified - use backend parameter name
       if (filters.hideFullActivities === true) {
-        params.exclude_full = true;
+        params.hideFullActivities = true;
       }
       
-      // Add date filters for API-level filtering
+      // Add date filters for API-level filtering - use camelCase for backend
       if (filters.createdAfter) {
-        params.created_after = filters.createdAfter;
+        params.createdAfter = filters.createdAfter;
       }
       if (filters.updatedAfter) {
-        params.updated_after = filters.updatedAfter;
+        params.updatedAfter = filters.updatedAfter;
       }
       if (filters.startDateAfter) {
-        params.start_date_after = filters.startDateAfter;
+        params.startDate = filters.startDateAfter; // Backend expects startDate
       }
       if (filters.startDateBefore) {
-        params.start_date_before = filters.startDateBefore;
+        params.endDate = filters.startDateBefore; // Backend expects endDate
       }
       
       // Add limit - use filter limit or default to 50
@@ -244,7 +264,8 @@ class ActivityService {
       // Convert data format for app compatibility
       return activities.map((activity: any) => ({
         ...activity,
-        activityType: [activity.category || 'Other'],
+        // Keep the activityType object from the API response as-is
+        // activityType is already an object with id, name, code, etc.
         dateRange: activity.dateStart && activity.dateEnd ? {
           start: new Date(activity.dateStart),
           end: new Date(activity.dateEnd),
@@ -310,60 +331,54 @@ class ActivityService {
         };
       }
 
-      // Convert parameters to match backend API
-      const apiParams = { ...params };
+      // Merge with global filters from preferences
+      const globalFilters = this.getGlobalFilterParams();
       
-      // Convert daysOfWeek array to comma-separated string for API
+      // Convert parameters to match backend API - merge with global filters
+      const apiParams = { ...params, ...globalFilters };
+      
+      // Ensure activitySubtype is a string, not an object
+      if (params.activitySubtype && typeof params.activitySubtype === 'object') {
+        // If it's an object with a name property, use that
+        apiParams.activitySubtype = (params.activitySubtype as any).name || '';
+      }
+      
+      // Keep daysOfWeek as array - backend handles arrays
       if (params.daysOfWeek && Array.isArray(params.daysOfWeek)) {
-        apiParams.days_of_week = params.daysOfWeek.join(',');
+        apiParams.dayOfWeek = params.daysOfWeek; // Backend expects dayOfWeek
         delete apiParams.daysOfWeek;
       }
       
-      // Convert date filters to match backend
+      // Convert date filters to match backend (camelCase)
       if (params.startDateAfter) {
-        apiParams.start_date_after = params.startDateAfter;
+        apiParams.startDate = params.startDateAfter; // Backend expects startDate
         delete apiParams.startDateAfter;
       }
       
       if (params.startDateBefore) {
-        apiParams.start_date_before = params.startDateBefore;
+        apiParams.endDate = params.startDateBefore; // Backend expects endDate
         delete apiParams.startDateBefore;
       }
       
-      // Convert hide filters to exclude filters for backend
+      // Pass hide filters directly to backend (backend now supports these)
       if (params.hideClosedActivities) {
-        apiParams.exclude_closed = true;
-        delete apiParams.hideClosedActivities;
+        apiParams.hideClosedActivities = true;
       }
       
       if (params.hideFullActivities) {
-        apiParams.exclude_full = true;
-        delete apiParams.hideFullActivities;
+        apiParams.hideFullActivities = true;
       }
       
       // Convert age range filter
       if (params.ageRange) {
-        apiParams.age_min = params.ageRange.min;
-        apiParams.age_max = params.ageRange.max;
+        apiParams.ageMin = params.ageRange.min;
+        apiParams.ageMax = params.ageRange.max;
         delete apiParams.ageRange;
       }
       
       // Convert cost filters
-      if (params.costMin !== undefined) {
-        apiParams.cost_min = params.costMin;
-        delete apiParams.costMin;
-      }
-      
-      if (params.costMax !== undefined) {
-        apiParams.cost_max = params.costMax;
-        delete apiParams.costMax;
-      }
-      
-      // Convert maxCost (alternative parameter)
-      if (params.maxCost !== undefined) {
-        apiParams.cost_max = params.maxCost;
-        delete apiParams.maxCost;
-      }
+      // Keep costMin and costMax as-is since backend expects camelCase
+      // No conversion needed
       
       console.log('Searching activities with pagination:', apiParams);
       
@@ -372,7 +387,8 @@ class ActivityService {
       if (response.data && response.data.success) {
         const activities = response.data.activities.map((activity: any) => ({
           ...activity,
-          activityType: [activity.category || 'Other'],
+          // Keep the activityType object from the API response as-is
+          // activityType is already an object with id, name, code, etc.
           dateRange: activity.dateStart && activity.dateEnd ? {
             start: new Date(activity.dateStart),
             end: new Date(activity.dateEnd),
@@ -570,7 +586,8 @@ class ActivityService {
    */
   async getCategories(): Promise<any[]> {
     try {
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.CATEGORIES);
+      const params = this.getGlobalFilterParams();
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.CATEGORIES, { params });
       
       // API returns data field, not categories
       return response.data.success ? response.data.data : [];
@@ -580,9 +597,11 @@ class ActivityService {
     }
   }
 
-  async getActivityTypesWithCounts(): Promise<Array<{ code: string; name: string; activityCount: number }>> {
+  async getActivityTypesWithCounts(includeFilters: boolean = true): Promise<Array<{ code: string; name: string; activityCount: number }>> {
     try {
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITY_TYPES);
+      // Always apply global filters unless explicitly disabled
+      const params = includeFilters !== false ? this.getGlobalFilterParams() : {};
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITY_TYPES, { params });
       
       if (response.data && response.data.success) {
         return response.data.data || [];
@@ -616,8 +635,18 @@ class ActivityService {
 
   async getCityLocations(city: string): Promise<any[]> {
     try {
-      const response = await this.api.get(`/api/v1/cities/${encodeURIComponent(city)}/locations`);
-      return response.data.success ? response.data.data.locations : [];
+      const url = `/api/v1/cities/${encodeURIComponent(city)}/locations`;
+      console.log('Fetching city locations from:', url);
+      const response = await this.api.get(url);
+      console.log('City locations response:', response.data);
+      
+      if (response.data && response.data.success && response.data.data && response.data.data.locations) {
+        console.log(`Found ${response.data.data.locations.length} locations for ${city}`);
+        return response.data.data.locations;
+      } else {
+        console.error('Unexpected response structure:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching city locations:', error);
       return [];
@@ -665,7 +694,8 @@ class ActivityService {
    */
   async getActivityTypeDetails(activityTypeCode: string): Promise<any> {
     try {
-      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.ACTIVITY_TYPES}/${activityTypeCode}`);
+      const params = this.getGlobalFilterParams();
+      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.ACTIVITY_TYPES}/${activityTypeCode}`, { params });
       
       if (response.data.success) {
         return response.data.data;

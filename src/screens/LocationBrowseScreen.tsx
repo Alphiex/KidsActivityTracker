@@ -84,12 +84,28 @@ const LocationBrowseScreen = () => {
   const loadLocationData = async () => {
     try {
       setIsLoading(true);
-      // Use the locations API endpoint to get locations with activity counts
-      let locationData = await activityService.getLocations();
+      console.log('Loading location data, cityFilter:', cityFilter);
       
-      // Filter by city if specified
-      if (cityFilter) {
-        locationData = locationData.filter(loc => loc.city === cityFilter);
+      // Only load locations if we have a city filter
+      if (!cityFilter) {
+        console.log('No city filter provided, skipping location load');
+        setLocations([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Use the city-specific endpoint to get locations
+      console.log('Using getCityLocations for city:', cityFilter);
+      const locationData = await activityService.getCityLocations(cityFilter);
+      console.log('City locations response:', locationData);
+      console.log('Raw location data:', locationData);
+      console.log('Location data length:', locationData?.length);
+      
+      // Check if locationData is valid
+      if (!locationData || !Array.isArray(locationData)) {
+        console.error('Invalid location data:', locationData);
+        setLocations([]);
+        return;
       }
       
       // Sort by activity count descending
@@ -97,9 +113,11 @@ const LocationBrowseScreen = () => {
         .filter(loc => loc.activityCount > 0)
         .sort((a, b) => b.activityCount - a.activityCount);
       
+      console.log('Sorted locations:', sortedLocations);
       setLocations(sortedLocations);
     } catch (error) {
       console.error('Error loading location data:', error);
+      setLocations([]);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -420,6 +438,14 @@ const LocationBrowseScreen = () => {
             }}
           />
         )
+      ) : locations.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Icon name="map-marker-off" size={60} color="#ccc" />
+          <Text style={styles.emptyText}>No locations found</Text>
+          {cityFilter && (
+            <Text style={styles.emptySubtext}>No venues in {cityFilter}</Text>
+          )}
+        </View>
       ) : (
         <View style={{ flex: 1 }} key={viewMode}>
           {viewMode === 'grid' ? renderLocationsGrid() : renderLocationsList()}
@@ -577,6 +603,24 @@ const styles = StyleSheet.create({
   endOfListText: {
     fontSize: 14,
     color: '#999',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 20,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 

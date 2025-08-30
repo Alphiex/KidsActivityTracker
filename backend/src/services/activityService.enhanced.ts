@@ -1,10 +1,13 @@
 import { PrismaClient, Activity, Prisma } from '../../generated/prisma';
-const { convertToActivityTypes } = require('../../constants/activityTypes');
+const { convertToActivityTypes } = require('../constants/activityTypes');
+import { buildActivityWhereClause, GlobalActivityFilters } from '../utils/activityFilters';
 
 interface SearchParams {
   search?: string;
   category?: string;
   categories?: string; // Comma-separated list of categories or activity types
+  activityType?: string; // Filter by activity type ID or code
+  activitySubtype?: string; // Filter by activity subtype ID or code
   ageMin?: number;
   ageMax?: number;
   costMin?: number;
@@ -14,6 +17,8 @@ interface SearchParams {
   dayOfWeek?: string[];
   location?: string;
   providerId?: string;
+  hideClosedActivities?: boolean; // Hide activities that are closed for registration
+  hideFullActivities?: boolean; // Hide activities with no spots available
   limit?: number;
   offset?: number;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt';
@@ -33,6 +38,8 @@ export class EnhancedActivityService {
       search,
       category,
       categories,
+      activityType,
+      activitySubtype,
       ageMin,
       ageMax,
       costMin,
@@ -42,12 +49,28 @@ export class EnhancedActivityService {
       dayOfWeek,
       location,
       providerId,
+      hideClosedActivities = false,
+      hideFullActivities = false,
       limit = 50,
       offset = 0,
       sortBy = 'dateStart',
       sortOrder = 'asc',
       includeInactive = false
     } = params;
+
+    // DEBUG LOGGING
+    console.log('🔍 [ActivityService] searchActivities called with:', {
+      activityType,
+      activitySubtype,
+      hideClosedActivities,
+      hideFullActivities,
+      limit,
+      offset,
+      search,
+      category,
+      categories,
+      includeInactive
+    });
 
     // Build where clause
     const where: Prisma.ActivityWhereInput = {
@@ -66,21 +89,11 @@ export class EnhancedActivityService {
       ];
     }
 
-    // Category filter - use categories junction table
+    // Category filter - for now, use the old category field
     if (category) {
-      // First find the category by code
-      const categoryRecord = await this.prisma.category.findUnique({
-        where: { code: category }
-      });
-      
-      if (categoryRecord) {
-        where.categories = {
-          some: { categoryId: categoryRecord.id }
-        };
-      } else {
-        // Fallback to old category field for backwards compatibility
-        where.category = category;
-      }
+      // TODO: Once ActivityCategory junction table is fully populated,
+      // switch to using the new categories relationship
+      where.category = category;
     } else if (categories) {
       // Handle multiple categories (comma-separated) - typically activity types
       const categoryList = categories.split(',').map(c => c.trim()).filter(c => c);
@@ -89,12 +102,118 @@ export class EnhancedActivityService {
         // Convert categories to activity types (handles both legacy and new names)
         const activityTypes = convertToActivityTypes(categoryList);
         
-        // Search for activities matching any of the activity types
-        where.OR = [
-          { activityType: { in: activityTypes } },
-          // Also check the legacy category field as fallback
-          { category: { in: categoryList } }
-        ];
+        // Look up the activity type IDs from the database
+        const activityTypeRecords = await this.prisma.activityType.findMany({
+          where: {
+            OR: [
+              { code: { in: activityTypes.map(t => t.toLowerCase().replace(/\s+/g, '-')) } },
+              { name: { in: activityTypes } }
+            ]
+          }
+        });
+        
+        if (activityTypeRecords.length > 0) {
+          const typeIds = activityTypeRecords.map(t => t.id);
+          where.OR = [
+            { activityTypeId: { in: typeIds } },
+            // Also check the legacy category field as fallback
+            { category: { in: categoryList } }
+          ];
+        } else {
+          // Fallback to legacy category field only
+          where.category = { in: categoryList };
+        }
+      }
+    }
+
+    // Activity Type filter - uses foreign key relationship
+    if (activityType) {
+      // Check if it's a UUID or a code
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activityType);
+      
+      if (isUuid) {
+        where.activityTypeId = activityType;
+      } else {
+        // Look up the activity type by code OR name
+        const activityTypeRecord = await this.prisma.activityType.findFirst({
+          where: {
+            OR: [
+              { code: activityType.toLowerCase().replace(/\s+/g, '-') },
+              { name: { equals: activityType, mode: 'insensitive' } }
+            ]
+          }
+        });
+        
+        if (activityTypeRecord) {
+          console.log(`✅ [ActivityService] Found activity type:`, {
+            name: activityTypeRecord.name,
+            id: activityTypeRecord.id,
+            code: activityTypeRecord.code
+          });
+          where.activityTypeId = activityTypeRecord.id;
+        } else {
+          // Activity type not found - return empty results
+          console.log(`❌ [ActivityService] Activity type '${activityType}' not found - returning empty results`);
+          return {
+            activities: [],
+            pagination: {
+              total: 0,
+              limit,
+              offset,
+              pages: 0
+            }
+          };
+        }
+      }
+    }
+
+    // Activity Subtype filter - uses foreign key relationship
+    if (activitySubtype) {
+      // Check if it's a UUID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activitySubtype);
+      
+      if (isUuid) {
+        where.activitySubtypeId = activitySubtype;
+      } else {
+        // Look up the activity subtype by code OR name
+        // If we have an activityTypeId already set, use it to narrow the search
+        const subtypeWhere: any = {
+          OR: [
+            { code: activitySubtype.toLowerCase().replace(/\s+/g, '-') },
+            { name: { equals: activitySubtype, mode: 'insensitive' } }
+          ]
+        };
+        
+        // If we already filtered by activity type, use it to get the right subtype
+        if (where.activityTypeId) {
+          subtypeWhere.activityTypeId = where.activityTypeId;
+        }
+        
+        const activitySubtypeRecord = await this.prisma.activitySubtype.findFirst({
+          where: subtypeWhere
+        });
+        
+        if (activitySubtypeRecord) {
+          console.log(`✅ [ActivityService] Found activity subtype:`, {
+            name: activitySubtypeRecord.name,
+            id: activitySubtypeRecord.id,
+            code: activitySubtypeRecord.code,
+            activityTypeId: activitySubtypeRecord.activityTypeId
+          });
+          where.activitySubtypeId = activitySubtypeRecord.id;
+        } else {
+          // Subtype not found - return empty results
+          console.log(`❌ [ActivityService] Activity subtype '${activitySubtype}' not found${where.activityTypeId ? ' under the specified type' : ''} - returning empty results`);
+          return {
+            activities: [],
+            pagination: {
+              total: 0,
+              limit,
+              offset,
+              pages: 0
+            }
+          };
+        }
       }
     }
 
@@ -128,6 +247,11 @@ export class EnhancedActivityService {
       if (costMin !== undefined) costFilter.gte = costMin;
       if (costMax !== undefined) costFilter.lte = costMax;
       where.cost = costFilter;
+      console.log(`💰 [ActivityService] Cost filter applied:`, {
+        costMin,
+        costMax,
+        filter: costFilter
+      });
     }
 
     // Date range filter
@@ -153,13 +277,23 @@ export class EnhancedActivityService {
       where.providerId = providerId;
     }
 
+    // Apply global filters using shared utility
+    const finalWhere = buildActivityWhereClause(where, {
+      hideClosedActivities,
+      hideFullActivities
+    });
+
+    console.log('📋 [ActivityService] Final where clause before query:', JSON.stringify(finalWhere, null, 2));
+
     // Execute query
     const [activities, total] = await Promise.all([
       this.prisma.activity.findMany({
-        where,
+        where: finalWhere,
         include: {
           provider: true,
           location: true,
+          activityType: true,
+          activitySubtype: true,
           _count: {
             select: { favorites: true }
           }
@@ -168,8 +302,21 @@ export class EnhancedActivityService {
         take: limit,
         skip: offset
       }),
-      this.prisma.activity.count({ where })
+      this.prisma.activity.count({ where: finalWhere })
     ]);
+
+    console.log(`📊 [ActivityService] Query results:`, {
+      totalFound: total,
+      returnedCount: activities.length,
+      firstActivity: activities[0] ? {
+        name: activities[0].name,
+        courseId: activities[0].externalId,
+        activityType: activities[0].activityType?.name,
+        activitySubtype: activities[0].activitySubtype?.name,
+        spotsAvailable: activities[0].spotsAvailable,
+        registrationStatus: activities[0].registrationStatus
+      } : null
+    });
 
     return {
       activities,
@@ -187,6 +334,8 @@ export class EnhancedActivityService {
       where: { id },
       include: {
         provider: true,
+        activityType: true,
+        activitySubtype: true,
         location: true,
         _count: {
           select: { 
