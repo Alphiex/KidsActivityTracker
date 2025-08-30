@@ -6,7 +6,7 @@ const PORT = 3001;
 
 // Proxy configuration
 app.use('/api', createProxyMiddleware({
-  target: 'https://kids-activity-api-44042034457.us-central1.run.app',
+  target: 'https://kids-activity-api-205843686007.us-central1.run.app',
   changeOrigin: true,
   secure: true,
   logLevel: 'debug',
@@ -24,5 +24,5 @@ app.use('/api', createProxyMiddleware({
 
 app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
-  console.log(`Proxying /api/* to https://kids-activity-api-44042034457.us-central1.run.app`);
+  console.log(`Proxying /api/* to https://kids-activity-api-205843686007.us-central1.run.app`);
 });

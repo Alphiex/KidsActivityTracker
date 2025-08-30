@@ -4,7 +4,7 @@
 
 The Kids Activity Tracker backend provides a RESTful API for managing children's activities, user authentication, favorites, and preferences. The API is built with Node.js, Express, and PostgreSQL, deployed on Google Cloud Run.
 
-**Base URL**: `https://kids-activity-api-44042034457.us-central1.run.app`
+**Base URL**: `https://kids-activity-api-205843686007.us-central1.run.app`
 
 ## Authentication
 

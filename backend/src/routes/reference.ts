@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '../../generated/prisma';
+import { buildActivityWhereClause, extractGlobalFilters } from '../utils/activityFilters';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -11,38 +12,28 @@ const prisma = new PrismaClient();
  */
 router.get('/activity-types', async (req: Request, res: Response) => {
   try {
-    // Get all activity types with counts
-    const activityTypeCounts = await prisma.activity.groupBy({
-      by: ['activityType'],
-      where: {
-        isActive: true,
-        activityType: { not: null }
-      },
-      _count: { id: true }
-    });
-
-    // Get all activity type records for display names and order
+    const globalFilters = extractGlobalFilters(req.query);
+    
+    // Get all activity type records
     const activityTypes = await prisma.activityType.findMany({
       orderBy: { displayOrder: 'asc' }
     });
 
-    // Create a map for quick lookup
-    const typeMap = new Map(activityTypes.map(t => [t.name, t]));
-
-    // Combine counts with type metadata
-    const typesWithCounts = activityTypeCounts
-      .map(item => {
-        const typeInfo = typeMap.get(item.activityType || '');
+    // Format the response with filtered counts
+    const typesWithCounts = await Promise.all(
+      activityTypes.map(async (type) => {
+        const count = await prisma.activity.count({
+          where: buildActivityWhereClause({ activityTypeId: type.id }, globalFilters)
+        });
         return {
-          code: typeInfo?.code || item.activityType?.toLowerCase().replace(/\s+/g, '-'),
-          name: item.activityType,
-          displayName: typeInfo?.name || item.activityType,
-          activityCount: item._count.id,
-          displayOrder: typeInfo?.displayOrder || 999
+          code: type.code,
+          name: type.name,
+          displayName: type.name,
+          activityCount: count,
+          displayOrder: type.displayOrder
         };
       })
-      .filter(item => item.name) // Filter out nulls
-      .sort((a, b) => a.displayOrder - b.displayOrder);
+    );
 
     res.json({
       success: true,
@@ -66,46 +57,51 @@ router.get('/activity-types', async (req: Request, res: Response) => {
 router.get('/activity-types/:typeCode', async (req: Request, res: Response) => {
   try {
     const { typeCode } = req.params;
+    const globalFilters = extractGlobalFilters(req.query);
     
-    // Convert code to name (e.g., "team-sports" -> "Team Sports")
-    const typeName = typeCode.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-
-    // Get all activities for this type
-    const activities = await prisma.activity.findMany({
-      where: {
-        activityType: typeName,
-        isActive: true
-      },
-      select: {
-        activitySubtype: true
+    // Find the activity type by code
+    const activityType = await prisma.activityType.findUnique({
+      where: { code: typeCode },
+      include: {
+        subtypes: {
+          orderBy: { displayOrder: 'asc' }
+        }
       }
     });
 
-    // Count by subtype
-    const subtypeCounts = activities.reduce((acc, activity) => {
-      const subtype = activity.activitySubtype || 'General';
-      acc[subtype] = (acc[subtype] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    if (!activityType) {
+      return res.status(404).json({
+        success: false,
+        error: 'Activity type not found'
+      });
+    }
 
-    // Convert to array and sort
-    const subtypes = Object.entries(subtypeCounts)
-      .map(([name, count]) => ({
-        code: name.toLowerCase().replace(/\s+/g, '-'),
-        name,
-        activityCount: count
-      }))
-      .sort((a, b) => b.activityCount - a.activityCount);
+    // Get counts for each subtype with global filters
+    const subtypesWithCounts = await Promise.all(
+      activityType.subtypes.map(async (subtype) => {
+        const count = await prisma.activity.count({
+          where: buildActivityWhereClause({ activitySubtypeId: subtype.id }, globalFilters)
+        });
+        return {
+          code: subtype.code,
+          name: subtype.name,
+          activityCount: count
+        };
+      })
+    );
+
+    // Count total activities for this type with global filters
+    const totalActivities = await prisma.activity.count({
+      where: buildActivityWhereClause({ activityTypeId: activityType.id }, globalFilters)
+    });
 
     res.json({
       success: true,
       data: {
-        code: typeCode,
-        name: typeName,
-        totalActivities: activities.length,
-        subtypes
+        code: activityType.code,
+        name: activityType.name,
+        totalActivities,
+        subtypes: subtypesWithCounts.sort((a, b) => b.activityCount - a.activityCount)
       }
     });
   } catch (error: any) {
@@ -122,39 +118,40 @@ router.get('/activity-types/:typeCode', async (req: Request, res: Response) => {
  * @desc    Get all age-based categories with counts
  * @access  Public
  */
-router.get('/categories', async (req: Request, res: Response) => {
-  try {
-    const categories = await prisma.category.findMany({
-      orderBy: { displayOrder: 'asc' },
-      include: {
-        _count: {
-          select: { activities: true }
-        }
-      }
-    });
-
-    const categoriesWithCounts = categories.map(cat => ({
-      code: cat.code,
-      name: cat.name,
-      description: cat.description,
-      ageMin: cat.ageMin,
-      ageMax: cat.ageMax,
-      activityCount: cat._count.activities,
-      displayOrder: cat.displayOrder
-    }));
-
-    res.json({
-      success: true,
-      data: categoriesWithCounts,
-      total: categoriesWithCounts.length
-    });
-  } catch (error: any) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch categories'
-    });
-  }
-});
+// TODO: Implement categories once Category model is added to schema
+// router.get('/categories', async (req: Request, res: Response) => {
+//   try {
+//     const categories = await prisma.category.findMany({
+//       orderBy: { displayOrder: 'asc' },
+//       include: {
+//         _count: {
+//           select: { activities: true }
+//         }
+//       }
+//     });
+//
+//     const categoriesWithCounts = categories.map(cat => ({
+//       code: cat.code,
+//       name: cat.name,
+//       description: cat.description,
+//       ageMin: cat.ageMin,
+//       ageMax: cat.ageMax,
+//       activityCount: cat._count.activities,
+//       displayOrder: cat.displayOrder
+//     }));
+//
+//     res.json({
+//       success: true,
+//       data: categoriesWithCounts,
+//       total: categoriesWithCounts.length
+//     });
+//   } catch (error: any) {
+//     console.error('Error fetching categories:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: 'Failed to fetch categories'
+//     });
+//   }
+// });
 
 export default router;

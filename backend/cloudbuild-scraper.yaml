@@ -1,41 +1,13 @@
 steps:
-  # Build the container image
+  # Build the scraper image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/scraper-detailed:latest', '.']
-
-  # Push the container image to Container Registry
+    args: ['build', '-t', 'gcr.io/kids-activity-tracker-2024/kids-activity-scraper:latest', '-f', 'Dockerfile.scraper', '.']
+  
+  # Push the scraper image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/scraper-detailed:latest']
-
-  # Create/Update Cloud Run Job
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: bash
-    args:
-      - '-c'
-      - |
-        gcloud run jobs describe scraper-detailed-job --region=us-central1 --project=$PROJECT_ID || \
-        gcloud run jobs create scraper-detailed-job \
-          --image=gcr.io/$PROJECT_ID/scraper-detailed:latest \
-          --region=us-central1 \
-          --memory=2Gi \
-          --cpu=2 \
-          --max-retries=1 \
-          --task-timeout=3600 \
-          --set-env-vars=NODE_ENV=production,HEADLESS=true \
-          --set-secrets=DATABASE_URL=DATABASE_URL:latest \
-          --command=node \
-          --args=scraper-detailed-cloud-job.js || \
-        gcloud run jobs update scraper-detailed-job \
-          --image=gcr.io/$PROJECT_ID/scraper-detailed:latest \
-          --region=us-central1 \
-          --memory=2Gi \
-          --cpu=2 \
-          --max-retries=1 \
-          --task-timeout=3600 \
-          --set-env-vars=NODE_ENV=production,HEADLESS=true \
-          --set-secrets=DATABASE_URL=DATABASE_URL:latest \
-          --command=node \
-          --args=scraper-detailed-cloud-job.js
+    args: ['push', 'gcr.io/kids-activity-tracker-2024/kids-activity-scraper:latest']
 
 images:
-  - 'gcr.io/$PROJECT_ID/scraper-detailed:latest'
+  - 'gcr.io/kids-activity-tracker-2024/kids-activity-scraper:latest'
+
+timeout: '1200s'

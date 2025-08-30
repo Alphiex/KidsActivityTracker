@@ -81,7 +81,7 @@ This will update all activities with:
 
 ### Test API Directly:
 ```bash
-curl https://kids-activity-api-44042034457.us-central1.run.app/api/v1/locations
+curl https://kids-activity-api-205843686007.us-central1.run.app/api/v1/locations
 ```
 
 Should return locations with activity counts once deployed.

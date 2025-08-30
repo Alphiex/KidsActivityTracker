@@ -6,7 +6,7 @@ const path = require('path');
 const scrapeFile = path.join(__dirname, 'backend', 'nvrc_working_hierarchical_2025-08-03T20-32-27-985Z.json');
 const scrapeData = JSON.parse(fs.readFileSync(scrapeFile, 'utf8'));
 
-const API_URL = 'https://kids-activity-api-44042034457.us-central1.run.app';
+const API_URL = 'https://kids-activity-api-205843686007.us-central1.run.app';
 
 async function uploadActivities() {
   console.log(`📤 Uploading ${scrapeData.activities.length} activities to production...`);

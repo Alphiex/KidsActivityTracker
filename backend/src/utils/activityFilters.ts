@@ -1,0 +1,68 @@
+import { Prisma } from '../../generated/prisma';
+
+export interface GlobalActivityFilters {
+  hideClosedActivities?: boolean;
+  hideFullActivities?: boolean;
+}
+
+/**
+ * Build a Prisma where clause for activities with global filters
+ * @param baseWhere - Base where conditions
+ * @param filters - Global filters to apply
+ * @returns Prisma where clause with filters applied
+ */
+export function buildActivityWhereClause(
+  baseWhere: Prisma.ActivityWhereInput = {},
+  filters: GlobalActivityFilters = {}
+): Prisma.ActivityWhereInput {
+  const where: Prisma.ActivityWhereInput = { ...baseWhere };
+  const andConditions: Prisma.ActivityWhereInput[] = [];
+  
+  // Always filter for active activities unless explicitly set otherwise
+  if (where.isActive === undefined) {
+    where.isActive = true;
+  }
+  
+  // Hide closed activities (based on registration status)
+  if (filters.hideClosedActivities) {
+    // Exclude activities with "Closed" registration status
+    andConditions.push({
+      NOT: { registrationStatus: 'Closed' }
+    });
+  }
+  
+  // Hide full activities (no spots available)
+  if (filters.hideFullActivities) {
+    // Include activities where spots are greater than 0 or null (unlimited)
+    andConditions.push({
+      OR: [
+        { spotsAvailable: { gt: 0 } },
+        { spotsAvailable: null }
+      ]
+    });
+  }
+  
+  // Apply AND conditions if any
+  if (andConditions.length > 0) {
+    if (where.AND) {
+      // If there's already an AND condition, merge them
+      where.AND = Array.isArray(where.AND) 
+        ? [...where.AND, ...andConditions]
+        : [where.AND, ...andConditions];
+    } else {
+      where.AND = andConditions;
+    }
+  }
+  
+  return where;
+}
+
+/**
+ * Extract global filters from request query parameters
+ */
+export function extractGlobalFilters(query: any): GlobalActivityFilters {
+  return {
+    hideClosedActivities: query.hideClosedActivities === 'true' || query.hideClosedActivities === true,
+    hideFullActivities: query.hideFullActivities === 'true' || query.hideFullActivities === true
+  };
+}

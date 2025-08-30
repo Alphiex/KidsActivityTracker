@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { PrismaClient } from '../generated/prisma';
+import { v4 as uuidv4 } from 'uuid';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -14,6 +15,7 @@ import sharingRoutes from './routes/sharing';
 import sharedActivitiesRoutes from './routes/sharedActivities';
 import setupRoutes from './routes/setup';
 import activitiesRoutes from './routes/activities';
+import activityTypesRoutes from './routes/activityTypes';
 import referenceRoutes from './routes/reference';
 import citiesRoutes from './routes/cities';
 
@@ -71,6 +73,9 @@ app.use('/api', setupRoutes);
 
 // Activity routes (v1 API)
 app.use('/api/v1/activities', activitiesRoutes);
+
+// Activity types routes (v1 API)
+app.use('/api/v1/activity-types', activityTypesRoutes);
 
 // Reference data routes (v1 API)
 app.use('/api/v1/reference', referenceRoutes);
@@ -135,7 +140,8 @@ app.post('/api/favorites', verifyToken, async (req, res) => {
     const favorite = await prisma.favorite.create({
       data: {
         userId: req.user!.id,
-        activityId
+        activityId,
+        createdAt: new Date()
       }
     });
 

@@ -1,0 +1,21 @@
+steps:
+  # Build the NVRC enhanced scraper image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-f'
+      - 'Dockerfile.scraper'
+      - '-t'
+      - 'gcr.io/kids-activity-tracker-2024/nvrc-scraper-fixed:latest'
+      - '.'
+  
+  # Push the image to GCR
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'gcr.io/kids-activity-tracker-2024/nvrc-scraper-fixed:latest'
+
+images:
+  - 'gcr.io/kids-activity-tracker-2024/nvrc-scraper-fixed:latest'
+
+timeout: '1200s'

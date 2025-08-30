@@ -11,12 +11,12 @@ const API_URLS = {
     android: 'http://10.0.2.2:3001',
   }),
   
-  // Production - Google Cloud Run deployment
+  // Production - Google Cloud Run deployment (Kids Activity Tracker project)
   PRODUCTION: 'https://kids-activity-api-205843686007.us-central1.run.app',
 };
 
 // Force local development server
-const FORCE_LOCAL = false; // Set to false to use production API
+const FORCE_LOCAL = false; // Always use production API
 
 // API Configuration
 const API_CONFIG = {

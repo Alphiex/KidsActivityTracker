@@ -1,41 +1,19 @@
-# Simple Dockerfile for JavaScript backend
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies for Puppeteer and Prisma
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    dumb-init \
-    openssl
-
-# Tell Puppeteer to use installed Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --production
-
-# Copy application code
+# Copy everything
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-USER nodejs
+# Install dependencies
+RUN npm ci
 
-# Use PORT environment variable (Cloud Run sets this to 8080)
-ENV PORT=8080
-EXPOSE 8080
+# Generate Prisma client
+RUN npx prisma generate
 
-# Start the application
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "api/server.js"]
+# Build TypeScript
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["node", "dist/server.js"]

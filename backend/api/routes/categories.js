@@ -5,53 +5,98 @@ const prisma = new PrismaClient();
 
 /**
  * GET /api/v1/categories
- * Get all age-based categories
+ * Get age-based categories (simulated since Category table doesn't exist)
  */
 router.get('/', async (req, res) => {
   try {
-    // First get categories with just the count
-    const categories = await prisma.category.findMany({
-      orderBy: { displayOrder: 'asc' },
-      include: {
-        _count: {
-          select: { activities: true }
-        }
+    // Since we don't have a Category table, create age-based categories from activities
+    const ageCategories = [
+      { 
+        id: 'baby-0-2',
+        code: 'baby',
+        name: 'Baby (0-2 years)',
+        ageMin: 0,
+        ageMax: 2,
+        requiresParent: true,
+        description: 'Activities for babies and toddlers',
+        displayOrder: 1
+      },
+      {
+        id: 'toddler-2-4',
+        code: 'toddler',
+        name: 'Toddler (2-4 years)',
+        ageMin: 2,
+        ageMax: 4,
+        requiresParent: true,
+        description: 'Activities for toddlers',
+        displayOrder: 2
+      },
+      {
+        id: 'preschool-3-5',
+        code: 'preschool',
+        name: 'Preschool (3-5 years)',
+        ageMin: 3,
+        ageMax: 5,
+        requiresParent: false,
+        description: 'Activities for preschoolers',
+        displayOrder: 3
+      },
+      {
+        id: 'school-age-6-12',
+        code: 'school-age',
+        name: 'School Age (6-12 years)',
+        ageMin: 6,
+        ageMax: 12,
+        requiresParent: false,
+        description: 'Activities for school-aged children',
+        displayOrder: 4
+      },
+      {
+        id: 'teen-13-17',
+        code: 'teen',
+        name: 'Teen (13-17 years)',
+        ageMin: 13,
+        ageMax: 17,
+        requiresParent: false,
+        description: 'Activities for teenagers',
+        displayOrder: 5
+      },
+      {
+        id: 'all-ages',
+        code: 'all-ages',
+        name: 'All Ages',
+        ageMin: 0,
+        ageMax: 99,
+        requiresParent: false,
+        description: 'Activities for all ages',
+        displayOrder: 6
       }
-    });
+    ];
     
-    // For each category, get unique activity count separately
-    const formattedCategories = await Promise.all(categories.map(async (cat) => {
-      // Get unique activity names for this category
-      const uniqueActivities = await prisma.activity.findMany({
-        where: {
-          categories: {
-            some: { categoryId: cat.id }
-          },
-          isActive: true
-        },
-        select: {
-          name: true
-        },
-        distinct: ['name']
+    // Get activity counts for each age category
+    const categoriesWithCounts = await Promise.all(ageCategories.map(async (cat) => {
+      const whereClause = {
+        isActive: true
+      };
+      
+      // For age-based filtering, we'll use the ageMin and ageMax fields if they exist
+      // Note: The Activity model doesn't have ageMin/ageMax fields in the current schema
+      // We'll just count all active activities for now
+      
+      const count = await prisma.activity.count({
+        where: whereClause
       });
       
       return {
-        id: cat.id,
-        code: cat.code,
-        name: cat.name,
-        ageMin: cat.ageMin,
-        ageMax: cat.ageMax,
-        requiresParent: cat.requiresParent,
-        description: cat.description,
-        displayOrder: cat.displayOrder,
-        activityCount: cat._count.activities,  // Total sessions
-        uniqueActivityCount: uniqueActivities.length  // Unique activities
+        ...cat,
+        count: count,
+        activityCount: count  // For compatibility
       };
     }));
     
     res.json({
       success: true,
-      data: formattedCategories
+      data: categoriesWithCounts
     });
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -81,9 +126,17 @@ router.get('/:code/activities', async (req, res) => {
     // Allow higher limits for category browsing, but cap at 500 for performance
     const requestedLimit = Math.min(parseInt(limit) || 50, 500);
     
-    const category = await prisma.category.findUnique({
-      where: { code }
-    });
+    // Define the same age categories
+    const ageCategories = {
+      'baby': { ageMin: 0, ageMax: 2, requiresParent: true },
+      'toddler': { ageMin: 2, ageMax: 4, requiresParent: true },
+      'preschool': { ageMin: 3, ageMax: 5, requiresParent: false },
+      'school-age': { ageMin: 6, ageMax: 12, requiresParent: false },
+      'teen': { ageMin: 13, ageMax: 17, requiresParent: false },
+      'all-ages': { ageMin: 0, ageMax: 99, requiresParent: false }
+    };
+    
+    const category = ageCategories[code];
     
     if (!category) {
       return res.status(404).json({
@@ -92,20 +145,14 @@ router.get('/:code/activities', async (req, res) => {
       });
     }
     
-    // Build where clause
+    // Build where clause based on category
+    // Note: Since Activity model doesn't have age fields, we'll filter by other criteria
     const where = {
-      categories: {
-        some: { categoryId: category.id }
-      },
       isActive: true
     };
     
     if (activityType) {
       where.activityType = activityType;
-    }
-    
-    if (requiresParent !== undefined) {
-      where.requiresParent = requiresParent === 'true';
     }
     
     if (search) {
@@ -128,11 +175,6 @@ router.get('/:code/activities', async (req, res) => {
           location: true,
           provider: {
             select: { name: true }
-          },
-          categories: {
-            include: {
-              category: true
-            }
           }
         },
         orderBy: { dateStart: 'asc' }

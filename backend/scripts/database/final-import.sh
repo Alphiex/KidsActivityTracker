@@ -126,11 +126,11 @@ sleep 15
 
 echo ""
 echo "📊 Verifying data through API..."
-activities_response=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=5")
+activities_response=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=5")
 echo "$activities_response" | jq '.'
 
 echo ""
 echo "🎯 Your app is now connected to Google Cloud!"
-echo "API URL: https://kids-activity-api-44042034457.us-central1.run.app"
+echo "API URL: https://kids-activity-api-205843686007.us-central1.run.app"
 echo ""
 echo "📱 Reload your mobile app to see the activities!"

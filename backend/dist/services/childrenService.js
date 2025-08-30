@@ -14,7 +14,7 @@ class ChildrenService {
                 gender: data.gender,
                 avatarUrl: data.avatarUrl,
                 interests: data.interests || [],
-                notes: data.notes
+                notes: data.notes,
             }
         });
     }
@@ -90,7 +90,7 @@ class ChildrenService {
                 isActive: true
             },
             include: {
-                activities: {
+                childActivities: {
                     select: {
                         status: true
                     }
@@ -104,10 +104,10 @@ class ChildrenService {
                 completed: 0,
                 cancelled: 0
             };
-            child.activities.forEach(activity => {
+            child.childActivities.forEach(activity => {
                 stats[activity.status]++;
             });
-            const { activities, ...childData } = child;
+            const { childActivities, ...childData } = child;
             return {
                 ...childData,
                 age: (0, dateUtils_1.calculateAge)(child.dateOfBirth),
@@ -218,7 +218,7 @@ class ChildrenService {
         const data = children.map(child => ({
             ...child,
             userId,
-            interests: child.interests || []
+            interests: child.interests || [],
         }));
         return await prisma.$transaction(data.map(childData => prisma.child.create({ data: childData })));
     }

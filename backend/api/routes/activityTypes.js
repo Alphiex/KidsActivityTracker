@@ -10,53 +10,98 @@ const imageService = require('../../services/imageService');
  */
 router.get('/', async (req, res) => {
   try {
-    const { includeSubtypes = false } = req.query;
+    const { includeSubtypes = 'true' } = req.query; // Default to true for compatibility
     
+    // Get all activity types with subtypes
     const activityTypes = await prisma.activityType.findMany({
       where: {
         // Exclude "Other Activity" from normal filters
         code: { not: 'other-activity' }
       },
       orderBy: { displayOrder: 'asc' },
-      include: includeSubtypes === 'true' ? {
+      include: {
         subtypes: {
-          select: {
-            id: true,
-            code: true,
-            name: true
-          }
+          orderBy: { displayOrder: 'asc' }
         }
-      } : false,
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        description: true,
-        iconName: true,
-        imageUrl: true,
-        displayOrder: true,
-        ...(includeSubtypes === 'true' ? { subtypes: true } : {})
       }
     });
     
-    // Get activity counts for each type
-    const typeCounts = await prisma.activity.groupBy({
-      by: ['activityType'],
-      _count: { id: true },
-      where: {
-        isActive: true
-      }
-    });
+    // Get activity counts for each type by counting activities with that activityTypeId
+    const typeCounts = [];
+    for (const type of activityTypes) {
+      const count = await prisma.activity.count({
+        where: {
+          isActive: true,
+          activityTypeId: type.id
+        }
+      });
+      typeCounts.push({
+        activityTypeId: type.id,
+        _count: { id: count }
+      });
+    }
     
-    const countMap = {};
+    // Get activity counts for each subtype
+    const subtypeCounts = [];
+    for (const type of activityTypes) {
+      for (const subtype of type.subtypes) {
+        const count = await prisma.activity.count({
+          where: {
+            isActive: true,
+            activityTypeId: type.id,
+            activitySubtypeId: subtype.id
+          }
+        });
+        if (count > 0) {
+          subtypeCounts.push({
+            activityTypeId: type.id,
+            activitySubtypeId: subtype.id,
+            _count: { id: count }
+          });
+        }
+      }
+    }
+    
+    // Create count maps
+    const typeCountMap = {};
     typeCounts.forEach(tc => {
-      countMap[tc.activityType] = tc._count.id;
+      typeCountMap[tc.activityTypeId] = tc._count.id;
     });
     
-    const formattedTypes = activityTypes.map(type => ({
-      ...type,
-      activityCount: countMap[type.name] || 0
-    }));
+    const subtypeCountMap = {};
+    subtypeCounts.forEach(sc => {
+      const key = `${sc.activityTypeId}:${sc.activitySubtypeId}`;
+      subtypeCountMap[key] = sc._count.id;
+    });
+    
+    // Format the response with counts
+    const formattedTypes = activityTypes.map(type => {
+      const typeWithCount = {
+        id: type.id,
+        code: type.code,
+        name: type.name,
+        displayOrder: type.displayOrder,
+        activityCount: typeCountMap[type.id] || 0
+      };
+      
+      // Add subtypes with their counts if requested
+      if (includeSubtypes === 'true' && type.subtypes) {
+        typeWithCount.subtypes = type.subtypes.map(subtype => ({
+          id: subtype.id,
+          activityTypeId: subtype.activityTypeId,
+          code: subtype.code,
+          name: subtype.name,
+          description: subtype.description,
+          imageUrl: subtype.imageUrl,
+          displayOrder: subtype.displayOrder,
+          createdAt: subtype.createdAt,
+          updatedAt: subtype.updatedAt,
+          activityCount: subtypeCountMap[`${type.id}:${subtype.id}`] || 0
+        }));
+      }
+      
+      return typeWithCount;
+    });
     
     res.json({
       success: true,

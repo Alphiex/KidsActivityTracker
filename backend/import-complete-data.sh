@@ -76,7 +76,7 @@ echo "📊 Step 9: Final verification..."
 echo "Testing API..."
 sleep 5
 
-activities_response=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=1000")
+activities_response=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1000")
 api_count=$(echo "$activities_response" | jq '.activities | length')
 
 echo "API returning: $api_count activities"
@@ -84,7 +84,7 @@ echo "API returning: $api_count activities"
 if [ "$api_count" -lt 1000 ]; then
     echo ""
     echo "📄 Getting page 2..."
-    page2_response=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=1000&offset=1000")
+    page2_response=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1000&offset=1000")
     page2_count=$(echo "$page2_response" | jq '.activities | length')
     total_api_count=$((api_count + page2_count))
     echo "Total activities available via API: $total_api_count+"
@@ -97,4 +97,4 @@ echo "$activities_response" | jq '.activities[0:3] | .[] | {name, category, cost
 echo ""
 echo "✅ Import complete!"
 echo "🎯 Your app now has access to ALL NVRC activities!"
-echo "API URL: https://kids-activity-api-44042034457.us-central1.run.app"
+echo "API URL: https://kids-activity-api-205843686007.us-central1.run.app"

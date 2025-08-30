@@ -122,7 +122,7 @@ backend/
 ## API Documentation
 
 ### Base URL
-- **Production**: `https://kids-activity-api-44042034457.us-central1.run.app`
+- **Production**: `https://kids-activity-api-205843686007.us-central1.run.app`
 - **Local**: `http://localhost:3000`
 
 ### Authentication
@@ -298,7 +298,7 @@ Production environment variables are stored in Google Secret Manager:
 
 ### Health Check
 ```bash
-curl https://kids-activity-api-44042034457.us-central1.run.app/health
+curl https://kids-activity-api-205843686007.us-central1.run.app/health
 ```
 
 ### Monitoring Dashboard

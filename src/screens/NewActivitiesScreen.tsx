@@ -50,8 +50,8 @@ const NewActivitiesScreen = () => {
       const searchParams: any = { 
         limit: 50,
         offset: reset ? 0 : currentOffset,
-        // Filter by updated date at API level for better performance
-        updatedAfter: oneWeekAgo.toISOString()
+        // Filter by creation date to get truly new activities
+        createdAfter: oneWeekAgo.toISOString()
       };
       
       // Apply user preference for hiding closed activities

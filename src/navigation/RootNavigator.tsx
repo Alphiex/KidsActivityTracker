@@ -34,6 +34,7 @@ import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import RecommendedActivitiesScreen from '../screens/RecommendedActivitiesScreen';
 import AllActivityTypesScreen from '../screens/AllActivityTypesScreen';
 import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
+import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 
@@ -68,6 +69,7 @@ const HomeStack = () => (
     <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
     <Stack.Screen name="AllActivityTypes" component={AllActivityTypesScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
+    <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="Favorites" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />

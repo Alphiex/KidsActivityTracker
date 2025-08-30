@@ -4,7 +4,7 @@ This guide helps troubleshoot common issues with the Kids Activity Tracker API a
 
 ## Production API Status ✅
 
-- **API URL**: https://kids-activity-api-44042034457.us-central1.run.app
+- **API URL**: https://kids-activity-api-205843686007.us-central1.run.app
 - **Status**: Deployed and working
 - **Database**: 5000+ activities from NVRC
 - **Authentication**: JWT-based with access/refresh tokens
@@ -28,7 +28,7 @@ Or test manually:
 
 ### 1. Health Check
 ```bash
-curl https://kids-activity-api-44042034457.us-central1.run.app/health
+curl https://kids-activity-api-205843686007.us-central1.run.app/health
 ```
 Expected response:
 ```json
@@ -41,7 +41,7 @@ Expected response:
 
 ### 2. Login Test
 ```bash
-curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/auth/login \
+curl -X POST https://kids-activity-api-205843686007.us-central1.run.app/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@kidsactivitytracker.com","password":"Test123!"}'
 ```
@@ -51,7 +51,7 @@ curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/auth/
 # Get access token from login response first
 ACCESS_TOKEN="your_access_token_here"
 
-curl https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=5 \
+curl https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=5 \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
@@ -71,7 +71,7 @@ curl https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities
 
 2. **Check Network in Simulator**
    - Open Safari in simulator
-   - Navigate to: https://kids-activity-api-44042034457.us-central1.run.app/health
+   - Navigate to: https://kids-activity-api-205843686007.us-central1.run.app/health
    - If this fails, the simulator has network issues
 
 3. **Clear Metro Cache**
@@ -120,7 +120,7 @@ curl https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities
    ```typescript
    // src/config/api.ts
    const API_CONFIG = {
-     BASE_URL: 'https://kids-activity-api-44042034457.us-central1.run.app',
+     BASE_URL: 'https://kids-activity-api-205843686007.us-central1.run.app',
      // ...
    };
    ```
@@ -149,7 +149,7 @@ curl https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities
 1. **Check API Response**
    ```bash
    # Test activities endpoint directly
-   curl "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=10"
+   curl "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=10"
    ```
 
 2. **Verify Query Parameters**
@@ -208,7 +208,7 @@ gcloud logging read "resource.type=cloud_run_revision" --limit 50
 ### 5. API Testing Tools
 - **Postman**: Import the API collection
 - **curl**: Use the test script examples
-- **httpie**: `http GET kids-activity-api-44042034457.us-central1.run.app/health`
+- **httpie**: `http GET kids-activity-api-205843686007.us-central1.run.app/health`
 
 ## Performance Optimization
 
@@ -241,7 +241,7 @@ gcloud logging read "resource.type=cloud_run_revision" --limit 50
 ## Monitoring
 
 ### 1. API Health
-- Uptime monitoring: https://kids-activity-api-44042034457.us-central1.run.app/health
+- Uptime monitoring: https://kids-activity-api-205843686007.us-central1.run.app/health
 - Response time: Should be < 500ms
 - Error rate: Should be < 1%
 

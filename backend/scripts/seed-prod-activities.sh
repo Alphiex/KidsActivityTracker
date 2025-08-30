@@ -2,7 +2,7 @@
 
 # Create or update the seed job
 gcloud run jobs create seed-activities-job \
-  --image=gcr.io/elevated-pod-459203-n5/kids-activity-api:latest \
+  --image=gcr.io/kids-activity-tracker-2024/kids-activity-api:latest \
   --region=us-central1 \
   --parallelism=1 \
   --task-timeout=300 \

@@ -1,5 +1,6 @@
 import { PrismaClient, ActivityShare, ActivityShareProfile, Child, ChildActivity } from '../../generated/prisma';
 import { emailService } from '../utils/emailService';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
@@ -88,8 +89,7 @@ export class SharingService {
           data: {
             permissionLevel,
             expiresAt,
-            isActive: true,
-            updatedAt: new Date()
+            isActive: true
           }
         });
 
@@ -243,7 +243,7 @@ export class SharingService {
           include: {
             child: {
               include: {
-                activities: {
+                childActivities: {
                   include: {
                     activity: {
                       include: {
@@ -268,7 +268,7 @@ export class SharingService {
         const { child } = profile;
         
         // Filter activities based on permissions
-        const filteredActivities = child.activities.filter(ca => {
+        const filteredActivities = child.childActivities.filter(ca => {
           switch (ca.status) {
             case 'interested':
               return profile.canViewInterested;
@@ -300,7 +300,7 @@ export class SharingService {
 
         sharedChildren.push({
           ...child,
-          activities: finalActivities,
+          activities: finalActivities as any,
           shareProfile: profile
         });
       }
@@ -331,7 +331,6 @@ export class SharingService {
       where: { id: shareId },
       data: {
         ...data,
-        updatedAt: new Date()
       },
       include: {
         sharedWithUser: {

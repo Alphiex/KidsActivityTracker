@@ -41,7 +41,7 @@ router.post('/setup/test-user', async (req, res) => {
                     notifications: { email: true, push: true },
                     viewType: 'card',
                     hasCompletedOnboarding: true
-                }
+                },
             }
         });
         res.json({

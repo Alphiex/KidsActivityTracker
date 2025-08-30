@@ -3,6 +3,7 @@ const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
 const { extractComprehensiveDetails } = require('./nvrcComprehensiveDetailScraper');
 const { parseActivityType, extractAgeRangeFromText } = require('./utils/activityTypeParser');
+const { mapActivityType } = require('../utils/activityTypeMapper');
 // const { normalizeLocationName, determineFacilityType } = require('../improve-location-handling');
 
 // Helper functions for location normalization
@@ -880,6 +881,13 @@ class NVRCEnhancedParallelScraper {
         if (ageMin === null || ageMin === undefined) ageMin = 0;
         if (ageMax === null || ageMax === undefined) ageMax = 18;
         
+        // Map activity to proper type and subtype
+        const typeMapping = await mapActivityType({
+          name: activity.name || `${parsedType.type} - ${activity.activitySection}`,
+          category: parsedType.category || activity.section,
+          subcategory: parsedType.type
+        });
+        
         // Prepare activity data with all new fields
         const activityData = {
           providerId,
@@ -922,7 +930,10 @@ class NVRCEnhancedParallelScraper {
           fullDescription: activity.fullDescription,
           whatToBring: activity.whatToBring,
           fullAddress: activity.fullAddress,
-          courseDetails: activity.courseDetails
+          courseDetails: activity.courseDetails,
+          // Add the mapped type and subtype IDs
+          activityTypeId: typeMapping.activityTypeId,
+          activitySubtypeId: typeMapping.activitySubtypeId
         };
         
         // First, check if activity exists

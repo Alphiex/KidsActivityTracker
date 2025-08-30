@@ -47,12 +47,12 @@ sleep 20
 echo ""
 echo "📊 Testing API..."
 echo "Health check:"
-curl -s "https://kids-activity-api-44042034457.us-central1.run.app/health" | jq .
+curl -s "https://kids-activity-api-205843686007.us-central1.run.app/health" | jq .
 
 echo ""
 echo "Activities endpoint:"
-curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=3" | jq '.activities[] | {name, category, cost}'
+curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=3" | jq '.activities[] | {name, category, cost}'
 
 echo ""
 echo "✅ Your app should now be able to access activities!"
-echo "API URL: https://kids-activity-api-44042034457.us-central1.run.app"
+echo "API URL: https://kids-activity-api-205843686007.us-central1.run.app"

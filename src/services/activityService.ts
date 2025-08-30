@@ -377,8 +377,15 @@ class ActivityService {
       }
       
       // Convert cost filters
-      // Keep costMin and costMax as-is since backend expects camelCase
-      // No conversion needed
+      // Handle both maxCost and costMax parameter names
+      if (params.maxCost !== undefined) {
+        apiParams.costMax = params.maxCost;
+        delete apiParams.maxCost;
+      }
+      if (params.minCost !== undefined) {
+        apiParams.costMin = params.minCost;
+        delete apiParams.minCost;
+      }
       
       console.log('Searching activities with pagination:', apiParams);
       

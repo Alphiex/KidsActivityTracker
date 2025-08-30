@@ -1,0 +1,167 @@
+{
+  "timestamp": "2025-08-28T06:33:39.680Z",
+  "totalActivities": 0,
+  "navigationLog": [
+    {
+      "timestamp": "2025-08-28T06:33:01.362Z",
+      "message": "🚀 Starting NVRC Comprehensive Scraper...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:01.706Z",
+      "message": "\n📍 APPROACH 1: Using NVRC main website form",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:01.706Z",
+      "message": "Navigating to NVRC find program page...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:03.553Z",
+      "message": "PAGE LOG: Failed to load resource: the server responded with a status of 404 ()",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:05.112Z",
+      "message": "PAGE LOG: The keyword 'push-button' used on the 'appearance' property was deprecated and has now been removed. It will no longer have any effect.",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:05.646Z",
+      "message": "Waiting for form to load...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:09.220Z",
+      "message": "\n📋 STEP 1: Selecting age groups",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:09.227Z",
+      "message": "Selected 5 age groups:",
+      "data": [
+        "Adult",
+        "0 - 6 years, On My Own",
+        "0 - 6 years, Parent Participation",
+        "5 - 13 years, School Age",
+        "10 - 18 years, Youth"
+      ]
+    },
+    {
+      "timestamp": "2025-08-28T06:33:11.229Z",
+      "message": "\n🎯 STEP 2: Waiting for activities to appear",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:25.247Z",
+      "message": "Selected 34 activities:",
+      "data": [
+        "All Ages & Family",
+        "Senior",
+        "Health Management",
+        "Movement & Fitness Dance",
+        "Pilates",
+        "Pre & Post Natal",
+        "Spin",
+        "Strength & Cardio",
+        "Stretching",
+        "Workshops",
+        "Yoga",
+        "Aquatic Leadership",
+        "Camps",
+        "Certifications and Leadership",
+        "Cooking",
+        "Early Years Playtime",
+        "Kids Night Out",
+        "Learn and Play",
+        "Martial Arts",
+        "School Programs",
+        "Skating",
+        "Special Events",
+        "Swimming",
+        "Climbing",
+        "Gymnastics",
+        "Multisport",
+        "Racquet Sports",
+        "Team Sports",
+        "Dance",
+        "Drama",
+        "Music",
+        "Pottery",
+        "Visual Arts",
+        "Woodworking"
+      ]
+    },
+    {
+      "timestamp": "2025-08-28T06:33:28.045Z",
+      "message": "\n📍 STEP 3: Selecting locations",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:28.046Z",
+      "message": "Location selection:",
+      "data": {
+        "method": "individual",
+        "count": 0
+      }
+    },
+    {
+      "timestamp": "2025-08-28T06:33:30.047Z",
+      "message": "\n🔍 Clicking Show Results button",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:30.048Z",
+      "message": "\n📍 APPROACH 2: Using PerfectMind widget directly",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:30.048Z",
+      "message": "Navigating to PerfectMind widget directly...",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:33.936Z",
+      "message": "PAGE LOG: Failed to load resource: net::ERR_NETWORK_CHANGED",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:39.678Z",
+      "message": "\n📂 Processing section: All Ages & Family",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:39.679Z",
+      "message": "\n📂 Processing section: Early Years: On My Own",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:39.679Z",
+      "message": "\n📂 Processing section: Early Years: Parent Participation",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:39.680Z",
+      "message": "\n📂 Processing section: School Age",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:39.680Z",
+      "message": "\n📂 Processing section: Youth",
+      "data": null
+    },
+    {
+      "timestamp": "2025-08-28T06:33:39.680Z",
+      "message": "\n📂 Processing section: Adult",
+      "data": null
+    }
+  ],
+  "activities": [],
+  "activitySummary": {
+    "totalCount": 0,
+    "bySources": {},
+    "uniqueActivities": [],
+    "uniqueCount": 0
+  }
+}

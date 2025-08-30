@@ -3,7 +3,7 @@
 echo "🔧 Setting up Cloud SQL Proxy for data import"
 echo "============================================="
 
-INSTANCE_CONNECTION_NAME="elevated-pod-459203-n5:us-central1:kids-activity-db-prod"
+INSTANCE_CONNECTION_NAME="kids-activity-tracker-2024:us-central1:kids-activity-db-prod"
 
 # Check if cloud_sql_proxy is installed
 if ! command -v cloud-sql-proxy &> /dev/null; then

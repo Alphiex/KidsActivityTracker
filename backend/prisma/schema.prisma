@@ -1,6 +1,3 @@
-// This is the enhanced Prisma schema for Kids Activity Tracker v2
-// with user accounts, children profiles, and activity sharing
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -11,323 +8,399 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============= EXISTING MODELS (ENHANCED) =============
-
-model Provider {
-  id             String     @id @default(uuid())
-  name           String     @unique
-  website        String
-  scraperConfig  Json
-  isActive       Boolean    @default(true)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  
-  activities     Activity[]
-  scrapeJobs     ScrapeJob[]
-}
-
-model Location {
-  id             String     @id @default(uuid())
-  name           String
-  address        String     @default("")
-  city           String
-  province       String
-  postalCode     String?
-  country        String     @default("Canada")
-  latitude       Float?
-  longitude      Float?
-  facility       String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  
-  activities     Activity[]
-  
-  @@unique([name])
-  @@index([city])
-}
-
 model Activity {
-  id                String      @id @default(uuid())
-  providerId        String
-  externalId        String      // This is the courseId from the provider
-  name              String
-  category          String
-  subcategory       String?
-  description       String?
-  schedule          String?
-  dates             String?     // Human-readable date range (e.g., "Sep 11 - Oct 9")
-  dateStart         DateTime?
-  dateEnd           DateTime?
-  registrationDate  DateTime?
-  registrationEndDate DateTime?  // When registration closes
-  registrationEndTime String?     // Time registration closes (e.g., "5:00 PM")
-  ageMin            Int?
-  ageMax            Int?
-  cost              Float       @default(0)
-  costIncludesTax   Boolean     @default(true)
-  taxAmount         Float?      // Tax amount if separate
-  spotsAvailable    Int?
-  totalSpots        Int?
-  locationId        String?
-  locationName      String?
-  registrationUrl   String?
-  courseId          String?     // Provider's course ID
-  isActive          Boolean     @default(true)
-  lastSeenAt        DateTime    @default(now())
-  rawData           Json?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  dayOfWeek         String[]
-  startTime         String?     // Main activity start time
-  endTime           String?     // Main activity end time
-  
-  // Enhanced detail fields
-  registrationStatus        String?     @default("Unknown")
-  registrationButtonText    String?
-  detailUrl                 String?
-  fullDescription           String?     @db.Text
-  instructor                String?
-  prerequisites             String?     @db.Text
-  whatToBring               String?     @db.Text
-  fullAddress               String?
-  latitude                  Float?
-  longitude                 Float?
-  directRegistrationUrl     String?
-  contactInfo               String?
-  courseDetails             String?     @db.Text  // Additional course information
-  
-  // Support for multiple sessions and prerequisites
-  hasMultipleSessions       Boolean     @default(false)
-  sessionCount              Int         @default(0)
-  hasPrerequisites          Boolean     @default(false)
-  
-  provider          Provider    @relation(fields: [providerId], references: [id])
-  location          Location?   @relation(fields: [locationId], references: [id])
-  favorites         Favorite[]
-  childActivities   ChildActivity[]
-  sessions          ActivitySession[]
-  prerequisitesList ActivityPrerequisite[]
-  
-  // Unique constraint on provider + courseId to prevent duplicates
+  id                     String                 @id @default(uuid())
+  providerId             String
+  externalId             String
+  name                   String
+  category               String
+  subcategory            String?
+  description            String?
+  schedule               String?
+  dateStart              DateTime?
+  dateEnd                DateTime?
+  registrationDate       DateTime?
+  ageMin                 Int?
+  ageMax                 Int?
+  cost                   Float                  @default(0)
+  spotsAvailable         Int?
+  totalSpots             Int?
+  locationId             String?
+  locationName           String?
+  registrationUrl        String?
+  courseId               String?
+  isActive               Boolean                @default(true)
+  lastSeenAt             DateTime               @default(now())
+  rawData                Json?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  dayOfWeek              String[]
+  registrationEndDate    DateTime?
+  registrationEndTime    String?
+  costIncludesTax        Boolean                @default(true)
+  taxAmount              Float?
+  startTime              String?
+  endTime                String?
+  courseDetails          String?
+  dates                  String?
+  registrationStatus     String?                @default("Unknown")
+  registrationButtonText String?
+  detailUrl              String?
+  instructor             String?
+  hasMultipleSessions    Boolean                @default(false)
+  sessionCount           Int                    @default(0)
+  hasPrerequisites       Boolean                @default(false)
+  fullDescription        String?
+  whatToBring            String?
+  fullAddress            String?
+  prerequisites          String?
+  latitude               Float?
+  longitude              Float?
+  directRegistrationUrl  String?
+  contactInfo            String?
+  activitySubtypeId      String?
+  activityTypeId         String?
+  activitySubtype        ActivitySubtype?       @relation(fields: [activitySubtypeId], references: [id])
+  activityType           ActivityType?          @relation(fields: [activityTypeId], references: [id])
+  location               Location?              @relation(fields: [locationId], references: [id])
+  provider               Provider               @relation(fields: [providerId], references: [id])
+  prerequisitesList      ActivityPrerequisite[]
+  sessions               ActivitySession[]
+  childActivities        ChildActivity[]
+  favorites              Favorite[]
+
   @@unique([providerId, externalId])
-  @@index([providerId])
-  @@index([locationId])
+  @@index([activitySubtypeId])
+  @@index([activityTypeId, activitySubtypeId])
+  @@index([activityTypeId])
   @@index([category])
   @@index([isActive, category])
   @@index([isActive, dateStart])
   @@index([isActive, lastSeenAt])
-  @@index([registrationStatus])
   @@index([latitude, longitude])
+  @@index([locationId])
+  @@index([providerId])
+  @@index([registrationStatus])
+}
+
+model ActivityHistory {
+  id            String   @id @default(uuid())
+  activityId    String
+  changeType    String
+  previousData  Json?
+  newData       Json?
+  changedFields String[]
+  createdAt     DateTime @default(now())
+
+  @@index([activityId, createdAt])
+}
+
+model ActivityPrerequisite {
+  id          String   @id @default(uuid())
+  activityId  String
+  name        String
+  description String?
+  url         String?
+  courseId    String?
+  isRequired  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
 }
 
 model ActivitySession {
-  id              String      @id @default(uuid())
-  activityId      String
-  sessionNumber   Int?
-  date            String?     // Date as string to handle various formats
-  dayOfWeek       String?     // Day of week (e.g., "Monday")
-  startTime       String?     // Time as string (e.g., "9:00 AM")
-  endTime         String?     // Time as string (e.g., "4:00 PM")
-  location        String?     // Main location
-  subLocation     String?     // Sub-location (e.g., "Court 1", "Pool B")
-  instructor      String?
-  notes           String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  activity        Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  
+  id            String   @id @default(uuid())
+  activityId    String
+  sessionNumber Int?
+  date          String?
+  dayOfWeek     String?
+  startTime     String?
+  endTime       String?
+  location      String?
+  subLocation   String?
+  instructor    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  activity      Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
   @@index([activityId])
   @@index([date])
 }
 
-model ActivityPrerequisite {
-  id              String      @id @default(uuid())
-  activityId      String
-  name            String
-  description     String?
-  url             String?     // URL to the prerequisite course
-  courseId        String?     // Course ID of the prerequisite
-  isRequired      Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  activity        Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  
-  @@index([activityId])
+model ActivityShare {
+  id               String                 @id @default(uuid())
+  sharingUserId    String
+  sharedWithUserId String
+  permissionLevel  String
+  expiresAt        DateTime?
+  isActive         Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  sharedWithUser   User                   @relation("SharedWithUser", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
+  sharingUser      User                   @relation("SharingUser", fields: [sharingUserId], references: [id], onDelete: Cascade)
+  profiles         ActivityShareProfile[]
+
+  @@unique([sharingUserId, sharedWithUserId])
+  @@index([sharedWithUserId])
+  @@index([sharingUserId])
 }
 
-// ============= NEW MODELS FOR USER ACCOUNTS =============
+model ActivityShareProfile {
+  id                String        @id @default(uuid())
+  activityShareId   String
+  childId           String
+  canViewInterested Boolean       @default(true)
+  canViewRegistered Boolean       @default(true)
+  canViewCompleted  Boolean       @default(false)
+  canViewNotes      Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  activityShare     ActivityShare @relation(fields: [activityShareId], references: [id], onDelete: Cascade)
+  child             Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
 
-model User {
-  id                String      @id @default(uuid())
-  email             String      @unique
-  passwordHash      String
-  name              String
-  phoneNumber       String?
-  isVerified        Boolean     @default(false)
-  verificationToken String?
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  preferences       Json        @default("{}")
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  
-  children          Child[]
-  favorites         Favorite[]
-  sharedWithMe      ActivityShare[] @relation("SharedWithUser")
-  myShares          ActivityShare[] @relation("SharingUser")
-  sentInvitations   Invitation[]   @relation("InvitationSender")
-  receivedInvitations Invitation[] @relation("InvitationRecipient")
-  
-  @@index([email])
+  @@unique([activityShareId, childId])
+}
+
+model ActivitySubtype {
+  id             String       @id @default(uuid())
+  activityTypeId String
+  code           String
+  name           String
+  description    String?
+  imageUrl       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  displayOrder   Int          @default(999)
+  activities     Activity[]
+  activityType   ActivityType @relation(fields: [activityTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([activityTypeId, code])
+  @@index([activityTypeId])
+}
+
+model ActivityType {
+  id           String            @id @default(uuid())
+  code         String            @unique
+  name         String
+  description  String?
+  iconName     String?
+  imageUrl     String?
+  displayOrder Int
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  activities   Activity[]
+  subtypes     ActivitySubtype[]
+
+  @@index([code])
 }
 
 model Child {
-  id                String      @id @default(uuid())
-  userId            String
-  name              String
-  dateOfBirth       DateTime
-  gender            String?     // 'male', 'female', 'other', 'prefer_not_to_say'
-  avatarUrl         String?
-  interests         String[]    // Array of interests/tags
-  notes             String?
-  isActive          Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities        ChildActivity[]
-  sharedInProfiles  ActivityShareProfile[]
-  
+  id              String                 @id @default(uuid())
+  userId          String
+  name            String
+  dateOfBirth     DateTime
+  gender          String?
+  avatarUrl       String?
+  interests       String[]
+  notes           String?
+  isActive        Boolean                @default(true)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  profiles        ActivityShareProfile[]
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  childActivities ChildActivity[]
+
   @@index([userId])
 }
 
 model ChildActivity {
-  id                String      @id @default(uuid())
-  childId           String
-  activityId        String
-  status            String      // 'interested', 'registered', 'completed', 'cancelled'
-  registeredAt      DateTime?
-  completedAt       DateTime?
-  notes             String?
-  rating            Int?        // 1-5 star rating
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  
-  child             Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
-  activity          Activity    @relation(fields: [activityId], references: [id])
-  
+  id           String    @id @default(uuid())
+  childId      String
+  activityId   String
+  status       String
+  registeredAt DateTime?
+  completedAt  DateTime?
+  notes        String?
+  rating       Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  activity     Activity  @relation(fields: [activityId], references: [id])
+  child        Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+
   @@unique([childId, activityId])
-  @@index([childId, status])
   @@index([activityId])
+  @@index([childId, status])
 }
 
 model Favorite {
-  id                String      @id @default(uuid())
-  userId            String
-  activityId        String
-  notifyOnChange    Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activity          Activity    @relation(fields: [activityId], references: [id])
-  
+  id             String   @id @default(uuid())
+  userId         String
+  activityId     String
+  createdAt      DateTime @default(now())
+  notifyOnChange Boolean  @default(true)
+  activity       Activity @relation(fields: [activityId], references: [id])
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, activityId])
-  @@index([userId])
   @@index([activityId])
-}
-
-// ============= ACTIVITY SHARING MODELS =============
-
-model ActivityShare {
-  id                String      @id @default(uuid())
-  sharingUserId     String
-  sharedWithUserId  String
-  permissionLevel   String      // 'view_all', 'view_registered', 'view_future'
-  expiresAt         DateTime?
-  isActive          Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  
-  sharingUser       User        @relation("SharingUser", fields: [sharingUserId], references: [id], onDelete: Cascade)
-  sharedWithUser    User        @relation("SharedWithUser", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
-  profiles          ActivityShareProfile[]
-  
-  @@unique([sharingUserId, sharedWithUserId])
-  @@index([sharingUserId])
-  @@index([sharedWithUserId])
-}
-
-model ActivityShareProfile {
-  id                String      @id @default(uuid())
-  activityShareId   String
-  childId           String
-  canViewInterested Boolean     @default(true)
-  canViewRegistered Boolean     @default(true)
-  canViewCompleted  Boolean     @default(false)
-  canViewNotes      Boolean     @default(false)
-  createdAt         DateTime    @default(now())
-  
-  activityShare     ActivityShare @relation(fields: [activityShareId], references: [id], onDelete: Cascade)
-  child             Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
-  
-  @@unique([activityShareId, childId])
+  @@index([userId])
 }
 
 model Invitation {
-  id                String      @id @default(uuid())
-  senderId          String
-  recipientEmail    String
-  recipientUserId   String?
-  status            String      // 'pending', 'accepted', 'declined', 'expired'
-  message           String?
-  token             String      @unique
-  expiresAt         DateTime
-  acceptedAt        DateTime?
-  createdAt         DateTime    @default(now())
-  
-  sender            User        @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient         User?       @relation("InvitationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
-  
-  @@index([senderId])
+  id              String    @id @default(uuid())
+  senderId        String
+  recipientEmail  String
+  recipientUserId String?
+  status          String
+  message         String?
+  token           String    @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  recipient       User?     @relation("InvitationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  sender          User      @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+
   @@index([recipientEmail])
-  @@index([token])
+  @@index([senderId])
   @@index([status, expiresAt])
+  @@index([token])
 }
 
-// ============= AUDIT/HISTORY MODELS =============
+model Location {
+  id         String     @id @default(uuid())
+  name       String
+  address    String     @default("")
+  city       String
+  province   String
+  postalCode String?
+  latitude   Float?
+  longitude  Float?
+  facility   String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  country    String     @default("Canada")
+  activities Activity[]
 
-model ActivityHistory {
-  id                String      @id @default(uuid())
-  activityId        String
-  changeType        String      // 'created', 'updated', 'deactivated', 'reactivated'
-  previousData      Json?
-  newData           Json?
-  changedFields     String[]
-  createdAt         DateTime    @default(now())
-  
-  @@index([activityId, createdAt])
+  @@index([city])
+  @@index([name, city])
+  @@index([name])
+}
+
+model Provider {
+  id                 String               @id @default(uuid())
+  name               String               @unique
+  website            String
+  scraperConfig      Json
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  region             String?
+  contactInfo        Json?
+  platform           String?
+  activities         Activity[]
+  ProviderMetrics    ProviderMetrics[]
+  ScrapeJob          ScrapeJob[]
+  ScraperHealthCheck ScraperHealthCheck[]
+
+  @@index([isActive])
+  @@index([platform])
+  @@index([region])
+}
+
+model ProviderMetrics {
+  id                  String   @id @default(uuid())
+  providerId          String
+  scrapeDate          DateTime @db.Date
+  activitiesFound     Int      @default(0)
+  activitiesProcessed Int      @default(0)
+  dataQualityScore    Float?
+  errors              Json?
+  scrapeDuration      Int?
+  memoryUsed          BigInt?
+  createdAt           DateTime @default(now())
+  provider            Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([providerId, scrapeDate])
+  @@index([scrapeDate])
+}
+
+model ScrapeJob {
+  id                String    @id @default(uuid())
+  providerId        String
+  status            JobStatus @default(PENDING)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  activitiesFound   Int       @default(0)
+  activitiesCreated Int       @default(0)
+  activitiesUpdated Int       @default(0)
+  activitiesRemoved Int       @default(0)
+  errorMessage      String?
+  errorDetails      Json?
+  createdAt         DateTime  @default(now())
+  provider          Provider  @relation(fields: [providerId], references: [id])
+
+  @@index([createdAt])
+  @@index([providerId])
+  @@index([status])
+}
+
+model ScraperHealthCheck {
+  id         String    @id @default(uuid())
+  providerId String
+  status     String
+  message    String?
+  details    Json?
+  checkedAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  provider   Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([checkedAt])
+  @@index([providerId])
+  @@index([status])
 }
 
 model ScraperRun {
-  id                String      @id @default(uuid())
-  providerId        String
-  status            String      // 'running', 'completed', 'failed'
-  startedAt         DateTime    @default(now())
-  completedAt       DateTime?
-  activitiesFound   Int         @default(0)
-  activitiesCreated Int         @default(0)
-  activitiesUpdated Int         @default(0)
-  activitiesDeactivated Int     @default(0)
-  activitiesPurged  Int         @default(0)
-  errorMessage      String?
-  logs              Json?
-  
+  id                    String    @id @default(uuid())
+  providerId            String
+  status                String
+  startedAt             DateTime  @default(now())
+  completedAt           DateTime?
+  activitiesFound       Int       @default(0)
+  activitiesCreated     Int       @default(0)
+  activitiesUpdated     Int       @default(0)
+  activitiesDeactivated Int       @default(0)
+  activitiesPurged      Int       @default(0)
+  errorMessage          String?
+  logs                  Json?
+
   @@index([providerId, startedAt])
 }
 
-// ============= SCRAPER JOB TRACKING =============
+model User {
+  id                  String          @id @default(uuid())
+  email               String          @unique
+  name                String
+  preferences         Json            @default("{}")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  passwordHash        String
+  phoneNumber         String?
+  isVerified          Boolean         @default(false)
+  verificationToken   String?
+  resetToken          String?
+  resetTokenExpiry    DateTime?
+  sharedWithMe        ActivityShare[] @relation("SharedWithUser")
+  myShares            ActivityShare[] @relation("SharingUser")
+  children            Child[]
+  favorites           Favorite[]
+  receivedInvitations Invitation[]    @relation("InvitationRecipient")
+  sentInvitations     Invitation[]    @relation("InvitationSender")
+
+  @@index([email])
+}
 
 enum JobStatus {
   PENDING
@@ -335,25 +408,4 @@ enum JobStatus {
   COMPLETED
   FAILED
   CANCELLED
-}
-
-model ScrapeJob {
-  id                String      @id @default(uuid())
-  providerId        String
-  status            JobStatus   @default(PENDING)
-  startedAt         DateTime?
-  completedAt       DateTime?
-  activitiesFound   Int         @default(0)
-  activitiesCreated Int         @default(0)
-  activitiesUpdated Int         @default(0)
-  activitiesRemoved Int         @default(0)
-  errorMessage      String?
-  errorDetails      Json?
-  createdAt         DateTime    @default(now())
-  
-  provider          Provider    @relation(fields: [providerId], references: [id])
-  
-  @@index([providerId])
-  @@index([status])
-  @@index([createdAt])
 }

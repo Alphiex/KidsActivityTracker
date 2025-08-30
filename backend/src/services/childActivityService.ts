@@ -1,6 +1,7 @@
 import { PrismaClient, ChildActivity, Activity, Prisma } from '../../generated/prisma';
 import { calculateAge, getAgeAppropriateRange, getCalendarDateRange } from '../utils/dateUtils';
 import { childrenService } from './childrenService';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
@@ -93,7 +94,7 @@ export class ChildActivityService {
         status: input.status,
         notes: input.notes,
         ...(input.status === 'registered' && { registeredAt: now }),
-        ...(input.status === 'completed' && { completedAt: now })
+        ...(input.status === 'completed' && { completedAt: now }),
       }
     });
   }
@@ -491,7 +492,7 @@ export class ChildActivityService {
       childId,
       activityId,
       status,
-      ...(status === 'registered' && { registeredAt: now })
+      ...(status === 'registered' && { registeredAt: now }),
     }));
 
     const result = await prisma.childActivity.createMany({

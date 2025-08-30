@@ -17,6 +17,7 @@ const sharing_1 = __importDefault(require("./routes/sharing"));
 const sharedActivities_1 = __importDefault(require("./routes/sharedActivities"));
 const setup_1 = __importDefault(require("./routes/setup"));
 const activities_1 = __importDefault(require("./routes/activities"));
+const activityTypes_1 = __importDefault(require("./routes/activityTypes"));
 const reference_1 = __importDefault(require("./routes/reference"));
 const cities_1 = __importDefault(require("./routes/cities"));
 const auth_2 = require("./middleware/auth");
@@ -48,6 +49,7 @@ app.use('/api/sharing', sharing_1.default);
 app.use('/api/shared-activities', sharedActivities_1.default);
 app.use('/api', setup_1.default);
 app.use('/api/v1/activities', activities_1.default);
+app.use('/api/v1/activity-types', activityTypes_1.default);
 app.use('/api/v1/reference', reference_1.default);
 app.use('/api/v1/cities', cities_1.default);
 app.get('/api/protected', auth_2.verifyToken, (req, res) => {
@@ -92,7 +94,8 @@ app.post('/api/favorites', auth_2.verifyToken, async (req, res) => {
         const favorite = await prisma.favorite.create({
             data: {
                 userId: req.user.id,
-                activityId
+                activityId,
+                createdAt: new Date()
             }
         });
         res.json({

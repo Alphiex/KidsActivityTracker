@@ -85,7 +85,7 @@ Test the API directly:
 
 ```bash
 # Login
-curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/auth/login \
+curl -X POST https://kids-activity-api-205843686007.us-central1.run.app/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@kidsactivitytracker.com","password":"Test123!"}'
 
@@ -93,11 +93,11 @@ curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/auth/
 ACCESS_TOKEN="your_token_here"
 
 # Get activities
-curl https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities \
+curl https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
 # Get favorites
-curl https://kids-activity-api-44042034457.us-central1.run.app/api/favorites \
+curl https://kids-activity-api-205843686007.us-central1.run.app/api/favorites \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
@@ -122,7 +122,7 @@ This script will:
 To create more test accounts:
 
 ```bash
-curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/auth/register \
+curl -X POST https://kids-activity-api-205843686007.us-central1.run.app/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "newtest@example.com",
@@ -188,7 +188,7 @@ If the test account doesn't work:
 
 1. **Check API Health**
    ```bash
-   curl https://kids-activity-api-44042034457.us-central1.run.app/health
+   curl https://kids-activity-api-205843686007.us-central1.run.app/health
    ```
 
 2. **Verify Account Exists**

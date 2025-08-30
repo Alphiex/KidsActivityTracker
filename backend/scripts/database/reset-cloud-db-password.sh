@@ -53,7 +53,7 @@ sleep 10
 
 echo ""
 echo "📊 Verifying data in cloud..."
-activities_count=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=1" | jq '.activities | length')
+activities_count=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1" | jq '.activities | length')
 echo "Activities in cloud: $activities_count"
 
 if [ "$activities_count" -gt 0 ]; then
@@ -61,7 +61,7 @@ if [ "$activities_count" -gt 0 ]; then
     echo "✅ Success! Your app can now access activities from Google Cloud!"
     echo ""
     echo "📱 The app is configured to use:"
-    echo "https://kids-activity-api-44042034457.us-central1.run.app"
+    echo "https://kids-activity-api-205843686007.us-central1.run.app"
 else
     echo ""
     echo "⚠️  No activities found. The API might need a moment to restart."

@@ -43,8 +43,7 @@ class SharingService {
                     data: {
                         permissionLevel,
                         expiresAt,
-                        isActive: true,
-                        updatedAt: new Date()
+                        isActive: true
                     }
                 });
                 await tx.activityShareProfile.deleteMany({
@@ -168,7 +167,7 @@ class SharingService {
                     include: {
                         child: {
                             include: {
-                                activities: {
+                                childActivities: {
                                     include: {
                                         activity: {
                                             include: {
@@ -188,7 +187,7 @@ class SharingService {
         for (const share of shares) {
             for (const profile of share.profiles) {
                 const { child } = profile;
-                const filteredActivities = child.activities.filter(ca => {
+                const filteredActivities = child.childActivities.filter(ca => {
                     switch (ca.status) {
                         case 'interested':
                             return profile.canViewInterested;
@@ -235,7 +234,6 @@ class SharingService {
             where: { id: shareId },
             data: {
                 ...data,
-                updatedAt: new Date()
             },
             include: {
                 sharedWithUser: {

@@ -65,7 +65,7 @@ try {
   // Run the script using the production container
   const result = execSync(
     `gcloud run jobs create create-test-user-job \
-      --image=gcr.io/elevated-pod-459203-n5/kids-activity-api:latest \
+      --image=gcr.io/kids-activity-tracker-2024/kids-activity-api:latest \
       --region=us-central1 \
       --parallelism=1 \
       --task-timeout=60 \

@@ -40,7 +40,7 @@ const AllActivityTypesScreen: React.FC = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
-      const activityTypesData = await activityService.getActivityTypesWithCounts();
+      const activityTypesData = await activityService.getActivityTypesWithCounts(true);
       
       // Map activity types with their configurations
       const typesWithConfig = activityTypesData.map(type => {

@@ -1,5 +1,6 @@
 import { PrismaClient, Child, Prisma } from '../../generated/prisma';
 import { calculateAge } from '../utils/dateUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
@@ -41,7 +42,7 @@ export class ChildrenService {
         gender: data.gender,
         avatarUrl: data.avatarUrl,
         interests: data.interests || [],
-        notes: data.notes
+        notes: data.notes,
       }
     });
   }
@@ -152,7 +153,7 @@ export class ChildrenService {
         isActive: true
       },
       include: {
-        activities: {
+        childActivities: {
           select: {
             status: true
           }
@@ -168,11 +169,11 @@ export class ChildrenService {
         cancelled: 0
       };
 
-      child.activities.forEach(activity => {
+      child.childActivities.forEach(activity => {
         stats[activity.status as keyof typeof stats]++;
       });
 
-      const { activities, ...childData } = child;
+      const { childActivities, ...childData } = child;
 
       return {
         ...childData,
@@ -316,7 +317,7 @@ export class ChildrenService {
     const data = children.map(child => ({
       ...child,
       userId,
-      interests: child.interests || []
+      interests: child.interests || [],
     }));
 
     return await prisma.$transaction(

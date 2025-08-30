@@ -328,7 +328,11 @@ const ActivityDetailScreenEnhanced = () => {
         {/* Hero Header */}
         <ImageBackground
           source={getActivityImageByKey(getActivityImageKey(
-            activity.category || (activity.activityType && activity.activityType[0]) || '', 
+            activity.category || (
+              Array.isArray(activity.activityType) 
+                ? activity.activityType[0] 
+                : activity.activityType?.name
+            ) || '', 
             activity.subcategory
           )) || require('../../assets/images/activities/sports_general.jpg')}
           style={styles.heroContainer}

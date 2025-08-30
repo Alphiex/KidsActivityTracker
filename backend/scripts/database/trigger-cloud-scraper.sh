@@ -3,7 +3,7 @@
 echo "🕷️ Triggering NVRC Scraper on Cloud Run"
 echo "========================================"
 
-API_URL="https://kids-activity-api-44042034457.us-central1.run.app"
+API_URL="https://kids-activity-api-205843686007.us-central1.run.app"
 
 echo "🔍 Getting NVRC provider ID..."
 provider_id=$(curl -s "$API_URL/api/v1/providers" | jq -r '.providers[] | select(.name=="NVRC") | .id')

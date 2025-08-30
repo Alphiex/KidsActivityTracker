@@ -8,7 +8,7 @@ if [ -z "$CLOUD_SQL_CONNECTION_NAME" ]; then
     echo "⚠️  Running locally. Setting up Cloud SQL proxy..."
     
     # Get Cloud SQL connection info
-    INSTANCE_CONNECTION_NAME="elevated-pod-459203-n5:us-central1:kids-activity-db-prod"
+    INSTANCE_CONNECTION_NAME="kids-activity-tracker-2024:us-central1:kids-activity-db-prod"
     
     # Check if cloud_sql_proxy is installed
     if ! command -v cloud_sql_proxy &> /dev/null; then
@@ -41,12 +41,12 @@ read -p "Do you want to trigger a fresh scrape? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "🕷️ Triggering scraper..."
-    curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/v1/scraper/trigger \
+    curl -X POST https://kids-activity-api-205843686007.us-central1.run.app/api/v1/scraper/trigger \
         -H "Content-Type: application/json" \
         -d '{"provider": "NVRC"}'
     echo ""
     echo "✅ Scraper triggered! Check status at:"
-    echo "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/scraper/jobs"
+    echo "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/scraper/jobs"
 fi
 
 echo ""
@@ -84,7 +84,7 @@ fi
 
 echo ""
 echo "📊 Checking activity count in cloud database..."
-curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities/stats/summary" | jq .
+curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities/stats/summary" | jq .
 
 echo ""
 echo "✅ Migration complete!"

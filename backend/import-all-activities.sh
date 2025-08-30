@@ -65,11 +65,11 @@ sleep 20
 echo ""
 echo "📊 Testing API..."
 echo "Health check:"
-curl -s "https://kids-activity-api-44042034457.us-central1.run.app/health" | jq .
+curl -s "https://kids-activity-api-205843686007.us-central1.run.app/health" | jq .
 
 echo ""
 echo "Activity count from API:"
-activities_response=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=1000")
+activities_response=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1000")
 api_count=$(echo "$activities_response" | jq '.activities | length')
 echo "API returning: $api_count activities"
 
@@ -80,4 +80,4 @@ echo "$activities_response" | jq '.activities[0:3] | .[] | {name, category, cost
 echo ""
 echo "✅ Import complete!"
 echo "🎯 Your app now has access to $FINAL_COUNT NVRC activities!"
-echo "API URL: https://kids-activity-api-44042034457.us-central1.run.app"
+echo "API URL: https://kids-activity-api-205843686007.us-central1.run.app"

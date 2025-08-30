@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { PrismaClient } from '../../generated/prisma';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -47,7 +48,7 @@ router.post('/setup/test-user', async (req, res) => {
           notifications: { email: true, push: true },
           viewType: 'card',
           hasCompletedOnboarding: true
-        }
+        },
       }
     });
     

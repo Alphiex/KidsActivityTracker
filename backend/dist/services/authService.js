@@ -35,7 +35,7 @@ class AuthService {
                 passwordHash,
                 name,
                 phoneNumber,
-                verificationToken
+                verificationToken,
             },
             select: {
                 id: true,

@@ -5,8 +5,8 @@ This guide covers deploying the Kids Activity Tracker backend to Google Cloud Pl
 ## Current Production Deployment
 
 The backend API is currently deployed and running at:
-- **API URL**: https://kids-activity-api-44042034457.us-central1.run.app
-- **Monitoring Dashboard**: https://kids-activity-monitoring-44042034457.us-central1.run.app
+- **API URL**: https://kids-activity-api-205843686007.us-central1.run.app
+- **Monitoring Dashboard**: https://kids-activity-monitoring-205843686007.us-central1.run.app
 - **Platform**: Google Cloud Run
 - **Database**: Cloud SQL (PostgreSQL)
 - **Cache**: Redis (Cloud Memorystore)

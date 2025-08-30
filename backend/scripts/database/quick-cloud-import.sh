@@ -4,7 +4,7 @@ echo "📦 Quick Import to Google Cloud SQL"
 echo "==================================="
 
 # Configuration
-CLOUD_INSTANCE="elevated-pod-459203-n5:us-central1:kids-activity-db-prod"
+CLOUD_INSTANCE="kids-activity-tracker-2024:us-central1:kids-activity-db-prod"
 LOCAL_DB="kids_activity_tracker"
 CLOUD_DB="kidsactivity"
 
@@ -45,10 +45,10 @@ echo ""
 echo "✅ Import complete!"
 echo ""
 echo "📊 Verifying data in cloud..."
-curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=5" | jq '.activities | length'
+curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=5" | jq '.activities | length'
 
 echo ""
 echo "🎯 Your app is now configured to use:"
-echo "API URL: https://kids-activity-api-44042034457.us-central1.run.app"
+echo "API URL: https://kids-activity-api-205843686007.us-central1.run.app"
 echo ""
 echo "📱 Reload your mobile app to see the activities!"

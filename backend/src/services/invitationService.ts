@@ -294,7 +294,7 @@ export class InvitationService {
             sharingUserId: invitation.senderId,
             sharedWithUserId: userId,
             permissionLevel: 'view_registered',
-            isActive: true
+            isActive: true,
           }
         });
       }

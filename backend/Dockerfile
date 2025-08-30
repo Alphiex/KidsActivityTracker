@@ -16,8 +16,8 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build TypeScript code (skip for now, use ts-node in production)
-# RUN npm run build
+# Build TypeScript code
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine
@@ -46,12 +46,10 @@ COPY --from=builder /app/tsconfig.json ./
 # Install all dependencies (including ts-node for now)
 RUN npm ci
 
-# Copy all source files
-COPY --from=builder /app/src ./src
+# Copy built application
+COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-
-# Generate Prisma client in production stage
-RUN npx prisma generate
+COPY --from=builder /app/generated ./generated
 
 # Copy legacy API files
 COPY --from=builder /app/api ./api
@@ -82,4 +80,4 @@ EXPOSE 3000
 
 # Start the application using JavaScript server with authentication
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "api/server.js"]
+CMD ["node", "dist/server.js"]

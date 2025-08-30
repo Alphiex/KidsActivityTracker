@@ -10,6 +10,8 @@ const providerService = require('../database/services/providerService');
 const scrapeJobService = require('../database/services/scrapeJobService');
 const scraperJobService = require('../services/scraperJobService');
 const { router: authRoutes, verifyToken } = require('./routes/auth');
+const activityTypesRoutes = require('./routes/activityTypes');
+const categoriesRoutes = require('./routes/categories');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,6 +63,12 @@ app.get('/health', (req, res) => {
 
 // ============= Authentication Routes =============
 app.use('/api/auth', authRoutes);
+
+// ============= Activity Types Routes =============
+app.use('/api/v1/activity-types', activityTypesRoutes);
+
+// ============= Categories Routes =============
+app.use('/api/v1/categories', categoriesRoutes);
 
 // ============= Test Routes (temporary) =============
 // Removed test routes
@@ -475,43 +483,7 @@ app.get('/api/v1/locations', async (req, res) => {
   }
 });
 
-// Get all categories
-app.get('/api/v1/categories', async (req, res) => {
-  try {
-    const prisma = require('../database/config/database');
-    
-    // Get categories with activity counts
-    const categories = await prisma.activity.groupBy({
-      by: ['category'],
-      where: {
-        isActive: true
-      },
-      _count: {
-        category: true
-      }
-    });
-
-    // Filter out null categories and sort by count descending
-    const categoriesWithCounts = categories
-      .filter(cat => cat.category !== null && cat.category !== '')
-      .map(cat => ({
-        name: cat.category,
-        count: cat._count.category
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    res.json({
-      success: true,
-      categories: categoriesWithCounts
-    });
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+// Categories route is handled by the router at /api/v1/categories
 
 // Get age groups with activity counts
 app.get('/api/v1/age-groups', async (req, res) => {
@@ -556,50 +528,8 @@ app.get('/api/v1/age-groups', async (req, res) => {
   }
 });
 
-// Get activity types (subcategories) with counts
-app.get('/api/v1/activity-types', async (req, res) => {
-  try {
-    const prisma = require('../database/config/database');
-    const { consolidateActivityTypes } = require('../utils/activityTypeConsolidation');
-    
-    // Get subcategories with activity counts
-    const activityTypes = await prisma.activity.groupBy({
-      by: ['subcategory'],
-      where: {
-        isActive: true
-      },
-      _count: {
-        subcategory: true
-      }
-    });
-
-    // Filter out null subcategories
-    const typesWithCounts = activityTypes
-      .filter(type => type.subcategory !== null && type.subcategory !== '')
-      .map(type => ({
-        name: type.subcategory,
-        count: type._count.subcategory
-      }));
-
-    // Consolidate similar activity types
-    const consolidatedTypes = consolidateActivityTypes(typesWithCounts);
-    
-    // Debug logging
-    console.log('Activity types before consolidation:', typesWithCounts.filter(t => t.name.toLowerCase().includes('swim')));
-    console.log('Activity types after consolidation:', consolidatedTypes.filter(t => t.name.toLowerCase().includes('swim')));
-
-    res.json({
-      success: true,
-      activityTypes: consolidatedTypes
-    });
-  } catch (error) {
-    console.error('Error fetching activity types:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+// Activity types are now handled by the activityTypes router
+// app.get('/api/v1/activity-types', ...) - REMOVED - see routes/activityTypes.js
 
 // ============= Scraper Job Endpoints =============
 

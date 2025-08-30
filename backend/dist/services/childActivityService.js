@@ -45,7 +45,7 @@ class ChildActivityService {
                 status: input.status,
                 notes: input.notes,
                 ...(input.status === 'registered' && { registeredAt: now }),
-                ...(input.status === 'completed' && { completedAt: now })
+                ...(input.status === 'completed' && { completedAt: now }),
             }
         });
     }
@@ -358,7 +358,7 @@ class ChildActivityService {
             childId,
             activityId,
             status,
-            ...(status === 'registered' && { registeredAt: now })
+            ...(status === 'registered' && { registeredAt: now }),
         }));
         const result = await prisma.childActivity.createMany({
             data,

@@ -3,7 +3,7 @@
 ## What's Working
 
 ### Backend API ✅
-- **URL**: https://kids-activity-api-44042034457.us-central1.run.app
+- **URL**: https://kids-activity-api-205843686007.us-central1.run.app
 - **Status**: Fully deployed on Google Cloud Run
 - **Database**: PostgreSQL with 4246+ activities
 
@@ -22,13 +22,13 @@
 
 ```bash
 # Test activities endpoint
-curl "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=5"
+curl "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=5"
 
 # Test with category filter
-curl "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?category=Team%20Sports&limit=5"
+curl "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?category=Team%20Sports&limit=5"
 
 # Test login
-curl -X POST https://kids-activity-api-44042034457.us-central1.run.app/api/auth/login \
+curl -X POST https://kids-activity-api-205843686007.us-central1.run.app/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@kidsactivitytracker.com","password":"Test123!"}'
 ```

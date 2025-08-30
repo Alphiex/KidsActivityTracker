@@ -72,6 +72,7 @@ const ActivityTypeScreen = () => {
       
       // Apply additional filters if provided
       if (filters) {
+        console.log('ActivityTypeScreen: Applying filters from route params:', filters);
         searchParams = { ...searchParams, ...filters };
       }
       
@@ -85,6 +86,7 @@ const ActivityTypeScreen = () => {
         searchParams.hideFullActivities = true;
       }
       
+      console.log('ActivityTypeScreen: Final searchParams being sent to API:', searchParams);
       const result = await activityService.searchActivitiesPaginated(searchParams);
       
       if (reset) {

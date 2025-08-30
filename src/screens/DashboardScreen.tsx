@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
+import ActivityTypeService from '../services/activityTypeService';
 import FavoritesService from '../services/favoritesService';
 import { Colors } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -183,35 +184,16 @@ const DashboardScreen = () => {
         console.error('Error fetching categories:', catError);
       }
       
-      // Fetch activity types with counts
+      // Fetch activity types with counts (apply user's hide filters)
       try {
-        const types = await activityService.getActivityTypesWithCounts();
+        const types = await activityService.getActivityTypesWithCounts(true);
         
-        // Get counts for each type including global filters
-        const typesWithCounts = await Promise.all(types.map(async (type) => {
-          // Get count with global filters applied
-          const countParams: any = {
-            activityType: type.name, // This will match all activities where activityType equals this
-            limit: 1,
-            offset: 0
-          };
-          
-          // Apply global filters
-          if (preferences.hideClosedActivities) {
-            countParams.hideClosedActivities = true;
-          }
-          if (preferences.hideFullActivities) {
-            countParams.hideFullActivities = true;
-          }
-          
-          const result = await activityService.searchActivitiesPaginated(countParams);
-          
-          return {
-            code: type.code,
-            name: type.name,
-            count: result.total || 0, // Use actual count from search
-            icon: getActivityTypeIcon(type.name),
-          };
+        // Use the counts from the API directly - they're already correct
+        const typesWithCounts = types.map((type) => ({
+          code: type.code,
+          name: type.name,
+          count: type.activityCount || 0,  // Use the count from API
+          icon: getActivityTypeIcon(type.name),
         }));
         
         // Sort by user preferences first, then by count
@@ -270,11 +252,11 @@ const DashboardScreen = () => {
       const matchingResult = await activityService.searchActivitiesPaginated(matchingParams);
       const matchingActivities = matchingResult.total || 0;
 
-      // Get new activities count using API date filtering
+      // Get new activities count (activities added to database in the last week)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const newActivitiesParams: any = {
-        updatedAfter: oneWeekAgo.toISOString(),
+        createdAfter: oneWeekAgo.toISOString(),  // Use createdAfter for truly new activities
         limit: 1,
         offset: 0
       };
@@ -573,7 +555,7 @@ const DashboardScreen = () => {
           <TouchableOpacity
             key={index}
             style={styles.categoryCard}
-            onPress={() => navigation.navigate('ActivityType', { category: category.name })}
+            onPress={() => navigation.navigate('CategoryDetail', { category })}
             activeOpacity={0.7}
           >
             <LinearGradient

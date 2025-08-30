@@ -2,7 +2,7 @@ const http = require('http');
 const https = require('https');
 const url = require('url');
 
-const TARGET_HOST = 'kids-activity-api-44042034457.us-central1.run.app';
+const TARGET_HOST = 'kids-activity-api-205843686007.us-central1.run.app';
 const PROXY_PORT = 3001;
 
 const server = http.createServer((req, res) => {

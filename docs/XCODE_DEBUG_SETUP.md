@@ -54,7 +54,7 @@ pod install
 ## API Configuration
 
 The app is configured to use the production API:
-- **Production API**: https://kids-activity-api-44042034457.us-central1.run.app
+- **Production API**: https://kids-activity-api-205843686007.us-central1.run.app
 - **Local API** (if needed): http://localhost:3000
 
 To switch between APIs, edit `src/config/api.ts`:
@@ -78,7 +78,7 @@ To build Release in Xcode:
    - Solution: Start Metro with the script above
 
 2. **Account creation not working**
-   - Check the API is reachable: `curl https://kids-activity-api-44042034457.us-central1.run.app/health`
+   - Check the API is reachable: `curl https://kids-activity-api-205843686007.us-central1.run.app/health`
    - Check API configuration in `src/config/api.ts`
 
 3. **Build errors after pod install**

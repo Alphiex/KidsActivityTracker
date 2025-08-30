@@ -1,4 +1,4 @@
-const NVRCEnhancedParallelScraper = require('./scrapers/nvrcEnhancedParallelScraper');
+const NVRCEnhancedParallelScraper = require('./scrapers/nvrcEnhancedParallelScraperFixed');
 const { PrismaClient } = require('./generated/prisma');
 
 async function runScraper() {

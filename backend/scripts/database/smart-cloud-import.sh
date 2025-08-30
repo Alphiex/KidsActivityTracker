@@ -5,7 +5,7 @@ echo "==================================="
 
 # Get the cloud provider ID
 echo "🔍 Getting NVRC provider ID from cloud..."
-CLOUD_PROVIDER_ID=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/providers" | jq -r '.providers[] | select(.name=="NVRC") | .id')
+CLOUD_PROVIDER_ID=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/providers" | jq -r '.providers[] | select(.name=="NVRC") | .id')
 echo "Cloud Provider ID: $CLOUD_PROVIDER_ID"
 
 # Get local provider ID
@@ -134,7 +134,7 @@ echo "✅ Import complete!"
 echo ""
 echo "📊 Verifying data in cloud..."
 sleep 3
-activities_response=$(curl -s "https://kids-activity-api-44042034457.us-central1.run.app/api/v1/activities?limit=10")
+activities_response=$(curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=10")
 activities_count=$(echo "$activities_response" | jq '.activities | length')
 total_count=$(echo "$activities_response" | jq '.total')
 
@@ -150,11 +150,11 @@ if [ "$activities_count" -gt 0 ]; then
 else
     echo ""
     echo "⚠️  No activities returned. Checking API status..."
-    curl -s "https://kids-activity-api-44042034457.us-central1.run.app/health" | jq .
+    curl -s "https://kids-activity-api-205843686007.us-central1.run.app/health" | jq .
 fi
 
 echo ""
 echo "🎯 Your app is configured to use:"
-echo "https://kids-activity-api-44042034457.us-central1.run.app"
+echo "https://kids-activity-api-205843686007.us-central1.run.app"
 echo ""
 echo "📱 Reload your mobile app to see the activities!"
