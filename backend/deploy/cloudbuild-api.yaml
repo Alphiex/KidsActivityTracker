@@ -1,7 +1,7 @@
 steps:
   # Build the API image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/kids-activity-tracker-2024/kids-activity-api:latest', '-f', 'Dockerfile.api', '.']
+    args: ['build', '-t', 'gcr.io/kids-activity-tracker-2024/kids-activity-api:latest', '-f', 'deploy/Dockerfile.api', '.']
   
   # Push the API image
   - name: 'gcr.io/cloud-builders/docker'

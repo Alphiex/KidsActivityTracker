@@ -60,6 +60,23 @@ router.get('/', async (req, res) => {
           });
         }
       }
+      
+      // Also count activities with this type but no subtype (null subtypeId)
+      const noSubtypeCount = await prisma.activity.count({
+        where: {
+          isActive: true,
+          activityTypeId: type.id,
+          activitySubtypeId: null
+        }
+      });
+      
+      if (noSubtypeCount > 0) {
+        subtypeCounts.push({
+          activityTypeId: type.id,
+          activitySubtypeId: 'no-subtype',
+          _count: { id: noSubtypeCount }
+        });
+      }
     }
     
     // Create count maps
@@ -98,6 +115,23 @@ router.get('/', async (req, res) => {
           updatedAt: subtype.updatedAt,
           activityCount: subtypeCountMap[`${type.id}:${subtype.id}`] || 0
         }));
+        
+        // Add "Other" category for activities without subtypes if they exist
+        const noSubtypeCount = subtypeCountMap[`${type.id}:no-subtype`] || 0;
+        if (noSubtypeCount > 0) {
+          typeWithCount.subtypes.push({
+            id: 'no-subtype',
+            activityTypeId: type.id,
+            code: 'other',
+            name: 'Other',
+            description: 'Other activities in this category',
+            imageUrl: null,
+            displayOrder: 999,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            activityCount: noSubtypeCount
+          });
+        }
       }
       
       return typeWithCount;
@@ -216,12 +250,30 @@ router.get('/:code/activities', async (req, res) => {
     
     // Build where clause
     const where = {
-      activityType: activityType.name,
+      activityTypeId: activityType.id,
       isActive: true
     };
     
     if (subtype) {
-      where.activitySubtype = subtype;
+      if (subtype === 'other' || subtype === 'no-subtype') {
+        // Show activities without a subtype
+        where.activitySubtypeId = null;
+      } else {
+        // Find the subtype by code or name
+        const subtypeRecord = await prisma.activitySubtype.findFirst({
+          where: {
+            OR: [
+              { code: subtype },
+              { name: subtype }
+            ],
+            activityTypeId: activityType.id
+          }
+        });
+        
+        if (subtypeRecord) {
+          where.activitySubtypeId = subtypeRecord.id;
+        }
+      }
     }
     
     if (category) {
