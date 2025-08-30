@@ -1,294 +1,113 @@
 # Kids Activity Tracker
 
-A comprehensive React Native application for discovering and managing kids' activities in North Vancouver. The app provides real-time activity information, personalized recommendations, and seamless registration capabilities.
+> A React Native mobile application for discovering and managing children's activities in North Vancouver, with plans to expand across British Columbia. Features automated web scraping from local recreation centers.
 
-## 🌟 Features
+## 📱 Overview
 
-### Core Functionality
-- **Activity Discovery**: Browse 1000+ kids activities from local recreation centers
-- **Smart Search**: Filter by age, location, price, activity type, and schedule
-- **Personalized Recommendations**: AI-powered suggestions based on your preferences
-- **Real-time Updates**: Live activity status including availability and registration
-- **Favorites Management**: Save and track your favorite activities
-- **Global Filters**: Hide full or closed activities across all searches
+Kids Activity Tracker helps parents find, track, and manage recreational activities for their children by aggregating data from North Vancouver Recreation & Culture (NVRC) and other local providers.
 
-### User Experience
-- **Kid-Friendly Images**: All activities feature appropriate, engaging visuals
-- **Dark Mode Support**: System-aware theme switching
-- **Offline Capability**: Browse previously loaded activities without internet
-- **Fast Performance**: API-level filtering for optimal speed
+### Key Features
+- 🔍 Browse 2,900+ activities by category, age, location, and date
+- 👶 Manage multiple child profiles with age-appropriate filtering  
+- 💰 Filter by cost and registration status
+- 📍 Location-based search with map integration
+- 🔄 Daily automated data updates via web scraping
+- 📊 Activity recommendations based on child interests
 
-## 🛠️ Tech Stack
-
-### Mobile App (React Native)
-- **Framework**: React Native 0.76.6
-- **State Management**: Redux Toolkit with Redux Persist
-- **Navigation**: React Navigation v6
-- **UI Components**: React Native Paper, Vector Icons
-- **Storage**: AsyncStorage, MMKV for preferences
-- **Networking**: Axios with retry logic
-- **Maps**: React Native Maps
-
-### Backend (Node.js)
-- **Runtime**: Node.js 18+
-- **Framework**: Express.js
+### Technology Stack
+- **Frontend**: React Native (TypeScript) - iOS & Android
+- **Backend**: Node.js + Express + TypeScript  
 - **Database**: PostgreSQL with Prisma ORM
-- **Caching**: Redis
-- **Authentication**: JWT
-- **Scraping**: Puppeteer
-- **Deployment**: Google Cloud Run
-- **UI Components**: Custom components with React Native Vector Icons
-- **Styling**: StyleSheet with theme support
-- **Storage**: MMKV for secure storage, AsyncStorage for preferences
-- **Networking**: Axios with retry logic and offline detection
+- **Cloud**: Google Cloud Platform (Cloud Run, Cloud SQL, Cloud Scheduler)
+- **Scraping**: Puppeteer for automated data collection
 
-### Backend (Node.js)
-- **Runtime**: Node.js with Express.js
-- **Database**: PostgreSQL with Prisma ORM
-- **Caching**: Redis for performance optimization
-- **Authentication**: JWT with access/refresh token pattern
-- **API**: RESTful API with pagination support
-- **Deployment**: Google Cloud Run with Cloud SQL
+## 🚀 Quick Start
 
-## Project Structure
+```bash
+# Clone repository
+git clone https://github.com/yourusername/KidsActivityTracker.git
+cd KidsActivityTracker
+
+# Install dependencies
+npm install
+cd backend && npm install
+cd ../ios && pod install
+
+# Set up environment
+cp .env.example .env
+cp backend/.env.example backend/.env
+
+# Start backend
+cd backend && npm run dev
+
+# Start React Native
+npm start
+npm run ios  # or npm run android
+```
+
+## 📚 Documentation
+
+### Core Documentation
+All project documentation is consolidated in the `/docs` directory:
+
+- **[📖 Development Guide](./docs/DEVELOPMENT_GUIDE.md)** - Complete setup and development workflow
+- **[🏗️ Architecture](./docs/ARCHITECTURE.md)** - System design and technical architecture  
+- **[🚀 Deployment](./docs/DEPLOYMENT.md)** - Production deployment and cloud setup
+- **[📡 API Documentation](./docs/API_DOCUMENTATION.md)** - Backend endpoints and data models
+- **[🕷️ Scraper Documentation](./docs/SCRAPER_DOCUMENTATION.md)** - Web scraping system details
+- **[🔧 Maintenance Guide](./docs/MAINTENANCE.md)** - Monitoring and troubleshooting
+
+## 🌐 Production Information
+
+### Live Services
+- **API**: https://kids-activity-api-205843686007.us-central1.run.app
+- **Project**: kids-activity-tracker-2024
+- **Region**: us-central1
+
+### Key Statistics  
+- **Activities Tracked**: 2,900+ (North Vancouver)
+- **Update Frequency**: Daily at 6 AM UTC
+- **Providers**: North Vancouver Recreation & Culture
+- **Expansion**: Planning BC-wide coverage
+
+## 🛠️ CLI Commands
+
+```bash
+# Backend operations
+node backend/cli.js scrape        # Run NVRC scraper
+node backend/cli.js migrate       # Run database migrations  
+node backend/cli.js fix-costs     # Fix activity costs
+node backend/cli.js backup-db     # Backup database
+
+# Development
+npm test                          # Run tests
+npm run lint                      # Run linter
+npm run typecheck                 # Type checking
+```
+
+## 📁 Project Structure
 
 ```
 KidsActivityTracker/
-├── src/                    # React Native app source
-│   ├── components/         # Reusable UI components
-│   ├── screens/           # App screens
-│   ├── services/          # API and business logic
-│   ├── store/             # Redux store configuration
-│   ├── navigation/        # Navigation configuration
-│   ├── types/             # TypeScript type definitions
-│   ├── hooks/             # Custom React hooks
-│   └── contexts/          # React contexts (Theme, etc.)
-├── backend/               # Node.js backend
-│   ├── src/              # Backend source code
-│   │   ├── routes/       # API route handlers
-│   │   ├── services/     # Business logic
-│   │   ├── middleware/   # Express middleware
-│   │   └── utils/        # Utility functions
-│   ├── prisma/           # Database schema and migrations
-│   └── monitoring/       # Monitoring dashboard
+├── src/                    # React Native app
+│   ├── components/        # UI components
+│   ├── screens/          # App screens
+│   └── services/         # API services
+├── backend/
+│   ├── prisma/           # Database schema
+│   ├── scrapers/         # Web scrapers
+│   └── api/              # API routes
 ├── ios/                  # iOS native code
 ├── android/              # Android native code
-└── docs/                 # Documentation
-
+└── docs/                 # Consolidated documentation
 ```
 
-## Getting Started
+## 📄 License
 
-### Prerequisites
+MIT License - See LICENSE file for details
 
-- Node.js 18+ and npm
-- React Native development environment ([setup guide](https://reactnative.dev/docs/environment-setup))
-- Xcode 15+ (for iOS development)
-- Android Studio (for Android development)
-- PostgreSQL 14+ (for local backend development)
-- Redis (optional, for caching)
+---
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/KidsActivityTracker.git
-   cd KidsActivityTracker
-   ```
-
-2. **Install dependencies**
-   ```bash
-   # Install mobile app dependencies
-   npm install
-   
-   # Install iOS dependencies
-   cd ios && pod install && cd ..
-   
-   # Install backend dependencies
-   cd backend && npm install && cd ..
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   # Copy example environment files
-   cp backend/.env.example backend/.env
-   
-   # Edit backend/.env with your configuration
-   ```
-
-4. **Set up the database**
-   ```bash
-   cd backend
-   
-   # Run database migrations
-   npm run db:migrate
-   
-   # Seed with sample data (optional)
-   npm run db:seed
-   ```
-
-### Running the App
-
-1. **Start the backend server**
-   ```bash
-   cd backend
-   npm run dev
-   ```
-
-2. **Start Metro bundler**
-   ```bash
-   # In the project root
-   npm start
-   ```
-
-3. **Run the app**
-   ```bash
-   # iOS
-   npm run ios
-   
-   # Android
-   npm run android
-   ```
-
-## API Documentation
-
-The backend provides a RESTful API with the following main endpoints:
-
-### Authentication
-- `POST /api/auth/register` - Create new account
-- `POST /api/auth/login` - Login with email/password
-- `POST /api/auth/refresh` - Refresh access token
-- `POST /api/auth/logout` - Logout and invalidate tokens
-
-### Activities
-- `GET /api/v1/activities` - Search activities with filters
-- `GET /api/v1/activities/:id` - Get activity details
-- `GET /api/v1/activities/stats/summary` - Get activity statistics
-
-### User Features
-- `GET /api/favorites` - Get user's favorite activities
-- `POST /api/favorites` - Add activity to favorites
-- `DELETE /api/favorites/:activityId` - Remove from favorites
-- `GET /api/preferences` - Get user preferences
-- `PUT /api/preferences` - Update preferences
-
-### Reference Data
-- `GET /api/v1/categories` - Get all activity categories
-- `GET /api/v1/locations` - Get all locations
-- `GET /api/v1/providers` - Get all activity providers
-
-For detailed API documentation, see [BACKEND_API_SPEC.md](./BACKEND_API_SPEC.md).
-
-## Development
-
-### Code Style
-- TypeScript for type safety
-- ESLint and Prettier for code formatting
-- Conventional commits for version control
-
-### Testing
-```bash
-# Run mobile app tests
-npm test
-
-# Run backend tests
-cd backend && npm test
-```
-
-### Building for Production
-
-**iOS**
-```bash
-# Build iOS app
-cd ios
-xcodebuild -workspace KidsActivityTracker.xcworkspace \
-  -scheme KidsActivityTracker \
-  -configuration Release \
-  -archivePath ./build/KidsActivityTracker.xcarchive \
-  archive
-```
-
-**Android**
-```bash
-# Build Android APK
-cd android
-./gradlew assembleRelease
-```
-
-**Backend**
-```bash
-cd backend
-npm run build
-npm run gcp:deploy  # Deploy to Google Cloud
-```
-
-## Deployment
-
-The app is deployed using:
-- **Backend**: Google Cloud Run with Cloud SQL (PostgreSQL)
-- **iOS**: Apple App Store (coming soon)
-- **Android**: Google Play Store (coming soon)
-
-See [CLOUD_DEPLOYMENT.md](./CLOUD_DEPLOYMENT.md) for detailed deployment instructions.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Metro bundler issues**
-   ```bash
-   # Clear cache
-   npx react-native start --reset-cache
-   ```
-
-2. **iOS build failures**
-   ```bash
-   cd ios
-   pod deintegrate
-   pod install
-   ```
-
-3. **Android build issues**
-   ```bash
-   cd android
-   ./gradlew clean
-   ```
-
-For more troubleshooting tips, see [DEBUG_API.md](./DEBUG_API.md).
-
-## Recent Updates
-
-### Version 1.0.0 (2025-08-09)
-
-**Major Fixes:**
-- ✅ Fixed onboarding navigation issue where "Let's Go!" button wasn't working
-- ✅ Implemented event-based navigation for smooth onboarding completion
-- ✅ Fixed all API parameter naming (snake_case to camelCase)
-- ✅ Activities now load successfully with proper pagination
-- ✅ Added network status indicators (online/offline)
-- ✅ Fixed authentication token storage and expiry handling
-- ✅ Created missing backend endpoints (categories, locations, providers)
-- ✅ Improved error handling throughout the app
-
-**Known Issues:**
-- Push notifications not yet implemented
-- Social features planned for v1.1
-- Advanced filtering options in development
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- North Vancouver Recreation & Culture for activity data
-- React Native community for excellent tools and libraries
-- Google Cloud Platform for hosting infrastructure
+**Version**: 1.0.0  
+**Last Updated**: August 2024  
+**Maintained By**: Mike & Team

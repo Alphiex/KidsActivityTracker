@@ -1,0 +1,411 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id                     String                 @id
+  providerId             String
+  externalId             String
+  name                   String
+  category               String
+  subcategory            String?
+  activityTypeId         String?
+  activitySubtypeId      String?
+  description            String?
+  schedule               String?
+  dates                  String?
+  dateStart              DateTime?
+  dateEnd                DateTime?
+  registrationDate       DateTime?
+  registrationEndDate    DateTime?
+  registrationEndTime    String?
+  ageMin                 Int?
+  ageMax                 Int?
+  cost                   Float                  @default(0)
+  costIncludesTax        Boolean                @default(true)
+  taxAmount              Float?
+  spotsAvailable         Int?
+  totalSpots             Int?
+  locationId             String?
+  locationName           String?
+  registrationUrl        String?
+  courseId               String?
+  isActive               Boolean                @default(true)
+  lastSeenAt             DateTime               @default(now())
+  rawData                Json?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime
+  dayOfWeek              String[]
+  startTime              String?
+  endTime                String?
+  registrationStatus     String?                @default("Unknown")
+  registrationButtonText String?
+  detailUrl              String?
+  fullDescription        String?
+  instructor             String?
+  prerequisites          String?
+  whatToBring            String?
+  fullAddress            String?
+  latitude               Float?
+  longitude              Float?
+  directRegistrationUrl  String?
+  contactInfo            String?
+  courseDetails          String?
+  hasMultipleSessions    Boolean                @default(false)
+  sessionCount           Int                    @default(0)
+  hasPrerequisites       Boolean                @default(false)
+  activitySubtype ActivitySubtype?       @relation(fields: [activitySubtypeId], references: [id])
+  activityType ActivityType?          @relation(fields: [activityTypeId], references: [id])
+  location Location?              @relation(fields: [locationId], references: [id])
+  provider Provider               @relation(fields: [providerId], references: [id])
+  prerequisitesList ActivityPrerequisite[]
+  sessions ActivitySession[]
+  childActivities ChildActivity[]
+  favorites Favorite[]
+
+  @@unique([providerId, externalId])
+  @@index([activitySubtypeId])
+  @@index([activityTypeId, activitySubtypeId])
+  @@index([activityTypeId])
+  @@index([category])
+  @@index([isActive, category])
+  @@index([isActive, dateStart])
+  @@index([isActive, lastSeenAt])
+  @@index([latitude, longitude])
+  @@index([locationId])
+  @@index([providerId])
+  @@index([registrationStatus])
+}
+
+model ActivityHistory {
+  id            String   @id
+  activityId    String
+  changeType    String
+  previousData  Json?
+  newData       Json?
+  changedFields String[]
+  createdAt     DateTime @default(now())
+
+  @@index([activityId, createdAt])
+}
+
+model ActivityPrerequisite {
+  id          String   @id
+  activityId  String
+  name        String
+  description String?
+  url         String?
+  courseId    String?
+  isRequired  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+}
+
+model ActivitySession {
+  id            String   @id
+  activityId    String
+  sessionNumber Int?
+  date          String?
+  dayOfWeek     String?
+  startTime     String?
+  endTime       String?
+  location      String?
+  subLocation   String?
+  instructor    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+  @@index([date])
+}
+
+model ActivityShare {
+  id                                        String                 @id
+  sharingUserId                             String
+  sharedWithUserId                          String
+  permissionLevel                           String
+  expiresAt                                 DateTime?
+  isActive                                  Boolean                @default(true)
+  createdAt                                 DateTime               @default(now())
+  updatedAt                                 DateTime
+  sharedWithUser User                   @relation("SharedWithUser", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
+  sharingUser    User                   @relation("SharingUser", fields: [sharingUserId], references: [id], onDelete: Cascade)
+  profiles ActivityShareProfile[]
+
+  @@unique([sharingUserId, sharedWithUserId])
+  @@index([sharedWithUserId])
+  @@index([sharingUserId])
+}
+
+model ActivityShareProfile {
+  id                String        @id
+  activityShareId   String
+  childId           String
+  canViewInterested Boolean       @default(true)
+  canViewRegistered Boolean       @default(true)
+  canViewCompleted  Boolean       @default(false)
+  canViewNotes      Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  activityShare ActivityShare @relation(fields: [activityShareId], references: [id], onDelete: Cascade)
+  child Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([activityShareId, childId])
+}
+
+model ActivitySubtype {
+  id             String       @id
+  activityTypeId String
+  code           String
+  name           String
+  description    String?
+  imageUrl       String?
+  displayOrder   Int          @default(999)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+  activities Activity[]
+  activityType   ActivityType @relation(fields: [activityTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([activityTypeId, code])
+  @@index([activityTypeId])
+}
+
+model ActivityType {
+  id              String            @id
+  code            String            @unique
+  name            String
+  description     String?
+  iconName        String?
+  imageUrl        String?
+  displayOrder    Int
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  activities Activity[]
+  subtypes ActivitySubtype[]
+
+  @@index([code])
+}
+
+model Child {
+  id                   String                 @id
+  userId               String
+  name                 String
+  dateOfBirth          DateTime
+  gender               String?
+  avatarUrl            String?
+  interests            String[]
+  notes                String?
+  isActive             Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  profiles ActivityShareProfile[]
+  user User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  childActivities ChildActivity[]
+
+  @@index([userId])
+}
+
+model ChildActivity {
+  id           String    @id
+  childId      String
+  activityId   String
+  status       String
+  registeredAt DateTime?
+  completedAt  DateTime?
+  notes        String?
+  rating       Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  activity Activity  @relation(fields: [activityId], references: [id])
+  child Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, activityId])
+  @@index([activityId])
+  @@index([childId, status])
+}
+
+model Favorite {
+  id             String   @id
+  userId         String
+  activityId     String
+  notifyOnChange Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  activity Activity @relation(fields: [activityId], references: [id])
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, activityId])
+  @@index([activityId])
+  @@index([userId])
+}
+
+model Invitation {
+  id                                    String    @id
+  senderId                              String
+  recipientEmail                        String
+  recipientUserId                       String?
+  status                                String
+  message                               String?
+  token                                 String    @unique
+  expiresAt                             DateTime
+  acceptedAt                            DateTime?
+  createdAt                             DateTime  @default(now())
+  recipient User?     @relation("InvitationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  sender    User      @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([recipientEmail])
+  @@index([senderId])
+  @@index([status, expiresAt])
+  @@index([token])
+}
+
+model Location {
+  id         String     @id
+  name       String
+  address    String     @default("")
+  city       String
+  province   String
+  postalCode String?
+  country    String     @default("Canada")
+  latitude   Float?
+  longitude  Float?
+  facility   String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime
+  activities Activity[]
+
+  @@index([city])
+  @@index([name, city])
+  @@index([name])
+}
+
+model Provider {
+  id                 String               @id
+  name               String               @unique
+  website            String
+  platform           String?
+  region             String?
+  contactInfo        Json?
+  scraperConfig      Json
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  activities Activity[]
+  ProviderMetrics    ProviderMetrics[]
+  ScrapeJob          ScrapeJob[]
+  ScraperHealthCheck ScraperHealthCheck[]
+
+  @@index([isActive])
+  @@index([platform])
+  @@index([region])
+}
+
+model ProviderMetrics {
+  id                  String   @id
+  providerId          String
+  scrapeDate          DateTime @db.Date
+  activitiesFound     Int      @default(0)
+  activitiesProcessed Int      @default(0)
+  dataQualityScore    Float?
+  errors              Json?
+  scrapeDuration      Int?
+  memoryUsed          BigInt?
+  createdAt           DateTime @default(now())
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([providerId, scrapeDate])
+  @@index([scrapeDate])
+}
+
+model ScrapeJob {
+  id                String    @id
+  providerId        String
+  status            JobStatus @default(PENDING)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  activitiesFound   Int       @default(0)
+  activitiesCreated Int       @default(0)
+  activitiesUpdated Int       @default(0)
+  activitiesRemoved Int       @default(0)
+  errorMessage      String?
+  errorDetails      Json?
+  createdAt         DateTime  @default(now())
+  provider Provider  @relation(fields: [providerId], references: [id])
+
+  @@index([createdAt])
+  @@index([providerId])
+  @@index([status])
+}
+
+model ScraperHealthCheck {
+  id         String    @id
+  providerId String
+  status     String
+  message    String?
+  details    Json?
+  checkedAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  provider Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([checkedAt])
+  @@index([providerId])
+  @@index([status])
+}
+
+model ScraperRun {
+  id                    String    @id
+  providerId            String
+  status                String
+  startedAt             DateTime  @default(now())
+  completedAt           DateTime?
+  activitiesFound       Int       @default(0)
+  activitiesCreated     Int       @default(0)
+  activitiesUpdated     Int       @default(0)
+  activitiesDeactivated Int       @default(0)
+  activitiesPurged      Int       @default(0)
+  errorMessage          String?
+  logs                  Json?
+
+  @@index([providerId, startedAt])
+}
+
+model User {
+  id                                                 String          @id
+  email                                              String          @unique
+  passwordHash                                       String
+  name                                               String
+  phoneNumber                                        String?
+  isVerified                                         Boolean         @default(false)
+  verificationToken                                  String?
+  resetToken                                         String?
+  resetTokenExpiry                                   DateTime?
+  preferences                                        Json            @default("{}")
+  createdAt                                          DateTime        @default(now())
+  updatedAt                                          DateTime
+  sharedWithMe ActivityShare[] @relation("SharedWithUser")
+  myShares     ActivityShare[] @relation("SharingUser")
+  children Child[]
+  favorites Favorite[]
+  receivedInvitations Invitation[]    @relation("InvitationRecipient")
+  sentInvitations     Invitation[]    @relation("InvitationSender")
+
+  @@index([email])
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

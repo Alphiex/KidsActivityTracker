@@ -86,6 +86,15 @@ class NVRCEnhancedParallelScraper {
       
       console.log(`📍 Provider: ${provider.name} (${provider.id})`);
       
+      // Mark all existing activities for this provider as inactive
+      // They will be reactivated as we process them
+      console.log('🔄 Marking existing activities as inactive...');
+      const updateResult = await this.prisma.activity.updateMany({
+        where: { providerId: provider.id },
+        data: { isActive: false }
+      });
+      console.log(`✅ Marked ${updateResult.count} activities as inactive`);
+      
       // Create scrape job (skip in production if table doesn't exist)
       try {
         scrapeJob = await this.prisma.scrapeJob.create({
@@ -835,9 +844,10 @@ class NVRCEnhancedParallelScraper {
           }
         }
         
-        // Generate external ID
-        const externalId = activity.registrationUrl?.match(/courseId=([^&]+)/)?.[1] || 
+        // Generate external ID - use courseId from the site as the unique identifier
+        const externalId = activity.courseId || 
                           activity.code ||
+                          activity.registrationUrl?.match(/courseId=([^&]+)/)?.[1] || 
                           `${activity.name}_${activity.dates}_${activity.time}`.replace(/\\s+/g, '_');
         
         // Parse registration end date if provided

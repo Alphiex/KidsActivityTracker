@@ -1,1 +1,0 @@
-The theme must be passed as a query argument
