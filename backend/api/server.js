@@ -4,11 +4,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const activityService = require('../database/services/activityService');
-const userService = require('../database/services/userService');
-const providerService = require('../database/services/providerService');
-const scrapeJobService = require('../database/services/scrapeJobService');
-const scraperJobService = require('../services/scraperJobService');
+const activityService = require('../src/services/activityService');
+const userService = require('../src/services/userService');
+const providerService = require('../src/services/providerService');
+// const scraperJobService = require('../src/services/scraperJobService'); // Not needed for API
 const { router: authRoutes, verifyToken } = require('./routes/auth');
 const activityTypesRoutes = require('./routes/activityTypes');
 const categoriesRoutes = require('./routes/categories');
@@ -539,7 +538,8 @@ app.get('/api/v1/scraper/jobs', async (req, res) => {
     const providerId = req.query.provider_id;
     const limit = req.query.limit ? parseInt(req.query.limit) : 50;
     
-    const jobs = await scrapeJobService.getJobHistory(providerId, limit);
+    // const jobs = await scrapeJobService.getJobHistory(providerId, limit);
+    const jobs = []; // scrapeJobService not available in API-only mode
     
     res.json({
       success: true,
@@ -558,13 +558,14 @@ app.get('/api/v1/scraper/jobs', async (req, res) => {
 app.get('/api/v1/scraper/stats', async (req, res) => {
   try {
     const days = req.query.days ? parseInt(req.query.days) : 7;
-    const jobStats = await scrapeJobService.getJobStatistics(days);
-    const queueStats = await scraperJobService.getQueueStats();
+    // const jobStats = await scrapeJobService.getJobStatistics(days);
+    const jobStats = null; // scrapeJobService not available in API-only mode
+    // const queueStats = await scraperJobService.getQueueStats();
     
     res.json({
       success: true,
       jobStats,
-      queueStats
+      queueStats: null // scraperJobService not available in API-only mode
     });
   } catch (error) {
     console.error('Error fetching scraper stats:', error);
@@ -577,29 +578,11 @@ app.get('/api/v1/scraper/stats', async (req, res) => {
 
 // Trigger manual scrape
 app.post('/api/v1/scraper/trigger', async (req, res) => {
-  try {
-    const { providerId } = req.body;
-    
-    if (!providerId) {
-      return res.status(400).json({
-        success: false,
-        error: 'providerId is required'
-      });
-    }
-
-    const result = await scraperJobService.triggerScrape(providerId);
-    
-    res.json({
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    console.error('Error triggering scrape:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+  // Scraper not available in API-only mode
+  res.status(503).json({
+    success: false,
+    error: 'Scraper service not available in API-only mode'
+  });
 });
 
 // ============= Admin Dashboard Stats =============
@@ -609,12 +592,13 @@ app.get('/api/v1/stats/dashboard', async (req, res) => {
     const [
       activityStats,
       jobStats,
-      queueStats,
+      // queueStats,
       providers
     ] = await Promise.all([
       activityService.getStatistics(),
-      scrapeJobService.getJobStatistics(7),
-      scraperJobService.getQueueStats(),
+      // scrapeJobService.getJobStatistics(7),
+      Promise.resolve(null), // scrapeJobService not available in API-only mode
+      // scraperJobService.getQueueStats(), // Not available in API-only mode
       providerService.getAllProviders()
     ]);
 
@@ -623,7 +607,7 @@ app.get('/api/v1/stats/dashboard', async (req, res) => {
       dashboard: {
         activities: activityStats,
         jobs: jobStats,
-        queue: queueStats,
+        queue: null, // scraperJobService not available in API-only mode
         providers: providers.map(p => ({
           id: p.id,
           name: p.name,
@@ -644,12 +628,8 @@ app.get('/api/v1/stats/dashboard', async (req, res) => {
 // Start server
 async function startServer() {
   try {
-    // Initialize scraper job service only if not disabled
-    if (process.env.DISABLE_SCRAPING !== 'true') {
-      await scraperJobService.initialize();
-    } else {
-      console.log('⏭️  Scraping disabled by environment variable');
-    }
+    // Scraper job service not available in API-only mode
+    console.log('⏭️  Running in API-only mode (no scraper service)');
 
     // Start Express server
     const server = app.listen(PORT, '0.0.0.0', () => {
@@ -674,7 +654,7 @@ async function startServer() {
     // Graceful shutdown
     process.on('SIGTERM', async () => {
       console.log('SIGTERM received, shutting down gracefully...');
-      await scraperJobService.shutdown();
+      // scraperJobService.shutdown() not needed in API-only mode
       server.close(() => {
         console.log('Server closed');
         process.exit(0);

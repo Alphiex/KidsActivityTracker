@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('../../generated/prisma');
 const prisma = new PrismaClient();
-const imageService = require('../../services/imageService');
+const imageService = require('../../src/services/imageService');
 
 /**
  * GET /api/v1/activity-types
@@ -26,13 +26,22 @@ router.get('/', async (req, res) => {
       }
     });
     
-    // Get activity counts for each type by counting activities with that activityTypeId
+    // Get activity counts for each type
+    // We need to handle potential ID mismatches by also checking for activities
+    // linked to any ActivityType with the same code
     const typeCounts = [];
     for (const type of activityTypes) {
+      // Find all ActivityType records with the same code (handles duplicates)
+      const allTypeIds = await prisma.activityType.findMany({
+        where: { code: type.code },
+        select: { id: true }
+      });
+      const typeIds = allTypeIds.map(t => t.id);
+      
       const count = await prisma.activity.count({
         where: {
           isActive: true,
-          activityTypeId: type.id
+          activityTypeId: { in: typeIds }
         }
       });
       typeCounts.push({
@@ -44,12 +53,29 @@ router.get('/', async (req, res) => {
     // Get activity counts for each subtype
     const subtypeCounts = [];
     for (const type of activityTypes) {
+      // Get all type IDs with the same code
+      const allTypeIds = await prisma.activityType.findMany({
+        where: { code: type.code },
+        select: { id: true }
+      });
+      const typeIds = allTypeIds.map(t => t.id);
+      
       for (const subtype of type.subtypes) {
+        // Find all subtypes with the same code across all matching type IDs
+        const allSubtypeIds = await prisma.activitySubtype.findMany({
+          where: { 
+            code: subtype.code,
+            activityTypeId: { in: typeIds }
+          },
+          select: { id: true }
+        });
+        const subtypeIds = allSubtypeIds.map(s => s.id);
+        
         const count = await prisma.activity.count({
           where: {
             isActive: true,
-            activityTypeId: type.id,
-            activitySubtypeId: subtype.id
+            activityTypeId: { in: typeIds },
+            activitySubtypeId: { in: subtypeIds }
           }
         });
         if (count > 0) {
@@ -65,10 +91,12 @@ router.get('/', async (req, res) => {
       const noSubtypeCount = await prisma.activity.count({
         where: {
           isActive: true,
-          activityTypeId: type.id,
+          activityTypeId: { in: typeIds },
           activitySubtypeId: null
         }
       });
+      
+      console.log(`Type ${type.name}: Found ${noSubtypeCount} activities without subtype`);
       
       if (noSubtypeCount > 0) {
         subtypeCounts.push({

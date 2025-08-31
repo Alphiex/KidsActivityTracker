@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
@@ -21,6 +21,13 @@ const SettingsScreen = () => {
   const preferencesService = PreferencesService.getInstance();
   const [preferences, setPreferences] = useState(preferencesService.getPreferences());
   const { colors, mode, setMode, isDark } = useTheme();
+  
+  // Refresh preferences when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setPreferences(preferencesService.getPreferences());
+    }, [])
+  );
 
   const settingsSections = [
     {
@@ -47,7 +54,7 @@ const SettingsScreen = () => {
         },
         {
           title: 'Budget',
-          subtitle: `$${formatPrice(preferences.priceRange.min)} - $${formatPrice(preferences.priceRange.max)}`,
+          subtitle: `$${preferences.priceRange.min} - $${preferences.priceRange.max}`,
           icon: 'cash',
           onPress: () => navigation.navigate('BudgetPreferences'),
         },

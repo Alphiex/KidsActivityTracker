@@ -12,20 +12,22 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import PreferencesService from '../../services/preferencesService';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const daysOfWeek = [
-  { id: 'monday', name: 'Monday', short: 'Mon' },
-  { id: 'tuesday', name: 'Tuesday', short: 'Tue' },
-  { id: 'wednesday', name: 'Wednesday', short: 'Wed' },
-  { id: 'thursday', name: 'Thursday', short: 'Thu' },
-  { id: 'friday', name: 'Friday', short: 'Fri' },
-  { id: 'saturday', name: 'Saturday', short: 'Sat' },
-  { id: 'sunday', name: 'Sunday', short: 'Sun' },
+const DAYS_OF_WEEK = [
+  'Monday',
+  'Tuesday', 
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
 ];
 
-const timeSlots = [
-  { id: 'morning', name: 'Morning', icon: 'weather-sunset-up', time: '6AM - 12PM' },
-  { id: 'afternoon', name: 'Afternoon', icon: 'weather-sunny', time: '12PM - 5PM' },
-  { id: 'evening', name: 'Evening', icon: 'weather-night', time: '5PM - 9PM' },
+const TIME_SLOTS = [
+  { key: 'earlyMorning', label: 'Early Morning', time: '6:00 AM - 9:00 AM', icon: 'weather-sunset-up' },
+  { key: 'morning', label: 'Morning', time: '9:00 AM - 12:00 PM', icon: 'weather-sunny' },
+  { key: 'afternoon', label: 'Afternoon', time: '12:00 PM - 3:00 PM', icon: 'weather-partly-cloudy' },
+  { key: 'lateAfternoon', label: 'Late Afternoon', time: '3:00 PM - 6:00 PM', icon: 'weather-sunset-down' },
+  { key: 'evening', label: 'Evening', time: '6:00 PM - 9:00 PM', icon: 'weather-night' },
 ];
 
 const SchedulePreferencesScreen = () => {
@@ -33,36 +35,87 @@ const SchedulePreferencesScreen = () => {
   const { colors } = useTheme();
   const preferencesService = PreferencesService.getInstance();
   const currentPreferences = preferencesService.getPreferences();
-  const [selectedDays, setSelectedDays] = useState<string[]>(currentPreferences.daysOfWeek);
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>(
-    currentPreferences.timeSlots || ['morning', 'afternoon', 'evening']
+  
+  const [selectedDays, setSelectedDays] = useState<string[]>(currentPreferences.daysOfWeek || []);
+  const [selectedTimes, setSelectedTimes] = useState<string[]>(() => {
+    const times: string[] = [];
+    const timePrefs = currentPreferences.timePreferences || {};
+    
+    // Convert old format to new format
+    if (timePrefs.morning) times.push('morning');
+    if (timePrefs.afternoon) {
+      times.push('afternoon');
+      times.push('lateAfternoon');
+    }
+    if (timePrefs.evening) times.push('evening');
+    
+    // If no times selected, default to all
+    if (times.length === 0) {
+      return TIME_SLOTS.map(slot => slot.key);
+    }
+    
+    return times;
+  });
+  
+  const [daySelectionMode, setDaySelectionMode] = useState<'all' | 'specific'>(
+    selectedDays.length === 7 ? 'all' : 'specific'
+  );
+  const [timeSelectionMode, setTimeSelectionMode] = useState<'all' | 'specific'>(
+    selectedTimes.length === TIME_SLOTS.length ? 'all' : 'specific'
   );
 
-  const toggleDay = (dayId: string) => {
+  const toggleDay = (day: string) => {
     setSelectedDays(prev => {
-      if (prev.includes(dayId)) {
-        return prev.filter(id => id !== dayId);
+      if (prev.includes(day)) {
+        return prev.filter(d => d !== day);
       } else {
-        return [...prev, dayId];
+        return [...prev, day];
       }
     });
   };
 
-  const toggleTimeSlot = (slotId: string) => {
-    setSelectedTimeSlots(prev => {
-      if (prev.includes(slotId)) {
-        return prev.filter(id => id !== slotId);
+  const toggleTime = (timeKey: string) => {
+    setSelectedTimes(prev => {
+      if (prev.includes(timeKey)) {
+        return prev.filter(t => t !== timeKey);
       } else {
-        return [...prev, slotId];
+        return [...prev, timeKey];
       }
     });
+  };
+
+  const selectWeekdays = () => {
+    setSelectedDays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+    setDaySelectionMode('specific');
+  };
+
+  const selectWeekends = () => {
+    setSelectedDays(['Saturday', 'Sunday']);
+    setDaySelectionMode('specific');
+  };
+
+  const selectAllDays = () => {
+    setSelectedDays(DAYS_OF_WEEK);
+    setDaySelectionMode('all');
+  };
+
+  const selectAllTimes = () => {
+    setSelectedTimes(TIME_SLOTS.map(slot => slot.key));
+    setTimeSelectionMode('all');
   };
 
   const handleSave = () => {
+    // Convert new time format to old format for compatibility
+    const timePreferences = {
+      morning: selectedTimes.includes('earlyMorning') || selectedTimes.includes('morning'),
+      afternoon: selectedTimes.includes('afternoon') || selectedTimes.includes('lateAfternoon'),
+      evening: selectedTimes.includes('evening'),
+    };
+
     preferencesService.updatePreferences({
       ...currentPreferences,
       daysOfWeek: selectedDays,
-      timeSlots: selectedTimeSlots,
+      timePreferences,
     });
     navigation.goBack();
   };
@@ -82,118 +135,182 @@ const SchedulePreferencesScreen = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.description, { color: colors.textSecondary }]}>
-          Select your preferred days and times for activities. We'll show you activities 
-          that match your schedule.
-        </Text>
-
-        <View style={styles.section}>
+        {/* Days Section */}
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Preferred Days
           </Text>
-          <View style={styles.daysGrid}>
-            {daysOfWeek.map(day => {
-              const isSelected = selectedDays.includes(day.id);
-              return (
+          
+          <View style={styles.modeSelector}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                daySelectionMode === 'all' && { backgroundColor: colors.primary + '20' }
+              ]}
+              onPress={selectAllDays}
+            >
+              <Text style={[
+                styles.modeButtonText,
+                { color: daySelectionMode === 'all' ? colors.primary : colors.text }
+              ]}>
+                Any Day
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                daySelectionMode === 'specific' && { backgroundColor: colors.primary + '20' }
+              ]}
+              onPress={() => setDaySelectionMode('specific')}
+            >
+              <Text style={[
+                styles.modeButtonText,
+                { color: daySelectionMode === 'specific' ? colors.primary : colors.text }
+              ]}>
+                Specific Days
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {daySelectionMode === 'specific' && (
+            <>
+              <View style={styles.quickButtons}>
                 <TouchableOpacity
-                  key={day.id}
-                  style={[
-                    styles.dayButton,
-                    {
-                      backgroundColor: isSelected ? colors.primary : colors.surface,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                    }
-                  ]}
-                  onPress={() => toggleDay(day.id)}
+                  style={[styles.quickButton, { borderColor: colors.primary }]}
+                  onPress={selectWeekdays}
                 >
-                  <Text
-                    style={[
-                      styles.dayButtonText,
-                      { color: isSelected ? '#FFFFFF' : colors.text }
-                    ]}
-                  >
-                    {day.short}
+                  <Text style={[styles.quickButtonText, { color: colors.primary }]}>
+                    Weekdays
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+                <TouchableOpacity
+                  style={[styles.quickButton, { borderColor: colors.primary }]}
+                  onPress={selectWeekends}
+                >
+                  <Text style={[styles.quickButtonText, { color: colors.primary }]}>
+                    Weekends
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.daysGrid}>
+                {DAYS_OF_WEEK.map(day => {
+                  const isSelected = selectedDays.includes(day);
+                  return (
+                    <TouchableOpacity
+                      key={day}
+                      style={[
+                        styles.dayButton,
+                        {
+                          backgroundColor: isSelected ? colors.primary : colors.background,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        }
+                      ]}
+                      onPress={() => toggleDay(day)}
+                    >
+                      <Text style={[
+                        styles.dayButtonText,
+                        { color: isSelected ? '#FFF' : colors.text }
+                      ]}>
+                        {day.substring(0, 3)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
 
-        <View style={styles.section}>
+        {/* Times Section */}
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Preferred Times
           </Text>
-          {timeSlots.map(slot => {
-            const isSelected = selectedTimeSlots.includes(slot.id);
-            return (
-              <TouchableOpacity
-                key={slot.id}
-                style={[
-                  styles.timeSlotItem,
-                  {
-                    backgroundColor: isSelected ? colors.primary + '10' : colors.surface,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  }
-                ]}
-                onPress={() => toggleTimeSlot(slot.id)}
-              >
-                <View style={styles.timeSlotContent}>
-                  <Icon
-                    name={slot.icon}
-                    size={24}
-                    color={isSelected ? colors.primary : colors.text}
-                  />
-                  <View style={styles.timeSlotText}>
-                    <Text
-                      style={[
-                        styles.timeSlotName,
-                        { color: isSelected ? colors.primary : colors.text }
-                      ]}
-                    >
-                      {slot.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.timeSlotTime,
-                        { color: colors.textSecondary }
-                      ]}
-                    >
-                      {slot.time}
-                    </Text>
-                  </View>
-                </View>
-                <Icon
-                  name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                  size={24}
-                  color={isSelected ? colors.primary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            );
-          })}
+          
+          <View style={styles.modeSelector}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                timeSelectionMode === 'all' && { backgroundColor: colors.primary + '20' }
+              ]}
+              onPress={selectAllTimes}
+            >
+              <Text style={[
+                styles.modeButtonText,
+                { color: timeSelectionMode === 'all' ? colors.primary : colors.text }
+              ]}>
+                All Times
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                timeSelectionMode === 'specific' && { backgroundColor: colors.primary + '20' }
+              ]}
+              onPress={() => setTimeSelectionMode('specific')}
+            >
+              <Text style={[
+                styles.modeButtonText,
+                { color: timeSelectionMode === 'specific' ? colors.primary : colors.text }
+              ]}>
+                Specific Times
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {timeSelectionMode === 'specific' && (
+            <View style={styles.timeSlots}>
+              {TIME_SLOTS.map(slot => {
+                const isSelected = selectedTimes.includes(slot.key);
+                return (
+                  <TouchableOpacity
+                    key={slot.key}
+                    style={[
+                      styles.timeSlot,
+                      {
+                        backgroundColor: isSelected ? colors.primary + '10' : colors.background,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      }
+                    ]}
+                    onPress={() => toggleTime(slot.key)}
+                  >
+                    <View style={styles.timeSlotContent}>
+                      <Icon
+                        name={slot.icon}
+                        size={24}
+                        color={isSelected ? colors.primary : colors.text}
+                      />
+                      <View style={styles.timeSlotInfo}>
+                        <Text style={[
+                          styles.timeSlotLabel,
+                          { color: isSelected ? colors.primary : colors.text }
+                        ]}>
+                          {slot.label}
+                        </Text>
+                        <Text style={[styles.timeSlotTime, { color: colors.textSecondary }]}>
+                          {slot.time}
+                        </Text>
+                      </View>
+                    </View>
+                    <Icon
+                      name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                      size={24}
+                      color={isSelected ? colors.primary : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
 
-        <View style={[styles.quickActions, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={() => {
-              setSelectedDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
-            }}
-          >
-            <Text style={[styles.quickActionText, { color: colors.primary }]}>
-              Select Weekdays
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={() => {
-              setSelectedDays(['saturday', 'sunday']);
-            }}
-          >
-            <Text style={[styles.quickActionText, { color: colors.primary }]}>
-              Select Weekends
-            </Text>
-          </TouchableOpacity>
+        {/* Summary */}
+        <View style={[styles.summary, { backgroundColor: colors.surface }]}>
+          <Icon name="information" size={20} color={colors.primary} />
+          <Text style={[styles.summaryText, { color: colors.textSecondary }]}>
+            Activities matching your schedule preferences will be prioritized in recommendations.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -223,20 +340,47 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 24,
   },
   section: {
-    marginBottom: 32,
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  quickButtons: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 8,
+  },
+  quickButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  quickButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   daysGrid: {
     flexDirection: 'row',
@@ -244,55 +388,56 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dayButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    alignItems: 'center',
+    width: '13%',
+    aspectRatio: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
   },
   dayButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
-  timeSlotItem: {
+  timeSlots: {
+    gap: 8,
+  },
+  timeSlot: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 12,
   },
   timeSlotContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  timeSlotText: {
+  timeSlotInfo: {
     marginLeft: 12,
   },
-  timeSlotName: {
+  timeSlotLabel: {
     fontSize: 16,
     fontWeight: '500',
   },
   timeSlotTime: {
-    fontSize: 14,
+    fontSize: 12,
     marginTop: 2,
   },
-  quickActions: {
+  summary: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    alignItems: 'center',
+    margin: 16,
     padding: 16,
     borderRadius: 12,
-    marginTop: 8,
+    gap: 12,
   },
-  quickActionButton: {
-    padding: 8,
-  },
-  quickActionText: {
+  summaryText: {
+    flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    lineHeight: 20,
   },
 });
 

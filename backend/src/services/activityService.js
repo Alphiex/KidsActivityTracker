@@ -1,5 +1,5 @@
 const prisma = require('../config/database');
-const { standardizeSchedule } = require('../../utils/dayFormatter');
+const { standardizeSchedule } = require('../utils/dayFormatter');
 
 class ActivityService {
   /**

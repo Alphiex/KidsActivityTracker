@@ -79,9 +79,23 @@ router.get('/', async (req, res) => {
         isActive: true
       };
       
-      // For age-based filtering, we'll use the ageMin and ageMax fields if they exist
-      // Note: The Activity model doesn't have ageMin/ageMax fields in the current schema
-      // We'll just count all active activities for now
+      // Filter by age range only if not all-ages
+      if (cat.code !== 'all-ages') {
+        whereClause.AND = [
+          {
+            OR: [
+              { ageMin: null },
+              { ageMin: { lte: cat.ageMax } }
+            ]
+          },
+          {
+            OR: [
+              { ageMax: null },
+              { ageMax: { gte: cat.ageMin } }
+            ]
+          }
+        ];
+      }
       
       const count = await prisma.activity.count({
         where: whereClause
@@ -146,10 +160,27 @@ router.get('/:code/activities', async (req, res) => {
     }
     
     // Build where clause based on category
-    // Note: Since Activity model doesn't have age fields, we'll filter by other criteria
     const where = {
       isActive: true
     };
+    
+    // Filter by age range only if not all-ages
+    if (code !== 'all-ages') {
+      where.AND = [
+        {
+          OR: [
+            { ageMin: null },
+            { ageMin: { lte: category.ageMax } }
+          ]
+        },
+        {
+          OR: [
+            { ageMax: null },
+            { ageMax: { gte: category.ageMin } }
+          ]
+        }
+      ];
+    }
     
     if (activityType) {
       where.activityType = activityType;

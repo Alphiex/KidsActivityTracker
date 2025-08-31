@@ -91,11 +91,14 @@ class PreferencesService {
   }
 
   updatePreferences(updates: Partial<UserPreferences>) {
+    // Deep merge to preserve nested objects
     this.preferences = {
       ...this.preferences!,
       ...updates,
+      updatedAt: new Date().toISOString(),
     };
     this.savePreferences();
+    return this.preferences;
   }
 
   // Location preferences
