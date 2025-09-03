@@ -26,6 +26,7 @@ export interface UserPreferences {
     afternoon: boolean; // 12pm-5pm
     evening: boolean; // 5pm-9pm
   };
+  expandedTimePreferences?: string[]; // ['earlyMorning', 'morning', 'afternoon', 'lateAfternoon', 'evening']
   
   // Category preferences (DEPRECATED - use preferredActivityTypes)
   preferredCategories: string[];

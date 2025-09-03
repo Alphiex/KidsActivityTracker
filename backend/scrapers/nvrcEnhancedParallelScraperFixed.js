@@ -1,9 +1,10 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
+const { ActivityCategoryAssigner } = require('../utils/activityCategoryAssigner');
 const { extractComprehensiveDetails } = require('./nvrcComprehensiveDetailScraper');
 const { parseActivityType, extractAgeRangeFromText } = require('./utils/activityTypeParser');
-const { mapActivityType } = require('../utils/activityTypeMapper');
+const { ComprehensiveActivityCategorizer } = require('../utils/comprehensiveActivityCategorizer');
 
 // Helper functions for location normalization
 function normalizeLocationName(name) {
@@ -80,6 +81,7 @@ function hasSignificantChanges(existing, newData) {
 
 class NVRCEnhancedParallelScraperFixed {
   constructor(options = {}) {
+    this.categoryAssigner = new ActivityCategoryAssigner();
     this.options = {
       headless: true,
       maxConcurrency: options.maxConcurrency || 3,
@@ -87,6 +89,7 @@ class NVRCEnhancedParallelScraperFixed {
     };
     this.activities = [];
     this.prisma = new PrismaClient();
+    this.categorizer = new ComprehensiveActivityCategorizer();
   }
 
   // Helper method to normalize location names for fuzzy matching
@@ -532,44 +535,62 @@ class NVRCEnhancedParallelScraperFixed {
             }
           }
           
-          // Get or create location
+          // Get or create location using normalized schema
           let location = null;
           if (activity.location) {
+            // First, get or create the city
+            const city = await this.prisma.city.upsert({
+              where: {
+                name_province_country: {
+                  name: 'North Vancouver',
+                  province: 'BC', 
+                  country: 'Canada'
+                }
+              },
+              update: {},
+              create: {
+                name: 'North Vancouver',
+                province: 'BC',
+                country: 'Canada'
+              }
+            });
+            
+            // Try to find existing location by name and city
             location = await this.prisma.location.findFirst({
               where: { 
-                name: activity.location 
+                name: activity.location,
+                cityId: city.id
               }
             });
             
             if (!location) {
-              const normalizedName = this.normalizeLocationName(activity.location);
-              location = await this.prisma.location.findFirst({
-                where: {
-                  OR: [
-                    { normalizedName },
-                    { name: { contains: activity.location, mode: 'insensitive' } }
-                  ]
-                }
-              });
-            }
-            
-            if (!location) {
+              // Create full address for Apple Maps
+              const fullAddress = [
+                activity.fullAddress || activity.location,
+                'North Vancouver, BC',
+                activity.postalCode
+              ].filter(Boolean).join(', ');
+              
+              // Create Apple Maps URL
+              const mapUrl = `http://maps.apple.com/?q=${encodeURIComponent(fullAddress)}`;
+              
               location = await this.prisma.location.create({
                 data: {
                   name: activity.location,
-                  normalizedName: this.normalizeLocationName(activity.location),
                   address: activity.fullAddress,
-                  city: 'North Vancouver',
-                  province: 'BC',
-                  country: 'Canada',
+                  cityId: city.id,
                   latitude: activity.latitude,
                   longitude: activity.longitude,
-                  facilityType: this.determineFacilityType(activity.location),
-                  isActive: true
+                  facility: this.determineFacilityType(activity.location),
+                  fullAddress: fullAddress,
+                  mapUrl: mapUrl,
+                  postalCode: activity.postalCode
                 }
               });
-            } else if (!location.address && activity.fullAddress) {
+            } else if (!location.fullAddress || !location.latitude) {
+              // Update existing location with enhanced data
               const updates = {};
+              
               if (!location.address && activity.fullAddress) {
                 updates.address = activity.fullAddress;
               }
@@ -578,6 +599,15 @@ class NVRCEnhancedParallelScraperFixed {
               }
               if (!location.longitude && activity.longitude) {
                 updates.longitude = activity.longitude;
+              }
+              if (!location.fullAddress) {
+                const fullAddress = [
+                  activity.fullAddress || location.address || activity.location,
+                  'North Vancouver, BC',
+                  activity.postalCode || location.postalCode
+                ].filter(Boolean).join(', ');
+                updates.fullAddress = fullAddress;
+                updates.mapUrl = `http://maps.apple.com/?q=${encodeURIComponent(fullAddress)}`;
               }
               
               if (Object.keys(updates).length > 0) {
@@ -633,12 +663,17 @@ class NVRCEnhancedParallelScraperFixed {
           if (ageMin === null || ageMin === undefined) ageMin = 0;
           if (ageMax === null || ageMax === undefined) ageMax = 18;
           
-          // Map activity to proper type and subtype
-          const typeMapping = await mapActivityType({
+          // Use comprehensive categorization algorithm
+          const categorization = await this.categorizer.categorizeActivity({
             name: activity.name || `${parsedType.type} - ${activity.activitySection}`,
+            description: activity.fullDescription || activity.activitySection,
             category: parsedType.category || activity.section,
-            subcategory: parsedType.type
+            subcategory: parsedType.type,
+            ageMin: ageMin,
+            ageMax: ageMax
           });
+          
+          console.log(`  🏷️ Categorized "${activity.name}" as ${categorization.matchedType}/${categorization.matchedSubtype || 'None'} (${categorization.confidence} confidence)`);
           
           // Prepare activity data with all new fields
           const activityData = {
@@ -683,9 +718,9 @@ class NVRCEnhancedParallelScraperFixed {
             whatToBring: activity.whatToBring,
             fullAddress: activity.fullAddress,
             courseDetails: activity.courseDetails,
-            // Add the mapped type and subtype IDs
-            activityTypeId: typeMapping.typeId,
-            activitySubtypeId: typeMapping.subtypeId
+            // Add the categorized type and subtype IDs
+            activityTypeId: categorization.activityTypeId,
+            activitySubtypeId: categorization.activitySubtypeId
           };
           
           // CRITICAL FIX: Check for existing activity by courseId
@@ -728,6 +763,22 @@ class NVRCEnhancedParallelScraperFixed {
               data: activityData
             });
             stats.created++;
+          }
+          
+          // Assign categories based on age range and activity content
+          try {
+            await this.categoryAssigner.processActivity({
+              id: result.id,
+              name: result.name,
+              description: result.fullDescription || result.description,
+              category: result.category,
+              ageMin: result.ageMin,
+              ageMax: result.ageMax
+            });
+            console.log(`  📂 Categories assigned for: ${result.name}`);
+          } catch (categoryError) {
+            console.error(`  ⚠️  Error assigning categories for ${result.name}:`, categoryError.message);
+            // Don't fail the entire scraping process for category assignment errors
           }
           
           processedActivities.push(result);
@@ -821,8 +872,29 @@ class NVRCEnhancedParallelScraperFixed {
       throw error;
     } finally {
       await this.prisma.$disconnect();
+      if (this.categoryAssigner) {
+        await this.categoryAssigner.disconnect();
+      }
     }
   }
 }
 
 module.exports = NVRCEnhancedParallelScraperFixed;
+// Run the scraper if this file is executed directly
+if (require.main === module) {
+  const scraper = new NVRCEnhancedParallelScraper();
+  
+  scraper.scrape()
+    .then(result => {
+      console.log('✅ Scraping completed successfully');
+      console.log(`Total activities: ${result.activities.length}`);
+      console.log(`Created: ${result.stats.created}`);
+      console.log(`Updated: ${result.stats.updated}`);
+      console.log(`Removed: ${result.stats.removed}`);
+      process.exit(0);
+    })
+    .catch(error => {
+      console.error('❌ Scraping failed:', error);
+      process.exit(1);
+    });
+}

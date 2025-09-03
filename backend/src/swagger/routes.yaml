@@ -1,0 +1,2719 @@
+swagger: '3.0.0'
+info:
+  title: Kids Activity Tracker API
+  version: '1.0.0'
+  description: |
+    Comprehensive API documentation for the Kids Activity Tracker application.
+    
+    ## API Overview
+    
+    ### Core Concepts:
+    - **Categories**: 5 age-based groupings (Early Years: Parent Participation, Early Years: On My Own, School Age, Youth, All Ages & Family)
+    - **Activity Types**: 22 subject-based groupings (Swimming & Aquatics, Team Sports, etc.)
+    - **Global Filters**: hideClosedActivities, hideFullActivities (apply to all endpoints except Favorites)
+    - **Pagination**: 50 items per page with offset-based pagination
+    
+    ### Navigation Flows:
+    1. **Browse by Location**: Dashboard → Cities → Venues → Activities
+    2. **Browse by Category**: Dashboard → Categories → Category Detail → Activities  
+    3. **Browse by Activity Type**: Dashboard → Activity Types → Activity Type Detail → Activities
+    4. **Recommendations**: Dashboard → Recommended Activities (user-specific)
+    
+    ### React Native Components Usage:
+    - **DashboardScreen**: Uses categories, activity types, locations APIs
+    - **CategoryDetailScreen**: Uses `/categories/{id}/activities`
+    - **AllCategoriesScreen**: Uses `/categories`
+    - **LocationBrowseScreen**: Uses `/locations/cities`, `/locations/{cityId}/venues`
+    - **ActivityDetailScreen**: Uses `/activities/{id}`, favorites APIs
+    - **SearchScreen**: Uses `/activities/search` with extensive filtering
+    
+paths:
+
+  # ==================== AUTHENTICATION ENDPOINTS ====================
+  
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: |
+        Authenticate user with email and password.
+        Used by: LoginScreen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+              required: [email, password]
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        401:
+          description: Invalid credentials
+
+  /api/auth/register:
+    post:
+      tags: [Authentication]  
+      summary: User registration
+      description: |
+        Register new user account.
+        Used by: RegisterScreen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+              required: [email, password, firstName, lastName]
+      responses:
+        201:
+          description: Registration successful
+        400:
+          description: Validation error
+
+  /api/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: |
+        Refresh access token using refresh token.
+        Used by: Auto-refresh functionality in app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required: [refreshToken]
+      responses:
+        200:
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                  refreshToken:
+                    type: string
+        401:
+          description: Invalid refresh token
+
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      description: |
+        Logout user (client-side token removal).
+        Used by: Logout functionality across app
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Logout successful
+
+  /api/auth/verify-email:
+    get:
+      tags: [Authentication]
+      summary: Verify email address
+      description: |
+        Verify email address with token sent via email.
+        Used by: Email verification flow
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Email verification token
+      responses:
+        200:
+          description: Email verified successfully
+        400:
+          description: Invalid or expired token
+
+  /api/auth/resend-verification:
+    post:
+      tags: [Authentication]
+      summary: Resend email verification
+      description: |
+        Resend email verification token.
+        Used by: Email verification screens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required: [email]
+      responses:
+        200:
+          description: Verification email sent
+        404:
+          description: User not found
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Authentication]
+      summary: Request password reset
+      description: |
+        Request password reset email.
+        Used by: Forgot password screens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required: [email]
+      responses:
+        200:
+          description: Password reset email sent
+        404:
+          description: User not found
+
+  /api/auth/reset-password:
+    post:
+      tags: [Authentication]
+      summary: Reset password
+      description: |
+        Reset password with token from email.
+        Used by: Password reset screens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+              required: [token, password]
+      responses:
+        200:
+          description: Password reset successful
+        400:
+          description: Invalid or expired token
+
+  /api/auth/change-password:
+    post:
+      tags: [Authentication]
+      summary: Change password
+      description: |
+        Change password for authenticated user.
+        Used by: Settings/Profile screens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+              required: [currentPassword, newPassword]
+      responses:
+        200:
+          description: Password changed successfully
+        400:
+          description: Invalid current password
+
+  /api/auth/profile:
+    get:
+      tags: [Authentication]
+      summary: Get user profile
+      description: |
+        Get authenticated user's profile information.
+        Used by: Profile screens, user settings
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        401:
+          description: Unauthorized
+    
+    put:
+      tags: [Authentication]
+      summary: Update user profile
+      description: |
+        Update authenticated user's profile.
+        Used by: Profile edit screens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                preferences:
+                  type: object
+      responses:
+        200:
+          description: Profile updated successfully
+        400:
+          description: Validation error
+
+  /api/auth/check:
+    get:
+      tags: [Authentication]
+      summary: Check authentication status
+      description: |
+        Check if user is authenticated and return user info.
+        Used by: App initialization, route guards
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User is authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  authenticated:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        401:
+          description: Not authenticated
+
+  # ==================== ACTIVITY ENDPOINTS ====================
+  
+  /api/v1/activities:
+    get:
+      tags: [Activities]
+      summary: Search and filter activities
+      description: |
+        Primary activity search endpoint with comprehensive filtering.
+        Used by: SearchScreen, FilterScreen, RecommendedActivitiesScreen
+        Supports all global filters and advanced search capabilities.
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search in activity name, description
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Number of activities to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of activities to skip
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out closed activities
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out full activities
+        - in: query
+          name: activityTypes
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by activity type IDs or names
+        - in: query
+          name: categories
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by category IDs
+        - in: query
+          name: locations
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by location IDs or city names
+        - in: query
+          name: ageMin
+          schema:
+            type: integer
+          description: Minimum age filter
+        - in: query
+          name: ageMax
+          schema:
+            type: integer
+          description: Maximum age filter
+        - in: query
+          name: costMin
+          schema:
+            type: number
+          description: Minimum cost filter
+        - in: query
+          name: costMax
+          schema:
+            type: number
+          description: Maximum cost filter
+      responses:
+        200:
+          description: Paginated search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+                  filters:
+                    type: object
+                    description: Applied filters summary
+
+  /api/v1/activities/{id}:
+    get:
+      tags: [Activities]
+      summary: Get activity details
+      description: |
+        Get detailed information about a specific activity.
+        Used by: ActivityDetailScreen, ActivityCard navigation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Activity UUID
+      responses:
+        200:
+          description: Activity details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activity:
+                    $ref: '#/components/schemas/Activity'
+        404:
+          description: Activity not found
+
+  /api/v1/activities/stats/summary:
+    get:
+      tags: [Activities]
+      summary: Get activity statistics summary
+      description: |
+        Get overall activity statistics including categories and upcoming count.
+        Used by: Dashboard statistics, analytics screens
+      responses:
+        200:
+          description: Activity statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  stats:
+                    type: object
+                    properties:
+                      totalActivities:
+                        type: integer
+                      activeActivities:
+                        type: integer
+                      categoryCounts:
+                        type: object
+                      upcomingCount:
+                        type: integer
+
+  # ==================== ACTIVITY TYPES ENDPOINTS ====================
+  
+  /api/v1/activity-types:
+    get:
+      tags: [Activity Types]
+      summary: Get all activity types
+      description: |
+        Returns all 22 subject-based activity types (Swimming & Aquatics, Team Sports, etc.).
+        Used by: DashboardScreen "Browse by Activity Type", AllActivityTypesScreen, FilterScreen
+      responses:
+        200:
+          description: List of activity types with counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activityTypes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityType'
+
+  /api/v1/activity-types/{id}/activities:
+    get:
+      tags: [Activity Types]
+      summary: Get activities for specific activity type
+      description: |
+        Returns paginated activities that belong to a specific activity type.
+        Used by: ActivityTypeDetailScreen
+        Navigation flow: Dashboard → Activity Types → Activity Type Detail (this endpoint)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Activity Type UUID
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+      responses:
+        200:
+          description: Paginated activities for activity type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activityType:
+                    $ref: '#/components/schemas/ActivityType'
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+
+  /api/v1/activity-types/{typeCode}:
+    get:
+      tags: [Activity Types]
+      summary: Get specific activity type details
+      description: |
+        Get details for a specific activity type with subtypes and counts.
+        Used by: ActivityTypeDetailScreen
+      parameters:
+        - in: path
+          name: typeCode
+          required: true
+          schema:
+            type: string
+          description: Activity Type code (e.g., "swimming-aquatics")
+      responses:
+        200:
+          description: Activity type details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activityType:
+                    $ref: '#/components/schemas/ActivityType'
+        404:
+          description: Activity type not found
+
+  /api/v1/activity-types/{typeCode}/subtypes/{subtypeCode}/activities:
+    get:
+      tags: [Activity Types]
+      summary: Get activities for specific activity subtype
+      description: |
+        Get paginated activities for a specific activity subtype.
+        Used by: ActivitySubtypeDetailScreen
+      parameters:
+        - in: path
+          name: typeCode
+          required: true
+          schema:
+            type: string
+          description: Activity Type code
+        - in: path
+          name: subtypeCode
+          required: true
+          schema:
+            type: string
+          description: Activity Subtype code
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+      responses:
+        200:
+          description: Activities for subtype
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activitySubtype:
+                    type: object
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+        404:
+          description: Activity subtype not found
+
+  # ==================== CHILDREN ENDPOINTS ====================
+  
+  /api/children:
+    get:
+      tags: [Children]
+      summary: Get user's children
+      description: |
+        Returns all children profiles for authenticated user.
+        Used by: ChildrenNavigator, ProfileScreen, child selection components
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User's children
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  children:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Child'
+        401:
+          description: Unauthorized
+    
+    post:
+      tags: [Children]
+      summary: Create new child profile
+      description: |
+        Create a new child profile for the authenticated user.
+        Used by: AddChildScreen, child profile creation flow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                dateOfBirth:
+                  type: string
+                  format: date
+                interests:
+                  type: array
+                  items:
+                    type: string
+                notes:
+                  type: string
+              required: [name, dateOfBirth]
+      responses:
+        201:
+          description: Child created successfully
+        400:
+          description: Validation error
+
+  /api/children/stats:
+    get:
+      tags: [Children]
+      summary: Get children with activity statistics
+      description: |
+        Get all children with their activity statistics.
+        Used by: Dashboard, statistics screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Children with stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  children:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Child'
+                        - type: object
+                          properties:
+                            activityStats:
+                              type: object
+
+  /api/children/shared:
+    get:
+      tags: [Children]
+      summary: Get children shared with the user
+      description: |
+        Get children that have been shared with the authenticated user.
+        Used by: Shared children screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Shared children
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  children:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Child'
+
+  /api/children/search:
+    get:
+      tags: [Children]
+      summary: Search children by query
+      description: |
+        Search user's children by name or other criteria.
+        Used by: Child search functionality
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search query
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  children:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Child'
+
+  /api/children/{childId}:
+    get:
+      tags: [Children]
+      summary: Get single child by ID
+      description: |
+        Get detailed information for a specific child.
+        Used by: Child profile screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Child details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  child:
+                    $ref: '#/components/schemas/Child'
+        404:
+          description: Child not found
+
+    put:
+      tags: [Children]
+      summary: Update child profile
+      description: |
+        Update child profile information.
+        Used by: Edit child screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                dateOfBirth:
+                  type: string
+                  format: date
+                interests:
+                  type: array
+                  items:
+                    type: string
+                notes:
+                  type: string
+      responses:
+        200:
+          description: Child updated successfully
+        404:
+          description: Child not found
+
+    delete:
+      tags: [Children]
+      summary: Delete child profile
+      description: |
+        Soft delete or permanently delete child profile.
+        Used by: Child management screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: permanent
+          schema:
+            type: boolean
+            default: false
+          description: Whether to permanently delete
+      responses:
+        200:
+          description: Child deleted successfully
+        404:
+          description: Child not found
+
+  /api/children/{childId}/interests:
+    patch:
+      tags: [Children]
+      summary: Update child interests
+      description: |
+        Update interests for a specific child.
+        Used by: Interest management screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                interests:
+                  type: array
+                  items:
+                    type: string
+              required: [interests]
+      responses:
+        200:
+          description: Interests updated successfully
+        404:
+          description: Child not found
+
+  /api/children/bulk:
+    post:
+      tags: [Children]
+      summary: Bulk create multiple children
+      description: |
+        Create multiple child profiles at once.
+        Used by: Bulk import or family setup screens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                children:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      dateOfBirth:
+                        type: string
+                        format: date
+                      interests:
+                        type: array
+                        items:
+                          type: string
+                      notes:
+                        type: string
+                    required: [name, dateOfBirth]
+              required: [children]
+      responses:
+        201:
+          description: Children created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  children:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Child'
+        400:
+          description: Validation error
+
+  # ==================== FAVORITES ENDPOINTS ====================
+  
+  /api/favorites:
+    get:
+      tags: [Favorites]
+      summary: Get user's favorite activities
+      description: |
+        Returns paginated list of user's favorite activities.
+        Used by: FavoritesScreen, FavoritesStack
+        NOTE: This endpoint does NOT apply global filters (hideClosedActivities, etc.)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: User's favorite activities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  favorites:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        activity:
+                          $ref: '#/components/schemas/Activity'
+                        createdAt:
+                          type: string
+                          format: date-time
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+    
+    post:
+      tags: [Favorites]
+      summary: Add activity to favorites
+      description: |
+        Add an activity to user's favorites.
+        Used by: ActivityCard, ActivityDetailScreen favorite button
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                activityId:
+                  type: string
+                  format: uuid
+              required: [activityId]
+      responses:
+        201:
+          description: Added to favorites
+        409:
+          description: Already in favorites
+
+  /api/favorites/{id}:
+    delete:
+      tags: [Favorites]
+      summary: Remove activity from favorites
+      description: |
+        Remove an activity from user's favorites.
+        Used by: FavoritesScreen, ActivityDetailScreen unfavorite action
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Favorite record UUID (not activity ID)
+      responses:
+        200:
+          description: Removed from favorites
+        404:
+          description: Favorite not found
+
+  # ==================== CHILD ACTIVITIES ENDPOINTS ====================
+  
+  /api/child-activities/link:
+    post:
+      tags: [Child Activities]
+      summary: Link child to activity
+      description: |
+        Create a link between a child and an activity (enrollment, interest, etc.).
+        Used by: ActivityDetailScreen, child activity management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                childId:
+                  type: string
+                  format: uuid
+                activityId:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [interested, registered, completed, cancelled]
+                notes:
+                  type: string
+              required: [childId, activityId, status]
+      responses:
+        201:
+          description: Link created successfully
+        409:
+          description: Link already exists
+
+  /api/child-activities/{childId}/recommendations:
+    get:
+      tags: [Child Activities]
+      summary: Get activity recommendations for child
+      description: |
+        Returns recommended activities based on child's age, interests, and activity history.
+        Used by: RecommendedActivitiesScreen, child-specific recommendations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: true
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+      responses:
+        200:
+          description: Recommended activities for child
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  child:
+                    $ref: '#/components/schemas/Child'
+                  recommendations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        activity:
+                          $ref: '#/components/schemas/Activity'
+                        score:
+                          type: number
+                          description: Recommendation confidence score
+                        reasons:
+                          type: array
+                          items:
+                            type: string
+                          description: Why this activity was recommended
+
+  /api/child-activities/bulk-link:
+    post:
+      tags: [Child Activities]
+      summary: Bulk link multiple activities to a child
+      description: |
+        Create multiple activity links for a child at once.
+        Used by: Bulk activity enrollment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                childId:
+                  type: string
+                  format: uuid
+                activities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      activityId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [interested, registered, completed, cancelled]
+                      notes:
+                        type: string
+              required: [childId, activities]
+      responses:
+        201:
+          description: Links created successfully
+        400:
+          description: Validation error
+
+  /api/child-activities/{childId}/activities/{activityId}:
+    put:
+      tags: [Child Activities]
+      summary: Update activity status for child
+      description: |
+        Update the status of an activity link for a child.
+        Used by: Activity management screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: activityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [interested, registered, completed, cancelled]
+                notes:
+                  type: string
+      responses:
+        200:
+          description: Activity link updated
+        404:
+          description: Link not found
+    
+    delete:
+      tags: [Child Activities]
+      summary: Remove activity link from child
+      description: |
+        Remove the link between a child and an activity.
+        Used by: Activity management screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: activityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Link removed successfully
+        404:
+          description: Link not found
+
+  /api/child-activities/history:
+    get:
+      tags: [Child Activities]
+      summary: Get activity history with filters
+      description: |
+        Get activity history for user's children with filtering options.
+        Used by: Activity history screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: childId
+          schema:
+            type: string
+            format: uuid
+          description: Filter by specific child
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [interested, registered, completed, cancelled]
+          description: Filter by activity status
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+          description: Filter activities after this date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+          description: Filter activities before this date
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: Activity history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  history:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+
+  /api/child-activities/{childId}/favorites:
+    get:
+      tags: [Child Activities]
+      summary: Get child's favorite activities
+      description: |
+        Get activities marked as favorites for a specific child.
+        Used by: Child favorites screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Child's favorite activities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  child:
+                    $ref: '#/components/schemas/Child'
+                  favorites:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+
+  /api/child-activities/calendar:
+    get:
+      tags: [Child Activities]
+      summary: Get calendar data for activities
+      description: |
+        Get activity calendar data with week/month/year views.
+        Used by: Calendar screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: view
+          schema:
+            type: string
+            enum: [week, month, year]
+            default: month
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+          description: Reference date for calendar view
+        - in: query
+          name: childId
+          schema:
+            type: string
+            format: uuid
+          description: Filter by specific child
+      responses:
+        200:
+          description: Calendar data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  calendar:
+                    type: object
+
+  /api/child-activities/stats:
+    get:
+      tags: [Child Activities]
+      summary: Get activity statistics for children
+      description: |
+        Get comprehensive activity statistics for user's children.
+        Used by: Dashboard, statistics screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Activity statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  stats:
+                    type: object
+
+  /api/child-activities/upcoming:
+    get:
+      tags: [Child Activities]
+      summary: Get upcoming activities for notifications
+      description: |
+        Get upcoming activities for all children for notifications.
+        Used by: Notification system, dashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 7
+          description: Number of days ahead to look
+      responses:
+        200:
+          description: Upcoming activities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  upcomingActivities:
+                    type: array
+                    items:
+                      type: object
+
+  /api/child-activities/{childId}/activities:
+    get:
+      tags: [Child Activities]
+      summary: Get activities for a specific child
+      description: |
+        Get all activities associated with a specific child.
+        Used by: Child activity screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [interested, registered, completed, cancelled]
+          description: Filter by activity status
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: Child's activities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  child:
+                    $ref: '#/components/schemas/Child'
+                  activities:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+        404:
+          description: Child not found
+
+  # ==================== LOCATIONS ENDPOINTS ====================
+  
+  /api/v1/locations/cities:
+    get:
+      tags: [Locations]
+      summary: Get all cities with venue and activity counts
+      description: |
+        Returns all cities with their venue and activity counts.
+        Used by: LocationBrowseScreen for city selection.
+        Navigation flow: Dashboard → Browse by Location → Cities (this endpoint) → Venues → Activities
+      parameters:
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out closed activities from counts
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out full activities from counts
+        - in: query
+          name: includeActivityCounts
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include activity counts (can be disabled for performance)
+      responses:
+        200:
+          description: List of cities with counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/City'
+
+  /api/v1/locations/cities/{cityId}/venues:
+    get:
+      tags: [Locations]
+      summary: Get venues in a specific city with activity counts
+      description: |
+        Returns all venues/locations in a specific city with their activity counts.
+        Used by: LocationBrowseScreen venue list for a city.
+        Navigation flow: Cities → Venues (this endpoint) → Activities
+      parameters:
+        - in: path
+          name: cityId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: City UUID
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out closed activities from counts
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out full activities from counts
+        - in: query
+          name: includeActivityCounts
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include activity counts
+      responses:
+        200:
+          description: List of venues in city with counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  city:
+                    $ref: '#/components/schemas/City'
+                  venues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Location'
+        404:
+          description: City not found
+
+  /api/v1/locations/{locationId}/activities:
+    get:
+      tags: [Locations]
+      summary: Get activities at a specific venue/location
+      description: |
+        Returns paginated activities at a specific venue/location.
+        Used by: VenueDetailScreen or LocationDetailScreen.
+        Navigation flow: Cities → Venues → Activities (this endpoint) → Activity Detail
+      parameters:
+        - in: path
+          name: locationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Location UUID
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Number of activities to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of activities to skip for pagination
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [dateStart, name, cost, registrationDate]
+            default: dateStart
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: Sort direction
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out closed activities
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out full activities
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search in activity name and description
+        - in: query
+          name: ageMin
+          schema:
+            type: integer
+          description: Minimum age requirement
+        - in: query
+          name: ageMax
+          schema:
+            type: integer
+          description: Maximum age requirement
+        - in: query
+          name: costMin
+          schema:
+            type: number
+          description: Minimum cost filter
+        - in: query
+          name: costMax
+          schema:
+            type: number
+          description: Maximum cost filter
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+          description: Filter activities starting after this date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+          description: Filter activities ending before this date
+        - in: query
+          name: activityTypes
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by activity type IDs or names
+        - in: query
+          name: categories
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by category IDs
+      responses:
+        200:
+          description: Paginated activities at location
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  location:
+                    $ref: '#/components/schemas/Location'
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+        404:
+          description: Location not found
+
+  # ==================== CATEGORIES ENDPOINTS ====================
+  
+  /api/v1/categories:
+    get:
+      tags: [Categories]
+      summary: Get all age-based categories with activity counts
+      description: |
+        Returns all 5 age-based categories (Early Years: Parent Participation, Early Years: On My Own, 
+        School Age, Youth, All Ages & Family) with activity counts.
+        Used by: DashboardScreen "Browse by Category" section, AllCategoriesScreen.
+        Navigation flow: Dashboard → Categories → Category Detail → Activities
+      parameters:
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out closed activities from counts
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+          description: Filter out full activities from counts
+        - in: query
+          name: includeActivityCounts
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include activity counts
+      responses:
+        200:
+          description: List of age-based categories with counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+
+  /api/v1/categories/{id}/activities:
+    get:
+      tags: [Categories]
+      summary: Get activities for specific age-based category
+      description: |
+        Returns paginated activities that belong to a specific age-based category.
+        Used by: CategoryDetailScreen for displaying activities in a category.
+        Navigation flow: Dashboard → Categories → Category Detail (this endpoint) → Activity Detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category UUID
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [dateStart, name, cost, registrationDate]
+            default: dateStart
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - in: query
+          name: hideClosedActivities
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: hideFullActivities
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search in activity name and description
+        - in: query
+          name: ageMin
+          schema:
+            type: integer
+        - in: query
+          name: ageMax
+          schema:
+            type: integer
+        - in: query
+          name: costMin
+          schema:
+            type: number
+        - in: query
+          name: costMax
+          schema:
+            type: number
+        - in: query
+          name: locations
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by location IDs or names
+      responses:
+        200:
+          description: Paginated activities for category
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  category:
+                    $ref: '#/components/schemas/Category'
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationResponse'
+        404:
+          description: Category not found
+
+  # ==================== INVITATIONS ENDPOINTS ====================
+  
+  /api/invitations:
+    post:
+      tags: [Invitations]
+      summary: Send invitation to share child data
+      description: |
+        Send an invitation to another user to share child data.
+        Used by: Sharing screens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                childIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                message:
+                  type: string
+              required: [email, childIds, permissions]
+      responses:
+        201:
+          description: Invitation sent successfully
+        400:
+          description: Validation error
+
+    get:
+      tags: [Invitations]
+      summary: Get all invitations (sent and received)
+      description: |
+        Get both sent and received invitations for the user.
+        Used by: Invitations management screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User invitations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sent:
+                    type: array
+                    items:
+                      type: object
+                  received:
+                    type: array
+                    items:
+                      type: object
+
+  /api/invitations/sent:
+    get:
+      tags: [Invitations]
+      summary: Get sent invitations
+      description: |
+        Get invitations sent by the authenticated user.
+        Used by: Sent invitations screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Sent invitations
+
+  /api/invitations/received:
+    get:
+      tags: [Invitations]
+      summary: Get received invitations
+      description: |
+        Get invitations received by the authenticated user.
+        Used by: Received invitations screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Received invitations
+
+  /api/invitations/preview/{token}:
+    get:
+      tags: [Invitations]
+      summary: Preview invitation details
+      description: |
+        Preview invitation details before accepting.
+        Used by: Invitation preview screens
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Invitation preview
+        404:
+          description: Invalid token
+
+  /api/invitations/accept:
+    post:
+      tags: [Invitations]
+      summary: Accept an invitation
+      description: |
+        Accept an invitation to share child data.
+        Used by: Invitation acceptance flow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required: [token]
+      responses:
+        200:
+          description: Invitation accepted
+
+  /api/invitations/decline:
+    post:
+      tags: [Invitations]
+      summary: Decline an invitation
+      description: |
+        Decline an invitation to share child data.
+        Used by: Invitation decline flow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required: [token]
+      responses:
+        200:
+          description: Invitation declined
+
+  /api/invitations/{id}:
+    delete:
+      tags: [Invitations]
+      summary: Cancel sent invitation
+      description: |
+        Cancel a sent invitation.
+        Used by: Invitation management
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Invitation cancelled
+
+  /api/invitations/{id}/resend:
+    post:
+      tags: [Invitations]
+      summary: Resend invitation
+      description: |
+        Resend an invitation.
+        Used by: Invitation management
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Invitation resent
+
+  # ==================== SHARING ENDPOINTS ====================
+  
+  /api/sharing:
+    post:
+      tags: [Sharing]
+      summary: Configure sharing with another user
+      description: |
+        Create or configure sharing arrangement with another user.
+        Used by: Sharing configuration screens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetUserId:
+                  type: string
+                  format: uuid
+                childIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                permissions:
+                  type: array
+                  items:
+                    type: string
+              required: [targetUserId, childIds, permissions]
+      responses:
+        201:
+          description: Sharing configured
+
+    get:
+      tags: [Sharing]
+      summary: Get all shares
+      description: |
+        Get all shares (both created and received) for the user.
+        Used by: Sharing management screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: User shares
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  shares:
+                    type: array
+                    items:
+                      type: object
+
+  /api/sharing/stats:
+    get:
+      tags: [Sharing]
+      summary: Get sharing statistics
+      description: |
+        Get statistics about sharing activity.
+        Used by: Dashboard, analytics screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Sharing statistics
+
+  /api/sharing/{id}:
+    patch:
+      tags: [Sharing]
+      summary: Update share settings
+      description: |
+        Update settings for an existing share.
+        Used by: Share management screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        200:
+          description: Share updated
+
+    delete:
+      tags: [Sharing]
+      summary: Revoke/deactivate a share
+      description: |
+        Revoke or deactivate a sharing arrangement.
+        Used by: Share management screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Share revoked
+
+  /api/sharing/{shareId}/children/{childId}:
+    patch:
+      tags: [Sharing]
+      summary: Update child-specific permissions
+      description: |
+        Update permissions for a specific child in a share.
+        Used by: Child-specific sharing settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shareId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Child permissions updated
+
+    delete:
+      tags: [Sharing]
+      summary: Remove child from sharing
+      description: |
+        Remove a child from a sharing arrangement.
+        Used by: Share management
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shareId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Child removed from share
+
+  /api/sharing/{shareId}/children:
+    post:
+      tags: [Sharing]
+      summary: Add child to existing share
+      description: |
+        Add a child to an existing sharing arrangement.
+        Used by: Share management
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shareId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                childId:
+                  type: string
+                  format: uuid
+                permissions:
+                  type: array
+                  items:
+                    type: string
+              required: [childId, permissions]
+      responses:
+        200:
+          description: Child added to share
+
+  # ==================== SHARED ACTIVITIES ENDPOINTS ====================
+  
+  /api/shared-activities/children:
+    get:
+      tags: [Shared Activities]
+      summary: Get all shared children and activities
+      description: |
+        Get all children shared with the user and their activities.
+        Used by: Shared activities screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Shared children and activities
+
+  /api/shared-activities/children/{childId}/activities:
+    get:
+      tags: [Shared Activities]
+      summary: Get activities for specific shared child
+      description: |
+        Get activities for a specific shared child.
+        Used by: Shared child activity screens
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: childId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Shared child activities
+
+  /api/shared-activities/calendar:
+    get:
+      tags: [Shared Activities]
+      summary: Get shared activities calendar
+      description: |
+        Get calendar view of all shared activities.
+        Used by: Shared activities calendar screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Shared activities calendar
+
+  /api/shared-activities/stats:
+    get:
+      tags: [Shared Activities]
+      summary: Get shared activities statistics
+      description: |
+        Get statistics for shared activities.
+        Used by: Dashboard, analytics screens
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Shared activities statistics
+
+  /api/shared-activities/export:
+    get:
+      tags: [Shared Activities]
+      summary: Export shared activities
+      description: |
+        Export shared activities in various formats.
+        Used by: Export functionality
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, csv, ical]
+            default: json
+      responses:
+        200:
+          description: Exported data
+
+  # ==================== CITIES ENDPOINTS ====================
+  
+  /api/v1/cities:
+    get:
+      tags: [Cities]
+      summary: Get all cities with counts
+      description: |
+        Get all cities with venue and activity counts.
+        Used by: City browse screens
+      responses:
+        200:
+          description: Cities with counts
+
+  /api/v1/cities/{city}/locations:
+    get:
+      tags: [Cities]
+      summary: Get locations in city
+      description: |
+        Get all locations/venues in a specific city.
+        Used by: City location screens
+      parameters:
+        - in: path
+          name: city
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: City locations
+
+  /api/v1/cities/{city}/activities:
+    get:
+      tags: [Cities]
+      summary: Get activities in city
+      description: |
+        Get all activities in a specific city with pagination.
+        Used by: City activities screens
+      parameters:
+        - in: path
+          name: city
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        200:
+          description: City activities
+
+  # ==================== REFERENCE ENDPOINTS ====================
+  
+  /api/v1/reference/activity-types:
+    get:
+      tags: [Reference]
+      summary: Get reference activity types
+      description: |
+        Get all activity types for reference.
+        Used by: Reference data screens
+      responses:
+        200:
+          description: Reference activity types
+
+  /api/v1/reference/activity-types/{typeCode}:
+    get:
+      tags: [Reference]
+      summary: Get reference activity type details
+      description: |
+        Get activity type details for reference.
+        Used by: Reference data screens
+      parameters:
+        - in: path
+          name: typeCode
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Reference activity type details
+
+components:
+  schemas:
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        ageMin:
+          type: integer
+        ageMax:
+          type: integer
+        cost:
+          type: number
+        spotsAvailable:
+          type: integer
+        totalSpots:
+          type: integer
+        registrationStatus:
+          type: string
+          enum: [Open, Closed, Full, Cancelled]
+        dateStart:
+          type: string
+          format: date-time
+        dateEnd:
+          type: string
+          format: date-time
+        registrationDate:
+          type: string
+          format: date-time
+        location:
+          $ref: '#/components/schemas/Location'
+        activityType:
+          $ref: '#/components/schemas/ActivityType'
+        provider:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            website:
+              type: string
+    
+    ActivityType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        activityCount:
+          type: integer
+        subtypes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              code:
+                type: string
+    
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          enum: [
+            "Early Years: Parent Participation",
+            "Early Years: On My Own", 
+            "School Age",
+            "Youth",
+            "All Ages & Family"
+          ]
+        description:
+          type: string
+        ageMin:
+          type: integer
+        ageMax:
+          type: integer
+        requiresParent:
+          type: boolean
+        activityCount:
+          type: integer
+    
+    Location:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            province:
+              type: string
+            country:
+              type: string
+        activityCount:
+          type: integer
+    
+    City:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        province:
+          type: string
+        country:
+          type: string
+        venueCount:
+          type: integer
+        activityCount:
+          type: integer
+    
+    Child:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        age:
+          type: integer
+          description: Calculated age in years
+        interests:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+        isActive:
+          type: boolean
+    
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        isEmailVerified:
+          type: boolean
+        preferences:
+          type: object
+          properties:
+            notifications:
+              type: boolean
+            emailUpdates:
+              type: boolean
+            preferredLocations:
+              type: array
+              items:
+                type: string
+    
+    PaginationResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        limit:
+          type: integer
+          description: Items per page
+        offset:
+          type: integer
+          description: Items skipped
+        pages:
+          type: integer
+          description: Total number of pages
+    
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Activities  
+    description: Activity search, filtering, and details
+  - name: Categories
+    description: Age-based categories (5 total) - Browse by Category
+  - name: Activity Types
+    description: Subject-based types (22 total) - Browse by Activity Type  
+  - name: Locations
+    description: Location-based browsing - Cities → Venues → Activities
+  - name: Children
+    description: Child profile management
+  - name: Favorites
+    description: User favorites (no global filters applied)
+  - name: Child Activities
+    description: Link children to activities, recommendations

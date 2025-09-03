@@ -46,8 +46,9 @@ const RecommendedActivitiesScreen = () => {
     }
     
     // Apply activity type filters from preferredCategories
+    // preferredCategories contains activity type names like "Swimming & Aquatics", "Dance", etc.
     if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
-      filters.categories = preferences.preferredCategories.join(',');
+      filters.activityTypes = preferences.preferredCategories;
     }
     
     if (preferences.locations && preferences.locations.length > 0) {
@@ -60,10 +61,13 @@ const RecommendedActivitiesScreen = () => {
     // Apply age range if set
     if (preferences.ageRanges && preferences.ageRanges.length > 0) {
       const ageRange = preferences.ageRanges[0];
-      filters.ageRange = {
-        min: ageRange.min,
-        max: ageRange.max
-      };
+      filters.ageMin = ageRange.min;
+      filters.ageMax = ageRange.max;
+    }
+    
+    // Apply time preferences to match dashboard behavior
+    if (preferences.timePreferences) {
+      filters.timePreferences = preferences.timePreferences;
     }
     
     return filters;

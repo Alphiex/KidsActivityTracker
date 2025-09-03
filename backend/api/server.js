@@ -11,6 +11,8 @@ const providerService = require('../src/services/providerService');
 const { router: authRoutes, verifyToken } = require('./routes/auth');
 const activityTypesRoutes = require('./routes/activityTypes');
 const categoriesRoutes = require('./routes/categories');
+const citiesRoutes = require('./routes/cities');
+const locationsRoutes = require('./routes/locations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,6 +71,12 @@ app.use('/api/v1/activity-types', activityTypesRoutes);
 // ============= Categories Routes =============
 app.use('/api/v1/categories', categoriesRoutes);
 
+// ============= Cities Routes =============
+app.use('/api/v1/cities', citiesRoutes);
+
+// ============= Locations Routes =============
+app.use('/api/locations', locationsRoutes);
+
 // ============= Test Routes (temporary) =============
 // Removed test routes
 
@@ -83,15 +91,21 @@ app.get('/api/v1/activities', async (req, res) => {
       costMin: req.query.cost_min ? parseFloat(req.query.cost_min) : undefined,
       costMax: req.query.cost_max ? parseFloat(req.query.cost_max) : undefined,
       categories: req.query.categories ? req.query.categories.split(',') : undefined,
+      activityTypes: req.query.activity_types ? req.query.activity_types.split(',') : 
+                     req.query.activityType ? [req.query.activityType] : undefined,
       locations: req.query.locations ? req.query.locations.split(',') : 
                  req.query.location ? [req.query.location] : undefined,
+      locationIds: req.query.locationIds ? req.query.locationIds.split(',') :
+                   req.query.locationId ? [req.query.locationId] : undefined,
       providers: req.query.providers ? req.query.providers.split(',') : undefined,
       search: req.query.q || req.query.search,
       subcategory: req.query.subcategory,
       daysOfWeek: req.query.days_of_week ? req.query.days_of_week.split(',') : undefined,
-      isActive: req.query.include_inactive !== 'true',
-      excludeClosed: req.query.exclude_closed === 'true' || req.query.hide_closed_activities === 'true',
-      excludeFull: req.query.exclude_full === 'true' || req.query.hide_full_activities === 'true',
+      // Temporarily disable isActive filter since all test data has expired dates
+      // TODO: Update test data with future dates or implement better date handling
+      isActive: req.query.include_inactive === 'false' ? true : undefined,
+      excludeClosed: req.query.exclude_closed === 'true' || req.query.hide_closed_activities === 'true' || req.query.hideClosedActivities === 'true',
+      excludeFull: req.query.exclude_full === 'true' || req.query.hide_full_activities === 'true' || req.query.hideFullActivities === 'true',
       // Date filters for API-level filtering
       createdAfter: req.query.created_after,
       updatedAfter: req.query.updated_after,
@@ -105,6 +119,7 @@ app.get('/api/v1/activities', async (req, res) => {
     console.log('API Request filters:', {
       subcategory: filters.subcategory,
       categories: filters.categories,
+      activityTypes: filters.activityTypes,
       locations: filters.locations,
       costMax: filters.costMax
     });
@@ -342,7 +357,7 @@ app.get('/api/v1/users/:userId/recommendations', async (req, res) => {
 // Get user statistics
 app.get('/api/v1/users/:userId/stats', verifyToken, async (req, res) => {
   try {
-    const prisma = require('../database/config/database');
+    const prisma = require('../src/config/database');
     const userId = req.params.userId;
     
     // Get favorites count
@@ -426,7 +441,7 @@ app.get('/api/v1/providers/:id/stats', async (req, res) => {
 // Get all locations
 app.get('/api/v1/locations', async (req, res) => {
   try {
-    const prisma = require('../database/config/database');
+    const prisma = require('../src/config/database');
     // Only get locations that have active activities
     const locations = await prisma.location.findMany({
       where: {
@@ -495,7 +510,7 @@ app.get('/api/v1/age-groups', async (req, res) => {
       { id: '13+', name: '13+ years', min: 13, max: 99 }
     ];
 
-    const prisma = require('../database/config/database');
+    const prisma = require('../src/config/database');
     
     // Get counts for each age group
     const groupsWithCounts = await Promise.all(
@@ -628,6 +643,10 @@ app.get('/api/v1/stats/dashboard', async (req, res) => {
 // Start server
 async function startServer() {
   try {
+    // Run migration to ensure schema is up to date
+    const { ensureIsUpdatedColumn } = require('../src/utils/runMigration');
+    await ensureIsUpdatedColumn();
+    
     // Scraper job service not available in API-only mode
     console.log('⏭️  Running in API-only mode (no scraper service)');
 

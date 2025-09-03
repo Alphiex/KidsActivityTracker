@@ -9,15 +9,13 @@ const prisma = new PrismaClient();
  */
 router.get('/', async (req, res) => {
   try {
-    // Get unique cities with counts
-    const cities = await prisma.location.groupBy({
-      by: ['city', 'province'],
-      _count: {
-        id: true
-      },
-      orderBy: {
+    // Get cities with location and activity counts using normalized schema
+    const cities = await prisma.city.findMany({
+      include: {
         _count: {
-          id: 'desc'
+          select: {
+            locations: true
+          }
         }
       }
     });
@@ -28,16 +26,16 @@ router.get('/', async (req, res) => {
         const activityCount = await prisma.activity.count({
           where: {
             location: {
-              city: city.city
+              cityId: city.id
             },
             isActive: true
           }
         });
         
         return {
-          city: city.city,
+          city: city.name,
           province: city.province,
-          venueCount: city._count.id,
+          venueCount: city._count.locations,
           activityCount
         };
       })
@@ -65,20 +63,51 @@ router.get('/:city/locations', async (req, res) => {
     const { city } = req.params;
     const decodedCity = decodeURIComponent(city);
     
+    // Build activity filter with global filters applied manually
+    const activityWhere = {
+      isActive: true
+    };
+    
+    // Apply global filters
+    const andConditions = [];
+    
+    // Hide closed activities
+    if (req.query.hideClosedActivities === 'true') {
+      andConditions.push({
+        NOT: { registrationStatus: 'Closed' }
+      });
+    }
+    
+    // Hide full activities (no spots available)
+    if (req.query.hideFullActivities === 'true') {
+      andConditions.push({
+        OR: [
+          { spotsAvailable: { gt: 0 } },
+          { spotsAvailable: null }
+        ]
+      });
+    }
+    
+    // Apply AND conditions if any
+    if (andConditions.length > 0) {
+      activityWhere.AND = andConditions;
+    }
+    
     const locations = await prisma.location.findMany({
       where: {
         city: {
-          equals: decodedCity,
-          mode: 'insensitive'
+          name: {
+            equals: decodedCity,
+            mode: 'insensitive'
+          }
         }
       },
       include: {
+        city: true, // Include city data
         _count: {
           select: {
             activities: {
-              where: {
-                isActive: true
-              }
+              where: activityWhere
             }
           }
         }
@@ -92,13 +121,15 @@ router.get('/:city/locations', async (req, res) => {
       id: loc.id,
       name: loc.name,
       address: loc.address,
-      city: loc.city,
-      province: loc.province,
+      city: loc.city?.name || 'Unknown',
+      province: loc.city?.province || 'Unknown',
       postalCode: loc.postalCode,
       facility: loc.facility,
       latitude: loc.latitude,
       longitude: loc.longitude,
-      activityCount: loc._count.activities
+      activityCount: loc._count.activities,
+      fullAddress: loc.fullAddress,
+      mapUrl: loc.mapUrl
     }));
     
     res.json({

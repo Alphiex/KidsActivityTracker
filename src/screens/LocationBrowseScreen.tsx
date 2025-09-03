@@ -139,24 +139,16 @@ const LocationBrowseScreen = () => {
       // Get user preferences
       const preferences = preferencesService.getPreferences();
       
-      // Fetch activities for the selected location with pagination
-      const searchParams: any = {
-        location: location.name,
+      // Fetch activities for the selected venue using the dedicated venue endpoint
+      const venueParams = {
         limit: 50,
-        offset: 0
+        offset: 0,
+        hideClosedActivities: preferences.hideClosedActivities,
+        hideFullActivities: preferences.hideFullActivities
       };
       
-      // Apply user preference for hiding closed activities
-      if (preferences.hideClosedActivities) {
-        searchParams.hideClosedActivities = true;
-      }
-      
-      // Apply user preference for hiding full activities
-      if (preferences.hideFullActivities) {
-        searchParams.hideFullActivities = true;
-      }
-      
-      const result = await activityService.searchActivitiesPaginated(searchParams);
+      console.log(`🎯 LocationBrowseScreen: Fetching activities for venue ${location.name} (${location.id}) using venue-specific API`);
+      const result = await activityService.getVenueActivities(location.id, venueParams);
       setLocationActivities(result.items);
       setTotalActivitiesCount(result.total);
       setHasMore(result.hasMore);
@@ -164,14 +156,16 @@ const LocationBrowseScreen = () => {
       
       // If global filters are applied, also get unfiltered count to show difference
       if (preferences.hideClosedActivities || preferences.hideFullActivities) {
-        const unfilteredParams: any = {
-          location: location.name,
+        const unfilteredParams = {
           limit: 1,  // We only need the count
-          offset: 0
+          offset: 0,
+          hideClosedActivities: false,
+          hideFullActivities: false
         };
         
         try {
-          const unfilteredResult = await activityService.searchActivitiesPaginated(unfilteredParams);
+          console.log(`🎯 LocationBrowseScreen: Fetching unfiltered count for venue ${location.name}`);
+          const unfilteredResult = await activityService.getVenueActivities(location.id, unfilteredParams);
           setUnfilteredCount(unfilteredResult.total);
           setFilteredOutCount(unfilteredResult.total - result.total);
         } catch (error) {
@@ -203,21 +197,15 @@ const LocationBrowseScreen = () => {
     try {
       const preferences = preferencesService.getPreferences();
       
-      const searchParams: any = {
-        location: selectedLocation.name,
+      const venueParams = {
         limit: 50,
-        offset: currentOffset
+        offset: currentOffset,
+        hideClosedActivities: preferences.hideClosedActivities,
+        hideFullActivities: preferences.hideFullActivities
       };
       
-      if (preferences.hideClosedActivities) {
-        searchParams.hideClosedActivities = true;
-      }
-      
-      if (preferences.hideFullActivities) {
-        searchParams.hideFullActivities = true;
-      }
-      
-      const result = await activityService.searchActivitiesPaginated(searchParams);
+      console.log(`🎯 LocationBrowseScreen: Loading more activities for venue ${selectedLocation.name} (offset: ${currentOffset})`);
+      const result = await activityService.getVenueActivities(selectedLocation.id, venueParams);
       setLocationActivities(prev => [...prev, ...result.items]);
       setHasMore(result.hasMore);
       setCurrentOffset(prev => prev + 50);

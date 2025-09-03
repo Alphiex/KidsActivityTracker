@@ -16,6 +16,7 @@ interface SearchParams {
   endDate?: Date;
   dayOfWeek?: string[];
   location?: string;
+  locations?: string[]; // Support multiple locations
   providerId?: string;
   hideClosedActivities?: boolean; // Hide activities that are closed for registration
   hideFullActivities?: boolean; // Hide activities with no spots available
@@ -48,6 +49,7 @@ export class EnhancedActivityService {
       endDate,
       dayOfWeek,
       location,
+      locations, // Support multiple locations
       providerId,
       hideClosedActivities = false,
       hideFullActivities = false,
@@ -72,10 +74,21 @@ export class EnhancedActivityService {
       includeInactive
     });
 
+    // Determine search type early to control filtering logic
+    const isActivityTypeSearch = !!(activityType || activitySubtype || categories);
+    console.log('🚨🚨🚨 [LOCATION FILTER DEBUG] Search type determination:', {
+      activityType,
+      activitySubtype, 
+      categories,
+      isActivityTypeSearch,
+      locations,
+      location
+    });
+
     // Build where clause
     const where: Prisma.ActivityWhereInput = {
-      // Always filter out inactive activities unless explicitly requested
-      isActive: includeInactive ? undefined : true
+      // Use isUpdated instead of deprecated isActive field unless explicitly requested
+      isUpdated: includeInactive ? undefined : true
     };
 
     // Text search
@@ -83,7 +96,7 @@ export class EnhancedActivityService {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { locationName: { contains: search, mode: 'insensitive' } },
+        { location: { name: { contains: search, mode: 'insensitive' } } },
         { category: { contains: search, mode: 'insensitive' } },
         { subcategory: { contains: search, mode: 'insensitive' } }
       ];
@@ -114,14 +127,13 @@ export class EnhancedActivityService {
         
         if (activityTypeRecords.length > 0) {
           const typeIds = activityTypeRecords.map(t => t.id);
-          where.OR = [
-            { activityTypeId: { in: typeIds } },
-            // Also check the legacy category field as fallback
-            { category: { in: categoryList } }
-          ];
+          // Use ONLY the activity type IDs for filtering, not legacy category
+          where.activityTypeId = { in: typeIds };
+          console.log(`✅ [ActivityService] Filtering by activity type IDs:`, typeIds);
         } else {
-          // Fallback to legacy category field only
+          // Only use legacy category field if no activity types were found
           where.category = { in: categoryList };
+          console.log(`⚠️ [ActivityService] No activity types found, falling back to legacy categories:`, categoryList);
         }
       }
     }
@@ -267,10 +279,53 @@ export class EnhancedActivityService {
       where.dayOfWeek = { hasSome: dayOfWeek };
     }
 
-    // Location filter
-    if (location) {
-      where.locationName = { contains: location, mode: 'insensitive' };
+    // Location filter - use normalized location schema  
+    // IMPORTANT: Only apply location filters when:
+    // 1. User is explicitly searching by location (not activity type/subtype)
+    // 2. OR when getting personalized/recommended results
+    const isLocationBasedSearch = !isActivityTypeSearch && (locations || location);
+    
+    console.error('❌❌❌ CRITICAL DEBUG - isActivityTypeSearch:', isActivityTypeSearch);
+    console.error('❌❌❌ CRITICAL DEBUG - locations:', locations);  
+    console.error('❌❌❌ CRITICAL DEBUG - isLocationBasedSearch:', isLocationBasedSearch);
+    
+    if (isLocationBasedSearch && locations && locations.length > 0) {
+      console.error('❌❌❌ APPLYING LOCATION FILTER - THIS SHOULD NOT HAPPEN FOR ACTIVITY TYPE SEARCHES!');
+      // Check if they are UUIDs (location IDs) or names
+      const isLocationId = locations[0] && locations[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      
+      if (isLocationId) {
+        // Filter by location IDs directly
+        where.locationId = { in: locations };
+      } else {
+        // Filter by location names OR city names (since users might pass either)
+        where.location = {
+          OR: [
+            { name: { in: locations } }, // Direct location name match
+            { city: { name: { in: locations } } } // City name match
+          ]
+        };
+      }
+    } else if (isLocationBasedSearch && location) {
+      // Single location by name (backward compatibility) - check both location and city names
+      where.location = {
+        OR: [
+          { name: { contains: location, mode: 'insensitive' } },
+          { city: { name: { contains: location, mode: 'insensitive' } } }
+        ]
+      };
     }
+    
+    console.log('🚨🚨🚨 [LOCATION FILTER DEBUG] Location filtering logic:', {
+      isActivityTypeSearch,
+      isLocationBasedSearch,
+      activityType,
+      activitySubtype,
+      categories,
+      locations,
+      location,
+      willApplyLocationFilter: isLocationBasedSearch
+    });
 
     // Provider filter
     if (providerId) {
@@ -278,10 +333,18 @@ export class EnhancedActivityService {
     }
 
     // Apply global filters using shared utility
+    console.log('🔧 [ActivityService] Global filter params:', {
+      hideClosedActivities,
+      hideFullActivities,
+      types: { hideClosedActivities: typeof hideClosedActivities, hideFullActivities: typeof hideFullActivities }
+    });
+    
     const finalWhere = buildActivityWhereClause(where, {
       hideClosedActivities,
       hideFullActivities
     });
+    
+    console.log('🔧 [ActivityService] buildActivityWhereClause result:', JSON.stringify(finalWhere, null, 2));
 
     console.log('📋 [ActivityService] Final where clause before query:', JSON.stringify(finalWhere, null, 2));
 
@@ -291,7 +354,11 @@ export class EnhancedActivityService {
         where: finalWhere,
         include: {
           provider: true,
-          location: true,
+          location: {
+            include: {
+              city: true // Include city data for complete location info
+            }
+          },
           activityType: true,
           activitySubtype: true,
           _count: {
@@ -347,7 +414,7 @@ export class EnhancedActivityService {
     });
 
     // Return null if activity is inactive and we're not including inactive
-    if (!activity || (!includeInactive && !activity.isActive)) {
+    if (!activity || (!includeInactive && !activity.isUpdated)) {
       return null;
     }
 
@@ -392,7 +459,7 @@ export class EnhancedActivityService {
   async getActivitiesByCategory() {
     const categories = await this.prisma.activity.groupBy({
       by: ['category'],
-      where: { isActive: true },
+      where: { isUpdated: true },
       _count: { _all: true },
       orderBy: { _count: { category: 'desc' } }
     });
@@ -413,10 +480,10 @@ export class EnhancedActivityService {
   async getProviderStats(providerId: string) {
     const [activeCount, inactiveCount, lastRun] = await Promise.all([
       this.prisma.activity.count({
-        where: { providerId, isActive: true }
+        where: { providerId, isUpdated: true }
       }),
       this.prisma.activity.count({
-        where: { providerId, isActive: false }
+        where: { providerId, isUpdated: false }
       }),
       this.prisma.scraperRun.findFirst({
         where: { providerId },

@@ -103,6 +103,7 @@ class ActivityService {
             registrationUrl: activity.registrationUrl,
             courseId: activity.courseId,
             isActive: true,
+            isUpdated: true, // Set both fields for compatibility
             lastSeenAt: new Date(),
             rawData: activity
           };
@@ -220,6 +221,7 @@ class ActivityService {
           },
           data: {
             isActive: false,
+            isUpdated: false, // Set both fields for compatibility
             updatedAt: new Date()
           }
         });
@@ -269,7 +271,9 @@ class ActivityService {
       costMin,
       costMax,
       categories,
+      activityTypes, // For filtering by activity types (Swimming, Dance, etc.)
       locations,
+      locationIds, // For filtering by specific location IDs
       providers,
       search,
       subcategory,
@@ -285,7 +289,12 @@ class ActivityService {
       limit = 50
     } = filters;
 
-    const where = { isActive };
+    // Build where clause with isActive filter restored
+    const where = {};
+    // Re-enable isActive filter now that activity status is corrected
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
 
     // Age filter
     if (ageMin !== undefined || ageMax !== undefined) {
@@ -345,9 +354,44 @@ class ActivityService {
       where.category = { in: categories };
     }
 
-    // Location filter
-    if (locations && locations.length > 0) {
-      where.locationName = { in: locations };
+    // Activity Types filter (for filtering by Swimming, Dance, etc.)
+    if (activityTypes && activityTypes.length > 0) {
+      console.log('🔍 ActivityService: Filtering by activityTypes:', activityTypes);
+      
+      // Get all matching ActivityType records for the provided names
+      const types = await prisma.activityType.findMany({
+        where: {
+          name: { in: activityTypes }
+        },
+        select: { id: true, name: true }
+      });
+      
+      console.log('🔍 ActivityService: Found ActivityType matches:', types);
+      
+      if (types.length > 0) {
+        const typeIds = types.map(t => t.id);
+        where.activityTypeId = { in: typeIds };
+        console.log('🔍 ActivityService: Filtering by activityTypeId IN:', typeIds);
+      }
+    }
+
+    // Location filter - use normalized location schema
+    if (locationIds && locationIds.length > 0) {
+      // Direct location ID filtering
+      where.locationId = { in: locationIds };
+    } else if (locations && locations.length > 0) {
+      // Check if they are UUIDs (location IDs) or names
+      const isLocationId = locations[0] && locations[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      
+      if (isLocationId) {
+        // Filter by location IDs directly
+        where.locationId = { in: locations };
+      } else {
+        // Filter by location names using join to Location table
+        where.location = {
+          name: { in: locations }
+        };
+      }
     }
 
     // Provider filter
@@ -381,7 +425,7 @@ class ActivityService {
           { category: { contains: search, mode: 'insensitive' } },
           { subcategory: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } },
-          { locationName: { contains: search, mode: 'insensitive' } },
+          { location: { name: { contains: search, mode: 'insensitive' } } },
           { fullDescription: { contains: search, mode: 'insensitive' } },
           { instructor: { contains: search, mode: 'insensitive' } },
           { provider: { name: { contains: search, mode: 'insensitive' } } }
@@ -423,7 +467,13 @@ class ActivityService {
         where,
         include: {
           provider: true,
-          location: true,
+          location: {
+            include: {
+              city: true // Include city data for normalized schema
+            }
+          },
+          activityType: true, // CRITICAL: Include activity type relationship
+          activitySubtype: true, // CRITICAL: Include activity subtype relationship
           sessions: {
             orderBy: { sessionNumber: 'asc' }
           },
@@ -494,20 +544,20 @@ class ActivityService {
       upcomingCount,
       priceRanges
     ] = await Promise.all([
-      prisma.activity.count({ where: { isActive: true } }),
+      prisma.activity.count({}), // Count all activities
       prisma.activity.groupBy({
         by: ['category'],
-        where: { isActive: true },
+        // No isActive filter - count all activities
         _count: { id: true }
       }),
       prisma.activity.groupBy({
         by: ['providerId'],
-        where: { isActive: true },
+        // No isActive filter - count all activities
         _count: { id: true }
       }),
       prisma.activity.count({
         where: {
-          isActive: true,
+          // Only filter by date, not isActive
           dateStart: { gte: new Date() }
         }
       }),
@@ -529,7 +579,7 @@ class ActivityService {
               ELSE 5
             END as sort_order
           FROM "Activity"
-          WHERE "isActive" = true
+          -- Removed isActive filter to include all activities
         )
         SELECT 
           price_range,

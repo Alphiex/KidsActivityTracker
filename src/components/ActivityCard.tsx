@@ -281,13 +281,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           <View style={[styles.infoRow, styles.dateRangeRow]}>
             <Icon name="calendar-range" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.dateRangeText, { color: colors.text }]}>
-              {formatDateRange(activity.dateRange.start, activity.dateRange.end)}
+              {activity.dateRange ? formatDateRange(activity.dateRange.start, activity.dateRange.end) : 'Date TBD'}
             </Text>
           </View>
         )}
 
         {/* Display days of the week prominently */}
-        {activity.sessions && activity.sessions.length > 0 && extractDaysFromSessions(activity.sessions) && (
+        {activity.sessions && activity.sessions?.length > 0 && extractDaysFromSessions(activity.sessions) && (
           <View style={[styles.infoRow, styles.daysRow]}>
             <Icon name="calendar-week" size={16} color={Colors.secondary} />
             <Text style={[styles.infoText, styles.daysText, { color: colors.text }]}>
@@ -296,9 +296,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           </View>
         )}
 
-        {activity.sessions && activity.sessions.length > 0 ? (
+        {activity.sessions && activity.sessions?.length > 0 ? (
           <View style={[styles.sessionsContainer]}>
-            {activity.sessions.length === 1 ? (
+            {activity.sessions?.length === 1 ? (
               // Single session - display inline
               <View style={[styles.infoRow, styles.scheduleRow]}>
                 <Icon name="clock-outline" size={16} color={Colors.primary} />
@@ -315,10 +315,10 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
                 <View style={styles.sessionHeader}>
                   <Icon name="calendar-multiple" size={16} color={Colors.primary} />
                   <Text style={[styles.sessionHeaderText, { color: colors.text }]}>
-                    {activity.sessions.length} Sessions Available
+                    {activity.sessions?.length || 0} Sessions Available
                   </Text>
                 </View>
-                {activity.sessions.slice(0, 2).map((session, index) => (
+                {activity.sessions?.slice(0, 2).map((session, index) => (
                   <View key={index} style={styles.sessionItem}>
                     <Text style={[styles.sessionText, { color: colors.textSecondary }]}>
                       {session.date && `${session.date}`}
@@ -327,9 +327,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
                     </Text>
                   </View>
                 ))}
-                {activity.sessions.length > 2 && (
+                {(activity.sessions?.length || 0) > 2 && (
                   <Text style={[styles.moreSessionsText, { color: Colors.primary }]}>
-                    +{activity.sessions.length - 2} more sessions
+                    +{(activity.sessions?.length || 0) - 2} more sessions
                   </Text>
                 )}
               </View>
@@ -348,7 +348,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            Ages {activity.ageRange.min} - {activity.ageRange.max} years
+            Ages {activity.ageRange?.min || 0} - {activity.ageRange?.max || 18} years
           </Text>
         </View>
 

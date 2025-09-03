@@ -41,8 +41,16 @@ const SchedulePreferencesScreen = () => {
     const times: string[] = [];
     const timePrefs = currentPreferences.timePreferences || {};
     
+    // Check if we have the expanded format saved
+    if (currentPreferences.expandedTimePreferences) {
+      return currentPreferences.expandedTimePreferences;
+    }
+    
     // Convert old format to new format
-    if (timePrefs.morning) times.push('morning');
+    if (timePrefs.morning) {
+      times.push('earlyMorning');
+      times.push('morning');
+    }
     if (timePrefs.afternoon) {
       times.push('afternoon');
       times.push('lateAfternoon');
@@ -116,6 +124,7 @@ const SchedulePreferencesScreen = () => {
       ...currentPreferences,
       daysOfWeek: selectedDays,
       timePreferences,
+      expandedTimePreferences: selectedTimes, // Save the detailed time slots
     });
     navigation.goBack();
   };

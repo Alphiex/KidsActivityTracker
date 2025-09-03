@@ -77,13 +77,18 @@ const ActivityTypeDetailScreen = () => {
   const loadTypeDetails = async () => {
     try {
       setError(null);
+      console.log('ActivityTypeDetail: Loading details for type:', typeName, 'with code:', typeCode);
+      
       const activityService = ActivityService.getInstance();
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       
       // Get type details with subtypes from the API
       const types = await activityService.getActivityTypesWithCounts();
-      const currentType = types.find(t => t.name === typeName);
+      console.log('ActivityTypeDetail: Received', types.length, 'activity types from API');
+      
+      const currentType = types.find(t => t.name === typeName || t.code === typeCode);
+      console.log('ActivityTypeDetail: Found matching type:', currentType ? 'Yes' : 'No');
       
       if (currentType && currentType.subtypes) {
         // Use the subtypes from the API which already have counts
@@ -97,29 +102,38 @@ const ActivityTypeDetailScreen = () => {
           .sort((a, b) => b.activityCount - a.activityCount);
         
         setSubtypes(subtypesWithCounts);
-        setTotalCount(currentType.activityCount);
+        setTotalCount(currentType.activityCount || 0);
+        console.log('ActivityTypeDetail: Set subtypes count:', subtypesWithCounts.length, 'total count:', currentType.activityCount);
       } else {
+        console.log('ActivityTypeDetail: Current type not found, using fallback method');
         // Fallback to old method if needed
         const activityTypeService = ActivityTypeService.getInstance();
         const typeInfo = await activityTypeService.getActivityTypeWithSubtypes(typeName);
         
-        const subtypesWithCounts = typeInfo.subtypes
-          .filter(s => s.count > 0)
-          .map(subtype => ({
-            code: subtype.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-            name: subtype.name,
-            activityCount: subtype.count
-          }))
-          .sort((a, b) => b.activityCount - a.activityCount);
-        
-        setSubtypes(subtypesWithCounts);
-        setTotalCount(typeInfo.totalCount);
+        if (typeInfo && typeInfo.subtypes) {
+          const subtypesWithCounts = typeInfo.subtypes
+            .filter(s => s.count > 0)
+            .map(subtype => ({
+              code: subtype.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+              name: subtype.name,
+              activityCount: subtype.count
+            }))
+            .sort((a, b) => b.activityCount - a.activityCount);
+          
+          setSubtypes(subtypesWithCounts);
+          setTotalCount(typeInfo.totalCount || 0);
+        } else {
+          console.log('ActivityTypeDetail: No type info found, setting empty state');
+          setSubtypes([]);
+          setTotalCount(0);
+        }
       }
       
       // Don't load activities here - they will be loaded when selectedSubtype is set
     } catch (err: any) {
-      console.error('Error loading type details:', err);
-      setError(err.message || 'Failed to load activity type details');
+      console.error('ActivityTypeDetail: Error loading type details:', err);
+      console.error('ActivityTypeDetail: Full error object:', JSON.stringify(err, null, 2));
+      setError(err.message || 'Failed to load activity type details. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -149,12 +163,34 @@ const ActivityTypeDetailScreen = () => {
         offset: isRefresh ? 0 : currentOffset,
       };
       
-      // Apply global filters
+      // Apply ALL global filters to match other screens
       if (preferences.hideClosedActivities) {
         filters.hideClosedActivities = true;
       }
       if (preferences.hideFullActivities) {
         filters.hideFullActivities = true;
+      }
+      
+      // Apply location filters
+      if (preferences.locations && preferences.locations.length > 0) {
+        filters.locations = preferences.locations;
+      }
+      
+      // Apply price range filter
+      if (preferences.priceRange) {
+        filters.maxCost = preferences.priceRange.max;
+      }
+      
+      // Apply age range filter
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        filters.ageMin = ageRange.min;
+        filters.ageMax = ageRange.max;
+      }
+      
+      // Apply time preferences to match other screens
+      if (preferences.timePreferences) {
+        filters.timePreferences = preferences.timePreferences;
       }
       
       // If a subtype is selected, filter by it (using exact subtype name)
@@ -184,8 +220,9 @@ const ActivityTypeDetailScreen = () => {
         setCurrentOffset(prev => prev + ITEMS_PER_PAGE);
       }
     } catch (err: any) {
-      console.error('Error loading activities:', err);
-      setError(err.message || 'Failed to load activities');
+      console.error('ActivityTypeDetail: Error loading activities:', err);
+      console.error('ActivityTypeDetail: Filters used:', JSON.stringify(filters, null, 2));
+      setError(err.message || 'Failed to load activities. Please try again.');
     } finally {
       setRefreshing(false);
       setIsLoadingMore(false);

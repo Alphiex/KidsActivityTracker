@@ -15,11 +15,17 @@ export function buildActivityWhereClause(
   baseWhere: Prisma.ActivityWhereInput = {},
   filters: GlobalActivityFilters = {}
 ): Prisma.ActivityWhereInput {
+  console.log('🔧 [activityFilters] buildActivityWhereClause called with:', {
+    baseWhere: JSON.stringify(baseWhere, null, 2),
+    filters
+  });
+  
   const where: Prisma.ActivityWhereInput = { ...baseWhere };
   const andConditions: Prisma.ActivityWhereInput[] = [];
   
   // Always filter for active activities unless explicitly set otherwise
-  if (where.isActive === undefined) {
+  // Don't override if isUpdated is already set (isUpdated is the new way to filter active activities)
+  if (where.isActive === undefined && where.isUpdated === undefined) {
     where.isActive = true;
   }
   

@@ -41,6 +41,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       day_of_week,
       days_of_week,
       location,
+      locations, // Support multiple locations
       providerId,
       hideClosedActivities,
       hideFullActivities,
@@ -50,6 +51,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       sortOrder = 'asc'
     } = req.query;
 
+    console.error('🚨🚨🚨 NEW CODE DEPLOYED - DEBUGGING LOCATION FILTER ISSUE 🚨🚨🚨');
     console.log('🌐 [Routes] Activities API Request:', {
       activityType,
       activitySubtype,
@@ -60,6 +62,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       search,
       category,
       categories,
+      locations,
+      location,
       // Show which parameter format was used
       ageParams: { ageMin, age_min, ageMax, age_max },
       costParams: { costMin, cost_min, costMax, cost_max },
@@ -70,6 +74,11 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
+    // CRITICAL FIX: Don't pass location parameters when doing activity type searches
+    // This prevents location filters from interfering with activity type results
+    const isActivityTypeSearch = !!(activityType || activitySubtype || categories);
+    console.error('🔧 [ROUTE LEVEL FIX] Activity Type Search Detected:', isActivityTypeSearch);
+    
     // Map parameters, supporting both naming conventions
     const params = {
       search: search as string,
@@ -93,7 +102,15 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       dayOfWeek: dayOfWeek ? (Array.isArray(dayOfWeek) ? dayOfWeek : [dayOfWeek]) as string[] :
                  day_of_week ? (Array.isArray(day_of_week) ? day_of_week : [day_of_week]) as string[] :
                  days_of_week ? (Array.isArray(days_of_week) ? days_of_week : (days_of_week as string).split(',')) as string[] : undefined,
-      location: location as string,
+      // CRITICAL FIX: Only pass location parameters if NOT doing activity type search
+      location: isActivityTypeSearch ? undefined : location as string,
+      locations: isActivityTypeSearch ? undefined : locations ? (
+        Array.isArray(locations) 
+          ? locations 
+          : typeof locations === 'string' && locations.includes(',')
+            ? locations.split(',').map(s => s.trim()).filter(s => s)
+            : [locations]
+      ) as string[] : undefined,
       providerId: providerId as string,
       hideClosedActivities: hideClosedActivities === 'true',
       hideFullActivities: hideFullActivities === 'true',
@@ -102,6 +119,13 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt',
       sortOrder: sortOrder as 'asc' | 'desc'
     };
+
+    console.log('🚨 [API Route] Global filter params being passed:', {
+      hideClosedActivities: params.hideClosedActivities,
+      hideFullActivities: params.hideFullActivities,
+      hideClosedActivitiesRaw: hideClosedActivities,
+      hideFullActivitiesRaw: hideFullActivities
+    });
 
     const result = await activityService.searchActivities(params);
 

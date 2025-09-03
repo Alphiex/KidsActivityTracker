@@ -7,8 +7,8 @@ const USE_MOCK_API = false; // Set to false to use real API
 const API_URLS = {
   // Local development
   LOCAL: Platform.select({
-    ios: 'http://127.0.0.1:3001',
-    android: 'http://10.0.2.2:3001',
+    ios: 'http://127.0.0.1:3000',
+    android: 'http://10.0.2.2:3000',
   }),
   
   // Production - Google Cloud Run deployment (Kids Activity Tracker project)
@@ -16,7 +16,7 @@ const API_URLS = {
 };
 
 // Force local development server
-const FORCE_LOCAL = false; // Always use production API
+const FORCE_LOCAL = false; // Use production API for stability
 
 // API Configuration
 const API_CONFIG = {

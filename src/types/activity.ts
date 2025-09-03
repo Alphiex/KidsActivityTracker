@@ -115,6 +115,7 @@ export interface Filter {
     start: Date;
     end: Date;
   };
+  locationId?: string; // Single location ID for exact matching
   locations?: string[];
   maxCost?: number;
   providers?: string[];

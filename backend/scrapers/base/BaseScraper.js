@@ -77,10 +77,14 @@ class BaseScraper {
 
     console.log(`💾 Saving ${activities.length} activities to database...`);
 
-    // Mark all existing activities as inactive initially
+    // Mark all existing activities as not updated initially (for this scrape run)
     await this.prisma.activity.updateMany({
       where: { providerId },
-      data: { isActive: false }
+      data: { 
+        isUpdated: false,
+        // Keep isActive for backward compatibility during migration
+        isActive: false
+      }
     });
 
     // Process each activity
@@ -111,12 +115,13 @@ class BaseScraper {
           const hasChanges = this.detectActivityChanges(existingActivity, activityWithTypes);
           
           if (hasChanges.changed) {
-            // Update existing activity
+            // Update existing activity - fields were modified
             const updated = await this.prisma.activity.update({
               where: { id: existingActivity.id },
               data: {
                 ...activityWithTypes,
-                isActive: true,
+                isUpdated: true,  // Mark as updated since fields changed
+                isActive: true,   // Keep for backward compatibility
                 lastSeenAt: new Date(),
                 updatedAt: new Date()
               }
@@ -128,12 +133,14 @@ class BaseScraper {
               changes: hasChanges.changes
             });
           } else {
-            // No changes, just mark as active
+            // No changes, but still update timestamps
             await this.prisma.activity.update({
               where: { id: existingActivity.id },
               data: {
-                isActive: true,
-                lastSeenAt: new Date()
+                isUpdated: false,  // No fields changed, keep as not updated
+                isActive: true,    // Keep for backward compatibility
+                lastSeenAt: new Date(),
+                updatedAt: new Date()  // Always update timestamp
               }
             });
             stats.unchanged++;
@@ -144,8 +151,10 @@ class BaseScraper {
             data: {
               ...activityWithTypes,
               providerId,
-              isActive: true,
-              lastSeenAt: new Date()
+              isUpdated: false,  // New activities start as not updated
+              isActive: true,    // Keep for backward compatibility
+              lastSeenAt: new Date(),
+              updatedAt: new Date()  // Set initial timestamp
             }
           });
           

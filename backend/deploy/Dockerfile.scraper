@@ -39,4 +39,4 @@ USER appuser
 ENTRYPOINT ["dumb-init", "--"]
 
 # Run the scraper
-CMD ["node", "scraper-job.js"]
+CMD ["node", "scripts/scraper-job.js"]

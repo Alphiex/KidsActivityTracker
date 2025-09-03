@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { PrismaClient } = require('../generated/prisma');
+const { ActivityCategoryAssigner } = require('../utils/activityCategoryAssigner');
 const { extractComprehensiveDetails } = require('./nvrcComprehensiveDetailScraper');
 const { parseActivityType, extractAgeRangeFromText } = require('./utils/activityTypeParser');
 const { mapActivityType } = require('../utils/activityTypeMapper');
@@ -48,6 +49,7 @@ function determineFacilityType(locationName) {
 
 class NVRCEnhancedParallelScraper {
   constructor(options = {}) {
+    this.categoryAssigner = new ActivityCategoryAssigner();
     this.options = {
       headless: true,
       maxConcurrency: options.maxConcurrency || 3,
@@ -1359,3 +1361,21 @@ ${idx + 1}. ${activity.name}
 }
 
 module.exports = NVRCEnhancedParallelScraper;
+// Run the scraper if this file is executed directly
+if (require.main === module) {
+  const scraper = new NVRCEnhancedParallelScraper();
+  
+  scraper.scrape()
+    .then(result => {
+      console.log('✅ Scraping completed successfully');
+      console.log(`Total activities: ${result.activities.length}`);
+      console.log(`Created: ${result.stats.created}`);
+      console.log(`Updated: ${result.stats.updated}`);
+      console.log(`Removed: ${result.stats.removed}`);
+      process.exit(0);
+    })
+    .catch(error => {
+      console.error('❌ Scraping failed:', error);
+      process.exit(1);
+    });
+}

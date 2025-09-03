@@ -400,7 +400,7 @@ export class ChildActivityService {
       status: item.status as ActivityStatus,
       startDate: item.activity.dateStart,
       endDate: item.activity.dateEnd,
-      location: item.activity.location?.name || item.activity.locationName,
+      location: item.activity.location?.name || 'Unknown',
       category: item.activity.category
     }));
   }

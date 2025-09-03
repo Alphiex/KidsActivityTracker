@@ -1,195 +1,222 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  ActivityIndicator,
   RefreshControl,
+  TouchableOpacity
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
-import ActivityService from '../services/activityService';
+import { useTheme } from '../contexts/ThemeContext';
 import ActivityCard from '../components/ActivityCard';
-import LoadingIndicator from '../components/LoadingIndicator';
-import { Colors } from '../theme';
-import { Activity } from '../types';
+
+interface Activity {
+  id: string;
+  name: string;
+  description: string;
+  ageMin: number;
+  ageMax: number;
+  cost: number;
+  spotsAvailable: number;
+  registrationStatus: string;
+  location?: {
+    name: string;
+    city?: {
+      name: string;
+    }
+  };
+  activityType?: {
+    name: string;
+  };
+  activitySubtype?: {
+    name: string;
+  };
+}
 
 const CategoryDetailScreen = () => {
-  const navigation = useNavigation();
   const route = useRoute();
-  const { category } = route.params as { category: any };
+  const navigation = useNavigation();
+  const { colors } = useTheme();
+  const { categoryId, categoryName } = route.params as { categoryId: string; categoryName: string };
   
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: category.name || 'Category',
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: '#fff',
-    });
-    loadActivities(true);
-  }, [navigation, category]);
-
-  const loadActivities = async (reset = false) => {
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  
+  const loadActivities = async (offset = 0, isRefresh = false) => {
     try {
-      if (reset) {
-        setCurrentPage(1);
-        setActivities([]);
-        setIsLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+        setError(null);
+      } else if (offset === 0) {
+        setLoading(true);
+        setError(null);
       } else {
-        setIsLoadingMore(true);
+        setLoadingMore(true);
       }
+
+      console.log(`📋 Loading activities for category ${categoryName} (offset: ${offset})`);
       
-      const activityService = ActivityService.getInstance();
+      // Apply global filters - TODO: get from user preferences
+      const hideClosedActivities = 'true';
+      const hideFullActivities = 'false';
       
-      // Use the category code to fetch activities
       const response = await fetch(
-        `${activityService.api.defaults.baseURL}/api/v1/categories/${category.code}/activities?page=${reset ? 1 : currentPage}&limit=50`
+        `http://localhost:3000/api/v1/categories/${categoryId}/activities?` +
+        `limit=50&offset=${offset}&hideClosedActivities=${hideClosedActivities}&hideFullActivities=${hideFullActivities}`
       );
       
       const data = await response.json();
       
       if (data.success) {
-        if (reset) {
-          setActivities(data.data.activities);
+        const newActivities = data.activities;
+        
+        if (offset === 0 || isRefresh) {
+          setActivities(newActivities);
         } else {
-          setActivities(prev => [...prev, ...data.data.activities]);
+          setActivities(prev => [...prev, ...newActivities]);
         }
-        setTotalPages(data.data.pagination.totalPages);
-        setCurrentPage(prev => prev + 1);
+        
+        setTotal(data.pagination.total);
+        setHasMore(data.pagination.offset + data.pagination.limit < data.pagination.total);
+        
+        console.log(`✅ Loaded ${newActivities.length} activities, total: ${data.pagination.total}`);
       } else {
         throw new Error(data.error || 'Failed to load activities');
       }
+      
     } catch (err: any) {
-      console.error('Error loading category activities:', err);
+      console.error('❌ Error loading category activities:', err);
       setError(err.message || 'Failed to load activities');
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
+  useEffect(() => {
+    loadActivities();
+  }, [categoryId]);
+
   const handleRefresh = () => {
-    setRefreshing(true);
-    loadActivities(true);
+    loadActivities(0, true);
   };
 
   const handleLoadMore = () => {
-    if (!isLoadingMore && currentPage <= totalPages) {
-      loadActivities(false);
+    if (!loadingMore && hasMore) {
+      loadActivities(activities.length);
     }
   };
 
   const renderActivity = ({ item }: { item: Activity }) => (
-    <ActivityCard 
+    <ActivityCard
       activity={item}
-      onPress={() => {
-        navigation.navigate('ActivityDetail' as never, { activity: item } as never);
-      }}
+      onPress={() => navigation.navigate('ActivityDetail', { activityId: item.id })}
     />
   );
 
-  const renderHeader = () => (
-    <LinearGradient
-      colors={['#673AB7', '#512DA8']}
-      style={styles.header}
-    >
-      <Icon name="account-group" size={50} color="#fff" />
-      <Text style={styles.headerTitle}>{category.name}</Text>
-      <Text style={styles.headerSubtitle}>
-        {category.description || `Activities for ${category.name.toLowerCase()}`}
-      </Text>
-      <View style={styles.headerStats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{category.count || 0}</Text>
-          <Text style={styles.statLabel}>Total Activities</Text>
-        </View>
-        {category.ageMin !== undefined && (
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {category.ageMin}-{category.ageMax}
-            </Text>
-            <Text style={styles.statLabel}>Age Range</Text>
-          </View>
-        )}
-        {category.requiresParent && (
-          <View style={styles.statItem}>
-            <Icon name="account-child" size={24} color="#fff" />
-            <Text style={styles.statLabel}>Parent Required</Text>
-          </View>
-        )}
+  const renderEmpty = () => {
+    if (loading) return null;
+    
+    return (
+      <View style={styles.emptyContainer}>
+        <Icon name="calendar-blank" size={64} color={colors.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          No activities found
+        </Text>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+          There are no activities in this category that match your current filters.
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={() => loadActivities(0, true)}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
-    </LinearGradient>
-  );
-
-  const renderFooter = () => {
-    if (isLoadingMore) {
-      return (
-        <View style={styles.footerLoader}>
-          <LoadingIndicator size="small" color={Colors.primary} />
-        </View>
-      );
-    }
-    return null;
+    );
   };
 
-  if (isLoading && !refreshing) {
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    
     return (
-      <View style={styles.centerContainer}>
-        <LoadingIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading activities...</Text>
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Loading more activities...
+        </Text>
+      </View>
+    );
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>
+          Loading {categoryName.toLowerCase()} activities...
+        </Text>
       </View>
     );
   }
 
-  if (error) {
+  if (error && !refreshing && activities.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Icon name="alert-circle" size={60} color={Colors.error} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => loadActivities(true)}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <Icon name="alert-circle" size={64} color={colors.error} />
+        <Text style={[styles.errorTitle, { color: colors.text }]}>
+          Unable to load activities
+        </Text>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+          {error}
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={() => loadActivities(0, true)}
+        >
+          <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.cardBackground }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          {categoryName}
+        </Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          {total} activities shown
+        </Text>
+      </View>
+
       <FlatList
         data={activities}
         renderItem={renderActivity}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
+        contentContainerStyle={styles.listContainer}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
         }
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !isLoading && !refreshing ? (
-            <View style={styles.emptyContainer}>
-              <Icon name="magnify-remove-outline" size={60} color={Colors.textSecondary} />
-              <Text style={styles.emptyText}>No activities found</Text>
-              <Text style={styles.emptySubtext}>
-                Try adjusting your filters or check back later
-              </Text>
-            </View>
-          ) : null
-        }
+        onEndReachedThreshold={0.1}
+        ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -198,100 +225,84 @@ const CategoryDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
-  centerContainer: {
-    flex: 1,
+  centered: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
-    padding: 20,
   },
   header: {
-    padding: 30,
-    alignItems: 'center',
+    padding: 20,
+    paddingTop: 60,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 15,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginBottom: 20,
   },
-  headerStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  errorText: {
-    fontSize: 16,
-    color: Colors.error,
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  retryButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: 'center',
+  listContainer: {
+    padding: 16,
+    paddingBottom: 32,
   },
   emptyContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 64,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
-    fontSize: 18,
-    color: Colors.text,
-    marginTop: 20,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 8,
+    fontSize: 16,
     textAlign: 'center',
-    paddingHorizontal: 40,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
   },
 });
 

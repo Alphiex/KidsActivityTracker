@@ -20,6 +20,8 @@ export interface ActivitySearchParams extends PaginationParams {
   costMin?: number;
   costMax?: number;
   location?: string;
+  locationId?: string; // Single location ID for exact matching
+  locations?: string[]; // Multiple location IDs
   daysOfWeek?: string[];
   startDateAfter?: string;
   startDateBefore?: string;

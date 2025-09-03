@@ -42,7 +42,15 @@ const SettingsScreen = () => {
         },
         {
           title: 'Age Groups',
-          subtitle: `${preferences.ageRanges.length} range${preferences.ageRanges.length > 1 ? 's' : ''}`,
+          subtitle: (() => {
+            // Check if it's "All Ages" (single range 0-18)
+            if (preferences.ageRanges.length === 1 && 
+                preferences.ageRanges[0].min === 0 && 
+                preferences.ageRanges[0].max === 18) {
+              return 'All ages';
+            }
+            return `${preferences.ageRanges.length} range${preferences.ageRanges.length !== 1 ? 's' : ''} selected`;
+          })(),
           icon: 'human-child',
           onPress: () => navigation.navigate('AgePreferences'),
         },

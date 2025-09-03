@@ -50,24 +50,10 @@ const ActivityTypeScreen = () => {
         offset: reset ? 0 : currentOffset
       };
       
-      // Add filter based on whether it's a category or activity type
+      // Add filter based on activity type (use new ActivityType system)
       if (category !== 'All' && category !== 'Budget Friendly') {
-        if (isActivityType) {
-          // For activity types (like Swimming, Dance, etc.), check if it's a consolidated type
-          // These should use subcategory to match against the actual database subcategories
-          const consolidatedTypes = ['Swimming', 'Dance', 'Sports', 'Skating', 'Visual Arts', 'Music'];
-          if (consolidatedTypes.includes(category)) {
-            searchParams.subcategory = category;
-          } else {
-            // For other activity types, try both category and subcategory
-            searchParams.categories = category;
-            // Also try as subcategory in case it's a specific activity
-            searchParams.subcategory = category;
-          }
-        } else {
-          // For categories, use the categories filter
-          searchParams.categories = category;
-        }
+        // Always use activityType filter for precise categorization
+        searchParams.activityType = category;
       }
       
       // Apply additional filters if provided
@@ -76,14 +62,34 @@ const ActivityTypeScreen = () => {
         searchParams = { ...searchParams, ...filters };
       }
       
-      // Apply user preference for hiding closed activities
+      // Apply ALL global filters to match other screens
       if (preferences.hideClosedActivities) {
         searchParams.hideClosedActivities = true;
       }
-      
-      // Apply user preference for hiding full activities
       if (preferences.hideFullActivities) {
         searchParams.hideFullActivities = true;
+      }
+      
+      // Apply location filters
+      if (preferences.locations && preferences.locations.length > 0) {
+        searchParams.locations = preferences.locations;
+      }
+      
+      // Apply price range filter (don't override Budget Friendly maxCost)
+      if (preferences.priceRange && !searchParams.maxCost) {
+        searchParams.maxCost = preferences.priceRange.max;
+      }
+      
+      // Apply age range filter
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        searchParams.ageMin = ageRange.min;
+        searchParams.ageMax = ageRange.max;
+      }
+      
+      // Apply time preferences
+      if (preferences.timePreferences) {
+        searchParams.timePreferences = preferences.timePreferences;
       }
       
       console.log('ActivityTypeScreen: Final searchParams being sent to API:', searchParams);

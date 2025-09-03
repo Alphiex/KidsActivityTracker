@@ -142,7 +142,7 @@ const SearchScreen = () => {
     }
     
     if (selectedCategories.length > 0) {
-      filters.category = selectedCategories[0]; // Backend expects single category
+      filters.activityType = selectedCategories[0]; // Use ActivityType for precise filtering
     }
     
     if (selectedLocations.length > 0) {

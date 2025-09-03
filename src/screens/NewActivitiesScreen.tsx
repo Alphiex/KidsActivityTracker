@@ -54,14 +54,34 @@ const NewActivitiesScreen = () => {
         createdAfter: oneWeekAgo.toISOString()
       };
       
-      // Apply user preference for hiding closed activities
+      // Apply ALL global filters to match other screens
       if (preferences.hideClosedActivities) {
         searchParams.hideClosedActivities = true;
       }
-      
-      // Apply user preference for hiding full activities
       if (preferences.hideFullActivities) {
         searchParams.hideFullActivities = true;
+      }
+      
+      // Apply location filters
+      if (preferences.locations && preferences.locations.length > 0) {
+        searchParams.locations = preferences.locations;
+      }
+      
+      // Apply price range filter
+      if (preferences.priceRange) {
+        searchParams.maxCost = preferences.priceRange.max;
+      }
+      
+      // Apply age range filter
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        searchParams.ageMin = ageRange.min;
+        searchParams.ageMax = ageRange.max;
+      }
+      
+      // Apply time preferences
+      if (preferences.timePreferences) {
+        searchParams.timePreferences = preferences.timePreferences;
       }
       
       const result = await activityService.searchActivitiesPaginated(searchParams);

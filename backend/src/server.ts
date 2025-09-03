@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { PrismaClient } from '../generated/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { swaggerSpec, swaggerUi } from './swagger/config';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -18,6 +19,8 @@ import activitiesRoutes from './routes/activities';
 import activityTypesRoutes from './routes/activityTypes';
 import referenceRoutes from './routes/reference';
 import citiesRoutes from './routes/cities';
+import categoriesRoutes from './routes/categories';
+import locationsRoutes from './routes/locations';
 
 // Import middleware
 import { apiLimiter, verifyToken, optionalAuth } from './middleware/auth';
@@ -45,12 +48,26 @@ app.use(morgan('combined')); // Logging
 // Apply rate limiting to all routes
 app.use('/api/', apiLimiter);
 
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Kids Activity Tracker API Documentation',
+  customfavIcon: '/favicon.ico'
+}));
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     success: true,
     status: 'healthy',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    documentation: '/api-docs'
   });
 });
 
@@ -82,6 +99,12 @@ app.use('/api/v1/reference', referenceRoutes);
 
 // Cities routes (v1 API)
 app.use('/api/v1/cities', citiesRoutes);
+
+// Categories routes (v1 API)
+app.use('/api/v1/categories', categoriesRoutes);
+
+// Locations routes (v1 API)
+app.use('/api/v1/locations', locationsRoutes);
 
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {

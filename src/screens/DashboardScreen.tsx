@@ -9,7 +9,7 @@ import {
   Dimensions,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import PreferencesService from '../services/preferencesService';
@@ -43,11 +43,20 @@ const DashboardScreen = () => {
     upcomingEvents: 0,
     budgetFriendly: 0,
   });
-  const [categories, setCategories] = useState<Array<{ name: string; count: number; icon: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number; icon: string }>>([]);
   const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count: number; icon: string }>>([]);
 
-  // Define category configurations
+  // Define category icons for age-based categories (NOT activity types)
   const categoryIcons = {
+    'Early Years: Parent Participation': 'account-child',
+    'Early Years: On My Own': 'baby-face',
+    'School Age': 'school',
+    'Youth': 'account-group',
+    'All Ages & Family': 'family'
+  };
+
+  // Define activity type icons (for Browse by Activity Type section)
+  const activityTypeIcons = {
     'Sports': 'basketball',
     'Arts': 'palette',
     'Music': 'music-note',
@@ -100,8 +109,9 @@ const DashboardScreen = () => {
       }
       
       // Apply activity type filters from preferredCategories
+      // preferredCategories contains activity type names like "Swimming & Aquatics", "Dance", etc.
       if (currentPreferences.preferredCategories && currentPreferences.preferredCategories.length > 0) {
-        filters.categories = currentPreferences.preferredCategories.join(',');
+        filters.activityTypes = currentPreferences.preferredCategories;
       }
       
       if (currentPreferences.locations && currentPreferences.locations.length > 0) {
@@ -119,6 +129,15 @@ const DashboardScreen = () => {
           min: ageRange.min,
           max: ageRange.max
         };
+      }
+      
+      // Apply schedule preferences
+      if (currentPreferences.daysOfWeek && currentPreferences.daysOfWeek.length > 0 && currentPreferences.daysOfWeek.length < 7) {
+        filters.daysOfWeek = currentPreferences.daysOfWeek;
+      }
+      
+      if (currentPreferences.timePreferences) {
+        filters.timePreferences = currentPreferences.timePreferences;
       }
       
       // Use searchActivitiesPaginated to get the EXACT same count as RecommendedActivitiesScreen
@@ -170,16 +189,22 @@ const DashboardScreen = () => {
       await loadRecommendedCount();
       // Don't log recommendedCount here - it won't be updated yet due to React's async state
       
-      // Fetch categories
+      // Fetch age-based categories for Browse by Category section
       try {
-        const categoriesData = await activityService.getCategories();
-        const categoriesWithIcons = categoriesData
-          .slice(0, 5) // Show only top 5 categories
-          .map(cat => ({
-            ...cat,
-            icon: categoryIcons[cat.name] || 'tag',
+        console.log('DASHBOARD: Fetching categories...');
+        const response = await fetch('http://localhost:3000/api/v1/categories');
+        const categoriesData = await response.json();
+        
+        if (categoriesData.success) {
+          const categoriesWithIcons = categoriesData.categories.map(cat => ({
+            id: cat.id,
+            name: cat.name,
+            count: cat.activityCount,
+            icon: categoryIcons[cat.name] || 'tag'
           }));
-        setCategories(categoriesWithIcons);
+          setCategories(categoriesWithIcons);
+          console.log('DASHBOARD: Categories loaded:', categoriesWithIcons.length);
+        }
       } catch (catError) {
         console.error('Error fetching categories:', catError);
       }
@@ -232,7 +257,8 @@ const DashboardScreen = () => {
       if (preferences.ageRanges && preferences.ageRanges.length > 0) {
         // Use the first age range for simplicity
         const ageRange = preferences.ageRanges[0];
-        preferencesFilters.ageRange = ageRange;
+        preferencesFilters.ageMin = ageRange.min;
+        preferencesFilters.ageMax = ageRange.max;
       }
       if (preferences.locations && preferences.locations.length > 0) {
         preferencesFilters.locations = preferences.locations;
@@ -245,6 +271,11 @@ const DashboardScreen = () => {
       }
       if (preferences.hideFullActivities) {
         preferencesFilters.hideFullActivities = true;
+      }
+      
+      // Apply time preferences to match RecommendedActivitiesScreen behavior
+      if (preferences.timePreferences) {
+        preferencesFilters.timePreferences = preferences.timePreferences;
       }
       
       // Get matching activities count
@@ -340,6 +371,14 @@ const DashboardScreen = () => {
     console.log('Dashboard: Preferences changed, reloading count');
     loadRecommendedCount();
   }, [preferences.preferredCategories?.join(','), preferences.priceRange?.max, preferences.ageRanges?.[0]?.min, preferences.ageRanges?.[0]?.max]);
+
+  // Refresh dashboard when screen comes into focus (e.g., returning from favorites)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('Dashboard: Screen focused, refreshing data');
+      loadDashboardData();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -555,7 +594,10 @@ const DashboardScreen = () => {
           <TouchableOpacity
             key={index}
             style={styles.categoryCard}
-            onPress={() => navigation.navigate('CategoryDetail', { category })}
+            onPress={() => navigation.navigate('CategoryDetail', { 
+              categoryId: category.id,
+              categoryName: category.name 
+            })}
             activeOpacity={0.7}
           >
             <LinearGradient

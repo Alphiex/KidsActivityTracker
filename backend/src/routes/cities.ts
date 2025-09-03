@@ -23,23 +23,22 @@ router.get('/', async (req: Request, res: Response) => {
     const globalFilters = extractGlobalFilters(req.query);
     console.log('🏙️ [Cities] Global filters:', globalFilters);
     
-    // Get unique cities with counts - filter out null cities after grouping
-    const citiesRaw = await prisma.location.groupBy({
-      by: ['city', 'province'],
-      _count: {
-        id: true
-      },
-      orderBy: {
+    // Get cities with location and activity counts using normalized schema
+    const cities = await prisma.city.findMany({
+      select: {
+        id: true,
+        name: true,
+        province: true,
+        country: true,
         _count: {
-          id: 'desc'
+          select: {
+            locations: true
+          }
         }
       }
     });
     
-    // Filter out null cities
-    const cities = citiesRaw.filter(c => c.city !== null);
-    
-    console.log(`🏙️ [Cities] Found ${cities.length} unique cities`);
+    console.log(`🏙️ [Cities] Found ${cities.length} cities in normalized schema`);
     
     // Get activity counts per city with global filters
     const citiesWithActivityCounts = await Promise.all(
@@ -47,15 +46,15 @@ router.get('/', async (req: Request, res: Response) => {
         const activityCount = await prisma.activity.count({
           where: buildActivityWhereClause({
             location: {
-              city: city.city
+              cityId: city.id
             }
           }, globalFilters)
         });
         
         return {
-          city: city.city || '',
+          city: city.name,
           province: city.province,
-          venueCount: city._count.id,
+          venueCount: city._count.locations,
           activityCount
         } as CityData;
       })
@@ -93,20 +92,29 @@ router.get('/:city/locations', async (req: Request, res: Response) => {
     const { city } = req.params;
     const decodedCity = decodeURIComponent(city);
     
+    // Extract global filters from request
+    const globalFilters = extractGlobalFilters(req.query);
+    
+    // Build activity filter with global filters applied
+    const activityWhereClause = buildActivityWhereClause({
+      isActive: true
+    }, globalFilters);
+    
     const locations = await prisma.location.findMany({
       where: {
         city: {
-          equals: decodedCity,
-          mode: 'insensitive'
+          name: {
+            equals: decodedCity,
+            mode: 'insensitive'
+          }
         }
       },
       include: {
+        city: true, // Include city data
         _count: {
           select: {
             activities: {
-              where: {
-                isActive: true
-              }
+              where: activityWhereClause
             }
           }
         }
@@ -120,13 +128,15 @@ router.get('/:city/locations', async (req: Request, res: Response) => {
       id: loc.id,
       name: loc.name,
       address: loc.address,
-      city: loc.city,
-      province: loc.province,
+      city: loc.city?.name || 'Unknown',
+      province: loc.city?.province || 'Unknown',
       postalCode: loc.postalCode,
       facility: loc.facility,
       latitude: loc.latitude,
       longitude: loc.longitude,
-      activityCount: loc._count.activities
+      activityCount: loc._count.activities,
+      fullAddress: loc.fullAddress,
+      mapUrl: loc.mapUrl
     }));
     
     res.json({

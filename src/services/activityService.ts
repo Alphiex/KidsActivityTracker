@@ -191,7 +191,7 @@ class ActivityService {
         params.costMax = filters.maxCost;
       }
       if (filters.activityTypes && filters.activityTypes.length > 0) {
-        params.categories = filters.activityTypes.join(','); // Send as comma-separated list
+        params.categories = filters.activityTypes.join(','); // Send as comma-separated list for backend 'categories' parameter
       }
       if (filters.category) {
         params.category = filters.category; // For age-based categories
@@ -208,8 +208,12 @@ class ActivityService {
       if (filters.activitySubtype) {
         params.activitySubtype = filters.activitySubtype;
       }
-      if (filters.locations && filters.locations.length > 0) {
-        params.location = filters.locations[0]; // Backend expects single location
+      if (filters.locationId) {
+        params.locationId = filters.locationId; // Direct location ID for exact matching
+      } else if (filters.locations && filters.locations.length > 0) {
+        // Send locations as individual query parameters (locations[]=id1&locations[]=id2)
+        // This is the standard way to send arrays in HTTP query parameters
+        params.locations = filters.locations;
       }
       if (filters.search) {
         params.search = filters.search; // Backend expects 'search' not 'q'
@@ -278,7 +282,11 @@ class ActivityService {
         provider: activity.provider?.name || 'NVRC',
         isFavorite: activity._count?.favorites > 0 || false,
         cost: activity.cost || 0,
-        location: activity.location || 'Unknown',
+        // Use normalized location structure
+        location: activity.location?.name || activity.locationName || 'Unknown',
+        locationAddress: activity.location?.fullAddress || activity.fullAddress || null,
+        locationCity: activity.location?.city?.name || null,
+        mapUrl: activity.location?.mapUrl || null,
         // Include all enhanced fields
         registrationStatus: activity.registrationStatus,
         registrationButtonText: activity.registrationButtonText,
@@ -385,6 +393,20 @@ class ActivityService {
       if (params.minCost !== undefined) {
         apiParams.costMin = params.minCost;
         delete apiParams.minCost;
+      }
+      
+      // Handle locationId - direct location ID for exact matching  
+      if (params.locationId) {
+        apiParams.locationId = params.locationId;
+      } else if (params.locations && Array.isArray(params.locations)) {
+        // Handle locations array - convert to comma-separated string for API
+        apiParams.locations = params.locations.join(',');
+      }
+      
+      // Handle activityTypes array - convert to comma-separated string for API
+      if (params.activityTypes && Array.isArray(params.activityTypes)) {
+        apiParams.categories = params.activityTypes.join(',');
+        delete apiParams.activityTypes;
       }
       
       console.log('Searching activities with pagination:', apiParams);
@@ -644,7 +666,10 @@ class ActivityService {
     try {
       const url = `/api/v1/cities/${encodeURIComponent(city)}/locations`;
       console.log('Fetching city locations from:', url);
-      const response = await this.api.get(url);
+      
+      // Add global filters to ensure count consistency
+      const globalFilters = this.getGlobalFilterParams();
+      const response = await this.api.get(url, { params: globalFilters });
       console.log('City locations response:', response.data);
       
       if (response.data && response.data.success && response.data.data && response.data.data.locations) {
@@ -711,6 +736,99 @@ class ActivityService {
     } catch (error) {
       console.error('Error fetching activity type details:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get activities for a specific venue using the dedicated venue endpoint
+   */
+  async getVenueActivities(venueId: string, params: { limit?: number; offset?: number; hideClosedActivities?: boolean; hideFullActivities?: boolean } = {}): Promise<PaginatedResponse<Activity>> {
+    try {
+      const isConnected = await this.checkConnectivity();
+      if (!isConnected) {
+        return {
+          items: [],
+          total: 0,
+          limit: params.limit || 50,
+          offset: params.offset || 0,
+          hasMore: false,
+          pages: 0
+        };
+      }
+
+      // Merge with global filters from preferences
+      const globalFilters = this.getGlobalFilterParams();
+      const apiParams = { ...params, ...globalFilters };
+      
+      console.log(`🎯 Calling venue-specific API: /api/v1/locations/${venueId}/activities with params:`, apiParams);
+      
+      const response = await this.api.get(`/api/v1/locations/${venueId}/activities`, { params: apiParams });
+      
+      console.log(`📨 Venue API response status:`, response.status);
+      console.log(`📨 Venue API response success:`, response.data?.success);
+      console.log(`📨 Venue API response activities count:`, response.data?.activities?.length);
+      console.log(`📨 Venue API response total:`, response.data?.pagination?.total);
+      
+      if (response.data && response.data.success) {
+        const activities = response.data.activities.map((activity: any) => ({
+          ...activity,
+          // Keep the activityType object from the API response as-is
+          dateRange: activity.dateStart && activity.dateEnd ? {
+            start: new Date(activity.dateStart),
+            end: new Date(activity.dateEnd),
+          } : null,
+          ageRange: {
+            min: activity.ageMin || 0,
+            max: activity.ageMax || 18
+          },
+          scrapedAt: new Date(activity.updatedAt || activity.createdAt || Date.now()),
+          provider: activity.provider?.name || 'Unknown',
+          isFavorite: activity._count?.favorites > 0 || false,
+          cost: activity.cost || 0,
+          location: activity.location?.name || activity.locationName || 'Unknown',
+          // Include all enhanced fields
+          registrationStatus: activity.registrationStatus,
+          registrationButtonText: activity.registrationButtonText,
+          detailUrl: activity.detailUrl,
+          fullDescription: activity.fullDescription,
+          instructor: activity.instructor,
+          prerequisites: activity.prerequisites,
+          whatToBring: activity.whatToBring,
+          fullAddress: activity.location?.fullAddress || activity.fullAddress,
+          latitude: activity.location?.latitude || activity.latitude,
+          longitude: activity.location?.longitude || activity.longitude,
+          directRegistrationUrl: activity.directRegistrationUrl,
+          contactInfo: activity.contactInfo,
+          totalSpots: activity.totalSpots,
+          // New fields for sessions and prerequisites
+          hasMultipleSessions: activity.hasMultipleSessions,
+          sessionCount: activity.sessionCount,
+          sessions: activity.sessions,
+          hasPrerequisites: activity.hasPrerequisites
+        }));
+        
+        // The backend returns the total in pagination.total
+        const total = response.data.pagination?.total || response.data.total || activities.length;
+        const currentPage = response.data.pagination?.page || 1;
+        const limit = response.data.pagination?.limit || params.limit || 50;
+        const totalPages = response.data.pagination?.pages || Math.ceil(total / limit);
+        
+        console.log(`✅ Venue API returned ${activities.length} activities out of ${total} total`);
+        
+        return {
+          items: activities,
+          total: total,
+          limit: limit,
+          offset: params.offset || 0,
+          hasMore: currentPage < totalPages,
+          pages: totalPages
+        };
+      }
+      
+      throw new Error('Invalid response format');
+    } catch (error: any) {
+      console.error('Error fetching venue activities:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch venue activities');
     }
   }
 

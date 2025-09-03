@@ -9,7 +9,7 @@ echo "=================================================="
 
 # 1. Build the production image
 echo "📦 Building Docker image..."
-docker build -t gcr.io/kids-activity-tracker-2024/kids-activity-api:latest .
+docker build -f deploy/Dockerfile.simplified -t gcr.io/kids-activity-tracker-2024/kids-activity-api:latest .
 
 # 2. Push to Google Container Registry
 echo "☁️ Pushing to Google Container Registry..."
@@ -32,7 +32,7 @@ gcloud run deploy kids-activity-api \
 
 # 4. Deploy the scraper job with new activity type mapper
 echo "📦 Building scraper image..."
-docker build -f Dockerfile.scraper -t gcr.io/kids-activity-tracker-2024/scraper-detailed:latest .
+docker build -f deploy/Dockerfile.scraper -t gcr.io/kids-activity-tracker-2024/scraper-detailed:latest .
 
 echo "☁️ Pushing scraper image..."
 docker push gcr.io/kids-activity-tracker-2024/scraper-detailed:latest

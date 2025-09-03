@@ -26,10 +26,10 @@ model Activity {
   spotsAvailable         Int?
   totalSpots             Int?
   locationId             String?
-  locationName           String?
   registrationUrl        String?
   courseId               String?
-  isActive               Boolean                @default(true)
+  isActive               Boolean                @default(true) // Deprecated: Use isUpdated instead
+  isUpdated              Boolean                @default(false)
   lastSeenAt             DateTime               @default(now())
   rawData                Json?
   createdAt              DateTime               @default(now())
@@ -52,10 +52,7 @@ model Activity {
   hasPrerequisites       Boolean                @default(false)
   fullDescription        String?
   whatToBring            String?
-  fullAddress            String?
   prerequisites          String?
-  latitude               Float?
-  longitude              Float?
   directRegistrationUrl  String?
   contactInfo            String?
   activitySubtypeId      String?
@@ -68,6 +65,7 @@ model Activity {
   sessions               ActivitySession[]
   childActivities        ChildActivity[]
   favorites              Favorite[]
+  categories             ActivityCategory[]
 
   @@unique([providerId, externalId])
   @@index([activitySubtypeId])
@@ -77,7 +75,6 @@ model Activity {
   @@index([isActive, category])
   @@index([isActive, dateStart])
   @@index([isActive, lastSeenAt])
-  @@index([latitude, longitude])
   @@index([locationId])
   @@index([providerId])
   @@index([registrationStatus])
@@ -268,24 +265,44 @@ model Invitation {
   @@index([token])
 }
 
-model Location {
-  id         String     @id @default(uuid())
-  name       String
-  address    String     @default("")
-  city       String
-  province   String
-  postalCode String?
-  latitude   Float?
-  longitude  Float?
-  facility   String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  country    String     @default("Canada")
-  activities Activity[]
+model City {
+  id        String     @id @default(uuid())
+  name      String
+  province  String
+  country   String     @default("Canada")
+  locations Location[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  @@index([city])
-  @@index([name, city])
+  @@unique([name, province, country])
   @@index([name])
+}
+
+model Location {
+  id          String     @id @default(uuid())
+  name        String
+  address     String?
+  cityId      String
+  postalCode  String?
+  latitude    Float?
+  longitude   Float?
+  facility    String?
+  // Apple Maps integration fields
+  fullAddress String?    // Complete formatted address for Apple Maps
+  mapUrl      String?    // Apple Maps URL for direct navigation
+  placeId     String?    // Apple Place ID if available
+  phoneNumber String?    // Contact phone number
+  website     String?    // Location website
+  // Relationships
+  city        City       @relation(fields: [cityId], references: [id])
+  activities  Activity[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([name, address, cityId])
+  @@index([cityId])
+  @@index([name])
+  @@index([name, cityId])
 }
 
 model Provider {
@@ -400,6 +417,35 @@ model User {
   sentInvitations     Invitation[]    @relation("InvitationSender")
 
   @@index([email])
+}
+
+model Category {
+  id           String             @id @default(uuid())
+  name         String             @unique
+  description  String?
+  ageMin       Int?
+  ageMax       Int?
+  requiresParent Boolean         @default(false)
+  displayOrder Int               @default(999)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  activities   ActivityCategory[]
+
+  @@index([name])
+  @@index([displayOrder])
+}
+
+model ActivityCategory {
+  id         String   @id @default(uuid())
+  activityId String
+  categoryId String
+  createdAt  DateTime @default(now())
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, categoryId])
+  @@index([activityId])
+  @@index([categoryId])
 }
 
 enum JobStatus {
