@@ -87,6 +87,11 @@ const ActivityTypeScreen = () => {
         searchParams.ageMax = ageRange.max;
       }
       
+      // Apply schedule preferences
+      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
+        searchParams.daysOfWeek = preferences.daysOfWeek;
+      }
+      
       // Apply time preferences
       if (preferences.timePreferences) {
         searchParams.timePreferences = preferences.timePreferences;
