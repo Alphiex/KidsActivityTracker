@@ -42,6 +42,8 @@ const ActivityTypeDetailScreen = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [consecutiveEmptyResponses, setConsecutiveEmptyResponses] = useState(0);
+  const MAX_EMPTY_RESPONSES = 3;
   
   const ITEMS_PER_PAGE = 50;
 
@@ -158,7 +160,7 @@ const ActivityTypeDetailScreen = () => {
       const allActivities: Activity[] = [];
       
       const filters: any = {
-        activityType: typeName, // Use exact type name from database
+        categories: typeName, // Use categories parameter for consistency with counting
         limit: ITEMS_PER_PAGE,
         offset: isRefresh ? 0 : currentOffset,
       };
@@ -210,6 +212,17 @@ const ActivityTypeDetailScreen = () => {
         allActivities.push(...response.items);
         setTotalCount(response.total || 0);
         setHasMore(response.hasMore);
+        setConsecutiveEmptyResponses(0); // Reset counter on success
+      } else {
+        // Track consecutive empty responses
+        const newEmptyCount = consecutiveEmptyResponses + 1;
+        setConsecutiveEmptyResponses(newEmptyCount);
+        
+        if (response.total === 0 || newEmptyCount >= MAX_EMPTY_RESPONSES) {
+          console.log('ActivityTypeDetailScreen: Stopping pagination - total:', response.total, 'empty responses:', newEmptyCount);
+          setTotalCount(response.total || 0);
+          setHasMore(false);
+        }
       }
       
       if (isRefresh) {
@@ -230,10 +243,21 @@ const ActivityTypeDetailScreen = () => {
   };
 
   const loadMore = async () => {
-    if (!isLoadingMore && hasMore) {
-      setIsLoadingMore(true);
-      await loadActivities(false);
+    // Prevent infinite loops with multiple safeguards
+    if (consecutiveEmptyResponses >= MAX_EMPTY_RESPONSES || !hasMore || isLoadingMore) {
+      console.log('ActivityTypeDetailScreen: Not loading more - consecutive empty:', consecutiveEmptyResponses, 'hasMore:', hasMore);
+      return;
     }
+    
+    // Additional safeguard: if offset is very high and we have no activities, stop
+    if (currentOffset > 1000 && activities.length === 0) {
+      console.log('ActivityTypeDetailScreen: Stopping pagination - high offset with no results');
+      setHasMore(false);
+      return;
+    }
+
+    setIsLoadingMore(true);
+    await loadActivities(false);
   };
 
   const onRefresh = () => {

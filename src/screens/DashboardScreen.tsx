@@ -42,6 +42,8 @@ const DashboardScreen = () => {
     savedFavorites: 0,
     upcomingEvents: 0,
     budgetFriendly: 0,
+    budgetFriendlyUnfiltered: 0,
+    budgetFriendlyFilteredOut: 0,
   });
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number; icon: string }>>([]);
   const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count: number; icon: string }>>([]);
@@ -321,7 +323,7 @@ const DashboardScreen = () => {
       const upcomingResult = await activityService.searchActivitiesPaginated(upcomingParams);
       const upcomingEvents = upcomingResult.total || 0;
 
-      // Get budget-friendly activities count
+      // Get budget-friendly activities count - both filtered and unfiltered
       const budgetFriendlyParams: any = {
         maxCost: preferences.maxBudgetFriendlyAmount || 20,
         limit: 1,
@@ -337,12 +339,35 @@ const DashboardScreen = () => {
       const budgetFriendlyResult = await activityService.searchActivitiesPaginated(budgetFriendlyParams);
       const budgetFriendly = budgetFriendlyResult.total || 0;
 
+      // Also get unfiltered count for Budget Friendly if global filters are active
+      let budgetFriendlyUnfiltered = budgetFriendly;
+      let budgetFriendlyFilteredOut = 0;
+      
+      if (preferences.hideClosedActivities || preferences.hideFullActivities) {
+        try {
+          const unfilteredBudgetParams = {
+            maxCost: preferences.maxBudgetFriendlyAmount || 20,
+            limit: 1,
+            offset: 0
+          };
+          const unfilteredBudgetResult = await activityService.searchActivitiesPaginated(unfilteredBudgetParams);
+          budgetFriendlyUnfiltered = unfilteredBudgetResult.total || 0;
+          budgetFriendlyFilteredOut = budgetFriendlyUnfiltered - budgetFriendly;
+        } catch (error) {
+          console.error('Error fetching unfiltered budget friendly count:', error);
+          budgetFriendlyUnfiltered = budgetFriendly;
+          budgetFriendlyFilteredOut = 0;
+        }
+      }
+
       setStats({
         matchingActivities,
         newThisWeek,
         savedFavorites: favorites.length,
         upcomingEvents,
         budgetFriendly,
+        budgetFriendlyUnfiltered,
+        budgetFriendlyFilteredOut,
       });
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
@@ -354,6 +379,8 @@ const DashboardScreen = () => {
         savedFavorites: 0,
         upcomingEvents: 0,
         budgetFriendly: 0,
+        budgetFriendlyUnfiltered: 0,
+        budgetFriendlyFilteredOut: 0,
       });
     } finally {
       setRefreshing(false);
@@ -539,7 +566,13 @@ const DashboardScreen = () => {
               <Icon name="cash" size={35} color="#fff" />
               <View style={styles.discoverTextContainer}>
                 <Text style={styles.discoverTitle}>Budget Friendly</Text>
-                <Text style={styles.discoverSubtext}>{stats.budgetFriendly} activities under ${preferences.maxBudgetFriendlyAmount || 20}</Text>
+                <Text style={styles.discoverSubtext}>
+                  {stats.budgetFriendlyFilteredOut > 0 ? (
+                    `${stats.budgetFriendly} activities under $${preferences.maxBudgetFriendlyAmount || 20} (${stats.budgetFriendlyFilteredOut} filtered out)`
+                  ) : (
+                    `${stats.budgetFriendly} activities under $${preferences.maxBudgetFriendlyAmount || 20}`
+                  )}
+                </Text>
               </View>
             </View>
             <Icon name="chevron-right" size={24} color="#fff" />
