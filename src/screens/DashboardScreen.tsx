@@ -324,14 +324,14 @@ const DashboardScreen = () => {
       const upcomingEvents = upcomingResult.total || 0;
 
       // Get budget-friendly activities count - both filtered and unfiltered
-      // Must match EXACTLY what ActivityTypeScreen applies for Budget Friendly
+      // Must match EXACTLY what ActivityListScreen applies for Budget Friendly
       const budgetFriendlyParams: any = {
         maxCost: preferences.maxBudgetFriendlyAmount || 20,
         limit: 1,
         offset: 0
       };
       
-      // Apply ALL global filters to match ActivityTypeScreen exactly
+      // Apply ALL global filters to match ActivityListScreen exactly
       if (preferences.hideClosedActivities) {
         budgetFriendlyParams.hideClosedActivities = true;
       }
@@ -339,24 +339,24 @@ const DashboardScreen = () => {
         budgetFriendlyParams.hideFullActivities = true;
       }
       
-      // Apply location filters (ActivityTypeScreen applies these)
+      // Apply location filters (ActivityListScreen applies these)
       if (preferences.locations && preferences.locations.length > 0) {
         budgetFriendlyParams.locations = preferences.locations;
       }
       
-      // Apply age range filter (ActivityTypeScreen applies these)
+      // Apply age range filter (ActivityListScreen applies these)
       if (preferences.ageRanges && preferences.ageRanges.length > 0) {
         const ageRange = preferences.ageRanges[0];
         budgetFriendlyParams.ageMin = ageRange.min;
         budgetFriendlyParams.ageMax = ageRange.max;
       }
       
-      // Apply schedule preferences (ActivityTypeScreen applies these)
+      // Apply schedule preferences (ActivityListScreen applies these)
       if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
         budgetFriendlyParams.daysOfWeek = preferences.daysOfWeek;
       }
       
-      // Apply time preferences (ActivityTypeScreen applies these)
+      // Apply time preferences (ActivityListScreen applies these)
       if (preferences.timePreferences) {
         budgetFriendlyParams.timePreferences = preferences.timePreferences;
       }
@@ -591,7 +591,7 @@ const DashboardScreen = () => {
 
       {/* Budget Friendly Card */}
       <TouchableOpacity 
-        onPress={() => navigation.navigate('ActivityType', { 
+        onPress={() => navigation.navigate('ActivityList', { 
           category: 'Budget Friendly',
           filters: { maxCost: preferences.maxBudgetFriendlyAmount || 20 }
         })} 

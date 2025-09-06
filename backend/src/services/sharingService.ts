@@ -1,643 +1,237 @@
-import { PrismaClient, ActivityShare, ActivityShareProfile, Child, ChildActivity } from '../../generated/prisma';
-import { emailService } from '../utils/emailService';
-import { v4 as uuidv4 } from 'uuid';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SharedChild, SharingInvitation } from '../types/sharing';
+import { Child } from '../store/slices/childrenSlice';
+import { Alert } from 'react-native';
 
-const prisma = new PrismaClient();
+const STORAGE_KEYS = {
+  SHARED_CHILDREN: '@shared_children',
+  SHARING_INVITATIONS: '@sharing_invitations',
+  RECEIVED_INVITATIONS: '@received_invitations',
+};
 
-interface ShareConfiguration {
-  sharedWithUserId: string;
-  permissionLevel: 'view_all' | 'view_registered' | 'view_future';
-  expiresAt?: Date;
-  childPermissions: {
-    childId: string;
-    canViewInterested: boolean;
-    canViewRegistered: boolean;
-    canViewCompleted: boolean;
-    canViewNotes: boolean;
-  }[];
-}
+class SharingService {
+  private static instance: SharingService;
+  private sharedChildren: SharedChild[] = [];
+  private sentInvitations: SharingInvitation[] = [];
+  private receivedInvitations: SharingInvitation[] = [];
+  private initialized = false;
 
-interface UpdateShareData {
-  permissionLevel?: 'view_all' | 'view_registered' | 'view_future';
-  expiresAt?: Date | null;
-  isActive?: boolean;
-}
+  private constructor() {
+    this.initialize();
+  }
 
-interface UpdateChildPermissionData {
-  canViewInterested?: boolean;
-  canViewRegistered?: boolean;
-  canViewCompleted?: boolean;
-  canViewNotes?: boolean;
-}
-
-interface SharedChildWithActivities extends Child {
-  activities: ChildActivity[];
-  shareProfile: ActivityShareProfile;
-}
-
-export class SharingService {
-  /**
-   * Configure sharing with another user
-   */
-  async configureSharing(userId: string, config: ShareConfiguration): Promise<ActivityShare> {
-    const { sharedWithUserId, permissionLevel, expiresAt, childPermissions } = config;
-
-    // Validate users
-    const [sharingUser, sharedWithUser] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId } }),
-      prisma.user.findUnique({ where: { id: sharedWithUserId } })
-    ]);
-
-    if (!sharingUser || !sharedWithUser) {
-      throw new Error('Invalid user');
+  static getInstance(): SharingService {
+    if (!SharingService.instance) {
+      SharingService.instance = new SharingService();
     }
+    return SharingService.instance;
+  }
 
-    if (userId === sharedWithUserId) {
-      throw new Error('Cannot share with yourself');
+  private async initialize() {
+    try {
+      await this.loadData();
+      this.initialized = true;
+    } catch (error) {
+      console.error('Error initializing sharing service:', error);
     }
+  }
 
-    // Validate children belong to sharing user
-    const childIds = childPermissions.map(cp => cp.childId);
-    const children = await prisma.child.findMany({
-      where: {
-        id: { in: childIds },
-        userId,
-        isActive: true
+  private async waitForInit() {
+    while (!this.initialized) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
+  private async loadData() {
+    try {
+      const [sharedChildrenData, sentInvitationsData, receivedInvitationsData] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.SHARED_CHILDREN),
+        AsyncStorage.getItem(STORAGE_KEYS.SHARING_INVITATIONS),
+        AsyncStorage.getItem(STORAGE_KEYS.RECEIVED_INVITATIONS),
+      ]);
+
+      if (sharedChildrenData) {
+        this.sharedChildren = JSON.parse(sharedChildrenData);
       }
-    });
-
-    if (children.length !== childIds.length) {
-      throw new Error('One or more children not found or inactive');
-    }
-
-    // Create or update the share in a transaction
-    const share = await prisma.$transaction(async (tx) => {
-      // Check for existing share
-      let activityShare = await tx.activityShare.findUnique({
-        where: {
-          sharingUserId_sharedWithUserId: {
-            sharingUserId: userId,
-            sharedWithUserId
-          }
-        }
-      });
-
-      if (activityShare) {
-        // Update existing share
-        activityShare = await tx.activityShare.update({
-          where: { id: activityShare.id },
-          data: {
-            permissionLevel,
-            expiresAt,
-            isActive: true
-          }
-        });
-
-        // Remove old child permissions
-        await tx.activityShareProfile.deleteMany({
-          where: { activityShareId: activityShare.id }
-        });
-      } else {
-        // Create new share
-        activityShare = await tx.activityShare.create({
-          data: {
-            sharingUserId: userId,
-            sharedWithUserId,
-            permissionLevel,
-            expiresAt,
-            isActive: true
-          }
-        });
+      if (sentInvitationsData) {
+        this.sentInvitations = JSON.parse(sentInvitationsData);
       }
+      if (receivedInvitationsData) {
+        this.receivedInvitations = JSON.parse(receivedInvitationsData);
+      }
+    } catch (error) {
+      console.error('Error loading sharing data:', error);
+    }
+  }
 
-      // Create child permissions
-      await tx.activityShareProfile.createMany({
-        data: childPermissions.map(cp => ({
-          activityShareId: activityShare.id,
-          childId: cp.childId,
-          canViewInterested: cp.canViewInterested,
-          canViewRegistered: cp.canViewRegistered,
-          canViewCompleted: cp.canViewCompleted,
-          canViewNotes: cp.canViewNotes
-        }))
-      });
+  private async saveData() {
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEYS.SHARED_CHILDREN, JSON.stringify(this.sharedChildren)),
+        AsyncStorage.setItem(STORAGE_KEYS.SHARING_INVITATIONS, JSON.stringify(this.sentInvitations)),
+        AsyncStorage.setItem(STORAGE_KEYS.RECEIVED_INVITATIONS, JSON.stringify(this.receivedInvitations)),
+      ]);
+    } catch (error) {
+      console.error('Error saving sharing data:', error);
+    }
+  }
 
-      return activityShare;
-    });
+  async shareChild(child: Child, email: string, permissions: SharedChild['permissions']): Promise<SharingInvitation> {
+    await this.waitForInit();
 
-    // Send notification email
-    await emailService.sendShareConfiguredNotification(
-      sharedWithUser.email,
-      sharedWithUser.name,
-      sharingUser.name,
-      children.map(c => c.name)
+    // Check if already shared with this email
+    const existingShare = this.sharedChildren.find(
+      sc => sc.childId === child.id && sc.sharedWithEmail === email
     );
 
-    // Log the share configuration
-    console.log({
-      action: 'share_configured',
-      sharingUserId: userId,
-      sharedWithUserId,
-      shareId: share.id,
-      childrenCount: children.length,
-      timestamp: new Date().toISOString()
-    });
+    if (existingShare && existingShare.status === 'accepted') {
+      throw new Error('Child already shared with this email');
+    }
 
-    return share;
-  }
-
-  /**
-   * Get all shares for a user (both sharing and shared with)
-   */
-  async getUserShares(userId: string) {
-    const [myShares, sharedWithMe] = await Promise.all([
-      // Shares I've created
-      prisma.activityShare.findMany({
-        where: {
-          sharingUserId: userId,
-          isActive: true
-        },
-        include: {
-          sharedWithUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          },
-          profiles: {
-            include: {
-              child: {
-                select: {
-                  id: true,
-                  name: true,
-                  dateOfBirth: true,
-                  avatarUrl: true
-                }
-              }
-            }
-          }
-        }
-      }),
-      // Shares others have created for me
-      prisma.activityShare.findMany({
-        where: {
-          sharedWithUserId: userId,
-          isActive: true,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: new Date() } }
-          ]
-        },
-        include: {
-          sharingUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          },
-          profiles: {
-            include: {
-              child: {
-                select: {
-                  id: true,
-                  name: true,
-                  dateOfBirth: true,
-                  avatarUrl: true,
-                  interests: true
-                }
-              }
-            }
-          }
-        }
-      })
-    ]);
-
-    return { myShares, sharedWithMe };
-  }
-
-  /**
-   * Get shared children and their activities
-   */
-  async getSharedChildren(userId: string, sharingUserId?: string): Promise<SharedChildWithActivities[]> {
-    // Build query conditions
-    const whereConditions: any = {
-      sharedWithUserId: userId,
-      isActive: true,
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: new Date() } }
-      ]
+    // Create invitation
+    const invitation: SharingInvitation = {
+      id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      fromUserId: 'current_user', // TODO: Get from auth
+      fromUserName: 'Current User', // TODO: Get from auth
+      toEmail: email,
+      childId: child.id,
+      childName: child.name,
+      permissions,
+      status: 'pending',
+      sentAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     };
 
-    if (sharingUserId) {
-      whereConditions.sharingUserId = sharingUserId;
-    }
+    this.sentInvitations.push(invitation);
 
-    // Get all active shares for this user
-    const shares = await prisma.activityShare.findMany({
-      where: whereConditions,
-      include: {
-        profiles: {
-          include: {
-            child: {
-              include: {
-                childActivities: {
-                  include: {
-                    activity: {
-                      include: {
-                        location: true,
-                        provider: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Process and filter children based on permissions
-    const sharedChildren: SharedChildWithActivities[] = [];
-
-    for (const share of shares) {
-      for (const profile of share.profiles) {
-        const { child } = profile;
-        
-        // Filter activities based on permissions
-        const filteredActivities = child.childActivities.filter(ca => {
-          switch (ca.status) {
-            case 'interested':
-              return profile.canViewInterested;
-            case 'registered':
-              return profile.canViewRegistered;
-            case 'completed':
-              return profile.canViewCompleted;
-            default:
-              return false;
-          }
-        });
-
-        // Remove notes if not permitted
-        if (!profile.canViewNotes) {
-          filteredActivities.forEach(activity => {
-            activity.notes = null;
-          });
-        }
-
-        // Apply share-level permission filters
-        const now = new Date();
-        const finalActivities = filteredActivities.filter(ca => {
-          if (share.permissionLevel === 'view_future') {
-            // Only show future activities
-            return ca.activity.dateStart && ca.activity.dateStart > now;
-          }
-          return true;
-        });
-
-        sharedChildren.push({
-          ...child,
-          activities: finalActivities as any,
-          shareProfile: profile
-        });
-      }
-    }
-
-    return sharedChildren;
-  }
-
-  /**
-   * Update share settings
-   */
-  async updateShare(shareId: string, userId: string, data: UpdateShareData): Promise<ActivityShare> {
-    // Verify ownership
-    const share = await prisma.activityShare.findUnique({
-      where: { id: shareId }
-    });
-
-    if (!share) {
-      throw new Error('Share not found');
-    }
-
-    if (share.sharingUserId !== userId) {
-      throw new Error('You can only update shares you created');
-    }
-
-    // Update the share
-    const updatedShare = await prisma.activityShare.update({
-      where: { id: shareId },
-      data: {
-        ...data,
-      },
-      include: {
-        sharedWithUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    // If deactivated, send notification
-    if (data.isActive === false) {
-      const sharingUser = await prisma.user.findUnique({
-        where: { id: userId }
-      });
-
-      if (sharingUser) {
-        await emailService.sendShareRevokedNotification(
-          updatedShare.sharedWithUser.email,
-          updatedShare.sharedWithUser.name,
-          sharingUser.name
-        );
-      }
-    }
-
-    console.log({
-      action: 'share_updated',
-      shareId,
-      userId,
-      updates: Object.keys(data),
-      timestamp: new Date().toISOString()
-    });
-
-    return updatedShare;
-  }
-
-  /**
-   * Update child-specific permissions
-   */
-  async updateChildPermissions(
-    shareId: string,
-    childId: string,
-    userId: string,
-    data: UpdateChildPermissionData
-  ): Promise<ActivityShareProfile> {
-    // Verify ownership
-    const share = await prisma.activityShare.findUnique({
-      where: { id: shareId },
-      include: {
-        profiles: {
-          where: { childId }
-        }
-      }
-    });
-
-    if (!share) {
-      throw new Error('Share not found');
-    }
-
-    if (share.sharingUserId !== userId) {
-      throw new Error('You can only update shares you created');
-    }
-
-    if (share.profiles.length === 0) {
-      throw new Error('Child not found in this share');
-    }
-
-    // Update permissions
-    const updatedProfile = await prisma.activityShareProfile.update({
-      where: {
-        activityShareId_childId: {
-          activityShareId: shareId,
-          childId
-        }
-      },
-      data
-    });
-
-    console.log({
-      action: 'child_permissions_updated',
-      shareId,
-      childId,
-      userId,
-      updates: Object.keys(data),
-      timestamp: new Date().toISOString()
-    });
-
-    return updatedProfile;
-  }
-
-  /**
-   * Remove a child from sharing
-   */
-  async removeChildFromShare(shareId: string, childId: string, userId: string): Promise<void> {
-    // Verify ownership
-    const share = await prisma.activityShare.findUnique({
-      where: { id: shareId }
-    });
-
-    if (!share) {
-      throw new Error('Share not found');
-    }
-
-    if (share.sharingUserId !== userId) {
-      throw new Error('You can only update shares you created');
-    }
-
-    // Delete the child profile
-    await prisma.activityShareProfile.delete({
-      where: {
-        activityShareId_childId: {
-          activityShareId: shareId,
-          childId
-        }
-      }
-    });
-
-    // Check if there are any children left in the share
-    const remainingProfiles = await prisma.activityShareProfile.count({
-      where: { activityShareId: shareId }
-    });
-
-    // If no children left, deactivate the share
-    if (remainingProfiles === 0) {
-      await prisma.activityShare.update({
-        where: { id: shareId },
-        data: { isActive: false }
-      });
-    }
-
-    console.log({
-      action: 'child_removed_from_share',
-      shareId,
-      childId,
-      userId,
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  /**
-   * Add a child to an existing share
-   */
-  async addChildToShare(
-    shareId: string,
-    childId: string,
-    userId: string,
-    permissions: UpdateChildPermissionData
-  ): Promise<ActivityShareProfile> {
-    // Verify ownership and child
-    const [share, child] = await Promise.all([
-      prisma.activityShare.findUnique({ where: { id: shareId } }),
-      prisma.child.findUnique({ where: { id: childId, userId, isActive: true } })
-    ]);
-
-    if (!share) {
-      throw new Error('Share not found');
-    }
-
-    if (share.sharingUserId !== userId) {
-      throw new Error('You can only update shares you created');
-    }
-
-    if (!child) {
-      throw new Error('Child not found or inactive');
-    }
-
-    // Check if child already in share
-    const existingProfile = await prisma.activityShareProfile.findUnique({
-      where: {
-        activityShareId_childId: {
-          activityShareId: shareId,
-          childId
-        }
-      }
-    });
-
-    if (existingProfile) {
-      throw new Error('Child already included in this share');
-    }
-
-    // Add child to share
-    const profile = await prisma.activityShareProfile.create({
-      data: {
-        activityShareId: shareId,
-        childId,
-        canViewInterested: permissions.canViewInterested ?? true,
-        canViewRegistered: permissions.canViewRegistered ?? true,
-        canViewCompleted: permissions.canViewCompleted ?? false,
-        canViewNotes: permissions.canViewNotes ?? false
-      }
-    });
-
-    console.log({
-      action: 'child_added_to_share',
-      shareId,
-      childId,
-      userId,
-      timestamp: new Date().toISOString()
-    });
-
-    return profile;
-  }
-
-  /**
-   * Get sharing statistics for a user
-   */
-  async getSharingStats(userId: string) {
-    const [sharingStats, sharedWithStats, childrenShared] = await Promise.all([
-      // How many people I'm sharing with
-      prisma.activityShare.count({
-        where: {
-          sharingUserId: userId,
-          isActive: true
-        }
-      }),
-      // How many people are sharing with me
-      prisma.activityShare.count({
-        where: {
-          sharedWithUserId: userId,
-          isActive: true,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: new Date() } }
-          ]
-        }
-      }),
-      // How many of my children are being shared
-      prisma.activityShareProfile.count({
-        where: {
-          child: {
-            userId,
-            isActive: true
-          },
-          activityShare: {
-            isActive: true
-          }
-        }
-      })
-    ]);
-
-    return {
-      sharingWith: sharingStats,
-      sharedWithMe: sharedWithStats,
-      childrenShared
+    // Create shared child record
+    const sharedChild: SharedChild = {
+      id: `sc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      childId: child.id,
+      sharedByUserId: 'current_user', // TODO: Get from auth
+      sharedWithEmail: email,
+      permissions,
+      status: 'pending',
+      sharedAt: new Date(),
+      expiresAt: invitation.expiresAt,
     };
+
+    this.sharedChildren.push(sharedChild);
+    await this.saveData();
+
+    // TODO: Send actual email invitation
+    Alert.alert(
+      'Invitation Sent',
+      `An invitation to view ${child.name}'s activities has been sent to ${email}. They have 7 days to accept.`
+    );
+
+    return invitation;
   }
 
-  /**
-   * Clean up expired shares
-   */
-  async cleanupExpiredShares(): Promise<number> {
-    const result = await prisma.activityShare.updateMany({
-      where: {
-        isActive: true,
-        expiresAt: {
-          not: null,
-          lt: new Date()
-        }
+  async acceptInvitation(invitationId: string): Promise<void> {
+    await this.waitForInit();
+
+    const invitation = this.receivedInvitations.find(inv => inv.id === invitationId);
+    if (!invitation) {
+      throw new Error('Invitation not found');
+    }
+
+    if (invitation.status !== 'pending') {
+      throw new Error('Invitation is no longer valid');
+    }
+
+    if (new Date() > new Date(invitation.expiresAt)) {
+      invitation.status = 'expired';
+      await this.saveData();
+      throw new Error('Invitation has expired');
+    }
+
+    invitation.status = 'accepted';
+    invitation.acceptedAt = new Date();
+
+    await this.saveData();
+  }
+
+  async declineInvitation(invitationId: string): Promise<void> {
+    await this.waitForInit();
+
+    const invitation = this.receivedInvitations.find(inv => inv.id === invitationId);
+    if (!invitation) {
+      throw new Error('Invitation not found');
+    }
+
+    invitation.status = 'declined';
+    invitation.declinedAt = new Date();
+
+    await this.saveData();
+  }
+
+  async revokeShare(sharedChildId: string): Promise<void> {
+    await this.waitForInit();
+
+    const sharedChild = this.sharedChildren.find(sc => sc.id === sharedChildId);
+    if (!sharedChild) {
+      throw new Error('Shared child not found');
+    }
+
+    sharedChild.status = 'revoked';
+    await this.saveData();
+  }
+
+  async getSharedChildren(): Promise<SharedChild[]> {
+    await this.waitForInit();
+    return this.sharedChildren.filter(sc => sc.status === 'accepted');
+  }
+
+  async getPendingShares(): Promise<SharedChild[]> {
+    await this.waitForInit();
+    return this.sharedChildren.filter(sc => sc.status === 'pending');
+  }
+
+  async getSentInvitations(): Promise<SharingInvitation[]> {
+    await this.waitForInit();
+    return this.sentInvitations;
+  }
+
+  async getReceivedInvitations(): Promise<SharingInvitation[]> {
+    await this.waitForInit();
+    return this.receivedInvitations.filter(
+      inv => inv.status === 'pending' && new Date() < new Date(inv.expiresAt)
+    );
+  }
+
+  async getChildrenSharedWithMe(): Promise<{ child: Child; sharedBy: string; permissions: SharedChild['permissions'] }[]> {
+    await this.waitForInit();
+    
+    // For now, return empty array since we need backend integration
+    // TODO: Implement actual fetching of shared children from other users
+    return [];
+  }
+
+  // Mock method to simulate receiving an invitation
+  async mockReceiveInvitation(fromName: string, childName: string, email: string): Promise<void> {
+    await this.waitForInit();
+
+    const invitation: SharingInvitation = {
+      id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      fromUserId: 'mock_user',
+      fromUserName: fromName,
+      toEmail: email,
+      childId: 'mock_child_id',
+      childName: childName,
+      permissions: {
+        viewActivities: true,
+        viewSchedule: true,
+        viewDetails: true,
       },
-      data: { isActive: false }
-    });
+      status: 'pending',
+      sentAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    };
 
-    console.log({
-      action: 'expired_shares_cleanup',
-      count: result.count,
-      timestamp: new Date().toISOString()
-    });
-
-    return result.count;
-  }
-
-  /**
-   * Check if a user has access to view a specific child's activities
-   */
-  async hasAccessToChild(viewerId: string, childId: string): Promise<boolean> {
-    // Check if viewer owns the child
-    const child = await prisma.child.findUnique({
-      where: { id: childId }
-    });
-
-    if (!child) {
-      return false;
-    }
-
-    if (child.userId === viewerId) {
-      return true;
-    }
-
-    // Check if child is shared with viewer
-    const share = await prisma.activityShareProfile.findFirst({
-      where: {
-        childId,
-        activityShare: {
-          sharedWithUserId: viewerId,
-          isActive: true,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: new Date() } }
-          ]
-        }
-      }
-    });
-
-    return !!share;
+    this.receivedInvitations.push(invitation);
+    await this.saveData();
   }
 }
 
-export const sharingService = new SharingService();
+export default SharingService.getInstance();

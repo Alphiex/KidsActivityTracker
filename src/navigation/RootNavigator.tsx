@@ -20,7 +20,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenEnhanced';
 import FilterScreen from '../screens/FilterScreen';
 import SiteAccountsScreen from '../screens/SiteAccountsScreen';
-import ActivityTypeScreen from '../screens/ActivityTypeScreen';
+import ActivityListScreen from '../screens/ActivityListScreen';
 import NewActivitiesScreen from '../screens/NewActivitiesScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -62,7 +62,7 @@ const HomeStack = () => (
     }}
   >
     <Stack.Screen name="Dashboard" component={DashboardScreen} />
-    <Stack.Screen name="ActivityType" component={ActivityTypeScreen} />
+    <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="CityBrowse" component={CityBrowseScreen} />
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
@@ -82,7 +82,7 @@ const SearchStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="SearchMain" component={SearchScreen} />
     <Stack.Screen name="Filter" component={FilterScreen} />
-    <Stack.Screen name="ActivityType" component={ActivityTypeScreen} />
+    <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
   </Stack.Navigator>

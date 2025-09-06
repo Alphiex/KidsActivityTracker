@@ -1,447 +1,265 @@
-import { PrismaClient } from '../../generated/prisma';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { emailService } from '../utils/emailService';
-import { tokenUtils } from '../utils/tokenUtils';
+import axios, { AxiosInstance } from 'axios';
+import { API_CONFIG } from '../config/api';
+import * as SecureStore from '../utils/secureStorage';
 
-const prisma = new PrismaClient();
+interface LoginParams {
+  email: string;
+  password: string;
+}
 
-interface RegisterData {
+interface RegisterParams {
   email: string;
   password: string;
   name: string;
   phoneNumber?: string;
 }
 
-interface LoginData {
-  email: string;
-  password: string;
-}
-
-interface TokenPayload {
-  userId: string;
-  email: string;
-  type: 'access' | 'refresh';
-}
-
-interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: number;
-  refreshTokenExpiry: number;
-}
-
-interface ResetPasswordData {
+interface ResetPasswordParams {
   token: string;
   newPassword: string;
 }
 
-export class AuthService {
-  private readonly SALT_ROUNDS = 12;
-  private readonly ACCESS_TOKEN_EXPIRY = '15m';
-  private readonly REFRESH_TOKEN_EXPIRY = '7d';
-  private readonly RESET_TOKEN_EXPIRY_HOURS = 2;
-  private readonly VERIFICATION_TOKEN_EXPIRY_HOURS = 24;
+interface AuthResponse {
+  success: boolean;
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    phoneNumber?: string;
+    emailVerified: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    accessTokenExpiry: number;
+    refreshTokenExpiry: number;
+  };
+}
 
-  /**
-   * Register a new user
-   */
-  async register(data: RegisterData): Promise<{ user: any; tokens: AuthTokens }> {
-    const { email, password, name, phoneNumber } = data;
+interface ProfileUpdateParams {
+  name?: string;
+  phoneNumber?: string;
+  preferences?: any;
+}
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
+class AuthService {
+  private api: AxiosInstance;
 
-    if (existingUser) {
-      throw new Error('User with this email already exists');
-    }
-
-    // Validate password strength
-    this.validatePasswordStrength(password);
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, this.SALT_ROUNDS);
-
-    // Generate verification token
-    const verificationToken = uuidv4();
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        name,
-        phoneNumber,
-        verificationToken,
+  constructor() {
+    this.api = axios.create({
+      baseURL: API_CONFIG.BASE_URL,
+      timeout: API_CONFIG.TIMEOUT,
+      headers: {
+        'Content-Type': 'application/json',
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phoneNumber: true,
-        isVerified: true,
-        createdAt: true
-      }
     });
 
-    // Send verification email
-    await emailService.sendVerificationEmail(email, name, verificationToken);
-
-    // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email);
-
-    return { user, tokens };
-  }
-
-  /**
-   * Login user
-   */
-  async login(data: LoginData): Promise<{ user: any; tokens: AuthTokens }> {
-    const { email, password } = data;
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        passwordHash: true,
-        isVerified: true,
-        phoneNumber: true,
-        createdAt: true
+    // Request interceptor to add auth token
+    this.api.interceptors.request.use(
+      async (config) => {
+        const token = await SecureStore.getAccessToken();
+        console.log('Request interceptor:', {
+          url: config.url,
+          hasToken: !!token,
+          tokenPrefix: token?.substring(0, 20) + '...',
+        });
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        console.error('Request interceptor error:', error);
+        return Promise.reject(error);
       }
-    });
+    );
 
-    if (!user) {
-      throw new Error('Invalid email or password');
-    }
+    // Response interceptor to handle token refresh
+    this.api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new Error('Invalid email or password');
-    }
+        // Don't retry if:
+        // 1. Already retried
+        // 2. It's a refresh token request (to prevent loops)
+        // 3. It's a login/register request
+        // 4. Rate limited (429)
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
+                              originalRequest.url?.includes('/auth/register') ||
+                              originalRequest.url?.includes('/auth/refresh');
+        const isRateLimited = error.response?.status === 429;
 
-    // Check if email is verified
-    if (!user.isVerified) {
-      throw new Error('Please verify your email before logging in');
-    }
+        if (error.response?.status === 401 && 
+            !originalRequest._retry && 
+            !isAuthEndpoint && 
+            !isRateLimited) {
+          originalRequest._retry = true;
 
-    // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email);
+          try {
+            const tokens = await SecureStore.getTokens();
+            if (tokens?.refreshToken && !tokens.refreshToken.startsWith('dev_')) {
+              console.log('Attempting token refresh...');
+              const response = await this.refreshToken(tokens.refreshToken);
+              await SecureStore.setTokens(response.tokens);
+              
+              // Retry original request with new token
+              originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`;
+              return this.api(originalRequest);
+            } else {
+              console.log('Invalid or dev refresh token, clearing auth');
+              await SecureStore.clearAllAuthData();
+            }
+          } catch (refreshError: any) {
+            console.error('Token refresh failed:', refreshError.message);
+            // Refresh failed, clear auth and redirect to login
+            await SecureStore.clearAllAuthData();
+            throw refreshError;
+          }
+        }
 
-    // Remove passwordHash from user object
-    const { passwordHash, ...userWithoutPassword } = user;
+        // Log rate limit errors clearly (keeping for potential future use)
+        if (isRateLimited) {
+          console.error('RATE LIMITED: Please wait before making more requests');
+          const retryAfter = error.response?.headers?.['retry-after'];
+          
+          if (retryAfter) {
+            console.error(`Retry after: ${retryAfter} seconds`);
+          }
+        }
 
-    return { user: userWithoutPassword, tokens };
+        return Promise.reject(error);
+      }
+    );
   }
 
-  /**
-   * Refresh access token
-   */
-  async refreshToken(refreshToken: string): Promise<AuthTokens> {
+  async login(params: LoginParams): Promise<AuthResponse> {
     try {
-      // Verify refresh token
-      const decoded = jwt.verify(
-        refreshToken,
-        process.env.JWT_REFRESH_SECRET || 'refresh-secret'
-      ) as TokenPayload;
-
-      if (decoded.type !== 'refresh') {
-        throw new Error('Invalid token type');
-      }
-
-      // Check if user still exists and is active
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId }
+      console.log('Login attempt:', { email: params.email, url: API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.AUTH.LOGIN });
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN, params);
+      console.log('Login response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Login error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        url: error.config?.url,
       });
+      throw new Error(error.response?.data?.error || 'Login failed');
+    }
+  }
 
-      if (!user || !user.isVerified) {
-        throw new Error('User not found or not verified');
-      }
+  async register(params: RegisterParams): Promise<AuthResponse> {
+    try {
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, params);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Registration failed');
+    }
+  }
 
-      // Generate new tokens
-      return this.generateTokens(user.id, user.email);
+  async refreshToken(refreshToken: string): Promise<{ tokens: AuthResponse['tokens'] }> {
+    try {
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.REFRESH, { refreshToken });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Token refresh failed');
+    }
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.api.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
     } catch (error) {
-      throw new Error('Invalid refresh token');
+      // Even if logout fails on server, clear local data
+      console.error('Logout error:', error);
     }
   }
 
-  /**
-   * Verify email
-   */
-  async verifyEmail(token: string): Promise<void> {
-    const user = await prisma.user.findFirst({
-      where: { verificationToken: token }
-    });
-
-    if (!user) {
-      throw new Error('Invalid verification token');
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to send reset email');
     }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        isVerified: true,
-        verificationToken: null
-      }
-    });
   }
 
-  /**
-   * Request password reset
-   */
-  async requestPasswordReset(email: string): Promise<void> {
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (!user) {
-      // Don't reveal whether user exists
-      return;
+  async resetPassword(params: ResetPasswordParams): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, params);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Password reset failed');
     }
-
-    // Generate reset token
-    const resetToken = uuidv4();
-    const resetTokenExpiry = new Date();
-    resetTokenExpiry.setHours(resetTokenExpiry.getHours() + this.RESET_TOKEN_EXPIRY_HOURS);
-
-    // Save reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken,
-        resetTokenExpiry
-      }
-    });
-
-    // Send reset email
-    await emailService.sendPasswordResetEmail(email, user.name, resetToken);
   }
 
-  /**
-   * Reset password
-   */
-  async resetPassword(data: ResetPasswordData): Promise<void> {
-    const { token, newPassword } = data;
-
-    // Find user with valid reset token
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: {
-          gt: new Date()
-        }
-      }
-    });
-
-    if (!user) {
-      throw new Error('Invalid or expired reset token');
+  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.AUTH.VERIFY_EMAIL}?token=${token}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Email verification failed');
     }
-
-    // Validate password strength
-    this.validatePasswordStrength(newPassword);
-
-    // Hash new password
-    const passwordHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
-
-    // Update password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash,
-        resetToken: null,
-        resetTokenExpiry: null
-      }
-    });
-
-    // Send confirmation email
-    await emailService.sendPasswordChangedEmail(user.email, user.name);
   }
 
-  /**
-   * Change password (for authenticated users)
-   */
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) {
-      throw new Error('User not found');
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to resend verification email');
     }
-
-    // Verify current password
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new Error('Current password is incorrect');
-    }
-
-    // Validate new password strength
-    this.validatePasswordStrength(newPassword);
-
-    // Hash new password
-    const passwordHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
-
-    // Update password
-    await prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash }
-    });
-
-    // Send confirmation email
-    await emailService.sendPasswordChangedEmail(user.email, user.name);
   }
 
-  /**
-   * Resend verification email
-   */
-  async resendVerificationEmail(email: string): Promise<void> {
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    if (user.isVerified) {
-      throw new Error('Email already verified');
-    }
-
-    // Generate new verification token if needed
-    let verificationToken = user.verificationToken;
-    if (!verificationToken) {
-      verificationToken = uuidv4();
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { verificationToken }
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+        currentPassword,
+        newPassword,
       });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Password change failed');
     }
-
-    // Send verification email
-    await emailService.sendVerificationEmail(email, user.name, verificationToken);
   }
 
-  /**
-   * Get user profile
-   */
-  async getUserProfile(userId: string): Promise<any> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phoneNumber: true,
-        isVerified: true,
-        preferences: true,
-        createdAt: true,
-        updatedAt: true,
-        children: {
-          select: {
-            id: true,
-            name: true,
-            dateOfBirth: true,
-            gender: true,
-            avatarUrl: true,
-            interests: true,
-            isActive: true
-          }
-        },
-        _count: {
-          select: {
-            favorites: true,
-            sharedWithMe: true,
-            myShares: true
-          }
-        }
-      }
-    });
-
-    if (!user) {
-      throw new Error('User not found');
+  async getProfile(): Promise<{ success: boolean; profile: any }> {
+    try {
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.AUTH.PROFILE);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get profile');
     }
-
-    return user;
   }
 
-  /**
-   * Update user profile
-   */
-  async updateUserProfile(userId: string, data: { name?: string; phoneNumber?: string; preferences?: any }): Promise<any> {
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phoneNumber: true,
-        preferences: true,
-        updatedAt: true
-      }
-    });
-
-    return user;
+  async updateProfile(data: ProfileUpdateParams): Promise<{ success: boolean; message: string; profile: any }> {
+    try {
+      const response = await this.api.put(API_CONFIG.ENDPOINTS.AUTH.PROFILE, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update profile');
+    }
   }
 
-  /**
-   * Generate JWT tokens
-   */
-  private generateTokens(userId: string, email: string): AuthTokens {
-    const now = Math.floor(Date.now() / 1000);
-    
-    // Calculate expiry times
-    const accessTokenExpiry = now + 15 * 60; // 15 minutes
-    const refreshTokenExpiry = now + 7 * 24 * 60 * 60; // 7 days
-    
-    const accessToken = jwt.sign(
-      { userId, email, type: 'access' },
-      process.env.JWT_ACCESS_SECRET || 'access-secret',
-      { expiresIn: this.ACCESS_TOKEN_EXPIRY }
-    );
-
-    const refreshToken = jwt.sign(
-      { userId, email, type: 'refresh' },
-      process.env.JWT_REFRESH_SECRET || 'refresh-secret',
-      { expiresIn: this.REFRESH_TOKEN_EXPIRY }
-    );
-
-    return { 
-      accessToken, 
-      refreshToken,
-      accessTokenExpiry,
-      refreshTokenExpiry
-    };
-  }
-
-  /**
-   * Validate password strength
-   */
-  private validatePasswordStrength(password: string): void {
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
-    }
-
-    if (!/[A-Z]/.test(password)) {
-      throw new Error('Password must contain at least one uppercase letter');
-    }
-
-    if (!/[a-z]/.test(password)) {
-      throw new Error('Password must contain at least one lowercase letter');
-    }
-
-    if (!/[0-9]/.test(password)) {
-      throw new Error('Password must contain at least one number');
-    }
-
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      throw new Error('Password must contain at least one special character');
+  async verifyToken(): Promise<{ success: boolean; authenticated: boolean; user: any }> {
+    try {
+      console.log('Verifying token at:', API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.AUTH.CHECK);
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.AUTH.CHECK);
+      console.log('Token verification response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Token verification error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        url: error.config?.url,
+      });
+      throw new Error(error.response?.data?.error || 'Token verification failed');
     }
   }
 }
