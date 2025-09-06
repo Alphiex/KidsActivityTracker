@@ -103,13 +103,30 @@ const ActivityListScreen = () => {
       if (reset) {
         setActivities(result.items);
         
-        // If global filters are applied, also get unfiltered count to show difference
-        if (preferences.hideClosedActivities || preferences.hideFullActivities) {
-          const unfilteredParams: any = { ...searchParams };
-          delete unfilteredParams.hideClosedActivities;
-          delete unfilteredParams.hideFullActivities;
-          unfilteredParams.limit = 1;  // We only need the count
-          unfilteredParams.offset = 0;
+        // If ANY global filters are applied, get unfiltered count to show difference
+        const hasGlobalFilters = preferences.hideClosedActivities || 
+                                preferences.hideFullActivities ||
+                                (preferences.locations && preferences.locations.length > 0) ||
+                                (preferences.ageRanges && preferences.ageRanges.length > 0) ||
+                                preferences.priceRange ||
+                                (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) ||
+                                preferences.timePreferences;
+        
+        if (hasGlobalFilters) {
+          const unfilteredParams: any = {
+            limit: 1,  // We only need the count
+            offset: 0
+          };
+          
+          // Only include category/type filters, not global preference filters
+          if (category !== 'All' && category !== 'Budget Friendly') {
+            unfilteredParams.activityType = category;
+          }
+          
+          // Include route-specific filters (like Budget Friendly maxCost)
+          if (filters) {
+            unfilteredParams = { ...unfilteredParams, ...filters };
+          }
           
           try {
             const unfilteredResult = await activityService.searchActivitiesPaginated(unfilteredParams);
