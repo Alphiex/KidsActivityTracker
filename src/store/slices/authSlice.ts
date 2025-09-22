@@ -122,11 +122,19 @@ export const loadStoredAuth = createAsyncThunk(
   async () => {
     const tokens = await SecureStore.getTokens();
     
-    // Skip verification if tokens are from dev auth
-    if (tokens?.accessToken?.startsWith('dev_')) {
-      console.log('Found dev tokens, clearing auth data');
-      await SecureStore.clearAllAuthData();
-      return null;
+    // Handle dev tokens differently
+    if (tokens?.accessToken?.startsWith('dev_access_token_')) {
+      console.log('🔧 Development mode: Found dev tokens, keeping them');
+      
+      // Verify dev token is still valid (check expiry)
+      if (tokens.accessTokenExpiry && tokens.accessTokenExpiry > Date.now()) {
+        const response = await authService.verifyToken();
+        return { user: response.user, tokens };
+      } else {
+        console.log('Dev token expired, clearing auth data');
+        await SecureStore.clearAllAuthData();
+        return null;
+      }
     }
     
     if (tokens && tokens.accessToken) {

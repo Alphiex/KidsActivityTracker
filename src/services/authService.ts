@@ -66,9 +66,14 @@ class AuthService {
           hasToken: !!token,
           tokenPrefix: token?.substring(0, 20) + '...',
         });
-        if (token) {
+        
+        // Don't add dev tokens to real API requests
+        if (token && !token.startsWith('dev_')) {
           config.headers.Authorization = `Bearer ${token}`;
+        } else if (__DEV__ && token && token.startsWith('dev_')) {
+          console.log('🔧 Development mode: Skipping dev token for API request');
         }
+        
         return config;
       },
       (error) => {
@@ -137,6 +142,46 @@ class AuthService {
   }
 
   async login(params: LoginParams): Promise<AuthResponse> {
+    // Development mode: bypass real authentication
+    if (__DEV__) {
+      const { DEV_CONFIG } = require('../config/development');
+      
+      // Check if using test credentials
+      const testUser = DEV_CONFIG.TEST_ACCOUNTS.find(
+        (account: any) => account.email === params.email && account.password === params.password
+      );
+      
+      if (testUser) {
+        console.log('🔧 Development mode: Using mock authentication for', params.email);
+        
+        // Return mock auth response
+        const mockResponse: AuthResponse = {
+          success: true,
+          message: 'Development mode login successful',
+          user: {
+            id: 'dev_user_001',
+            email: testUser.email,
+            name: testUser.name,
+            phoneNumber: undefined,
+            emailVerified: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          tokens: {
+            accessToken: 'dev_access_token_' + Date.now(),
+            refreshToken: 'dev_refresh_token_' + Date.now(),
+            accessTokenExpiry: Date.now() + (60 * 60 * 1000), // 1 hour
+            refreshTokenExpiry: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+          },
+        };
+        
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return mockResponse;
+      }
+    }
+    
+    // Production mode or invalid dev credentials: use real authentication
     try {
       console.log('Login attempt:', { email: params.email, url: API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.AUTH.LOGIN });
       const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN, params);
@@ -247,6 +292,30 @@ class AuthService {
   }
 
   async verifyToken(): Promise<{ success: boolean; authenticated: boolean; user: any }> {
+    // Development mode: handle dev tokens
+    if (__DEV__) {
+      const token = await SecureStore.getAccessToken();
+      if (token && token.startsWith('dev_access_token_')) {
+        console.log('🔧 Development mode: Verifying dev token');
+        
+        const { DEV_CONFIG } = require('../config/development');
+        // Return mock verified response
+        return {
+          success: true,
+          authenticated: true,
+          user: {
+            id: 'dev_user_001',
+            email: DEV_CONFIG.TEST_USER.email,
+            name: DEV_CONFIG.TEST_USER.name,
+            emailVerified: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        };
+      }
+    }
+    
+    // Production mode or non-dev token: use real verification
     try {
       console.log('Verifying token at:', API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.AUTH.CHECK);
       const response = await this.api.get(API_CONFIG.ENDPOINTS.AUTH.CHECK);
