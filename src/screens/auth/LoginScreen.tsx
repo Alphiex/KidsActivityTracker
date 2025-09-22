@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/slices/authSlice';
 import { colors } from '../../theme';
+import { DEV_CONFIG, getTestCredentials } from '../../config/development';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -32,8 +33,10 @@ const LoginScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector((state) => state.auth);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Auto-fill test credentials in development mode
+  const testCreds = getTestCredentials();
+  const [email, setEmail] = useState(testCreds.email);
+  const [password, setPassword] = useState(testCreds.password);
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -103,6 +106,27 @@ const LoginScreen: React.FC = () => {
             <Icon name="account-circle" size={80} color={colors.primary} />
             <Text style={styles.title}>Welcome Back!</Text>
             <Text style={styles.subtitle}>Sign in to continue</Text>
+            
+            {/* Development Mode Test Credentials */}
+            {__DEV__ && (
+              <View style={styles.devCredentials}>
+                <Text style={styles.devTitle}>🚧 Development Mode</Text>
+                <Text style={styles.devText}>Test Credentials:</Text>
+                <TouchableOpacity
+                  style={styles.devButton}
+                  onPress={() => {
+                    setEmail(DEV_CONFIG.TEST_USER.email);
+                    setPassword(DEV_CONFIG.TEST_USER.password);
+                  }}
+                >
+                  <Text style={styles.devButtonText}>
+                    Email: {DEV_CONFIG.TEST_USER.email}{'\n'}
+                    Password: {DEV_CONFIG.TEST_USER.password}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.devHint}>Tap to auto-fill</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.form}>
@@ -300,6 +324,48 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Development mode styles
+  devCredentials: {
+    backgroundColor: colors.warning + '20',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  devTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.warning,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  devText: {
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  devButton: {
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  devButtonText: {
+    fontSize: 13,
+    color: colors.text,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  devHint: {
+    fontSize: 12,
+    color: colors.gray,
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 
