@@ -17,7 +17,6 @@ import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import { formatPrice } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
-import axios from 'axios';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation();
@@ -36,13 +35,26 @@ const DashboardScreenModern = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      await Promise.all([
+      console.log('Starting to load dashboard data...');
+      
+      // Load all data in parallel
+      const results = await Promise.allSettled([
         loadRecommendedActivities(),
         loadBudgetFriendlyActivities(),
         loadNewActivities(),
         loadActivityTypes(),
         loadAgeGroups(),
       ]);
+      
+      // Log results of each promise
+      results.forEach((result, index) => {
+        const names = ['Recommended', 'Budget', 'New', 'ActivityTypes', 'AgeGroups'];
+        if (result.status === 'rejected') {
+          console.error(`Failed to load ${names[index]}:`, result.reason);
+        } else {
+          console.log(`Successfully loaded ${names[index]}`);
+        }
+      });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -52,9 +64,19 @@ const DashboardScreenModern = () => {
 
   const loadRecommendedActivities = async () => {
     try {
-      const response = await activityService.searchActivities({ limit: 6 });
-      if (response?.activities && Array.isArray(response.activities)) {
-        setRecommendedActivities(response.activities.slice(0, 6));
+      // Use searchActivitiesPaginated to get activities
+      const response = await activityService.searchActivitiesPaginated({ 
+        limit: 6, 
+        offset: 0 
+      });
+      console.log('Recommended activities response:', {
+        total: response?.total,
+        itemsCount: response?.items?.length,
+        firstItem: response?.items?.[0]?.name
+      });
+      if (response?.items && Array.isArray(response.items)) {
+        setRecommendedActivities(response.items);
+        console.log('Set recommended activities:', response.items.length);
       }
     } catch (error) {
       console.error('Error loading recommended activities:', error);
@@ -63,12 +85,15 @@ const DashboardScreenModern = () => {
 
   const loadBudgetFriendlyActivities = async () => {
     try {
-      const response = await activityService.searchActivities({ 
+      // Use searchActivitiesPaginated with maxCost filter
+      const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
-        maxPrice: 20 
+        offset: 0,
+        maxCost: 20  // Use maxCost not maxPrice
       });
-      if (response?.activities && Array.isArray(response.activities)) {
-        setBudgetFriendlyActivities(response.activities.slice(0, 6));
+      console.log('Budget friendly activities response:', response);
+      if (response?.items && Array.isArray(response.items)) {
+        setBudgetFriendlyActivities(response.items);
       }
     } catch (error) {
       console.error('Error loading budget activities:', error);
@@ -77,12 +102,15 @@ const DashboardScreenModern = () => {
 
   const loadNewActivities = async () => {
     try {
-      const response = await activityService.searchActivities({ 
+      // Use searchActivitiesPaginated with sortBy for newest activities
+      const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
+        offset: 0,
         sortBy: 'newest' 
       });
-      if (response?.activities && Array.isArray(response.activities)) {
-        setNewActivities(response.activities.slice(0, 6));
+      console.log('New activities response:', response);
+      if (response?.items && Array.isArray(response.items)) {
+        setNewActivities(response.items);
       }
     } catch (error) {
       console.error('Error loading new activities:', error);
@@ -91,9 +119,12 @@ const DashboardScreenModern = () => {
 
   const loadActivityTypes = async () => {
     try {
-      const response = await axios.get(`${API_CONFIG.BASE_URL}/api/activity-types`);
-      if (response.data && Array.isArray(response.data)) {
-        setActivityTypes(response.data.slice(0, 6));
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/activity-types`);
+      const data = await response.json();
+      if (data && Array.isArray(data)) {
+        setActivityTypes(data.slice(0, 6));
+      } else {
+        throw new Error('Invalid response');
       }
     } catch (error) {
       console.error('Error loading activity types:', error);
@@ -137,23 +168,41 @@ const DashboardScreenModern = () => {
   };
 
   const renderActivityCard = (activity: Activity) => {
-    const imageKey = getActivityImageKey(activity.category || 'general', activity.subcategory);
+    // Get image based on activityType or category
+    const activityTypeName = activity.activityType?.name || activity.category || 'general';
+    const subcategory = activity.activitySubtype?.name || activity.subcategory;
+    const imageKey = getActivityImageKey(activityTypeName, subcategory);
     const imageSource = getActivityImageByKey(imageKey);
     
-    // Format schedule display
+    // Format schedule display - check for sessions array first (new format)
     let scheduleText = 'Schedule varies';
-    if (activity.schedule && Array.isArray(activity.schedule) && activity.schedule.length > 0) {
+    if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
+      const firstSession = activity.sessions[0];
+      scheduleText = firstSession.dayOfWeek || firstSession.date || 'Schedule available';
+    } else if (activity.schedule && Array.isArray(activity.schedule) && activity.schedule.length > 0) {
       const firstSchedule = activity.schedule[0];
       scheduleText = firstSchedule.dayOfWeek || 'Schedule available';
+    } else if (activity.dates) {
+      // Try to parse dates string
+      scheduleText = activity.dates;
     }
     
     // Format age display
     let ageText = 'All ages';
-    if (activity.ageMin && activity.ageMax) {
+    if (activity.ageRange) {
+      if (activity.ageRange.min && activity.ageRange.max) {
+        ageText = `Ages ${activity.ageRange.min}-${activity.ageRange.max}`;
+      } else if (activity.ageRange.min) {
+        ageText = `Ages ${activity.ageRange.min}+`;
+      }
+    } else if (activity.ageMin && activity.ageMax) {
       ageText = `Ages ${activity.ageMin}-${activity.ageMax}`;
     } else if (activity.ageMin) {
       ageText = `Ages ${activity.ageMin}+`;
     }
+    
+    // Get price - check both cost and price fields
+    const price = activity.cost || activity.price;
     
     return (
       <TouchableOpacity
@@ -163,15 +212,15 @@ const DashboardScreenModern = () => {
       >
         <View style={styles.cardImageContainer}>
           <Image source={imageSource} style={styles.cardImage} />
-          {activity.price && (
+          {price && price > 0 && (
             <View style={styles.priceOverlay}>
-              <Text style={styles.priceText}>{formatPrice(activity.price)}</Text>
+              <Text style={styles.priceText}>${formatPrice(price)}</Text>
             </View>
           )}
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{activity.name}</Text>
         <Text style={styles.cardSubtitle} numberOfLines={1}>
-          {activity.locationName || 'Location TBD'}
+          {typeof activity.location === 'string' ? activity.location : activity.location?.name || activity.locationName || 'Location TBD'}
         </Text>
         <Text style={styles.cardDetails}>{scheduleText}</Text>
         <Text style={styles.cardDetails}>{ageText}</Text>
@@ -280,11 +329,16 @@ const DashboardScreenModern = () => {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recommendedActivities.length > 0 ? (
+            {loading ? (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : recommendedActivities.length > 0 ? (
               recommendedActivities.map(renderActivityCard)
             ) : (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Loading activities...</Text>
+                <Text style={styles.emptyText}>No activities found</Text>
               </View>
             )}
           </ScrollView>
@@ -297,11 +351,16 @@ const DashboardScreenModern = () => {
             <Icon name="chevron-right" size={24} color="#222" />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {budgetFriendlyActivities.length > 0 ? (
+            {loading ? (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : budgetFriendlyActivities.length > 0 ? (
               budgetFriendlyActivities.map(renderActivityCard)
             ) : (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Loading activities...</Text>
+                <Text style={styles.emptyText}>No budget friendly activities</Text>
               </View>
             )}
           </ScrollView>
@@ -314,11 +373,16 @@ const DashboardScreenModern = () => {
             <Icon name="chevron-right" size={24} color="#222" />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {newActivities.length > 0 ? (
+            {loading ? (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : newActivities.length > 0 ? (
               newActivities.map(renderActivityCard)
             ) : (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Loading activities...</Text>
+                <Text style={styles.emptyText}>No new activities</Text>
               </View>
             )}
           </ScrollView>
