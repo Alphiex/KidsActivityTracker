@@ -719,12 +719,12 @@ const styles = StyleSheet.create({
   activeTabLine: {
     position: 'absolute',
     bottom: 0,
-    left: '50%',
-    marginLeft: -15,
-    width: 30,
+    left: 0,
+    right: 0,
     height: 2,
     backgroundColor: '#222',
     borderRadius: 1,
+    marginHorizontal: 8,
   },
   section: {
     marginBottom: 30,
