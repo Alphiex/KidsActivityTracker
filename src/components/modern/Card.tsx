@@ -75,6 +75,7 @@ const Card: React.FC<CardProps> = ({
       backgroundColor: gradient || gradientColors ? 'transparent' : backgroundColor,
       borderColor: borderColor || ModernColors.border,
       borderWidth: borderColor ? 1 : 0,
+      overflow: 'hidden',  // Ensure gradient doesn't overflow radius
     },
     style,
   ];
@@ -87,7 +88,7 @@ const Card: React.FC<CardProps> = ({
   const content = gradient || gradientColors ? (
     <LinearGradient
       colors={gradientColors || gradient || ModernColors.primaryGradient}
-      style={[innerStyle, { flex: 1 }]}
+      style={[innerStyle, styles.gradientFill]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
@@ -128,6 +129,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: ModernColors.surface,
     overflow: 'hidden',
+  },
+  gradientFill: {
+    flex: 1,
+    width: '100%',
   },
 });
 

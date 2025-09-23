@@ -1,23 +1,23 @@
 export const ModernColors = {
-  // Primary palette - vibrant blue
-  primary: '#3B82F6',
-  primaryLight: '#60A5FA',
-  primaryDark: '#2563EB',
-  primaryGradient: ['#3B82F6', '#2563EB'],
+  // Primary palette - pink/purple (matches v0)
+  primary: '#EC4899',
+  primaryLight: '#F9A8D4',
+  primaryDark: '#DB2777',
+  primaryGradient: ['#EC4899', '#DB2777'],
   
-  // Secondary palette - purple
-  secondary: '#8B5CF6',
-  secondaryLight: '#A78BFA',
-  secondaryDark: '#7C3AED',
-  secondaryGradient: ['#8B5CF6', '#7C3AED'],
+  // Secondary palette - blue (matches v0)
+  secondary: '#3B82F6',
+  secondaryLight: '#93C5FD',
+  secondaryDark: '#2563EB',
+  secondaryGradient: ['#3B82F6', '#2563EB'],
   
-  // Accent palette - teal
-  accent: '#14B8A6',
-  accentLight: '#2DD4BF',
-  accentDark: '#0F766E',
-  accentGradient: ['#14B8A6', '#0F766E'],
+  // Accent palette - yellow (matches v0)
+  accent: '#FBBf24',
+  accentLight: '#FCD34D',
+  accentDark: '#F59E0B',
+  accentGradient: ['#FBBf24', '#F59E0B'],
   
-  // Success palette - green
+  // Success palette - green (matches v0)
   success: '#10B981',
   successLight: '#34D399',
   successDark: '#059669',
@@ -25,7 +25,7 @@ export const ModernColors = {
   
   // Warning palette - amber
   warning: '#F59E0B',
-  warningLight: '#FBBa24',
+  warningLight: '#FBBF24',
   warningDark: '#D97706',
   
   // Error palette - red
@@ -33,12 +33,12 @@ export const ModernColors = {
   errorLight: '#F87171',
   errorDark: '#DC2626',
   
-  // Neutral palette
-  background: '#FAFBFC',
+  // Neutral palette - lighter background like v0
+  background: '#F8FAFC',
   surface: '#FFFFFF',
   surfaceLight: '#FFFFFF',
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
+  border: '#E5E7EB',
+  borderLight: '#F3F4F6',
   
   // Text colors
   text: '#1E293B',
@@ -51,19 +51,33 @@ export const ModernColors = {
   overlay: 'rgba(0, 0, 0, 0.3)',
   shadowColor: '#000000',
   
-  // Category colors with gradients
+  // Category colors with gradients - matching v0 design panels
   categoryGradients: {
-    location: ['#3B82F6', '#60A5FA'],
-    favorites: ['#EC4899', '#F472B6'],
-    budget: ['#14B8A6', '#2DD4BF'],
-    new: ['#10B981', '#34D399'],
-    sports: ['#F59E0B', '#FBBF24'],
-    arts: ['#8B5CF6', '#A78BFA'],
-    music: ['#EC4899', '#F9A8D4'],
-    science: ['#06B6D4', '#22D3EE'],
-    dance: ['#F472B6', '#FBCFE8'],
-    outdoor: ['#10B981', '#6EE7B7'],
-  }
+    location: ['rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.05)'],  // blue/10 to blue/5
+    favorites: ['rgba(236, 72, 153, 0.1)', 'rgba(236, 72, 153, 0.05)'],  // pink/10 to pink/5
+    budget: ['rgba(251, 191, 36, 0.1)', 'rgba(251, 191, 36, 0.05)'],     // yellow/10 to yellow/5  
+    new: ['rgba(16, 185, 129, 0.1)', 'rgba(16, 185, 129, 0.05)'],        // green/10 to green/5
+    sports: ['rgba(147, 197, 253, 0.15)', 'rgba(147, 197, 253, 0.08)'],      // Light blue
+    arts: ['rgba(249, 168, 212, 0.15)', 'rgba(249, 168, 212, 0.08)'],        // Light pink
+    music: ['rgba(254, 215, 170, 0.15)', 'rgba(254, 215, 170, 0.08)'],       // Light orange
+    science: ['rgba(167, 243, 208, 0.15)', 'rgba(167, 243, 208, 0.08)'],     // Light green
+    dance: ['rgba(252, 231, 243, 0.15)', 'rgba(252, 231, 243, 0.08)'],       // Pink
+    outdoor: ['rgba(209, 250, 229, 0.15)', 'rgba(209, 250, 229, 0.08)'],     // Green
+  },
+  
+  // Activity type background colors
+  activityTypeBackgrounds: {
+    'Sports': '#EBF5FF',       // Light blue
+    'Arts & Crafts': '#FCE7F3', // Light pink  
+    'Music': '#FEF3C7',        // Light yellow
+    'Science': '#D1FAE5',      // Light green
+    'Dance': '#FCE7F3',        // Light pink
+    'Outdoor': '#D1FAE5',      // Light green
+  },
+  
+  // Card colors
+  cardBackground: '#FFFFFF',
+  cardBorder: '#E5E7EB',
 };
 
 export const ModernSpacing = {
@@ -104,28 +118,28 @@ export const ModernShadows = {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 3,
     elevation: 2,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 4,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 8,
   },
   xl: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
     elevation: 12,
   },
 };
@@ -157,6 +171,16 @@ export const ActivityTypeEmojis: { [key: string]: string } = {
   'Individual Sports': '🏃',
   'Fitness': '💪',
   'Nature': '🌿',
+};
+
+// Activity type colors matching v0 design
+export const ActivityTypeColors: { [key: string]: string } = {
+  'Sports': 'bg-secondary',
+  'Arts & Crafts': 'bg-primary',
+  'Music': 'bg-accent',
+  'Science': 'bg-success',
+  'Dance': 'bg-chart-5',
+  'Outdoor': 'bg-chart-4',
 };
 
 export const AgeGroupEmojis: { [key: string]: string } = {

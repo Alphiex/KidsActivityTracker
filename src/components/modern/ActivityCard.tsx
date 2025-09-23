@@ -165,8 +165,10 @@ const styles = StyleSheet.create({
     backgroundColor: ModernColors.surface,
     borderRadius: ModernBorderRadius.xl,
     overflow: 'hidden',
-    ...ModernShadows.md,
+    ...ModernShadows.lg,
     marginBottom: ModernSpacing.md,
+    borderWidth: 1,
+    borderColor: ModernColors.borderLight,
   },
   fullContainer: {
     width: width - (ModernSpacing.lg * 2),
@@ -245,6 +247,7 @@ const styles = StyleSheet.create({
     marginBottom: ModernSpacing.sm,
     borderWidth: 1,
     borderColor: ModernColors.border,
+    ...ModernShadows.sm,
   },
   compactContent: {
     flexDirection: 'row',

@@ -139,67 +139,63 @@ const MainTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.tabBarActive,
-        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarActiveTintColor: '#FF385C',
+        tabBarInactiveTintColor: '#717171',
         tabBarStyle: {
-          backgroundColor: colors.tabBarBackground,
-          borderTopWidth: 0,
-          elevation: 20,
-          shadowColor: colors.shadowColor,
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          height: 65,
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#EBEBEB',
+          elevation: 0,
+          shadowOpacity: 0,
+          height: 60,
           paddingBottom: 8,
           paddingTop: 8,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '500',
         },
         headerShown: false,
       }}
     >
     <Tab.Screen
-      name="Home"
+      name="Explore"
       component={HomeStack}
       options={{
-        tabBarLabel: 'Home',
+        tabBarLabel: 'Explore',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon 
-            name={focused ? "home" : "home-outline"} 
+            name={focused ? "compass" : "compass-outline"} 
             color={color} 
-            size={28} 
+            size={26} 
           />
         ),
       }}
     />
     <Tab.Screen
-      name="Search"
-      component={SearchStack}
+      name="Favourites"
+      component={FavoritesStack}
       options={{
-        tabBarLabel: 'Search',
+        tabBarLabel: 'Favourites',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon 
-            name={focused ? "magnify-plus" : "magnify"} 
+            name={focused ? "heart" : "heart-outline"} 
             color={color} 
-            size={28} 
+            size={26} 
           />
         ),
       }}
     />
     <Tab.Screen
       name="FriendsAndFamily"
-      component={FriendsAndFamilyScreen}
+      component={FriendsAndFamilyStack}
       options={{
         tabBarLabel: 'Friends & Family',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon 
             name={focused ? "account-group" : "account-group-outline"} 
             color={color} 
-            size={28} 
+            size={26} 
           />
         ),
       }}
@@ -211,9 +207,9 @@ const MainTabs = () => {
         tabBarLabel: 'Profile',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon 
-            name={focused ? "account-circle" : "account-circle-outline"} 
+            name={focused ? "account" : "account-outline"} 
             color={color} 
-            size={28} 
+            size={26} 
           />
         ),
       }}

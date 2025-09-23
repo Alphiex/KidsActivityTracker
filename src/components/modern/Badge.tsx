@@ -41,8 +41,12 @@ const Badge: React.FC<BadgeProps> = ({
         };
       case 'secondary':
         return {
-          container: { backgroundColor: ModernColors.secondary },
-          text: { color: ModernColors.textOnPrimary },
+          container: { 
+            backgroundColor: ModernColors.secondaryLight + '20',
+            borderWidth: 1,
+            borderColor: ModernColors.secondaryLight + '40',
+          },
+          text: { color: ModernColors.secondary },
         };
       case 'success':
         return {
@@ -71,9 +75,11 @@ const Badge: React.FC<BadgeProps> = ({
       case 'ghost':
         return {
           container: { 
-            backgroundColor: ModernColors.primaryLight + '20',
+            backgroundColor: ModernColors.background,
+            borderWidth: 1,
+            borderColor: ModernColors.border,
           },
-          text: { color: ModernColors.primary },
+          text: { color: ModernColors.textSecondary },
         };
       default:
         return {
