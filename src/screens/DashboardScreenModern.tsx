@@ -31,6 +31,7 @@ const DashboardScreenModern = () => {
   const [ageGroups, setAgeGroups] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [scrollY] = useState(new Animated.Value(0));
+  const [activeTab, setActiveTab] = useState('Activities');
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -402,14 +403,20 @@ const DashboardScreenModern = () => {
 
   // Create animated values for the header
   const headerIconsOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
+    inputRange: [0, 30, 60],
     outputRange: [1, 0.5, 0],
     extrapolate: 'clamp',
   });
 
-  const headerIconsTranslateY = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [0, -10, -20],
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 60, 120],
+    outputRange: [80, 50, 35],
+    extrapolate: 'clamp',
+  });
+
+  const iconScale = scrollY.interpolate({
+    inputRange: [0, 30, 60],
+    outputRange: [1, 0.7, 0],
     extrapolate: 'clamp',
   });
 
@@ -431,39 +438,68 @@ const DashboardScreenModern = () => {
           style={[
             styles.topButtons,
             {
-              opacity: headerIconsOpacity,
-              transform: [{ translateY: headerIconsTranslateY }],
+              height: headerHeight,
             }
           ]}
         >
           <TouchableOpacity 
             style={styles.topButton}
-            onPress={() => handleNavigate('AllActivityTypes')}
+            onPress={() => {
+              setActiveTab('Activities');
+              handleNavigate('AllActivityTypes');
+            }}
           >
-            <View style={[styles.iconContainer, styles.activitiesIcon]}>
-              <Text style={styles.iconEmoji}>🎯</Text>
-            </View>
-            <Text style={styles.topButtonText}>Activities</Text>
+            <Animated.Text 
+              style={[
+                styles.iconEmoji,
+                {
+                  opacity: headerIconsOpacity,
+                  transform: [{ scale: iconScale }],
+                }
+              ]}
+            >🎯</Animated.Text>
+            <Text style={[styles.topButtonText, activeTab === 'Activities' && styles.activeTabText]}>Activities</Text>
+            {activeTab === 'Activities' && <View style={styles.activeTabLine} />}
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.topButton}
-            onPress={() => handleNavigate('Filter')}
+            onPress={() => {
+              setActiveTab('Filters');
+              handleNavigate('Filter');
+            }}
           >
-            <View style={[styles.iconContainer, styles.filtersIcon]}>
-              <Text style={styles.iconEmoji}>🔍</Text>
-            </View>
-            <Text style={styles.topButtonText}>Filters</Text>
+            <Animated.Text 
+              style={[
+                styles.iconEmoji,
+                {
+                  opacity: headerIconsOpacity,
+                  transform: [{ scale: iconScale }],
+                }
+              ]}
+            >🔍</Animated.Text>
+            <Text style={[styles.topButtonText, activeTab === 'Filters' && styles.activeTabText]}>Filters</Text>
+            {activeTab === 'Filters' && <View style={styles.activeTabLine} />}
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.topButton}
-            onPress={() => handleNavigate('Calendar')}
+            onPress={() => {
+              setActiveTab('Calendar');
+              handleNavigate('Calendar');
+            }}
           >
-            <View style={[styles.iconContainer, styles.calendarIcon]}>
-              <Text style={styles.iconEmoji}>📅</Text>
-            </View>
-            <Text style={styles.topButtonText}>Calendar</Text>
+            <Animated.Text 
+              style={[
+                styles.iconEmoji,
+                {
+                  opacity: headerIconsOpacity,
+                  transform: [{ scale: iconScale }],
+                }
+              ]}
+            >📅</Animated.Text>
+            <Text style={[styles.topButtonText, activeTab === 'Calendar' && styles.activeTabText]}>Calendar</Text>
+            {activeTab === 'Calendar' && <View style={styles.activeTabLine} />}
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -628,7 +664,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 20,
+    paddingTop: 10,
   },
   searchBar: {
     flexDirection: 'row',
@@ -656,36 +692,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    alignItems: 'flex-end',
+    paddingBottom: 8,
   },
   topButton: {
     alignItems: 'center',
-    padding: 8,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  activitiesIcon: {
-    backgroundColor: '#FFE5E5',
-  },
-  filtersIcon: {
-    backgroundColor: '#E5F3FF',
-  },
-  calendarIcon: {
-    backgroundColor: '#F0E5FF',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    position: 'relative',
+    justifyContent: 'flex-end',
+    minHeight: 35,
   },
   iconEmoji: {
     fontSize: 24,
+    marginBottom: 2,
   },
   topButtonText: {
-    fontSize: 12,
+    fontSize: 14,
+    color: '#717171',
+    fontWeight: '400',
+  },
+  activeTabText: {
     color: '#222',
     fontWeight: '600',
+  },
+  activeTabLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: '50%',
+    marginLeft: -15,
+    width: 30,
+    height: 2,
+    backgroundColor: '#222',
+    borderRadius: 1,
   },
   section: {
     marginBottom: 30,
