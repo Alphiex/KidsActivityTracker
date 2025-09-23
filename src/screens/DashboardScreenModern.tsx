@@ -102,8 +102,8 @@ const DashboardScreenModern = () => {
       // Use searchActivitiesPaginated to get activities (default order)
       const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
-        offset: 0
-        // No sortBy - use default API ordering
+        offset: 0,
+        hideFullActivities: true  // Filter out activities with 0 spots
       });
       console.log('Recommended activities response:', {
         total: response?.total,
@@ -130,7 +130,8 @@ const DashboardScreenModern = () => {
       const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
         offset: 0,
-        maxCost: maxBudgetAmount  // Use user's budget preference
+        maxCost: maxBudgetAmount,  // Use user's budget preference
+        hideFullActivities: true   // Filter out activities with 0 spots
       });
       console.log('Budget friendly activities response:', {
         total: response?.total,
@@ -154,7 +155,8 @@ const DashboardScreenModern = () => {
         limit: 6, 
         offset: 0,
         sortBy: 'createdAt',
-        sortOrder: 'desc' 
+        sortOrder: 'desc',
+        hideFullActivities: true  // Filter out activities with 0 spots
       });
       console.log('New activities response:', {
         total: response?.total,
