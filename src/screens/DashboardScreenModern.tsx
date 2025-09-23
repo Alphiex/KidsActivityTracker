@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Image,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,8 +30,10 @@ const DashboardScreenModern = () => {
   const [activityTypes, setActivityTypes] = useState<any[]>([]);
   const [ageGroups, setAgeGroups] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [scrollY] = useState(new Animated.Value(0));
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -397,14 +400,23 @@ const DashboardScreenModern = () => {
     );
   };
 
+  // Create animated values for the header
+  const headerIconsOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
+
+  const headerIconsTranslateY = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [0, -10, -20],
+    extrapolate: 'clamp',
+  });
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Kids Activity Tracker</Text>
-        </View>
-
+      {/* Fixed Header with Search and Icons */}
+      <View style={styles.fixedHeader}>
         {/* Search Bar */}
         <TouchableOpacity 
           style={styles.searchBar}
@@ -414,32 +426,60 @@ const DashboardScreenModern = () => {
           <Text style={styles.searchText}>Start your search</Text>
         </TouchableOpacity>
 
-        {/* Top Buttons */}
-        <View style={styles.topButtons}>
+        {/* Animated Top Buttons */}
+        <Animated.View 
+          style={[
+            styles.topButtons,
+            {
+              opacity: headerIconsOpacity,
+              transform: [{ translateY: headerIconsTranslateY }],
+            }
+          ]}
+        >
           <TouchableOpacity 
             style={styles.topButton}
             onPress={() => handleNavigate('AllActivityTypes')}
           >
-            <Icon name="shape" size={24} color="#FF385C" />
+            <View style={[styles.iconContainer, styles.activitiesIcon]}>
+              <Text style={styles.iconEmoji}>🎯</Text>
+            </View>
             <Text style={styles.topButtonText}>Activities</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.topButton}
-            onPress={() => handleNavigate('LocationBrowse')}
+            onPress={() => handleNavigate('Filter')}
           >
-            <Icon name="map-marker" size={24} color="#717171" />
-            <Text style={styles.topButtonText}>Location</Text>
+            <View style={[styles.iconContainer, styles.filtersIcon]}>
+              <Text style={styles.iconEmoji}>🔍</Text>
+            </View>
+            <Text style={styles.topButtonText}>Filters</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.topButton}
             onPress={() => handleNavigate('Calendar')}
           >
-            <Icon name="calendar" size={24} color="#717171" />
+            <View style={[styles.iconContainer, styles.calendarIcon]}>
+              <Text style={styles.iconEmoji}>📅</Text>
+            </View>
             <Text style={styles.topButtonText}>Calendar</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
+      </View>
+
+      {/* Scrollable Content */}
+      <Animated.ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
 
         {/* Activity Type Section */}
         <View style={styles.section}>
@@ -560,7 +600,7 @@ const DashboardScreenModern = () => {
 
         {/* Bottom spacing */}
         <View style={{ height: 100 }} />
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 };
@@ -576,48 +616,76 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
+  fixedHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    zIndex: 1000,
+  },
   scrollView: {
     flex: 1,
   },
-  header: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
+  scrollContent: {
+    paddingTop: 20,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F7F7F7',
     marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 12,
-    borderRadius: 25,
+    marginVertical: 15,
+    padding: 15,
+    borderRadius: 30,
     borderWidth: 1,
     borderColor: '#EBEBEB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   searchText: {
     marginLeft: 8,
-    fontSize: 14,
+    fontSize: 16,
     color: '#717171',
+    fontWeight: '500',
   },
   topButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingBottom: 15,
   },
   topButton: {
     alignItems: 'center',
     padding: 8,
   },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  activitiesIcon: {
+    backgroundColor: '#FFE5E5',
+  },
+  filtersIcon: {
+    backgroundColor: '#E5F3FF',
+  },
+  calendarIcon: {
+    backgroundColor: '#F0E5FF',
+  },
+  iconEmoji: {
+    fontSize: 24,
+  },
   topButtonText: {
-    marginTop: 4,
     fontSize: 12,
-    color: '#717171',
+    color: '#222',
+    fontWeight: '600',
   },
   section: {
     marginBottom: 30,
