@@ -18,6 +18,7 @@ import { getActivityImageByKey } from '../assets/images';
 import { formatPrice } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
+import FavoritesService from '../services/favoritesService';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation();
@@ -27,11 +28,44 @@ const DashboardScreenModern = () => {
   const [newActivities, setNewActivities] = useState<Activity[]>([]);
   const [activityTypes, setActivityTypes] = useState<any[]>([]);
   const [ageGroups, setAgeGroups] = useState<any[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const activityService = ActivityService.getInstance();
+  const favoritesService = FavoritesService.getInstance();
 
   useEffect(() => {
     loadDashboardData();
+    loadFavorites();
   }, []);
+
+  const loadFavorites = () => {
+    try {
+      const favorites = favoritesService.getFavorites();
+      const ids = new Set(favorites.map(fav => fav.activityId));
+      setFavoriteIds(ids);
+    } catch (error) {
+      console.error('Error loading favorites:', error);
+    }
+  };
+
+  const toggleFavorite = async (activity: Activity) => {
+    try {
+      const isCurrentlyFavorite = favoriteIds.has(activity.id);
+      
+      if (isCurrentlyFavorite) {
+        await favoritesService.removeFavorite(activity.id);
+        setFavoriteIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(activity.id);
+          return newSet;
+        });
+      } else {
+        await favoritesService.addFavorite(activity);
+        setFavoriteIds(prev => new Set([...prev, activity.id]));
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -65,10 +99,11 @@ const DashboardScreenModern = () => {
 
   const loadRecommendedActivities = async () => {
     try {
-      // Use searchActivitiesPaginated to get activities
+      // Use searchActivitiesPaginated to get activities (default order)
       const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
-        offset: 0 
+        offset: 0
+        // No sortBy - use default API ordering
       });
       console.log('Recommended activities response:', {
         total: response?.total,
@@ -86,15 +121,26 @@ const DashboardScreenModern = () => {
 
   const loadBudgetFriendlyActivities = async () => {
     try {
+      // Get user's budget friendly amount from preferences
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+      const maxBudgetAmount = preferences.maxBudgetFriendlyAmount || 20;
+      
       // Use searchActivitiesPaginated with maxCost filter
       const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
         offset: 0,
-        maxCost: 20  // Use maxCost not maxPrice
+        maxCost: maxBudgetAmount  // Use user's budget preference
       });
-      console.log('Budget friendly activities response:', response);
+      console.log('Budget friendly activities response:', {
+        total: response?.total,
+        itemsCount: response?.items?.length,
+        maxBudget: maxBudgetAmount,
+        firstItem: response?.items?.[0]?.name
+      });
       if (response?.items && Array.isArray(response.items)) {
         setBudgetFriendlyActivities(response.items);
+        console.log('Set budget friendly activities:', response.items.length);
       }
     } catch (error) {
       console.error('Error loading budget activities:', error);
@@ -107,11 +153,17 @@ const DashboardScreenModern = () => {
       const response = await activityService.searchActivitiesPaginated({ 
         limit: 6, 
         offset: 0,
-        sortBy: 'newest' 
+        sortBy: 'createdAt',
+        sortOrder: 'desc' 
       });
-      console.log('New activities response:', response);
+      console.log('New activities response:', {
+        total: response?.total,
+        itemsCount: response?.items?.length,
+        firstItem: response?.items?.[0]?.name
+      });
       if (response?.items && Array.isArray(response.items)) {
         setNewActivities(response.items);
+        console.log('Set new activities:', response.items.length);
       }
     } catch (error) {
       console.error('Error loading new activities:', error);
@@ -215,6 +267,7 @@ const DashboardScreenModern = () => {
     const subcategory = activity.activitySubtype?.name || activity.subcategory;
     const imageKey = getActivityImageKey(activityTypeName, subcategory);
     const imageSource = getActivityImageByKey(imageKey);
+    const isFavorite = favoriteIds.has(activity.id);
     
     // Format schedule display - check for sessions array first (new format)
     let scheduleText = 'Schedule varies';
@@ -225,7 +278,6 @@ const DashboardScreenModern = () => {
       const firstSchedule = activity.schedule[0];
       scheduleText = firstSchedule.dayOfWeek || 'Schedule available';
     } else if (activity.dates) {
-      // Try to parse dates string
       scheduleText = activity.dates;
     }
     
@@ -246,6 +298,20 @@ const DashboardScreenModern = () => {
     // Get price - check both cost and price fields
     const price = activity.cost || activity.price;
     
+    // Format spots remaining
+    let spotsText = '';
+    if (activity.spotsAvailable !== undefined && activity.spotsAvailable !== null) {
+      if (activity.spotsAvailable === 0) {
+        spotsText = 'Full';
+      } else if (activity.spotsAvailable === 1) {
+        spotsText = 'Only 1 spot left!';
+      } else if (activity.spotsAvailable <= 5) {
+        spotsText = `Only ${activity.spotsAvailable} spots left!`;
+      } else {
+        spotsText = `${activity.spotsAvailable} spots available`;
+      }
+    }
+    
     return (
       <TouchableOpacity
         key={activity.id}
@@ -254,18 +320,77 @@ const DashboardScreenModern = () => {
       >
         <View style={styles.cardImageContainer}>
           <Image source={imageSource} style={styles.cardImage} />
+          
+          {/* Heart icon for favorites */}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleFavorite(activity);
+            }}
+          >
+            <Icon 
+              name={isFavorite ? "heart" : "heart-outline"} 
+              size={20} 
+              color={isFavorite ? "#FF385C" : "#FFF"} 
+            />
+          </TouchableOpacity>
+          
+          {/* Price overlay */}
           {price && price > 0 && (
             <View style={styles.priceOverlay}>
               <Text style={styles.priceText}>${formatPrice(price)}</Text>
+              <Text style={styles.perChildText}>per child</Text>
+            </View>
+          )}
+          
+          {/* NEW badge if recently added */}
+          {activity.isNew && (
+            <View style={styles.newBadge}>
+              <Text style={styles.newBadgeText}>NEW</Text>
             </View>
           )}
         </View>
-        <Text style={styles.cardTitle} numberOfLines={2}>{activity.name}</Text>
-        <Text style={styles.cardSubtitle} numberOfLines={1}>
-          {typeof activity.location === 'string' ? activity.location : activity.location?.name || activity.locationName || 'Location TBD'}
-        </Text>
-        <Text style={styles.cardDetails}>{scheduleText}</Text>
-        <Text style={styles.cardDetails}>{ageText}</Text>
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{activity.name}</Text>
+          
+          <View style={styles.cardLocationRow}>
+            <Icon name="map-marker" size={12} color="#717171" />
+            <Text style={styles.cardSubtitle} numberOfLines={1}>
+              {typeof activity.location === 'string' ? activity.location : activity.location?.name || activity.locationName || 'Location TBD'}
+            </Text>
+          </View>
+          
+          <View style={styles.cardInfoRow}>
+            <Icon name="calendar" size={12} color="#717171" />
+            <Text style={styles.cardDetails}>{scheduleText}</Text>
+          </View>
+          
+          <View style={styles.cardInfoRow}>
+            <Icon name="clock" size={12} color="#717171" />
+            <Text style={styles.cardDetails}>{activity.registrationStatus || 'In Progress'}</Text>
+          </View>
+          
+          <View style={styles.cardInfoRow}>
+            <Icon name="account-child" size={12} color="#717171" />
+            <Text style={styles.cardDetails}>{ageText}</Text>
+          </View>
+          
+          {/* Spots remaining */}
+          {spotsText && (
+            <View style={[styles.spotsContainer, activity.spotsAvailable <= 5 ? styles.spotsUrgent : styles.spotsNormal]}>
+              <Icon 
+                name={activity.spotsAvailable === 0 ? "close-circle" : "information"} 
+                size={12} 
+                color={activity.spotsAvailable <= 5 ? "#D93025" : "#717171"} 
+              />
+              <Text style={[styles.spotsText, activity.spotsAvailable <= 5 ? styles.spotsTextUrgent : styles.spotsTextNormal]}>
+                {spotsText}
+              </Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -324,7 +449,8 @@ const DashboardScreenModern = () => {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {activityTypes.map((type) => {
-              const imageKey = type.code || 'sports_general';
+              // Use getActivityImageKey with type name to get proper image mapping
+              const imageKey = getActivityImageKey(type.name, type.code);
               const imageSource = getActivityImageByKey(imageKey);
               return (
                 <TouchableOpacity
@@ -507,51 +633,129 @@ const styles = StyleSheet.create({
     color: '#222',
   },
   card: {
-    width: 160,
+    width: 280,
     marginLeft: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardImageContainer: {
-    width: 160,
-    height: 160,
+    width: '100%',
+    height: 200,
     borderRadius: 12,
-    marginBottom: 8,
     overflow: 'hidden',
     backgroundColor: '#F0F0F0',
+    position: 'relative',
   },
   cardImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
+  favoriteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   priceOverlay: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   priceText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#222',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  perChildText: {
+    fontSize: 12,
+    color: '#FFF',
+    opacity: 0.9,
+  },
+  newBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 55,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  newBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  cardContent: {
+    padding: 12,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#222',
-    marginBottom: 2,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  cardLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 12,
     color: '#717171',
-    marginBottom: 2,
+    marginLeft: 4,
+    flex: 1,
+  },
+  cardInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
   },
   cardDetails: {
     fontSize: 11,
     color: '#717171',
-    marginBottom: 1,
+    marginLeft: 4,
+    flex: 1,
+  },
+  spotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  spotsNormal: {
+    backgroundColor: '#F0F9FF',
+  },
+  spotsUrgent: {
+    backgroundColor: '#FEF2F2',
+  },
+  spotsText: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  spotsTextNormal: {
+    color: '#0369A1',
+  },
+  spotsTextUrgent: {
+    color: '#D93025',
   },
   typeCard: {
     width: 120,
