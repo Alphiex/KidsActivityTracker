@@ -17,6 +17,7 @@ import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import { formatPrice } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
+import PreferencesService from '../services/preferencesService';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation();
@@ -119,23 +120,64 @@ const DashboardScreenModern = () => {
 
   const loadActivityTypes = async () => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/activity-types`);
-      const data = await response.json();
-      if (data && Array.isArray(data)) {
-        setActivityTypes(data.slice(0, 6));
+      console.log('Loading activity types from database...');
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/activity-types`);
+      const result = await response.json();
+      
+      if (result.success && result.data && Array.isArray(result.data)) {
+        let allTypes = result.data;
+        console.log('Found', allTypes.length, 'activity types in database');
+        
+        // Get user preferences to show preferred types first
+        const preferencesService = PreferencesService.getInstance();
+        const preferences = preferencesService.getPreferences();
+        const preferredTypes = preferences.preferredActivityTypes || [];
+        
+        console.log('User preferred activity types:', preferredTypes);
+        
+        let selectedTypes = [];
+        
+        // First, add user's preferred activity types
+        if (preferredTypes.length > 0) {
+          const preferred = allTypes.filter(type => 
+            preferredTypes.some(pref => 
+              pref.toLowerCase() === type.name.toLowerCase() || 
+              pref.toLowerCase() === type.code.toLowerCase()
+            )
+          );
+          selectedTypes = [...preferred];
+          console.log('Added', preferred.length, 'preferred types');
+        }
+        
+        // If we have less than 6, add more types by activity count (most popular first)
+        if (selectedTypes.length < 6) {
+          const remaining = allTypes
+            .filter(type => !selectedTypes.some(selected => selected.id === type.id))
+            .sort((a, b) => (b.activityCount || 0) - (a.activityCount || 0));
+          
+          const needed = 6 - selectedTypes.length;
+          selectedTypes = [...selectedTypes, ...remaining.slice(0, needed)];
+          console.log('Added', Math.min(needed, remaining.length), 'additional types by popularity');
+        }
+        
+        // Ensure we have exactly 6 types
+        selectedTypes = selectedTypes.slice(0, 6);
+        
+        console.log('Final activity types:', selectedTypes.map(t => `${t.name} (${t.activityCount} activities)`));
+        setActivityTypes(selectedTypes);
       } else {
-        throw new Error('Invalid response');
+        throw new Error('Invalid API response format');
       }
     } catch (error) {
       console.error('Error loading activity types:', error);
       // Fallback to default types
       setActivityTypes([
-        { id: 1, name: 'Swimming', icon: '🏊', code: 'swimming' },
-        { id: 2, name: 'Sports', icon: '⚽', code: 'sports' },
-        { id: 3, name: 'Arts', icon: '🎨', code: 'arts' },
-        { id: 4, name: 'Dance', icon: '💃', code: 'dance' },
-        { id: 5, name: 'Music', icon: '🎵', code: 'music' },
-        { id: 6, name: 'Education', icon: '📚', code: 'education' },
+        { id: 1, name: 'Swimming & Aquatics', code: 'swimming-aquatics', activityCount: 0 },
+        { id: 2, name: 'Team Sports', code: 'team-sports', activityCount: 0 },
+        { id: 3, name: 'Visual Arts', code: 'visual-arts', activityCount: 0 },
+        { id: 4, name: 'Dance', code: 'dance', activityCount: 0 },
+        { id: 5, name: 'Music', code: 'music', activityCount: 0 },
+        { id: 6, name: 'Martial Arts', code: 'martial-arts', activityCount: 0 },
       ]);
     }
   };
