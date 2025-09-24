@@ -14,6 +14,7 @@ import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 // Import screens
 import DashboardScreen from '../screens/DashboardScreenModern';
 import SearchScreen from '../screens/SearchScreen';
+import SearchResultsScreen from '../screens/SearchResultsScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import FriendsAndFamilyScreen from '../screens/FriendsAndFamilyScreenSimple';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -62,6 +63,7 @@ const HomeStack = () => (
     }}
   >
     <Stack.Screen name="Dashboard" component={DashboardScreen} />
+    <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="CityBrowse" component={CityBrowseScreen} />

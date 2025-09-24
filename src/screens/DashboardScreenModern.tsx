@@ -10,10 +10,11 @@ import {
   Image,
   Animated,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
 import { Activity } from '../types';
+import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import { formatPrice } from '../utils/formatters';
@@ -35,6 +36,17 @@ const DashboardScreenModern = () => {
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Handle returning from SearchResults to re-open search modal
+  useFocusEffect(
+    useCallback(() => {
+      // Check if we should re-open search modal (this could be set via navigation params)
+      // For now, we'll leave this empty but it's ready for future enhancement
+      return () => {
+        // Cleanup if needed
+      };
+    }, [])
+  );
 
   useEffect(() => {
     loadDashboardData();
@@ -132,9 +144,9 @@ const DashboardScreenModern = () => {
       
       // Use searchActivitiesPaginated with maxCost filter
       const response = await activityService.searchActivitiesPaginated({ 
-        limit: 6, 
+        limit: 6,
         offset: 0,
-        maxCost: maxBudgetAmount,  // Use user's budget preference
+        costMax: maxBudgetAmount,  // Use user's budget preference
         hideFullActivities: true   // Filter out activities with 0 spots
       });
       console.log('Budget friendly activities response:', {
@@ -156,7 +168,7 @@ const DashboardScreenModern = () => {
     try {
       // Use searchActivitiesPaginated with sortBy for newest activities
       const response = await activityService.searchActivitiesPaginated({ 
-        limit: 6, 
+        limit: 6,
         offset: 0,
         sortBy: 'createdAt',
         sortOrder: 'desc',
@@ -266,6 +278,7 @@ const DashboardScreenModern = () => {
       console.log('Navigation error:', error);
     }
   };
+
 
   const renderActivityCard = (activity: Activity) => {
     // Get image based on activityType or category
@@ -427,10 +440,12 @@ const DashboardScreenModern = () => {
         {/* Search Bar */}
         <TouchableOpacity 
           style={styles.searchBar}
-          onPress={() => handleNavigate('Search')}
+          onPress={() => navigation.navigate('SearchMain' as never)}
         >
-          <Icon name="magnify" size={20} color="#717171" />
-          <Text style={styles.searchText}>Start your search</Text>
+          <View style={styles.searchContent}>
+            <Icon name="magnify" size={20} color="#717171" />
+            <Text style={styles.searchText}>Search Activities</Text>
+          </View>
         </TouchableOpacity>
 
         {/* Animated Top Buttons */}
@@ -637,6 +652,7 @@ const DashboardScreenModern = () => {
         {/* Bottom spacing */}
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
+      
     </SafeAreaView>
   );
 };
@@ -667,8 +683,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#F7F7F7',
     marginHorizontal: 20,
     marginVertical: 15,
@@ -681,6 +695,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchText: {
     marginLeft: 8,

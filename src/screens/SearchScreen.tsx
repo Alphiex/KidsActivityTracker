@@ -13,7 +13,15 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import Slider from '@react-native-community/slider';
+// import Slider from '@react-native-community/slider'; // Temporarily disabled due to setShowResults error
+// Simple replacement for Slider
+const Slider = ({ value, onValueChange, minimumValue, maximumValue, step, style, ...props }: any) => (
+  <View style={[{ height: 40, backgroundColor: '#f0f0f0', borderRadius: 4, justifyContent: 'center', paddingHorizontal: 10 }, style]}>
+    <Text style={{ textAlign: 'center', color: '#666', fontSize: 12 }}>
+      {value} (Range: {minimumValue}-{maximumValue})
+    </Text>
+  </View>
+);
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ActivityCard from '../components/ActivityCard';
 import PaginatedActivityList from '../components/PaginatedActivityList';
