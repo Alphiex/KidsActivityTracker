@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,6 +17,7 @@ import FavoritesService from '../services/favoritesService';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
+import { useTheme } from '../contexts/ThemeContext';
 
 type SearchResultsRouteProp = RouteProp<{
   SearchResults: {
@@ -28,10 +30,12 @@ const SearchResultsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<SearchResultsRouteProp>();
   const { filters, searchQuery } = route.params;
+  const { colors, isDark } = useTheme();
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -60,32 +64,54 @@ const SearchResultsScreen = () => {
       setLoading(true);
       console.log('Searching with filters:', filters);
       
-      const results = await activityService.searchActivitiesPaginated(filters, 1, 20);
-      setActivities(results.activities || []);
-      setTotalCount(results.total || 0);
-      setHasMore((results.activities?.length || 0) >= 20);
-      setPage(1);
+      const searchParams = {
+        ...filters,
+        limit: 20,
+        offset: 0,
+      };
+      
+      const results = await activityService.searchActivitiesPaginated(searchParams);
+      
+      if (results && results.items) {
+        setActivities(results.items);
+        setTotalCount(results.total || 0);
+        setHasMore(results.items.length >= 20);
+        setPage(1);
+        console.log(`Loaded ${results.items.length} activities, total: ${results.total}`);
+      } else {
+        setActivities([]);
+        setTotalCount(0);
+        setHasMore(false);
+      }
     } catch (error) {
       console.error('Search error:', error);
       setActivities([]);
       setTotalCount(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
 
   const loadMoreResults = async () => {
-    if (!hasMore || refreshing) return;
+    if (!hasMore || loadingMore || refreshing) return;
 
     try {
-      setRefreshing(true);
+      setLoadingMore(true);
       const nextPage = page + 1;
-      const results = await activityService.searchActivitiesPaginated(filters, nextPage, 20);
+      const searchParams = {
+        ...filters,
+        limit: 20,
+        offset: (nextPage - 1) * 20,
+      };
       
-      if (results.activities && results.activities.length > 0) {
-        setActivities(prev => [...prev, ...results.activities]);
+      const results = await activityService.searchActivitiesPaginated(searchParams);
+      
+      if (results && results.items && results.items.length > 0) {
+        setActivities(prev => [...prev, ...results.items]);
         setPage(nextPage);
-        setHasMore(results.activities.length >= 20);
+        setHasMore(results.items.length >= 20);
+        console.log(`Loaded ${results.items.length} more activities, total loaded: ${activities.length + results.items.length}`);
       } else {
         setHasMore(false);
       }
@@ -93,7 +119,7 @@ const SearchResultsScreen = () => {
       console.error('Load more error:', error);
       setHasMore(false);
     } finally {
-      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
@@ -138,81 +164,83 @@ const SearchResultsScreen = () => {
   };
 
   const handleBackToSearch = () => {
-    // Navigate back to dashboard
     navigation.goBack();
-    
-    // Use a timeout to ensure we're back on dashboard before opening search modal
-    setTimeout(() => {
-      // Emit event to re-open search modal
-      // This would require implementing an event system or navigation params
-      // For now, user can tap search again to re-open
-    }, 100);
   };
 
-  const getSearchSummary = () => {
-    const parts = [];
+  const getActiveFiltersText = () => {
+    const activeFilters = [];
     
-    if (filters.search) {
-      parts.push(`"${filters.search}"`);
+    if (searchQuery && searchQuery.trim()) {
+      activeFilters.push(`"${searchQuery.trim()}"`);
     }
     
     if (filters.daysOfWeek && filters.daysOfWeek.length > 0) {
-      parts.push(`${filters.daysOfWeek.join(', ')}`);
+      activeFilters.push(filters.daysOfWeek.join(', '));
     }
     
-    if (filters.location) {
-      parts.push(filters.location);
+    if (filters.activityTypes && filters.activityTypes.length > 0) {
+      const count = filters.activityTypes.length;
+      activeFilters.push(`${count} activity type${count > 1 ? 's' : ''}`);
     }
     
     if (filters.costMin !== undefined || filters.costMax !== undefined) {
       if (filters.costMin && filters.costMax) {
-        parts.push(`$${filters.costMin}-$${filters.costMax}`);
+        activeFilters.push(`$${filters.costMin}-$${filters.costMax}`);
       } else if (filters.costMin) {
-        parts.push(`$${filters.costMin}+`);
+        activeFilters.push(`$${filters.costMin}+`);
       } else if (filters.costMax) {
-        parts.push(`Under $${filters.costMax}`);
+        activeFilters.push(`Under $${filters.costMax}`);
+      }
+    }
+    
+    if (filters.location || (filters.locations && filters.locations.length > 0)) {
+      const locations = filters.location ? [filters.location] : (filters.locations || []);
+      if (locations.length === 1) {
+        activeFilters.push(locations[0]);
+      } else if (locations.length > 1) {
+        activeFilters.push(`${locations.length} cities`);
       }
     }
     
     if (filters.ageMin !== undefined || filters.ageMax !== undefined) {
       if (filters.ageMin && filters.ageMax) {
-        parts.push(`Ages ${filters.ageMin}-${filters.ageMax}`);
+        activeFilters.push(`Ages ${filters.ageMin}-${filters.ageMax}`);
       }
     }
     
-    return parts.length > 0 ? parts.join(' • ') : 'All activities';
+    return activeFilters.length > 0 ? activeFilters.join(' • ') : 'All activities';
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Icon name="magnify" size={64} color="#CCCCCC" />
-      <Text style={styles.emptyTitle}>No activities found</Text>
-      <Text style={styles.emptySubtitle}>
-        Try adjusting your search filters or search for different activities
-      </Text>
-      <TouchableOpacity style={styles.newSearchButton} onPress={handleBackToSearch}>
-        <Text style={styles.newSearchButtonText}>Refine Search</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderLoadingFooter = () => {
-    if (!refreshing) return null;
+    if (!loadingMore) return null;
     
     return (
       <View style={styles.loadingFooter}>
         <ActivityIndicator size="small" color="#FF385C" />
-        <Text style={styles.loadingText}>Loading more...</Text>
+        <Text style={styles.loadingFooterText}>Loading more activities...</Text>
       </View>
     );
   };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Icon name="magnify-close" size={80} color="#DDDDDD" />
+      <Text style={styles.emptyTitle}>No activities found</Text>
+      <Text style={styles.emptySubtitle}>
+        Try adjusting your search filters or search for different activities
+      </Text>
+      <TouchableOpacity style={styles.refineSearchButton} onPress={handleBackToSearch}>
+        <Text style={styles.refineSearchButtonText}>Refine Search</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF385C" />
-          <Text style={styles.loadingText}>Searching activities...</Text>
+          <Text style={styles.loadingText}>Finding activities...</Text>
         </View>
       </SafeAreaView>
     );
@@ -220,7 +248,7 @@ const SearchResultsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Header with back button and title */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBackToSearch} style={styles.backButton}>
           <Icon name="arrow-left" size={24} color="#222222" />
@@ -228,22 +256,24 @@ const SearchResultsScreen = () => {
         
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Search Results</Text>
-          <Text style={styles.headerSubtitle}>{getSearchSummary()}</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {getActiveFiltersText()}
+          </Text>
         </View>
         
-        <TouchableOpacity onPress={handleBackToSearch} style={styles.editButton}>
+        <TouchableOpacity onPress={handleBackToSearch} style={styles.filterButton}>
           <Icon name="tune" size={24} color="#FF385C" />
         </TouchableOpacity>
       </View>
 
-      {/* Results Count */}
-      <View style={styles.resultsInfo}>
+      {/* Results count bar */}
+      <View style={styles.resultsCountBar}>
         <Text style={styles.resultsCount}>
-          {totalCount} {totalCount === 1 ? 'activity' : 'activities'} found
+          {totalCount.toLocaleString()} {totalCount === 1 ? 'activity' : 'activities'} found
         </Text>
       </View>
 
-      {/* Results List */}
+      {/* Results list */}
       {activities.length === 0 ? (
         renderEmptyState()
       ) : (
@@ -251,7 +281,7 @@ const SearchResultsScreen = () => {
           data={activities}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.activityCardWrapper}>
+            <View style={styles.activityCardContainer}>
               <ActivityCard
                 activity={item}
                 onPress={() => handleActivityPress(item)}
@@ -265,16 +295,20 @@ const SearchResultsScreen = () => {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing && page === 1}
+              refreshing={refreshing}
               onRefresh={handleRefresh}
               tintColor="#FF385C"
               colors={['#FF385C']}
             />
           }
           onEndReached={loadMoreResults}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={0.1}
           ListFooterComponent={renderLoadingFooter}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={styles.listContent}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          initialNumToRender={10}
         />
       )}
     </SafeAreaView>
@@ -290,12 +324,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 40,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#717171',
-    marginTop: 12,
+    marginTop: 16,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -304,12 +339,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EBEBEB',
+    borderBottomColor: '#EEEEEE',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
@@ -319,55 +359,67 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#222222',
+    marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#717171',
-    marginTop: 2,
+    lineHeight: 18,
   },
-  editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 16,
   },
-  resultsInfo: {
+  resultsCountBar: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#F7F7F7',
+    paddingVertical: 16,
+    backgroundColor: '#F9F9F9',
     borderBottomWidth: 1,
-    borderBottomColor: '#EBEBEB',
+    borderBottomColor: '#EEEEEE',
   },
   resultsCount: {
     fontSize: 16,
     fontWeight: '600',
     color: '#222222',
   },
-  listContainer: {
+  listContent: {
     paddingBottom: 20,
   },
-  activityCardWrapper: {
+  activityCardContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingFooterText: {
+    fontSize: 14,
+    color: '#717171',
+    marginTop: 8,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
+    paddingVertical: 60,
   },
   emptyTitle: {
     fontSize: 24,
     fontWeight: '600',
     color: '#222222',
     marginTop: 24,
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
@@ -376,22 +428,21 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
   },
-  newSearchButton: {
+  refineSearchButton: {
     backgroundColor: '#FF385C',
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  newSearchButtonText: {
+  refineSearchButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  loadingFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
   },
 });
 
