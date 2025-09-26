@@ -5,949 +5,966 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   ScrollView,
-  Modal,
   Dimensions,
+  Animated,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
-// import Slider from '@react-native-community/slider'; // Temporarily disabled due to setShowResults error
-// Simple replacement for Slider
-const Slider = ({ value, onValueChange, minimumValue, maximumValue, step, style, ...props }: any) => (
-  <View style={[{ height: 40, backgroundColor: '#f0f0f0', borderRadius: 4, justifyContent: 'center', paddingHorizontal: 10 }, style]}>
-    <Text style={{ textAlign: 'center', color: '#666', fontSize: 12 }}>
-      {value} (Range: {minimumValue}-{maximumValue})
-    </Text>
-  </View>
-);
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import ActivityCard from '../components/ActivityCard';
-import PaginatedActivityList from '../components/PaginatedActivityList';
+import Slider from '@react-native-community/slider';
 import ActivityService from '../services/activityService';
-import PreferencesService from '../services/preferencesService';
-import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import { useTheme } from '../contexts/ThemeContext';
-import { Alert } from 'react-native';
+import { API_CONFIG } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
+const DAYS_OF_WEEK = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+];
+
+const POPULAR_CITIES = [
+  'Vancouver', 'Burnaby', 'Richmond', 'Surrey', 'North Vancouver', 
+  'West Vancouver', 'Coquitlam', 'New Westminster', 'Port Coquitlam'
+];
+
+const PREDEFINED_TIMES = [
+  { label: 'Before School', value: 'before-school', timeRange: '6:00 AM - 8:00 AM' },
+  { label: 'After School', value: 'after-school', timeRange: '3:00 PM - 6:00 PM' },
+  { label: 'Morning', value: 'morning', timeRange: '8:00 AM - 12:00 PM' },
+  { label: 'Day', value: 'day', timeRange: '9:00 AM - 5:00 PM' },
+  { label: 'Evening', value: 'evening', timeRange: '6:00 PM - 9:00 PM' },
+  { label: 'Night', value: 'night', timeRange: '7:00 PM - 10:00 PM' }
+];
+
 const SearchScreen = () => {
   const navigation = useNavigation();
-  const preferencesService = PreferencesService.getInstance();
-  const preferences = preferencesService.getPreferences();
   const { colors, isDark } = useTheme();
+  const activityService = ActivityService.getInstance();
   
+  // Search state
   const [searchText, setSearchText] = useState('');
-  const [searchFilters, setSearchFilters] = useState<ActivitySearchParams>({});
-  const [showFilters, setShowFilters] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [showRecentSearches, setShowRecentSearches] = useState(true);
-  const [activeQuickFilters, setActiveQuickFilters] = useState<string[]>([]);
-  
-  // Default searches for new users
-  const DEFAULT_SEARCHES = [
-    'Swimming lessons',
-    'Art classes',
-    'Soccer',
-    'Dance',
-  ];
-
-  // Filter states
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [ageRange, setAgeRange] = useState({ min: 0, max: 18 });
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
-  const [anyPrice, setAnyPrice] = useState(true);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [selectedTimes, setSelectedTimes] = useState({
-    morning: false,
-    afternoon: false,
-    evening: false,
-  });
-
-  const categories = [
-    { name: 'Team Sports', icon: 'basketball', color: '#FF6B6B' },
-    { name: 'Martial Arts', icon: 'karate', color: '#4ECDC4' },
-    { name: 'Racquet Sports', icon: 'tennis', color: '#A8E6CF' },
-    { name: 'Aquatic Leadership', icon: 'pool', color: '#FFD93D' },
-    { name: 'Swimming', icon: 'swim', color: '#00C9FF' },
-    { name: 'Camps', icon: 'tent', color: '#C06EFF' },
-    { name: 'Dance', icon: 'dance-ballroom', color: '#4B9BFF' },
-    { name: 'Other', icon: 'star', color: '#95E1D3' },
-  ];
-
-  const popularFilters = [
-    { id: 'weekend', label: 'Weekend Only', icon: 'calendar-weekend' },
-    { id: 'free', label: 'Free Activities', icon: 'gift' },
-    { id: 'nearme', label: 'Near Me', icon: 'map-marker-radius' },
-    { id: 'starting-soon', label: 'Starting Soon', icon: 'clock-fast' },
-  ];
-
-  // Load recent searches on mount
+  const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
+  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [useCustomTimeRange, setUseCustomTimeRange] = useState(false);
+  const [startTime, setStartTime] = useState(6); // 6 AM in 24-hour format
+  const [endTime, setEndTime] = useState(22); // 10 PM in 24-hour format
+  const [minCost, setMinCost] = useState(0);
+  const [maxCost, setMaxCost] = useState(500);
+  const [isUnlimitedCost, setIsUnlimitedCost] = useState(false);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [minAge, setMinAge] = useState(0);
+  const [maxAge, setMaxAge] = useState(18);
+  
+  // Activity Types data
+  const [activityTypes, setActivityTypes] = useState<any[]>([]);
+  const [loadingActivityTypes, setLoadingActivityTypes] = useState(false);
+  
+  // UI state
+  const [expandedSection, setExpandedSection] = useState<string | null>('what');
+  const [fadeAnim] = useState(new Animated.Value(0));
+  
   useEffect(() => {
-    loadRecentSearches();
+    // Animate in the search screen
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    
+    // Load activity types
+    loadActivityTypes();
   }, []);
 
-  // Save recent searches whenever they change
-  useEffect(() => {
-    if (recentSearches.length > 0) {
-      saveRecentSearches();
-    }
-  }, [recentSearches]);
-
-  // Auto-save search after user stops typing for 2 seconds
-  useEffect(() => {
-    if (searchText && searchText.trim()) {
-      const timer = setTimeout(() => {
-        const trimmedSearch = searchText.trim();
-        // Don't duplicate if it's already the most recent
-        if (recentSearches[0] !== trimmedSearch) {
-          const filtered = recentSearches.filter(s => s.toLowerCase() !== trimmedSearch.toLowerCase());
-          setRecentSearches([trimmedSearch, ...filtered.slice(0, 4)]);
-        }
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [searchText]);
-
-  const loadRecentSearches = async () => {
+  const loadActivityTypes = async () => {
     try {
-      const saved = await AsyncStorage.getItem('recentSearches');
-      if (saved) {
-        const searches = JSON.parse(saved);
-        setRecentSearches(searches);
-      } else {
-        // Use default searches for new users
-        setRecentSearches(DEFAULT_SEARCHES);
+      setLoadingActivityTypes(true);
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/activity-types`);
+      const result = await response.json();
+      
+      if (result.success && result.data && Array.isArray(result.data)) {
+        setActivityTypes(result.data);
+        console.log('Loaded activity types:', result.data.length);
       }
     } catch (error) {
-      console.error('Error loading recent searches:', error);
-      setRecentSearches(DEFAULT_SEARCHES);
+      console.error('Error loading activity types:', error);
+    } finally {
+      setLoadingActivityTypes(false);
     }
   };
 
-  const saveRecentSearches = async () => {
-    try {
-      await AsyncStorage.setItem('recentSearches', JSON.stringify(recentSearches));
-    } catch (error) {
-      console.error('Error saving recent searches:', error);
-    }
-  };
-
-  useEffect(() => {
-    // Update search filters when criteria change
-    const filters: ActivitySearchParams = {};
-    
-    if (searchText) {
-      filters.search = searchText;
-      setShowRecentSearches(false);
-    } else {
-      setShowRecentSearches(true);
-    }
-    
-    if (selectedCategories.length > 0) {
-      filters.activityType = selectedCategories[0]; // Use ActivityType for precise filtering
-    }
-    
-    if (selectedLocations.length > 0) {
-      filters.location = selectedLocations[0]; // Backend expects single location  
-    }
-    
-    if (ageRange.min !== 0 || ageRange.max !== 18) {
-      filters.ageMin = ageRange.min;
-      filters.ageMax = ageRange.max;
-    }
-    
-    if (!anyPrice && (priceRange.min !== 0 || priceRange.max !== 1000)) {
-      filters.costMin = priceRange.min;
-      filters.costMax = priceRange.max;
-    }
-    
-    // Apply selected days filter
-    if (selectedDays.length > 0) {
-      filters.daysOfWeek = selectedDays;
-    }
-    
-    // Apply user preference for hiding closed activities
-    if (preferences.hideClosedActivities) {
-      filters.hideClosedActivities = true;
-    }
-    
-    // Apply user preference for hiding full activities
-    if (preferences.hideFullActivities) {
-      filters.hideFullActivities = true;
-    }
-    
-    setSearchFilters(filters);
-  }, [searchText, selectedCategories, selectedLocations, ageRange, priceRange, anyPrice, selectedDays, preferences.hideClosedActivities, preferences.hideFullActivities]);
-
-  const handleSearch = (text: string) => {
-    setSearchText(text);
-  };
-
-  const handleSearchSubmit = () => {
-    // Add to recent searches when user submits (e.g., presses search/enter)
-    if (searchText && searchText.trim()) {
-      const trimmedSearch = searchText.trim();
-      // Remove if already exists and add to front
-      const filtered = recentSearches.filter(s => s.toLowerCase() !== trimmedSearch.toLowerCase());
-      // Keep only 5 recent searches
-      setRecentSearches([trimmedSearch, ...filtered.slice(0, 4)]);
-    }
-  };
-
-  const handleRecentSearchPress = (search: string) => {
-    setSearchText(search);
-    // Also add to recent when selecting from list
-    const filtered = recentSearches.filter(s => s.toLowerCase() !== search.toLowerCase());
-    setRecentSearches([search, ...filtered.slice(0, 4)]);
-  };
-
-  const handleQuickFilter = (filterId: string) => {
-    // Toggle the filter
-    const isActive = activeQuickFilters.includes(filterId);
-    
-    if (isActive) {
-      // Remove the filter
-      setActiveQuickFilters(prev => prev.filter(id => id !== filterId));
-      
-      // Clear the specific filter settings
-      switch (filterId) {
-        case 'weekend':
-          setSelectedDays([]);
-          break;
-        case 'free':
-          setAnyPrice(true);
-          setPriceRange({ min: 0, max: 1000 });
-          break;
-        case 'nearme':
-          setSelectedLocations([]);
-          break;
-        case 'starting-soon':
-          // Clear date filters by resetting searchFilters
-          setSearchFilters(prev => {
-            const { startDateAfter, startDateBefore, ...rest } = prev;
-            return rest;
-          });
-          break;
-      }
-    } else {
-      // Add the filter
-      setActiveQuickFilters(prev => [...prev, filterId]);
-      
-      switch (filterId) {
-        case 'weekend':
-          // Set weekend days filter - use abbreviated names for API
-          setSelectedDays(['Sat', 'Sun']);
-          break;
-        case 'free':
-          // Set free activities filter
-          setAnyPrice(false);
-          setPriceRange({ min: 0, max: 0 });
-          break;
-        case 'nearme':
-          // For now, filter by common North Vancouver locations
-          // In the future, this could use actual geolocation
-          const nearbyLocations = [
-            'Ron Andrews Community Recreation Centre',
-            'Delbrook Community Recreation Centre',
-            'John Braithwaite Community Centre',
-            'Karen Magnussen Community Recreation Centre',
-            'North Vancouver Tennis Centre'
-          ];
-          setSelectedLocations(nearbyLocations.slice(0, 1)); // Select first location
-          break;
-        case 'starting-soon':
-          // Activities starting within the next 2 weeks
-          const today = new Date();
-          const twoWeeksFromNow = new Date();
-          twoWeeksFromNow.setDate(today.getDate() + 14);
-          
-          setSearchFilters(prev => ({
-            ...prev,
-            startDateAfter: today.toISOString(),
-            startDateBefore: twoWeeksFromNow.toISOString()
-          }));
-          break;
-      }
-    }
-  };
-
-  const clearAllFilters = () => {
-    setSelectedCategories([]);
-    setSelectedLocations([]);
-    setAgeRange({ min: 0, max: 18 });
-    setPriceRange({ min: 0, max: 1000 });
-    setAnyPrice(true);
-    setSelectedDays([]);
-    setSelectedTimes({ morning: false, afternoon: false, evening: false });
-    setSearchText('');
-    setActiveQuickFilters([]);
-    // Reset search filters to only include user preferences
-    setSearchFilters({
-      hideClosedActivities: preferences.hideClosedActivities,
-      hideFullActivities: preferences.hideFullActivities
+  const handleClose = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      navigation.goBack();
     });
   };
 
-  const applyFilters = () => {
-    setShowFilters(false);
-    // Filters are already applied through useEffect
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilters}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowFilters(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Filters</Text>
-            <TouchableOpacity onPress={() => setShowFilters(false)}>
-              <Icon name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+  const toggleDay = (day: string) => {
+    setSelectedDays(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
+  };
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Categories */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Categories</Text>
-              <View style={styles.categoriesGrid}>
-                {categories.map((category) => (
+  const toggleActivityType = (activityTypeCode: string) => {
+    setSelectedActivityTypes(prev => 
+      prev.includes(activityTypeCode) 
+        ? prev.filter(code => code !== activityTypeCode)
+        : [...prev, activityTypeCode]
+    );
+  };
+
+  const toggleCity = (city: string) => {
+    setSelectedCities(prev => 
+      prev.includes(city) 
+        ? prev.filter(c => c !== city)
+        : [...prev, city]
+    );
+  };
+
+  const toggleTime = (timeValue: string) => {
+    setSelectedTimes(prev => 
+      prev.includes(timeValue) 
+        ? prev.filter(t => t !== timeValue)
+        : [...prev, timeValue]
+    );
+    // Reset custom time range when selecting predefined times
+    if (!useCustomTimeRange) {
+      setUseCustomTimeRange(false);
+    }
+  };
+
+  const formatTime = (hour: number) => {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:00 ${period}`;
+  };
+
+  const clearAllFilters = () => {
+    setSearchText('');
+    setSelectedDays([]);
+    setSelectedActivityTypes([]);
+    setSelectedTimes([]);
+    setUseCustomTimeRange(false);
+    setStartTime(6);
+    setEndTime(22);
+    setMinCost(0);
+    setMaxCost(500);
+    setIsUnlimitedCost(false);
+    setSelectedCities([]);
+    setMinAge(0);
+    setMaxAge(18);
+  };
+
+  const handleSearch = async () => {
+    const searchParams: ActivitySearchParams = {
+      search: searchText || undefined,
+      daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
+      activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
+      costMin: minCost > 0 ? minCost : undefined,
+      costMax: !isUnlimitedCost ? maxCost : undefined,
+      location: selectedCities.length === 1 ? selectedCities[0] : undefined,
+      locations: selectedCities.length > 1 ? selectedCities : undefined,
+      ageMin: minAge > 0 ? minAge : undefined,
+      ageMax: maxAge < 18 ? maxAge : undefined,
+      hideFullActivities: true,
+    };
+
+    navigation.navigate('SearchResults' as never, { 
+      filters: searchParams,
+      searchQuery: searchText 
+    } as never);
+  };
+
+  const getSectionSummary = (section: string) => {
+    switch (section) {
+      case 'what':
+        return searchText || 'Any activity';
+      case 'days':
+        return selectedDays.length > 0 ? selectedDays.join(', ') : 'Any day';
+      case 'activityType':
+        if (selectedActivityTypes.length > 0) {
+          const typeNames = selectedActivityTypes.map(code => 
+            activityTypes.find(type => type.code === code)?.name
+          ).filter(Boolean);
+          return typeNames.length > 3 
+            ? `${typeNames.slice(0, 2).join(', ')} +${typeNames.length - 2} more`
+            : typeNames.join(', ');
+        }
+        return 'All types';
+      case 'time':
+        if (useCustomTimeRange) {
+          return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
+        if (selectedTimes.length > 0) {
+          const timeLabels = selectedTimes.map(timeValue => 
+            PREDEFINED_TIMES.find(t => t.value === timeValue)?.label
+          ).filter(Boolean);
+          return timeLabels.join(', ');
+        }
+        return 'Any time';
+      case 'cost':
+        if (minCost === 0 && isUnlimitedCost) return 'Any price';
+        if (minCost === 0 && !isUnlimitedCost) return `Under $${maxCost}`;
+        if (isUnlimitedCost) return `$${minCost}+`;
+        return `$${minCost} - $${maxCost}`;
+      case 'where':
+        return selectedCities.length > 0 ? selectedCities.join(', ') : 'Anywhere';
+      case 'age':
+        if (minAge === 0 && maxAge === 18) return 'All ages';
+        return `${minAge} - ${maxAge} years`;
+      default:
+        return '';
+    }
+  };
+
+  const renderExpandableSection = (
+    key: string,
+    title: string,
+    icon: string,
+    content: React.ReactNode
+  ) => {
+    const isExpanded = expandedSection === key;
+    const summary = getSectionSummary(key);
+
+    return (
+      <View style={styles.sectionContainer}>
+        <TouchableOpacity
+          style={[styles.sectionHeader, isExpanded && styles.sectionHeaderExpanded]}
+          onPress={() => toggleSection(key)}
+        >
+          <View style={styles.sectionHeaderContent}>
+            <Icon name={icon} size={24} color="#222222" />
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>{title}</Text>
+              <Text style={styles.sectionSummary}>{summary}</Text>
+            </View>
+          </View>
+          <Icon 
+            name={isExpanded ? "chevron-up" : "chevron-down"} 
+            size={24} 
+            color="#717171" 
+          />
+        </TouchableOpacity>
+        
+        {isExpanded && (
+          <View style={styles.sectionContent}>
+            {content}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      
+      {/* Fogged Background */}
+      <View style={styles.foggedBackground} />
+      
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header with close button */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <Icon name="close" size={24} color="#222222" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Search Content */}
+        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.searchContainer}>
+            
+            {/* What Section */}
+            {renderExpandableSection(
+              'what',
+              'What?',
+              'magnify',
+              <View style={styles.textInputContainer}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search activities..."
+                  placeholderTextColor="#999999"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  autoFocus={expandedSection === 'what'}
+                />
+              </View>
+            )}
+
+            {/* Days Section */}
+            {renderExpandableSection(
+              'days',
+              'Day of the Week?',
+              'calendar-week',
+              <View style={styles.daysContainer}>
+                {DAYS_OF_WEEK.map(day => (
                   <TouchableOpacity
-                    key={category.name}
+                    key={day}
                     style={[
-                      styles.categoryChip,
-                      selectedCategories.includes(category.name) && {
-                        backgroundColor: category.color,
-                      },
+                      styles.dayButton,
+                      selectedDays.includes(day) && styles.dayButtonSelected
                     ]}
-                    onPress={() => {
-                      setSelectedCategories((prev) =>
-                        prev.includes(category.name)
-                          ? prev.filter((c) => c !== category.name)
-                          : [...prev, category.name]
-                      );
-                    }}
+                    onPress={() => toggleDay(day)}
                   >
-                    <Icon
-                      name={category.icon}
-                      size={20}
-                      color={
-                        selectedCategories.includes(category.name) ? '#fff' : category.color
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        selectedCategories.includes(category.name) && styles.categoryChipTextSelected,
-                      ]}
-                    >
-                      {category.name}
+                    <Text style={[
+                      styles.dayButtonText,
+                      selectedDays.includes(day) && styles.dayButtonTextSelected
+                    ]}>
+                      {day.substring(0, 3)}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            )}
 
-            {/* Age Range */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Age Range</Text>
-              <View style={styles.rangeContainer}>
-                <Text style={styles.rangeText}>{ageRange.min} - {ageRange.max} years</Text>
-                
-                <Text style={styles.sliderLabel}>Minimum Age: {ageRange.min}</Text>
-                <View style={styles.sliderRow}>
-                  <Text style={styles.sliderValue}>0</Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={18}
-                    value={ageRange.min}
-                    onValueChange={(value) => setAgeRange({ ...ageRange, min: Math.round(value) })}
-                    minimumTrackTintColor="#667eea"
-                    maximumTrackTintColor="#ddd"
-                  />
-                  <Text style={styles.sliderValue}>18</Text>
-                </View>
-                
-                <Text style={styles.sliderLabel}>Maximum Age: {ageRange.max}</Text>
-                <View style={styles.sliderRow}>
-                  <Text style={styles.sliderValue}>0</Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={18}
-                    value={ageRange.max}
-                    onValueChange={(value) => setAgeRange({ ...ageRange, max: Math.round(value) })}
-                    minimumTrackTintColor="#667eea"
-                    maximumTrackTintColor="#ddd"
-                  />
-                  <Text style={styles.sliderValue}>18</Text>
-                </View>
+            {/* Activity Type Section */}
+            {renderExpandableSection(
+              'activityType',
+              'Activity Type?',
+              'soccer',
+              <View style={styles.activityTypeContainer}>
+                {loadingActivityTypes ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>Loading activity types...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.activityTypesGrid}>
+                    {activityTypes.map(activityType => (
+                      <TouchableOpacity
+                        key={activityType.code}
+                        style={[
+                          styles.activityTypeButton,
+                          selectedActivityTypes.includes(activityType.code) && styles.activityTypeButtonSelected
+                        ]}
+                        onPress={() => toggleActivityType(activityType.code)}
+                      >
+                        <Text style={[
+                          styles.activityTypeButtonText,
+                          selectedActivityTypes.includes(activityType.code) && styles.activityTypeButtonTextSelected
+                        ]}>
+                          {activityType.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
-            </View>
+            )}
 
-            {/* Price Range */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Price Range</Text>
-              <TouchableOpacity 
-                style={[styles.anyOptionButton, anyPrice && styles.anyOptionButtonActive]}
-                onPress={() => setAnyPrice(!anyPrice)}
-              >
-                <Icon 
-                  name={anyPrice ? "checkbox-marked" : "checkbox-blank-outline"} 
-                  size={20} 
-                  color={anyPrice ? "#667eea" : "#666"} 
-                />
-                <Text style={[styles.anyOptionText, anyPrice && styles.anyOptionTextActive]}>
-                  Any Price
-                </Text>
-              </TouchableOpacity>
-              
-              {!anyPrice && (
-                <View style={styles.rangeContainer}>
-                  <Text style={styles.rangeText}>${priceRange.min} - ${priceRange.max}</Text>
-                  
-                  <Text style={styles.sliderLabel}>Minimum Price: ${priceRange.min}</Text>
-                  <View style={styles.sliderRow}>
-                    <Text style={styles.sliderValue}>$0</Text>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={0}
-                      maximumValue={1000}
-                      step={25}
-                      value={priceRange.min}
-                      onValueChange={(value) => setPriceRange({ ...priceRange, min: value })}
-                      minimumTrackTintColor="#667eea"
-                      maximumTrackTintColor="#ddd"
-                    />
-                    <Text style={styles.sliderValue}>$1k</Text>
-                  </View>
-                  
-                  <Text style={styles.sliderLabel}>Maximum Price: ${priceRange.max}</Text>
-                  <View style={styles.sliderRow}>
-                    <Text style={styles.sliderValue}>$0</Text>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={0}
-                      maximumValue={1000}
-                      step={25}
-                      value={priceRange.max}
-                      onValueChange={(value) => setPriceRange({ ...priceRange, max: value })}
-                      minimumTrackTintColor="#667eea"
-                      maximumTrackTintColor="#ddd"
-                    />
-                    <Text style={styles.sliderValue}>$1k</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Days of Week */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Days of Week</Text>
-              <View style={styles.daysGrid}>
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
-                  // Use abbreviated names for both display and state
-                  return (
+            {/* Time Section */}
+            {renderExpandableSection(
+              'time',
+              'Time?',
+              'clock',
+              <View style={styles.timeContainer}>
+                {/* Predefined Time Options */}
+                <View style={styles.predefinedTimesContainer}>
+                  {PREDEFINED_TIMES.map(timeOption => (
                     <TouchableOpacity
-                      key={day}
+                      key={timeOption.value}
                       style={[
-                        styles.dayChip,
-                        selectedDays.includes(day) && styles.dayChipSelected,
+                        styles.timeButton,
+                        selectedTimes.includes(timeOption.value) && styles.timeButtonSelected,
+                        useCustomTimeRange && styles.timeButtonDisabled
                       ]}
                       onPress={() => {
-                        setSelectedDays((prev) =>
-                          prev.includes(day)
-                            ? prev.filter((d) => d !== day)
-                            : [...prev, day]
-                        );
+                        if (!useCustomTimeRange) {
+                          toggleTime(timeOption.value);
+                        }
                       }}
+                      disabled={useCustomTimeRange}
                     >
-                      <Text
-                        style={[
-                          styles.dayChipText,
-                          selectedDays.includes(day) && styles.dayChipTextSelected,
-                        ]}
-                      >
-                        {day}
+                      <Text style={[
+                        styles.timeButtonText,
+                        selectedTimes.includes(timeOption.value) && styles.timeButtonTextSelected,
+                        useCustomTimeRange && styles.timeButtonTextDisabled
+                      ]}>
+                        {timeOption.label}
+                      </Text>
+                      <Text style={[
+                        styles.timeRangeText,
+                        selectedTimes.includes(timeOption.value) && styles.timeRangeTextSelected,
+                        useCustomTimeRange && styles.timeRangeTextDisabled
+                      ]}>
+                        {timeOption.timeRange}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </ScrollView>
+                  ))}
+                </View>
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
-              <Text style={styles.clearButtonText}>Clear All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.applyButtonGradient}
-              >
-                <Text style={styles.applyButtonText}>Apply Filters</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+                {/* Custom Time Range Toggle */}
+                <View style={styles.customTimeToggle}>
+                  <TouchableOpacity
+                    style={[styles.customToggleButton, useCustomTimeRange && styles.customToggleButtonSelected]}
+                    onPress={() => {
+                      setUseCustomTimeRange(!useCustomTimeRange);
+                      if (!useCustomTimeRange) {
+                        setSelectedTimes([]); // Clear predefined times when switching to custom
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.customToggleText,
+                      useCustomTimeRange && styles.customToggleTextSelected
+                    ]}>
+                      Custom Time Range
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-  const handleActivityPress = (activity: Activity) => {
-    console.log('SearchScreen handleActivityPress called for:', activity.name);
-    console.log('Navigation object:', navigation);
-    console.log('Activity data:', activity);
-    
-    // Serialize dates for navigation
-    const serializedActivity = {
-      ...activity,
-      dateRange: activity.dateRange ? {
-        start: activity.dateRange.start.toISOString(),
-        end: activity.dateRange.end.toISOString(),
-      } : null,
-      scrapedAt: activity.scrapedAt.toISOString(),
-    };
-    
-    navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
-  };
-
-  const activeFiltersCount = 
-    selectedCategories.length + 
-    selectedLocations.length + 
-    (ageRange.min !== 0 || ageRange.max !== 18 ? 1 : 0) +
-    (priceRange.min !== 0 || priceRange.max !== 1000 ? 1 : 0) +
-    selectedDays.length;
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.gradientStart, colors.gradientEnd]}
-        style={styles.header}
-      >
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: colors.inputBackground }]}>
-            <Icon name="magnify" size={24} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search activities, providers..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchText}
-              onChangeText={handleSearch}
-              onSubmitEditing={handleSearchSubmit}
-              returnKeyType="search"
-            />
-            {searchText !== '' && (
-              <TouchableOpacity onPress={() => setSearchText('')}>
-                <Icon name="close-circle" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilters(true)}
-          >
-            <Icon name="filter-variant" size={24} color="#fff" />
-            {activeFiltersCount > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+                {/* Custom Time Range Sliders */}
+                {useCustomTimeRange && (
+                  <View style={styles.customTimeContainer}>
+                    <View style={styles.timeLabels}>
+                      <Text style={styles.timeLabel}>Start: {formatTime(startTime)}</Text>
+                      <Text style={styles.timeLabel}>End: {formatTime(endTime)}</Text>
+                    </View>
+                    
+                    <Text style={styles.sliderLabel}>Start Time</Text>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={0}
+                      maximumValue={23}
+                      step={1}
+                      value={startTime}
+                      onValueChange={setStartTime}
+                      minimumTrackTintColor="#FF385C"
+                      maximumTrackTintColor="#DDDDDD"
+                      thumbStyle={{ backgroundColor: '#FF385C' }}
+                    />
+                    
+                    <Text style={styles.sliderLabel}>End Time</Text>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={startTime + 1}
+                      maximumValue={23}
+                      step={1}
+                      value={endTime}
+                      onValueChange={setEndTime}
+                      minimumTrackTintColor="#FF385C"
+                      maximumTrackTintColor="#DDDDDD"
+                      thumbStyle={{ backgroundColor: '#FF385C' }}
+                    />
+                  </View>
+                )}
               </View>
             )}
+
+            {/* Cost Section */}
+            {renderExpandableSection(
+              'cost',
+              'Cost?',
+              'currency-usd',
+              <View style={styles.costContainer}>
+                <View style={styles.costLabels}>
+                  <Text style={styles.costLabel}>Min: ${minCost}</Text>
+                  <Text style={styles.costLabel}>
+                    Max: {isUnlimitedCost ? 'Unlimited' : `$${maxCost}`}
+                  </Text>
+                </View>
+                
+                <Text style={styles.sliderLabel}>Minimum Cost</Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={500}
+                  step={25}
+                  value={minCost}
+                  onValueChange={setMinCost}
+                  minimumTrackTintColor="#FF385C"
+                  maximumTrackTintColor="#DDDDDD"
+                  thumbStyle={{ backgroundColor: '#FF385C' }}
+                />
+                
+                <Text style={styles.sliderLabel}>Maximum Cost</Text>
+                <View style={styles.maxCostContainer}>
+                  <Slider
+                    style={[styles.slider, { opacity: isUnlimitedCost ? 0.5 : 1 }]}
+                    minimumValue={minCost}
+                    maximumValue={1500}
+                    step={50}
+                    value={maxCost}
+                    onValueChange={setMaxCost}
+                    disabled={isUnlimitedCost}
+                    minimumTrackTintColor="#FF385C"
+                    maximumTrackTintColor="#DDDDDD"
+                    thumbStyle={{ backgroundColor: '#FF385C' }}
+                  />
+                  <TouchableOpacity
+                    style={[styles.unlimitedButton, isUnlimitedCost && styles.unlimitedButtonSelected]}
+                    onPress={() => setIsUnlimitedCost(!isUnlimitedCost)}
+                  >
+                    <Text style={[
+                      styles.unlimitedButtonText,
+                      isUnlimitedCost && styles.unlimitedButtonTextSelected
+                    ]}>
+                      Unlimited
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Where Section */}
+            {renderExpandableSection(
+              'where',
+              'Where?',
+              'map-marker',
+              <View style={styles.citiesContainer}>
+                {POPULAR_CITIES.map(city => (
+                  <TouchableOpacity
+                    key={city}
+                    style={[
+                      styles.cityButton,
+                      selectedCities.includes(city) && styles.cityButtonSelected
+                    ]}
+                    onPress={() => toggleCity(city)}
+                  >
+                    <Text style={[
+                      styles.cityButtonText,
+                      selectedCities.includes(city) && styles.cityButtonTextSelected
+                    ]}>
+                      {city}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Age Section */}
+            {renderExpandableSection(
+              'age',
+              'Age?',
+              'account-child',
+              <View style={styles.ageContainer}>
+                <View style={styles.ageLabels}>
+                  <Text style={styles.ageLabel}>Min: {minAge} years</Text>
+                  <Text style={styles.ageLabel}>Max: {maxAge} years</Text>
+                </View>
+                
+                <Text style={styles.sliderLabel}>Minimum Age</Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={17}
+                  step={1}
+                  value={minAge}
+                  onValueChange={setMinAge}
+                  minimumTrackTintColor="#FF385C"
+                  maximumTrackTintColor="#DDDDDD"
+                  thumbStyle={{ backgroundColor: '#FF385C' }}
+                />
+                
+                <Text style={styles.sliderLabel}>Maximum Age</Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={minAge}
+                  maximumValue={18}
+                  step={1}
+                  value={maxAge}
+                  onValueChange={setMaxAge}
+                  minimumTrackTintColor="#FF385C"
+                  maximumTrackTintColor="#DDDDDD"
+                  thumbStyle={{ backgroundColor: '#FF385C' }}
+                />
+              </View>
+            )}
+
+          </View>
+        </ScrollView>
+
+        {/* Bottom Actions */}
+        <View style={styles.bottomActions}>
+          <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
+            <Text style={styles.clearButtonText}>Clear All</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+            <Icon name="magnify" size={20} color="#FFFFFF" />
+            <Text style={styles.searchButtonText}>Search</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Quick Filters */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.quickFilters}
-        >
-          {popularFilters.map((filter) => {
-            const isActive = activeQuickFilters.includes(filter.id);
-            return (
-              <TouchableOpacity
-                key={filter.id}
-                style={[
-                  styles.quickFilterChip,
-                  isActive && styles.quickFilterChipActive
-                ]}
-                onPress={() => handleQuickFilter(filter.id)}
-              >
-                <Icon 
-                  name={filter.icon} 
-                  size={16} 
-                  color={isActive ? colors.primary || '#667eea' : '#fff'} 
-                />
-                <Text 
-                  style={[
-                    styles.quickFilterText,
-                    isActive && styles.quickFilterTextActive
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </LinearGradient>
-
-      {showRecentSearches && recentSearches.length > 0 ? (
-        <View style={[styles.recentSearches, { backgroundColor: colors.background }]}>
-          <View style={styles.recentSearchesHeader}>
-            <Text style={[styles.recentSearchesTitle, { color: colors.text }]}>Recent Searches</Text>
-            {recentSearches.length > 0 && !DEFAULT_SEARCHES.every((d, i) => d === recentSearches[i]) && (
-              <TouchableOpacity 
-                onPress={() => {
-                  setRecentSearches(DEFAULT_SEARCHES);
-                  AsyncStorage.setItem('recentSearches', JSON.stringify(DEFAULT_SEARCHES));
-                }}
-              >
-                <Text style={[styles.clearText, { color: colors.primary || '#667eea' }]}>Clear</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {recentSearches.map((search, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.recentSearchItem, { borderBottomColor: colors.border }]}
-              onPress={() => handleRecentSearchPress(search)}
-            >
-              <Icon name="history" size={20} color={colors.textSecondary} />
-              <Text style={[styles.recentSearchText, { color: colors.textSecondary }]}>{search}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : (
-        <PaginatedActivityList
-          filters={searchFilters}
-          onActivityPress={handleActivityPress}
-          emptyMessage={
-            searchText 
-              ? `No activities found for "${searchText}"`
-              : 'No activities found. Try adjusting your filters.'
-          }
-        />
-      )}
-
-      {renderFilterModal()}
-    </View>
+      </SafeAreaView>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  foggedBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   header: {
-    paddingTop: 50,
-    paddingBottom: 15,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  scrollContent: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   searchContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  sectionContainer: {
+    // Remove bottom border
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    height: 50,
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 10,
-  },
-  filterButton: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#FF6B6B',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  quickFilters: {
-    marginTop: 5,
-  },
-  quickFilterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  quickFilterChipActive: {
-    backgroundColor: '#fff',
-    borderColor: '#667eea',
-  },
-  quickFilterText: {
-    color: '#fff',
-    fontSize: 14,
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  quickFilterTextActive: {
-    color: '#667eea',
-    fontWeight: '600',
-  },
-  recentSearches: {
-    flex: 1,
-    padding: 20,
-  },
-  recentSearchesHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
-  recentSearchesTitle: {
+  sectionHeaderExpanded: {
+    // Remove bottom border
+  },
+  sectionHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sectionHeaderText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#222222',
+    marginBottom: 4,
   },
-  clearText: {
+  sectionSummary: {
     fontSize: 14,
-    fontWeight: '500',
+    color: '#717171',
   },
-  recentSearchItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  recentSearchText: {
-    fontSize: 16,
-    color: '#666',
-    marginLeft: 15,
-  },
-  listContent: {
-    paddingTop: 10,
+  sectionContent: {
+    paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
+  textInputContainer: {
+    marginTop: 10,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 15,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    maxHeight: height * 0.8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  filterSection: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  filterSectionTitle: {
+  searchInput: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
+    color: '#222222',
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  categoriesGrid: {
+  daysContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
   },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 15,
+  dayButton: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
   },
-  categoryChipText: {
+  dayButtonSelected: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  dayButtonText: {
     fontSize: 14,
-    color: '#333',
-    marginLeft: 6,
+    fontWeight: '500',
+    color: '#222222',
   },
-  categoryChipTextSelected: {
-    color: '#fff',
+  dayButtonTextSelected: {
+    color: '#FFFFFF',
   },
-  rangeContainer: {
+  activityTypeContainer: {
+    marginTop: 10,
+  },
+  loadingContainer: {
+    paddingVertical: 20,
     alignItems: 'center',
   },
-  rangeText: {
-    fontSize: 16,
-    color: '#667eea',
-    fontWeight: '500',
-    marginBottom: 10,
+  loadingText: {
+    fontSize: 14,
+    color: '#717171',
   },
-  slider: {
-    flex: 1,
-    height: 40,
-    marginHorizontal: 10,
+  activityTypesGrid: {
+    gap: 8,
+  },
+  activityTypeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+  },
+  activityTypeButtonSelected: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  activityTypeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  activityTypeButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  timeContainer: {
+    marginTop: 10,
+  },
+  predefinedTimesContainer: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  timeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+  },
+  timeButtonSelected: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  timeButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#F5F5F5',
+  },
+  timeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+    marginBottom: 4,
+  },
+  timeButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  timeButtonTextDisabled: {
+    color: '#999999',
+  },
+  timeRangeText: {
+    fontSize: 12,
+    color: '#717171',
+  },
+  timeRangeTextSelected: {
+    color: '#FFFFFF',
+  },
+  timeRangeTextDisabled: {
+    color: '#CCCCCC',
+  },
+  customTimeToggle: {
+    marginBottom: 20,
+  },
+  customToggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-start',
+  },
+  customToggleButtonSelected: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  customToggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#222222',
+  },
+  customToggleTextSelected: {
+    color: '#FFFFFF',
+  },
+  customTimeContainer: {
+    marginTop: 10,
+  },
+  timeLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  timeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  costContainer: {
+    marginTop: 10,
+  },
+  costLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  costLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
   },
   sliderLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#717171',
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  maxCostContainer: {
     marginTop: 10,
-    marginBottom: 5,
   },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  unlimitedButton: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-start',
   },
-  sliderValue: {
-    fontSize: 12,
-    color: '#999',
-    minWidth: 20,
-    textAlign: 'center',
+  unlimitedButtonSelected: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
   },
-  daysGrid: {
+  unlimitedButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#222222',
+  },
+  unlimitedButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  citiesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
   },
-  dayChip: {
-    width: (width - 100) / 7,
-    aspectRatio: 1,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 5,
-    marginBottom: 5,
+  cityButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
   },
-  dayChipSelected: {
-    backgroundColor: '#667eea',
+  cityButtonSelected: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
   },
-  dayChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
+  cityButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#222222',
   },
-  dayChipTextSelected: {
-    color: '#fff',
+  cityButtonTextSelected: {
+    color: '#FFFFFF',
   },
-  modalFooter: {
+  ageContainer: {
+    marginTop: 10,
+  },
+  ageLabels: {
     flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  ageLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
   },
   clearButton: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginRight: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
   },
   clearButtonText: {
     fontSize: 16,
-    color: '#667eea',
-    fontWeight: '600',
+    fontWeight: '400',
+    color: '#222222',
+    textDecorationLine: 'underline',
   },
-  applyButton: {
-    flex: 2,
-  },
-  applyButtonGradient: {
-    paddingVertical: 15,
-    borderRadius: 25,
+  searchButton: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    backgroundColor: '#FF385C',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minWidth: 120,
   },
-  applyButtonText: {
+  searchButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
-  },
-  anyOptionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  anyOptionButtonActive: {
-    backgroundColor: '#667eea10',
-    borderColor: '#667eea',
-  },
-  anyOptionText: {
-    fontSize: 15,
-    color: '#666',
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-  anyOptionTextActive: {
-    color: '#667eea',
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

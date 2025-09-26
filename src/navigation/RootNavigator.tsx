@@ -63,6 +63,7 @@ const HomeStack = () => (
     }}
   >
     <Stack.Screen name="Dashboard" component={DashboardScreen} />
+    <Stack.Screen name="SearchMain" component={SearchScreen} />
     <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />

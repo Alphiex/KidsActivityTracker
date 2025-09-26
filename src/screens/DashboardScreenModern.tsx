@@ -440,7 +440,7 @@ const DashboardScreenModern = () => {
         {/* Search Bar */}
         <TouchableOpacity 
           style={styles.searchBar}
-          onPress={() => navigation.navigate('SearchMain' as never)}
+          onPress={() => handleNavigate('SearchMain')}
         >
           <View style={styles.searchContent}>
             <Icon name="magnify" size={20} color="#717171" />
@@ -697,6 +697,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1001,
   },
   searchContent: {
     flexDirection: 'row',
