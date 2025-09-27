@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Switch,
   Alert,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,6 +18,7 @@ import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
 import { UserPreferences } from '../types/preferences';
 import { API_CONFIG } from '../config/api';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 interface ExpandableSection {
   id: string;
@@ -48,6 +50,8 @@ const FiltersScreen = () => {
   const { colors, isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
   const [sections, setSections] = useState<ExpandableSection[]>([
     { id: 'activityTypes', title: 'Activity Types', expanded: false },
     { id: 'age', title: 'Age', expanded: false },
@@ -193,40 +197,32 @@ const FiltersScreen = () => {
     updatePreferences({ daysOfWeek: updatedDays });
   };
 
-  const handleNavigateToActivities = () => {
-    navigation.navigate('AllActivityTypes' as never);
+  const handleNavigateToDashboard = () => {
+    navigation.navigate('Dashboard' as never);
   };
 
   const handleNavigateToCalendar = () => {
-    // Navigate to calendar screen when implemented
-    console.log('Navigate to calendar');
+    navigation.navigate('Calendar' as never);
   };
 
-  const renderTopButtons = () => (
-    <View style={styles.topButtonsContainer}>
-      <TouchableOpacity 
-        style={styles.topButton}
-        onPress={handleNavigateToActivities}
-      >
-        <Text style={styles.iconEmoji}>🎯</Text>
-        <Text style={styles.topButtonText}>Activities</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.topButton}>
-        <Text style={styles.iconEmoji}>🔍</Text>
-        <Text style={[styles.topButtonText, styles.activeTabText]}>Filters</Text>
-        <View style={styles.activeTabLine} />
-      </TouchableOpacity>
+  // Animation values for scrolling behavior - match Dashboard
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [140, 90],
+    extrapolate: 'clamp',
+  });
 
-      <TouchableOpacity 
-        style={styles.topButton}
-        onPress={handleNavigateToCalendar}
-      >
-        <Text style={styles.iconEmoji}>📅</Text>
-        <Text style={styles.topButtonText}>Calendar</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const headerTitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const headerSubtitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   const renderExpandableSection = (section: ExpandableSection) => (
     <View key={section.id} style={styles.sectionContainer}>
@@ -503,27 +499,38 @@ const FiltersScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with centered title */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Activity Filters</Text>
-          <Text style={styles.headerSubtitle}>
-            Set your preferences to filter and personalize your activity recommendations
-          </Text>
-        </View>
-      </View>
+      {/* Tab Navigation - Fixed at top */}
+      <TopTabNavigation />
 
-      {/* Top Buttons (Search/Filters) */}
-      {renderTopButtons()}
+      {/* Animated Header */}
+      <Animated.View style={[styles.header, { height: headerHeight }]}>
+        <Animated.View style={{ opacity: headerTitleOpacity }}>
+          <Text style={styles.headerTitle}>Set Your Preferences</Text>
+        </Animated.View>
+        <Animated.View style={{ opacity: headerSubtitleOpacity }}>
+          <Text style={styles.headerSubtitle}>
+            These preferences will filter your dashboard results
+          </Text>
+        </Animated.View>
+      </Animated.View>
 
       {/* Scrollable Content */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
         <View style={styles.sectionsContainer}>
           {sections.map(renderExpandableSection)}
         </View>
         
         <View style={styles.bottomPadding} />
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 };
@@ -546,12 +553,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   header: {
+    paddingTop: 15,
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   headerContent: {
     alignItems: 'center',
@@ -560,30 +569,36 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '600',
     color: '#222222',
-    marginBottom: 2,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#717171',
     lineHeight: 18,
+    textAlign: 'center',
   },
   topButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    height: 80,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   topButton: {
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     flex: 1,
     position: 'relative',
   },
   iconEmoji: {
-    fontSize: 24,
-    marginBottom: 2,
+    fontSize: 28,
+    marginBottom: 4,
+    minHeight: 30,
+    lineHeight: 30,
   },
   topButtonText: {
     fontSize: 12,
@@ -596,13 +611,12 @@ const styles = StyleSheet.create({
   },
   activeTabLine: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: -8,
+    left: '20%',
+    right: '20%',
     height: 2,
     backgroundColor: '#222',
     borderRadius: 1,
-    marginHorizontal: 8,
   },
   scrollView: {
     flex: 1,

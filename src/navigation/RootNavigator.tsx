@@ -39,6 +39,7 @@ import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
+import CalendarScreen from '../screens/CalendarScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -67,6 +68,7 @@ const HomeStack = () => (
     <Stack.Screen name="SearchMain" component={SearchScreen} />
     <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     <Stack.Screen name="Filters" component={FiltersScreen} />
+    <Stack.Screen name="Calendar" component={CalendarScreen} />
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="CityBrowse" component={CityBrowseScreen} />
@@ -152,13 +154,17 @@ const MainTabs = () => {
           borderTopColor: '#EBEBEB',
           elevation: 0,
           shadowOpacity: 0,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 85,
+          paddingBottom: 10,
+          paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '500',
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 5,
         },
         headerShown: false,
       }}

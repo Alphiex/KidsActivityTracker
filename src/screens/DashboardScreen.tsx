@@ -194,14 +194,13 @@ const DashboardScreen = () => {
       // Fetch age-based categories for Browse by Category section
       try {
         console.log('DASHBOARD: Fetching categories...');
-        const response = await fetch('http://localhost:3000/api/v1/categories');
-        const categoriesData = await response.json();
-        
-        if (categoriesData.success) {
-          const categoriesWithIcons = categoriesData.categories.map(cat => ({
+        const categoriesData = await activityService.getCategories();
+
+        if (categoriesData && Array.isArray(categoriesData)) {
+          const categoriesWithIcons = categoriesData.map(cat => ({
             id: cat.id,
             name: cat.name,
-            count: cat.activityCount,
+            count: cat.activityCount || 0,
             icon: categoryIcons[cat.name] || 'tag'
           }));
           setCategories(categoriesWithIcons);

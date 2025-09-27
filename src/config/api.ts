@@ -16,7 +16,7 @@ const API_URLS = {
 };
 
 // Force local development server
-const FORCE_LOCAL = false; // Use production API for stability
+const FORCE_LOCAL = false; // Use production API
 
 // API Configuration
 const API_CONFIG = {

@@ -21,6 +21,7 @@ import { formatPrice } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation();
@@ -32,7 +33,6 @@ const DashboardScreenModern = () => {
   const [ageGroups, setAgeGroups] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [scrollY] = useState(new Animated.Value(0));
-  const [activeTab, setActiveTab] = useState('Activities');
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -132,6 +132,7 @@ const DashboardScreenModern = () => {
       }
     } catch (error) {
       console.error('Error loading recommended activities:', error);
+      setRecommendedActivities([]); // Set empty array on error
     }
   };
 
@@ -146,7 +147,7 @@ const DashboardScreenModern = () => {
       const response = await activityService.searchActivitiesPaginated({ 
         limit: 6,
         offset: 0,
-        costMax: maxBudgetAmount,  // Use user's budget preference
+        maxCost: maxBudgetAmount,  // Use maxCost (will be converted to costMax by service)
         hideFullActivities: true   // Filter out activities with 0 spots
       });
       console.log('Budget friendly activities response:', {
@@ -161,6 +162,7 @@ const DashboardScreenModern = () => {
       }
     } catch (error) {
       console.error('Error loading budget activities:', error);
+      setBudgetFriendlyActivities([]); // Set empty array on error
     }
   };
 
@@ -185,6 +187,7 @@ const DashboardScreenModern = () => {
       }
     } catch (error) {
       console.error('Error loading new activities:', error);
+      setNewActivities([]); // Set empty array on error
     }
   };
 
@@ -414,31 +417,15 @@ const DashboardScreenModern = () => {
     );
   };
 
-  // Create animated values for the header
-  const headerIconsOpacity = scrollY.interpolate({
-    inputRange: [0, 30, 60],
-    outputRange: [1, 0.5, 0],
-    extrapolate: 'clamp',
-  });
-
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 60, 120],
-    outputRange: [80, 50, 35],
-    extrapolate: 'clamp',
-  });
-
-  const iconScale = scrollY.interpolate({
-    inputRange: [0, 30, 60],
-    outputRange: [1, 0.7, 0],
-    extrapolate: 'clamp',
-  });
-
   return (
     <SafeAreaView style={styles.container}>
-      {/* Fixed Header with Search and Icons */}
+      {/* Tab Navigation - Fixed at top */}
+      <TopTabNavigation />
+
+      {/* Fixed Header with Search */}
       <View style={styles.fixedHeader}>
         {/* Search Bar */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.searchBar}
           onPress={() => handleNavigate('SearchMain')}
         >
@@ -447,76 +434,6 @@ const DashboardScreenModern = () => {
             <Text style={styles.searchText}>Search Activities</Text>
           </View>
         </TouchableOpacity>
-
-        {/* Animated Top Buttons */}
-        <Animated.View 
-          style={[
-            styles.topButtons,
-            {
-              height: headerHeight,
-            }
-          ]}
-        >
-          <TouchableOpacity 
-            style={styles.topButton}
-            onPress={() => {
-              setActiveTab('Activities');
-              handleNavigate('AllActivityTypes');
-            }}
-          >
-            <Animated.Text 
-              style={[
-                styles.iconEmoji,
-                {
-                  opacity: headerIconsOpacity,
-                  transform: [{ scale: iconScale }],
-                }
-              ]}
-            >🎯</Animated.Text>
-            <Text style={[styles.topButtonText, activeTab === 'Activities' && styles.activeTabText]}>Activities</Text>
-            {activeTab === 'Activities' && <View style={styles.activeTabLine} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.topButton}
-            onPress={() => {
-              setActiveTab('Filters');
-              handleNavigate('Filters');
-            }}
-          >
-            <Animated.Text 
-              style={[
-                styles.iconEmoji,
-                {
-                  opacity: headerIconsOpacity,
-                  transform: [{ scale: iconScale }],
-                }
-              ]}
-            >🔍</Animated.Text>
-            <Text style={[styles.topButtonText, activeTab === 'Filters' && styles.activeTabText]}>Filters</Text>
-            {activeTab === 'Filters' && <View style={styles.activeTabLine} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.topButton}
-            onPress={() => {
-              setActiveTab('Calendar');
-              handleNavigate('Calendar');
-            }}
-          >
-            <Animated.Text 
-              style={[
-                styles.iconEmoji,
-                {
-                  opacity: headerIconsOpacity,
-                  transform: [{ scale: iconScale }],
-                }
-              ]}
-            >📅</Animated.Text>
-            <Text style={[styles.topButtonText, activeTab === 'Calendar' && styles.activeTabText]}>Calendar</Text>
-            {activeTab === 'Calendar' && <View style={styles.activeTabLine} />}
-          </TouchableOpacity>
-        </Animated.View>
       </View>
 
       {/* Scrollable Content */}
@@ -670,11 +587,9 @@ const styles = StyleSheet.create({
   },
   fixedHeader: {
     backgroundColor: '#FFFFFF',
-    paddingTop: 10,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
-    zIndex: 1000,
   },
   scrollView: {
     flex: 1,
@@ -685,7 +600,8 @@ const styles = StyleSheet.create({
   searchBar: {
     backgroundColor: '#F7F7F7',
     marginHorizontal: 20,
-    marginVertical: 15,
+    marginTop: 10,
+    marginBottom: 10,
     padding: 15,
     borderRadius: 30,
     borderWidth: 1,
@@ -697,7 +613,6 @@ const styles = StyleSheet.create({
     elevation: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1001,
   },
   searchContent: {
     flexDirection: 'row',
@@ -709,44 +624,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#717171',
     fontWeight: '500',
-  },
-  topButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    alignItems: 'flex-end',
-    paddingBottom: 8,
-  },
-  topButton: {
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    position: 'relative',
-    justifyContent: 'flex-end',
-    minHeight: 35,
-  },
-  iconEmoji: {
-    fontSize: 24,
-    marginBottom: 2,
-  },
-  topButtonText: {
-    fontSize: 14,
-    color: '#717171',
-    fontWeight: '400',
-  },
-  activeTabText: {
-    color: '#222',
-    fontWeight: '600',
-  },
-  activeTabLine: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#222',
-    borderRadius: 1,
-    marginHorizontal: 8,
   },
   section: {
     marginBottom: 30,
