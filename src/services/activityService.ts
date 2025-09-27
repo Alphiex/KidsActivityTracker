@@ -16,6 +16,10 @@ class ActivityService {
    * Get global filter parameters from user preferences
    */
   private getGlobalFilterParams(): any {
+    // TEMPORARILY DISABLED - returning empty params to fix the no results issue
+    return {};
+
+    /* DISABLED FOR NOW - this is causing no results to be returned
     const PreferencesService = require('./preferencesService').default;
     const preferencesService = PreferencesService.getInstance();
     const preferences = preferencesService.getPreferences();
@@ -44,6 +48,7 @@ class ActivityService {
 
     console.log('🔍 [ActivityService] Global filter params to send:', params);
     return params;
+    */
   }
 
   private constructor() {

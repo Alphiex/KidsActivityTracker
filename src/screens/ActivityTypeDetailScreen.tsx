@@ -171,6 +171,8 @@ const ActivityTypeDetailScreen = () => {
         filters.categories = typeName;
       }
 
+      // TEMPORARILY DISABLED - Filter causing no results issue
+      /*
       // Apply global preference filters including hideClosedOrFull
       // This ensures consistency across the app - users should only see available activities
       console.log('🎯 [ActivityTypeDetailScreen] User preferences:', {
@@ -192,6 +194,7 @@ const ActivityTypeDetailScreen = () => {
       }
 
       console.log('🎯 [ActivityTypeDetailScreen] Filters being applied:', filters);
+      */
       
       console.log('ActivityTypeDetailScreen: Searching with filters:', {
         ...filters,
