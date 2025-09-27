@@ -7,16 +7,17 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  SafeAreaView,
+  Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
 import ActivityTypeService from '../services/activityTypeService';
 import PreferencesService from '../services/preferencesService';
-import LoadingIndicator from '../components/LoadingIndicator';
 import ActivityCard from '../components/ActivityCard';
-import { Colors } from '../theme';
+import { getActivityImageKey } from '../utils/activityHelpers';
+import { getActivityImageByKey } from '../assets/images';
 import { Activity } from '../types';
 
 interface Subtype {
@@ -30,7 +31,12 @@ interface Subtype {
 const ActivityTypeDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { typeCode, typeName } = route.params as { typeCode: string; typeName: string };
+
+  // Handle both old and new parameter formats
+  const params = route.params as any;
+  const activityType = params?.activityType;
+  const typeCode = activityType?.code || params?.typeCode;
+  const typeName = activityType?.name || params?.typeName;
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [subtypes, setSubtypes] = useState<Subtype[]>([]);
@@ -48,26 +54,8 @@ const ActivityTypeDetailScreen = () => {
   const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
-    navigation.setOptions({
-      title: typeName,
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: '#fff',
-      headerTitleStyle: {
-        fontWeight: 'bold',
-      },
-      headerRight: () => (
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('AllActivityTypes')}
-          style={{ marginRight: 15 }}
-        >
-          <Icon name="apps" size={24} color="#fff" />
-        </TouchableOpacity>
-      ),
-    });
     loadTypeDetails();
-  }, [navigation, typeName]);
+  }, [typeName]);
 
   // Load activities when selectedSubtype changes (but not on initial mount)
   useEffect(() => {
@@ -79,6 +67,14 @@ const ActivityTypeDetailScreen = () => {
   const loadTypeDetails = async () => {
     try {
       setError(null);
+
+      // Validate required parameters
+      if (!typeName && !typeCode) {
+        setError('Activity type not specified');
+        setIsLoading(false);
+        return;
+      }
+
       console.log('ActivityTypeDetail: Loading details for type:', typeName, 'with code:', typeCode);
       
       const activityService = ActivityService.getInstance();
@@ -114,11 +110,11 @@ const ActivityTypeDetailScreen = () => {
         
         if (typeInfo && typeInfo.subtypes) {
           const subtypesWithCounts = typeInfo.subtypes
-            .filter(s => s.count > 0)
+            .filter(s => s && s.count > 0 && s.name)
             .map(subtype => ({
-              code: subtype.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-              name: subtype.name,
-              activityCount: subtype.count
+              code: subtype.code || (subtype.name ? subtype.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''),
+              name: subtype.name || '',
+              activityCount: subtype.count || 0
             }))
             .sort((a, b) => b.activityCount - a.activityCount);
           
@@ -158,54 +154,43 @@ const ActivityTypeDetailScreen = () => {
       
       // Get activities matching this exact type name from database
       const allActivities: Activity[] = [];
-      
+
       const filters: any = {
-        categories: typeName, // Use categories parameter for consistency with counting
         limit: ITEMS_PER_PAGE,
         offset: isRefresh ? 0 : currentOffset,
       };
-      
-      // Apply ALL global filters to match other screens
-      if (preferences.hideClosedActivities) {
-        filters.hideClosedActivities = true;
-      }
-      if (preferences.hideFullActivities) {
-        filters.hideFullActivities = true;
-      }
-      
-      // Apply location filters
-      if (preferences.locations && preferences.locations.length > 0) {
-        filters.locations = preferences.locations;
-      }
-      
-      // Apply price range filter
-      if (preferences.priceRange) {
-        filters.maxCost = preferences.priceRange.max;
-      }
-      
-      // Apply age range filter
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
-        const ageRange = preferences.ageRanges[0];
-        filters.ageMin = ageRange.min;
-        filters.ageMax = ageRange.max;
-      }
-      
-      // Apply time preferences to match other screens
-      if (preferences.timePreferences) {
-        filters.timePreferences = preferences.timePreferences;
-      }
-      
-      // If a subtype is selected, filter by it (using exact subtype name)
+
+      // If a subtype is selected, filter by it
+      // Otherwise filter by the main category
       if (selectedSubtype) {
+        // When filtering by subtype, we need both the main type and subtype
+        filters.categories = typeName;
         filters.activitySubtype = selectedSubtype;
+      } else {
+        // When showing all activities for a type, just filter by main category
+        filters.categories = typeName;
       }
+
+      // DO NOT apply global preference filters here
+      // When browsing by activity type, users want to see ALL activities
+      // in that category, not filtered by their preferences
+      // Only apply basic availability filters if needed
+
+      // Optional: You could apply these minimal filters if desired:
+      // filters.hideClosedActivities = true; // Show only activities that are open for registration
+      // But for now, show everything to match the expected behavior
       
-      console.log('ActivityTypeDetailScreen: Searching with filters:', filters);
+      console.log('ActivityTypeDetailScreen: Searching with filters:', {
+        ...filters,
+        selectedSubtype,
+        typeName
+      });
       const response = await activityService.searchActivitiesPaginated(filters);
       console.log('ActivityTypeDetailScreen: Response:', {
         itemCount: response.items?.length,
         total: response.total,
-        firstItem: response.items?.[0]
+        hasMore: response.hasMore,
+        firstItem: response.items?.[0]?.name
       });
       
       if (response.items && response.items.length > 0) {
@@ -265,139 +250,129 @@ const ActivityTypeDetailScreen = () => {
   };
 
   const selectSubtype = (subtypeName: string | null) => {
+    console.log('ActivityTypeDetailScreen: Selecting subtype:', subtypeName);
     setSelectedSubtype(subtypeName);
-    if (subtypeName !== undefined) {
-      setActivities([]);
-      setCurrentOffset(0);
-      setHasMore(true);
-      // Don't call loadActivities here - it will be called by useEffect
-    }
+    setActivities([]);
+    setCurrentOffset(0);
+    setHasMore(true);
+    setConsecutiveEmptyResponses(0);
+    // Don't call loadActivities here - it will be called by useEffect
   };
 
-  const renderSubtypeCard = ({ item }: { item: Subtype }) => (
-    <TouchableOpacity
-      style={styles.subtypeCard}
-      onPress={() => selectSubtype(item.name)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.subtypeCardContent}>
-        <View style={styles.subtypeCardLeft}>
-          <Icon name="category" size={40} color={Colors.primary} />
-          <View style={styles.subtypeCardTextContainer}>
-            <Text style={styles.subtypeCardTitle}>{item.name}</Text>
-            <Text style={styles.subtypeCardCount}>
-              {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
-            </Text>
-          </View>
+  const renderSubtypeCard = ({ item }: { item: Subtype }) => {
+    const imageKey = getActivityImageKey(item.name, item.code);
+    const imageSource = getActivityImageByKey(imageKey);
+
+    return (
+      <TouchableOpacity
+        style={styles.subtypeCard}
+        onPress={() => selectSubtype(item.name)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.imageContainer}>
+          <Image source={imageSource} style={styles.subtypeImage} />
         </View>
-        <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.subtypeContent}>
+          <Text style={styles.subtypeName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.subtypeCount}>
+            {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderActivity = ({ item }: { item: Activity }) => (
-    <ActivityCard 
+    <ActivityCard
       activity={item}
       onPress={() => {
         const serializedActivity = {
           ...item,
           dateRange: item.dateRange ? {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
+            start: typeof item.dateRange.start === 'string'
+              ? item.dateRange.start
+              : item.dateRange.start?.toISOString?.() || '',
+            end: typeof item.dateRange.end === 'string'
+              ? item.dateRange.end
+              : item.dateRange.end?.toISOString?.() || '',
           } : null,
-          scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+          scrapedAt: item.scrapedAt
+            ? (typeof item.scrapedAt === 'string'
+              ? item.scrapedAt
+              : item.scrapedAt?.toISOString?.() || null)
+            : null,
         };
         navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
       }}
     />
   );
 
+  const getActiveFilters = () => {
+    // Since we're not applying preference filters when browsing by activity type,
+    // we don't show them in the UI either
+    return [];
+  };
+
   const renderHeader = () => {
+    const activeFilters = getActiveFilters();
+
     // If showing activities list
     if (selectedSubtype !== undefined) {
       return (
-        <View>
-          <LinearGradient
-            colors={['#673AB7', '#512DA8']}
-            style={styles.header}
-          >
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => setSelectedSubtype(undefined)}
-            >
-              <Icon name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>
+        <View style={styles.resultsHeader}>
+          <View style={styles.resultsInfo}>
+            <Text style={styles.resultsCount}>
+              {totalCount} {totalCount === 1 ? 'result' : 'results'}
+            </Text>
+            <Text style={styles.resultsSubtitle}>
               {selectedSubtype || `All ${typeName}`}
             </Text>
-            <Text style={styles.headerSubtitle}>
-              {totalCount} {totalCount === 1 ? 'activity' : 'activities'} available
-            </Text>
-          </LinearGradient>
+          </View>
+
+          {activeFilters.length > 0 && (
+            <View style={styles.filtersContainer}>
+              <Icon name="filter-outline" size={16} color="#717171" />
+              <Text style={styles.filtersText} numberOfLines={1}>
+                {activeFilters.join(' • ')}
+              </Text>
+            </View>
+          )}
         </View>
       );
     }
 
     // Show subtypes selection
-    return (
-      <View>
-        <LinearGradient
-          colors={['#673AB7', '#512DA8']}
-          style={styles.header}
-        >
-          <Text style={styles.headerTitle}>{typeName}</Text>
-          <Text style={styles.headerSubtitle}>
-            Choose a category or view all activities
-          </Text>
-        </LinearGradient>
-        
-        <TouchableOpacity
-          style={styles.viewAllButton}
-          onPress={() => selectSubtype(null)}
-          activeOpacity={0.7}
-        >
-          <LinearGradient
-            colors={['#4CAF50', '#45a049']}
-            style={styles.viewAllGradient}
-          >
-            <Icon name="view-list" size={30} color="#fff" />
-            <View style={styles.viewAllTextContainer}>
-              <Text style={styles.viewAllTitle}>View All {typeName}</Text>
-              <Text style={styles.viewAllCount}>{totalCount} activities</Text>
-            </View>
-            <Icon name="chevron-right" size={24} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    );
+    return null;
   };
 
   const renderFooter = () => {
     if (isLoadingMore) {
       return (
         <View style={styles.footerLoader}>
-          <LoadingIndicator size="small" color={Colors.primary} />
+          <ActivityIndicator size="small" color="#FF385C" />
           <Text style={styles.loadingMoreText}>Loading more activities...</Text>
         </View>
       );
     }
-    
-    return (
-      <View style={styles.footerContainer}>
-        <Text style={styles.footerText}>
-          Showing {activities.length} of {totalCount} activities
-        </Text>
-        {!hasMore && activities.length > 0 && (
-          <Text style={styles.endText}>All activities loaded</Text>
-        )}
-      </View>
-    );
+
+    if (!hasMore && activities.length > 0) {
+      return (
+        <View style={styles.footerContainer}>
+          <Text style={styles.endText}>You've reached the end</Text>
+          <Text style={styles.footerText}>
+            Showing all {activities.length} activities
+          </Text>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <LoadingIndicator size="large" color={Colors.primary} />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF385C" />
         <Text style={styles.loadingText}>Loading {typeName} activities...</Text>
       </View>
     );
@@ -405,11 +380,11 @@ const ActivityTypeDetailScreen = () => {
 
   if (error) {
     return (
-      <View style={styles.centerContainer}>
-        <Icon name="error-outline" size={60} color={Colors.error} />
+      <View style={styles.errorContainer}>
+        <Icon name="alert-circle" size={60} color="#FF385C" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => loadTypeDetails()}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
     );
@@ -418,32 +393,87 @@ const ActivityTypeDetailScreen = () => {
   // Show subtypes selection screen
   if (selectedSubtype === undefined) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-left" size={24} color="#222222" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{typeName}</Text>
+        </View>
+
+        {/* Subtypes Grid */}
         <FlatList
+          key="subtypes-grid"
           data={subtypes}
           renderItem={renderSubtypeCard}
           keyExtractor={(item) => item.code}
-          ListHeaderComponent={renderHeader}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadTypeDetails()} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadTypeDetails()}
+              colors={['#FF385C']}
+              tintColor="#FF385C"
+            />
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => selectSubtype(null)}
+                activeOpacity={0.7}
+              >
+                <Icon name="view-list" size={20} color="#FF385C" />
+                <Text style={styles.viewAllText}>View All {typeName}</Text>
+                <Text style={styles.viewAllCount}>({totalCount} activities)</Text>
+                <Icon name="chevron-right" size={20} color="#717171" />
+              </TouchableOpacity>
+              <Text style={styles.subtitle}>
+                Browse by category
+              </Text>
+            </View>
+          }
         />
-      </View>
+      </SafeAreaView>
     );
   }
 
   // Show activities list
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => setSelectedSubtype(undefined)}
+        >
+          <Icon name="arrow-left" size={24} color="#222222" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {selectedSubtype || `All ${typeName}`}
+        </Text>
+      </View>
+
       <FlatList
+        key="activities-list"
         data={activities}
         renderItem={renderActivity}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#FF385C']}
+            tintColor="#FF385C"
+          />
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -453,195 +483,180 @@ const ActivityTypeDetailScreen = () => {
         ListEmptyComponent={
           !isLoading && !refreshing ? (
             <View style={styles.emptyContainer}>
-              <Icon name="search-off" size={60} color={Colors.textSecondary} />
+              <Icon name="magnify-remove-outline" size={60} color="#717171" />
               <Text style={styles.emptyText}>No activities found</Text>
               {selectedSubtype && (
                 <Text style={styles.emptySubtext}>
-                  Try selecting a different subtype or view all activities
+                  Try selecting a different category or view all activities
                 </Text>
               )}
             </View>
           ) : null
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-    padding: 20,
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    padding: 30,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-  },
-  subtypesSection: {
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  subtypesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginLeft: 16,
-    marginBottom: 12,
-  },
-  subtypesList: {
-    paddingHorizontal: 16,
-  },
-  subtypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  subtypeChipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  subtypeText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginRight: 6,
-  },
-  subtypeTextSelected: {
-    color: '#fff',
-  },
-  subtypeCount: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    backgroundColor: '#fff',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  subtypeCountSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    color: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
   },
   backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 30,
-    padding: 8,
+    padding: 4,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#222222',
+    flex: 1,
+  },
+  listHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   viewAllButton: {
-    margin: 16,
-    marginTop: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F7F7F7',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  viewAllText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+    marginLeft: 12,
+    flex: 1,
+  },
+  viewAllCount: {
+    fontSize: 14,
+    color: '#717171',
+    marginRight: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#717171',
+  },
+  row: {
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+  },
+  subtypeCard: {
+    width: '48%',
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     overflow: 'hidden',
-    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 3,
   },
-  viewAllGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
+  imageContainer: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#F0F0F0',
   },
-  viewAllTextContainer: {
-    flex: 1,
-    marginLeft: 16,
+  subtypeImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
-  viewAllTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+  subtypeContent: {
+    padding: 12,
   },
-  viewAllCount: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 4,
-  },
-  subtypeCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  subtypeCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  subtypeCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  subtypeCardTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  subtypeCardTitle: {
-    fontSize: 16,
+  subtypeName: {
+    fontSize: 15,
     fontWeight: '600',
-    color: Colors.text,
+    color: '#222222',
+    marginBottom: 4,
   },
-  subtypeCardCount: {
+  subtypeCount: {
+    fontSize: 13,
+    color: '#717171',
+  },
+  resultsHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+    backgroundColor: '#FFFFFF',
+  },
+  resultsInfo: {
+    marginBottom: 8,
+  },
+  resultsCount: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  resultsSubtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: '#717171',
     marginTop: 4,
+  },
+  filtersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  filtersText: {
+    fontSize: 13,
+    color: '#717171',
+    marginLeft: 6,
+    flex: 1,
   },
   listContent: {
     paddingBottom: 20,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
   loadingText: {
-    marginTop: 16,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: '#717171',
+    marginTop: 12,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#FFFFFF',
   },
   errorText: {
     fontSize: 16,
-    color: Colors.error,
+    color: '#222222',
     textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 30,
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 8,
   },
   retryButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -654,19 +669,19 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   footerText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    color: '#717171',
+    marginTop: 4,
   },
   loadingMoreText: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: '#717171',
   },
   endText: {
-    marginTop: 10,
     fontSize: 14,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
+    color: '#222222',
+    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -675,12 +690,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: Colors.text,
-    marginTop: 20,
+    color: '#222222',
+    marginTop: 16,
+    fontWeight: '500',
   },
   emptySubtext: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: '#717171',
     marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 40,

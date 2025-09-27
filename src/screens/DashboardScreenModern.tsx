@@ -552,14 +552,98 @@ const DashboardScreenModern = () => {
         scrollEventThrottle={16}
       >
 
+        {/* Recommended Activities Section */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => handleNavigate('RecommendedActivities')}
+          >
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
+              <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
+            </View>
+          </TouchableOpacity>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {loading ? (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : recommendedActivities.length > 0 ? (
+              recommendedActivities.map(renderActivityCard)
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No activities found</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* New This Week Section */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => handleNavigate('NewActivities')}
+          >
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>New This Week</Text>
+              <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
+            </View>
+          </TouchableOpacity>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {loading ? (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : newActivities.length > 0 ? (
+              newActivities.map(renderActivityCard)
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No new activities</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Budget Friendly Section */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => handleNavigate('ActivityList', { filter: 'budget' })}
+          >
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>Budget Friendly</Text>
+              <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
+            </View>
+          </TouchableOpacity>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {loading ? (
+              <View style={styles.emptyCard}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : budgetFriendlyActivities.length > 0 ? (
+              budgetFriendlyActivities.map(renderActivityCard)
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No budget friendly activities</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+
         {/* Activity Type Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Browse by Activity Type</Text>
-            <TouchableOpacity onPress={() => handleNavigate('AllActivityTypes')}>
-              <Icon name="chevron-right" size={24} color="#222" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => handleNavigate('AllActivityTypes')}
+          >
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>Browse by Activity Type</Text>
+              <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
+            </View>
+          </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {activityTypes.map((type) => {
               // Use getActivityImageKey with type name to get proper image mapping
@@ -581,10 +665,15 @@ const DashboardScreenModern = () => {
 
         {/* Age Group Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Browse by Age Group</Text>
-            <Icon name="chevron-right" size={24} color="#222" />
-          </View>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => handleNavigate('AllCategories')}
+          >
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.sectionTitle}>Browse by Age Group</Text>
+              <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
+            </View>
+          </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {ageGroups.map((group) => (
               <TouchableOpacity
@@ -598,74 +687,6 @@ const DashboardScreenModern = () => {
                 <Text style={styles.ageTitle}>{group.name}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
-        </View>
-
-        {/* Recommended Activities Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
-            <TouchableOpacity onPress={() => handleNavigate('RecommendedActivities')}>
-              <Icon name="chevron-right" size={24} color="#222" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#FF385C" />
-                <Text style={styles.emptyText}>Loading activities...</Text>
-              </View>
-            ) : recommendedActivities.length > 0 ? (
-              recommendedActivities.map(renderActivityCard)
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No activities found</Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Budget Friendly Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Budget Friendly</Text>
-            <Icon name="chevron-right" size={24} color="#222" />
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#FF385C" />
-                <Text style={styles.emptyText}>Loading activities...</Text>
-              </View>
-            ) : budgetFriendlyActivities.length > 0 ? (
-              budgetFriendlyActivities.map(renderActivityCard)
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No budget friendly activities</Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* New This Week Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>New This Week</Text>
-            <Icon name="chevron-right" size={24} color="#222" />
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#FF385C" />
-                <Text style={styles.emptyText}>Loading activities...</Text>
-              </View>
-            ) : newActivities.length > 0 ? (
-              newActivities.map(renderActivityCard)
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No new activities</Text>
-              </View>
-            )}
           </ScrollView>
         </View>
 
@@ -732,16 +753,21 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 15,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#222',
+  },
+  chevronIcon: {
+    marginLeft: 6,
+    marginTop: 2,
   },
   card: {
     width: 280,
