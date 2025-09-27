@@ -52,6 +52,7 @@ export interface UserPreferences {
   // Activity filtering preferences
   hideClosedActivities: boolean;
   hideFullActivities: boolean;
+  hideClosedOrFull: boolean; // Global filter to hide closed OR full activities
   maxBudgetFriendlyAmount: number;
   
   // Onboarding

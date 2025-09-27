@@ -3,6 +3,7 @@ import { Prisma } from '../../generated/prisma';
 export interface GlobalActivityFilters {
   hideClosedActivities?: boolean;
   hideFullActivities?: boolean;
+  hideClosedOrFull?: boolean; // Combined filter to hide activities that are closed OR full
 }
 
 /**
@@ -28,24 +29,41 @@ export function buildActivityWhereClause(
   if (where.isActive === undefined && where.isUpdated === undefined) {
     where.isActive = true;
   }
-  
-  // Hide closed activities (based on registration status)
-  if (filters.hideClosedActivities) {
-    // Exclude activities with "Closed" registration status
+
+  // Apply combined hideClosedOrFull filter if present
+  if (filters.hideClosedOrFull) {
+    // Exclude activities that are either closed OR full
     andConditions.push({
-      NOT: { registrationStatus: 'Closed' }
-    });
-  }
-  
-  // Hide full activities (no spots available)
-  if (filters.hideFullActivities) {
-    // Include activities where spots are greater than 0 or null (unlimited)
-    andConditions.push({
-      OR: [
-        { spotsAvailable: { gt: 0 } },
-        { spotsAvailable: null }
+      AND: [
+        { NOT: { registrationStatus: 'Closed' } },
+        {
+          OR: [
+            { spotsAvailable: { gt: 0 } },
+            { spotsAvailable: null }
+          ]
+        }
       ]
     });
+  } else {
+    // Apply individual filters if hideClosedOrFull is not set
+    // Hide closed activities (based on registration status)
+    if (filters.hideClosedActivities) {
+      // Exclude activities with "Closed" registration status
+      andConditions.push({
+        NOT: { registrationStatus: 'Closed' }
+      });
+    }
+
+    // Hide full activities (no spots available)
+    if (filters.hideFullActivities) {
+      // Include activities where spots are greater than 0 or null (unlimited)
+      andConditions.push({
+        OR: [
+          { spotsAvailable: { gt: 0 } },
+          { spotsAvailable: null }
+        ]
+      });
+    }
   }
   
   // Apply AND conditions if any
@@ -69,6 +87,7 @@ export function buildActivityWhereClause(
 export function extractGlobalFilters(query: any): GlobalActivityFilters {
   return {
     hideClosedActivities: query.hideClosedActivities === 'true' || query.hideClosedActivities === true,
-    hideFullActivities: query.hideFullActivities === 'true' || query.hideFullActivities === true
+    hideFullActivities: query.hideFullActivities === 'true' || query.hideFullActivities === true,
+    hideClosedOrFull: query.hideClosedOrFull === 'true' || query.hideClosedOrFull === true
   };
 }

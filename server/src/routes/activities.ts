@@ -45,6 +45,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       providerId,
       hideClosedActivities,
       hideFullActivities,
+      hideClosedOrFull,
       limit = '50',
       offset = '0',
       sortBy = 'dateStart',
@@ -57,6 +58,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       activitySubtype,
       hideClosedActivities,
       hideFullActivities,
+      hideClosedOrFull,
       limit,
       offset,
       search,
@@ -114,6 +116,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       providerId: providerId as string,
       hideClosedActivities: hideClosedActivities === 'true',
       hideFullActivities: hideFullActivities === 'true',
+      hideClosedOrFull: hideClosedOrFull === 'true',
       limit: parseInt(limit as string),
       offset: parseInt(offset as string),
       sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt',
@@ -123,8 +126,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     console.log('🚨 [API Route] Global filter params being passed:', {
       hideClosedActivities: params.hideClosedActivities,
       hideFullActivities: params.hideFullActivities,
+      hideClosedOrFull: params.hideClosedOrFull,
       hideClosedActivitiesRaw: hideClosedActivities,
-      hideFullActivitiesRaw: hideFullActivities
+      hideFullActivitiesRaw: hideFullActivities,
+      hideClosedOrFullRaw: hideClosedOrFull
     });
 
     const result = await activityService.searchActivities(params);

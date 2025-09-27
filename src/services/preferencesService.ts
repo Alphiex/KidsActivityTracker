@@ -50,6 +50,7 @@ class PreferencesService {
       viewType: 'card',
       hideClosedActivities: true, // Default to hiding closed activities
       hideFullActivities: false, // Default to showing full activities
+      hideClosedOrFull: true, // Default to hiding closed or full activities
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
       hasCompletedOnboarding: false,
       createdAt: new Date().toISOString(),
@@ -62,6 +63,11 @@ class PreferencesService {
       const stored = storage.getString(PREFERENCES_KEY);
       if (stored) {
         this.preferences = JSON.parse(stored);
+        // Ensure new fields exist for existing users
+        if (this.preferences && this.preferences.hideClosedOrFull === undefined) {
+          this.preferences.hideClosedOrFull = true; // Default to true for existing users
+          this.savePreferences();
+        }
       } else {
         this.preferences = this.getDefaultPreferences();
         this.savePreferences();

@@ -556,6 +556,25 @@ const FiltersScreen = () => {
         </Text>
       </View>
 
+      {/* Global Preference - Hide Closed or Full Activities */}
+      <View style={styles.globalPreferenceContainer}>
+        <View style={styles.globalPreferenceContent}>
+          <Icon name="eye-off-outline" size={24} color="#222222" style={styles.globalPreferenceIcon} />
+          <View style={styles.globalPreferenceText}>
+            <Text style={styles.globalPreferenceTitle}>Hide Closed or Full Activities</Text>
+            <Text style={styles.globalPreferenceDescription}>
+              Only show activities that are open for registration
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={preferences?.hideClosedOrFull ?? true}
+          onValueChange={(value) => updatePreferences({ hideClosedOrFull: value })}
+          trackColor={{ false: '#EEEEEE', true: '#FF385C' }}
+          thumbColor={preferences?.hideClosedOrFull ? '#FFFFFF' : '#CCCCCC'}
+        />
+      </View>
+
       {/* Scrollable Content */}
       <Animated.ScrollView 
         ref={scrollViewRef}
@@ -897,6 +916,38 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 32,
+  },
+  globalPreferenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFF8F0',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE0CC',
+  },
+  globalPreferenceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  globalPreferenceIcon: {
+    marginRight: 12,
+  },
+  globalPreferenceText: {
+    flex: 1,
+  },
+  globalPreferenceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+    marginBottom: 2,
+  },
+  globalPreferenceDescription: {
+    fontSize: 13,
+    color: '#717171',
   },
 });
 

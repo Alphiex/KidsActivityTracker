@@ -20,6 +20,7 @@ interface SearchParams {
   providerId?: string;
   hideClosedActivities?: boolean; // Hide activities that are closed for registration
   hideFullActivities?: boolean; // Hide activities with no spots available
+  hideClosedOrFull?: boolean; // Hide activities that are closed OR full
   limit?: number;
   offset?: number;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt';
@@ -53,6 +54,7 @@ export class EnhancedActivityService {
       providerId,
       hideClosedActivities = false,
       hideFullActivities = false,
+      hideClosedOrFull = false,
       limit = 50,
       offset = 0,
       sortBy = 'dateStart',
@@ -66,6 +68,7 @@ export class EnhancedActivityService {
       activitySubtype,
       hideClosedActivities,
       hideFullActivities,
+      hideClosedOrFull,
       limit,
       offset,
       search,
@@ -336,12 +339,14 @@ export class EnhancedActivityService {
     console.log('🔧 [ActivityService] Global filter params:', {
       hideClosedActivities,
       hideFullActivities,
-      types: { hideClosedActivities: typeof hideClosedActivities, hideFullActivities: typeof hideFullActivities }
+      hideClosedOrFull,
+      types: { hideClosedActivities: typeof hideClosedActivities, hideFullActivities: typeof hideFullActivities, hideClosedOrFull: typeof hideClosedOrFull }
     });
-    
+
     const finalWhere = buildActivityWhereClause(where, {
       hideClosedActivities,
-      hideFullActivities
+      hideFullActivities,
+      hideClosedOrFull
     });
     
     console.log('🔧 [ActivityService] buildActivityWhereClause result:', JSON.stringify(finalWhere, null, 2));

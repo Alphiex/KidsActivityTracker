@@ -21,6 +21,13 @@ class ActivityService {
     const preferences = preferencesService.getPreferences();
 
     const params: any = {};
+
+    // Apply the global hideClosedOrFull preference
+    if (preferences.hideClosedOrFull) {
+      params.hideClosedOrFull = true;
+    }
+
+    // Legacy individual preferences (kept for backward compatibility)
     if (preferences.hideClosedActivities) {
       params.hideClosedActivities = true;
     }
