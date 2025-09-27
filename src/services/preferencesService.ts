@@ -50,7 +50,7 @@ class PreferencesService {
       viewType: 'card',
       hideClosedActivities: true, // Default to hiding closed activities
       hideFullActivities: false, // Default to showing full activities
-      hideClosedOrFull: true, // Default to hiding closed or full activities
+      hideClosedOrFull: false, // Default to showing all activities for now
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
       hasCompletedOnboarding: false,
       createdAt: new Date().toISOString(),
@@ -73,8 +73,8 @@ class PreferencesService {
 
         // Ensure new fields exist for existing users
         if (this.preferences && this.preferences.hideClosedOrFull === undefined) {
-          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
-          this.preferences.hideClosedOrFull = true; // Default to true for existing users
+          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=false for existing user');
+          this.preferences.hideClosedOrFull = false; // Default to false for existing users to avoid filtering everything
           this.savePreferences();
         }
       } else {
