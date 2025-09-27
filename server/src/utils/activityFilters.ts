@@ -31,7 +31,14 @@ export function buildActivityWhereClause(
   }
 
   // Apply combined hideClosedOrFull filter if present
+  console.log('🔧 [buildActivityWhereClause] Applying filters:', {
+    hideClosedOrFull: filters.hideClosedOrFull,
+    hideClosedActivities: filters.hideClosedActivities,
+    hideFullActivities: filters.hideFullActivities
+  });
+
   if (filters.hideClosedOrFull) {
+    console.log('🔧 [buildActivityWhereClause] Applying hideClosedOrFull filter');
     // Exclude activities that are either closed OR full
     andConditions.push({
       AND: [
@@ -85,9 +92,14 @@ export function buildActivityWhereClause(
  * Extract global filters from request query parameters
  */
 export function extractGlobalFilters(query: any): GlobalActivityFilters {
-  return {
+  const filters = {
     hideClosedActivities: query.hideClosedActivities === 'true' || query.hideClosedActivities === true,
     hideFullActivities: query.hideFullActivities === 'true' || query.hideFullActivities === true,
     hideClosedOrFull: query.hideClosedOrFull === 'true' || query.hideClosedOrFull === true
   };
+
+  console.log('🔧 [extractGlobalFilters] Input query:', query);
+  console.log('🔧 [extractGlobalFilters] Extracted filters:', filters);
+
+  return filters;
 }

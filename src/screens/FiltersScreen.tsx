@@ -77,6 +77,11 @@ const FiltersScreen = () => {
   const loadPreferences = async () => {
     try {
       const userPrefs = preferencesService.getPreferences();
+      console.log('📖 [FiltersScreen] Loaded preferences:', {
+        hideClosedOrFull: userPrefs.hideClosedOrFull,
+        hideClosedActivities: userPrefs.hideClosedActivities,
+        hideFullActivities: userPrefs.hideFullActivities
+      });
       setPreferences(userPrefs);
     } catch (error) {
       console.error('Error loading preferences:', error);
@@ -131,8 +136,10 @@ const FiltersScreen = () => {
 
   const updatePreferences = (updates: Partial<UserPreferences>) => {
     if (!preferences) return;
-    
+
+    console.log('📝 [FiltersScreen] Updating preferences with:', updates);
     const updatedPrefs = preferencesService.updatePreferences(updates);
+    console.log('📝 [FiltersScreen] Updated preferences:', updatedPrefs);
     setPreferences(updatedPrefs);
   };
 

@@ -173,6 +173,13 @@ const ActivityTypeDetailScreen = () => {
 
       // Apply global preference filters including hideClosedOrFull
       // This ensures consistency across the app - users should only see available activities
+      console.log('🎯 [ActivityTypeDetailScreen] User preferences:', {
+        hideClosedOrFull: preferences.hideClosedOrFull,
+        hideClosedActivities: preferences.hideClosedActivities,
+        hideFullActivities: preferences.hideFullActivities,
+        allPreferences: preferences
+      });
+
       if (preferences.hideClosedOrFull) {
         filters.hideClosedOrFull = true;
       }
@@ -183,6 +190,8 @@ const ActivityTypeDetailScreen = () => {
       if (preferences.hideFullActivities) {
         filters.hideFullActivities = true;
       }
+
+      console.log('🎯 [ActivityTypeDetailScreen] Filters being applied:', filters);
       
       console.log('ActivityTypeDetailScreen: Searching with filters:', {
         ...filters,

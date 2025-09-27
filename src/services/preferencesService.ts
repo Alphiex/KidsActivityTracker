@@ -61,14 +61,24 @@ class PreferencesService {
   private loadPreferences() {
     try {
       const stored = storage.getString(PREFERENCES_KEY);
+      console.log('🔄 [PreferencesService] Loading preferences, stored exists:', !!stored);
+
       if (stored) {
         this.preferences = JSON.parse(stored);
+        console.log('🔄 [PreferencesService] Loaded from storage:', {
+          hideClosedOrFull: this.preferences?.hideClosedOrFull,
+          hideClosedActivities: this.preferences?.hideClosedActivities,
+          hideFullActivities: this.preferences?.hideFullActivities
+        });
+
         // Ensure new fields exist for existing users
         if (this.preferences && this.preferences.hideClosedOrFull === undefined) {
+          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
           this.preferences.hideClosedOrFull = true; // Default to true for existing users
           this.savePreferences();
         }
       } else {
+        console.log('🔄 [PreferencesService] No stored preferences, using defaults');
         this.preferences = this.getDefaultPreferences();
         this.savePreferences();
       }
@@ -97,12 +107,26 @@ class PreferencesService {
   }
 
   updatePreferences(updates: Partial<UserPreferences>) {
+    console.log('💾 [PreferencesService] Updating preferences with:', updates);
+    console.log('💾 [PreferencesService] Current preferences before update:', {
+      hideClosedOrFull: this.preferences?.hideClosedOrFull,
+      hideClosedActivities: this.preferences?.hideClosedActivities,
+      hideFullActivities: this.preferences?.hideFullActivities
+    });
+
     // Deep merge to preserve nested objects
     this.preferences = {
       ...this.preferences!,
       ...updates,
       updatedAt: new Date().toISOString(),
     };
+
+    console.log('💾 [PreferencesService] New preferences after update:', {
+      hideClosedOrFull: this.preferences.hideClosedOrFull,
+      hideClosedActivities: this.preferences.hideClosedActivities,
+      hideFullActivities: this.preferences.hideFullActivities
+    });
+
     this.savePreferences();
     return this.preferences;
   }

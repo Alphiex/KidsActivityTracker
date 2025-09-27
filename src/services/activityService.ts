@@ -20,6 +20,13 @@ class ActivityService {
     const preferencesService = PreferencesService.getInstance();
     const preferences = preferencesService.getPreferences();
 
+    console.log('🔍 [ActivityService] Getting global filter params:', {
+      hideClosedOrFull: preferences.hideClosedOrFull,
+      hideClosedActivities: preferences.hideClosedActivities,
+      hideFullActivities: preferences.hideFullActivities,
+      preferencesLoaded: !!preferences
+    });
+
     const params: any = {};
 
     // Apply the global hideClosedOrFull preference
@@ -34,6 +41,8 @@ class ActivityService {
     if (preferences.hideFullActivities) {
       params.hideFullActivities = true;
     }
+
+    console.log('🔍 [ActivityService] Global filter params to send:', params);
     return params;
   }
 
@@ -348,9 +357,14 @@ class ActivityService {
 
       // Merge with global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
-      
+
+      console.log('📤 [searchActivitiesPaginated] Input params:', params);
+      console.log('📤 [searchActivitiesPaginated] Global filters:', globalFilters);
+
       // Convert parameters to match backend API - merge with global filters
       const apiParams = { ...params, ...globalFilters };
+
+      console.log('📤 [searchActivitiesPaginated] Final API params:', apiParams);
       
       // Ensure activitySubtype is a string, not an object
       if (params.activitySubtype && typeof params.activitySubtype === 'object') {
