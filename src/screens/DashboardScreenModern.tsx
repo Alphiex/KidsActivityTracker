@@ -37,11 +37,14 @@ const DashboardScreenModern = () => {
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Handle returning from SearchResults to re-open search modal
+  // Reload dashboard data when screen comes into focus (e.g., returning from Filters)
   useFocusEffect(
     useCallback(() => {
-      // Check if we should re-open search modal (this could be set via navigation params)
-      // For now, we'll leave this empty but it's ready for future enhancement
+      // Reload the three sections that use preferences
+      loadRecommendedActivities();
+      loadBudgetFriendlyActivities();
+      loadNewActivities();
+
       return () => {
         // Cleanup if needed
       };
@@ -115,12 +118,49 @@ const DashboardScreenModern = () => {
 
   const loadRecommendedActivities = async () => {
     try {
-      // Use searchActivitiesPaginated to get activities (default order)
-      const response = await activityService.searchActivitiesPaginated({ 
-        limit: 6, 
+      // Get user preferences for filtering
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+
+      // Build filter params from preferences
+      const filterParams: any = {
+        limit: 6,
         offset: 0,
-        hideFullActivities: true  // Filter out activities with 0 spots
-      });
+        hideFullActivities: true
+      };
+
+      // Apply activity type preferences
+      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
+        filterParams.activityTypes = preferences.preferredActivityTypes;
+      }
+
+      // Apply age range preferences (only if changed from defaults)
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        if (ageRange.min > 0 || ageRange.max < 18) {
+          filterParams.ageMin = ageRange.min;
+          filterParams.ageMax = ageRange.max;
+        }
+      }
+
+      // Apply price range preferences (only if changed from defaults)
+      if (preferences.priceRange &&
+          (preferences.priceRange.min > 0 || preferences.priceRange.max < 1000)) {
+        filterParams.costMin = preferences.priceRange.min;
+        filterParams.costMax = preferences.priceRange.max;
+      }
+
+      // Apply location preferences
+      if (preferences.locations && preferences.locations.length > 0) {
+        filterParams.locations = preferences.locations;
+      }
+
+      // Apply days of week preferences (only if not all 7 days selected)
+      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
+        filterParams.daysOfWeek = preferences.daysOfWeek;
+      }
+
+      const response = await activityService.searchActivitiesPaginated(filterParams);
       console.log('Recommended activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,
@@ -138,18 +178,44 @@ const DashboardScreenModern = () => {
 
   const loadBudgetFriendlyActivities = async () => {
     try {
-      // Get user's budget friendly amount from preferences
+      // Get user preferences
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       const maxBudgetAmount = preferences.maxBudgetFriendlyAmount || 20;
-      
-      // Use searchActivitiesPaginated with maxCost filter
-      const response = await activityService.searchActivitiesPaginated({ 
+
+      // Build filter params from preferences
+      const filterParams: any = {
         limit: 6,
         offset: 0,
-        maxCost: maxBudgetAmount,  // Use maxCost (will be converted to costMax by service)
-        hideFullActivities: true   // Filter out activities with 0 spots
-      });
+        maxCost: maxBudgetAmount,  // Budget friendly limit
+        hideFullActivities: true
+      };
+
+      // Apply activity type preferences
+      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
+        filterParams.activityTypes = preferences.preferredActivityTypes;
+      }
+
+      // Apply age range preferences (only if changed from defaults)
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        if (ageRange.min > 0 || ageRange.max < 18) {
+          filterParams.ageMin = ageRange.min;
+          filterParams.ageMax = ageRange.max;
+        }
+      }
+
+      // Apply location preferences
+      if (preferences.locations && preferences.locations.length > 0) {
+        filterParams.locations = preferences.locations;
+      }
+
+      // Apply days of week preferences (only if not all 7 days selected)
+      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
+        filterParams.daysOfWeek = preferences.daysOfWeek;
+      }
+
+      const response = await activityService.searchActivitiesPaginated(filterParams);
       console.log('Budget friendly activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,
@@ -168,14 +234,51 @@ const DashboardScreenModern = () => {
 
   const loadNewActivities = async () => {
     try {
-      // Use searchActivitiesPaginated with sortBy for newest activities
-      const response = await activityService.searchActivitiesPaginated({ 
+      // Get user preferences
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+
+      // Build filter params from preferences
+      const filterParams: any = {
         limit: 6,
         offset: 0,
         sortBy: 'createdAt',
         sortOrder: 'desc',
-        hideFullActivities: true  // Filter out activities with 0 spots
-      });
+        hideFullActivities: true
+      };
+
+      // Apply activity type preferences
+      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
+        filterParams.activityTypes = preferences.preferredActivityTypes;
+      }
+
+      // Apply age range preferences (only if changed from defaults)
+      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        if (ageRange.min > 0 || ageRange.max < 18) {
+          filterParams.ageMin = ageRange.min;
+          filterParams.ageMax = ageRange.max;
+        }
+      }
+
+      // Apply price range preferences (only if changed from defaults)
+      if (preferences.priceRange &&
+          (preferences.priceRange.min > 0 || preferences.priceRange.max < 1000)) {
+        filterParams.costMin = preferences.priceRange.min;
+        filterParams.costMax = preferences.priceRange.max;
+      }
+
+      // Apply location preferences
+      if (preferences.locations && preferences.locations.length > 0) {
+        filterParams.locations = preferences.locations;
+      }
+
+      // Apply days of week preferences (only if not all 7 days selected)
+      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
+        filterParams.daysOfWeek = preferences.daysOfWeek;
+      }
+
+      const response = await activityService.searchActivitiesPaginated(filterParams);
       console.log('New activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,

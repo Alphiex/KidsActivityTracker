@@ -19,7 +19,7 @@ class ActivityService {
     const PreferencesService = require('./preferencesService').default;
     const preferencesService = PreferencesService.getInstance();
     const preferences = preferencesService.getPreferences();
-    
+
     const params: any = {};
     if (preferences.hideClosedActivities) {
       params.hideClosedActivities = true;

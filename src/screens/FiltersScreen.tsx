@@ -53,12 +53,12 @@ const FiltersScreen = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const [sections, setSections] = useState<ExpandableSection[]>([
-    { id: 'activityTypes', title: 'Activity Types', expanded: false },
-    { id: 'age', title: 'Age', expanded: false },
-    { id: 'locations', title: 'Locations', expanded: false },
-    { id: 'budget', title: 'Budget', expanded: false },
-    { id: 'schedule', title: 'Schedule', expanded: false },
-    { id: 'dates', title: 'Dates', expanded: false },
+    { id: 'activityTypes', title: 'Activity Type?', expanded: false },
+    { id: 'age', title: 'Age Range?', expanded: false },
+    { id: 'locations', title: 'Where?', expanded: false },
+    { id: 'budget', title: 'Cost?', expanded: false },
+    { id: 'schedule', title: 'Day of the Week?', expanded: false },
+    { id: 'dates', title: 'When?', expanded: false },
   ]);
 
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
@@ -205,42 +205,86 @@ const FiltersScreen = () => {
     navigation.navigate('Calendar' as never);
   };
 
-  // Animation values for scrolling behavior - match Dashboard
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [140, 90],
-    extrapolate: 'clamp',
-  });
+  const getSectionSummary = (section: ExpandableSection) => {
+    switch (section.id) {
+      case 'activityTypes':
+        const selectedTypes = preferences?.preferredActivityTypes || [];
+        return selectedTypes.length > 0
+          ? `${selectedTypes.length} selected`
+          : 'All types';
+      case 'age':
+        const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
+        return `${ageRange.min} - ${ageRange.max} years`;
+      case 'locations':
+        const locations = preferences?.locations || [];
+        return locations.length > 0
+          ? `${locations.length} selected`
+          : 'Anywhere';
+      case 'budget':
+        const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
+        return `$${priceRange.min} - $${priceRange.max}`;
+      case 'schedule':
+        const days = preferences?.daysOfWeek || [];
+        return days.length === 7 || days.length === 0 ? 'Any day' : `${days.length} days`;
+      case 'dates':
+        return 'Flexible dates';
+      default:
+        return '';
+    }
+  };
 
-  const headerTitleOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  const getSectionIcon = (sectionId: string) => {
+    switch (sectionId) {
+      case 'activityTypes':
+        return 'soccer';
+      case 'age':
+        return 'account-child';
+      case 'locations':
+        return 'map-marker';
+      case 'budget':
+        return 'currency-usd';
+      case 'schedule':
+        return 'calendar-week';
+      case 'dates':
+        return 'calendar-range';
+      default:
+        return 'help-circle';
+    }
+  };
 
-  const headerSubtitleOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  const renderExpandableSection = (section: ExpandableSection) => {
+    const isExpanded = section.expanded;
+    const summary = getSectionSummary(section);
+    const icon = getSectionIcon(section.id);
 
-  const renderExpandableSection = (section: ExpandableSection) => (
-    <View key={section.id} style={styles.sectionContainer}>
-      <TouchableOpacity
-        style={styles.sectionHeader}
-        onPress={() => toggleSection(section.id)}
-      >
-        <Text style={styles.sectionTitle}>{section.title}</Text>
-        <Icon
-          name={section.expanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color="#717171"
-        />
-      </TouchableOpacity>
-      
-      {section.expanded && renderSectionContent(section)}
-    </View>
-  );
+    return (
+      <View key={section.id} style={styles.sectionContainer}>
+        <TouchableOpacity
+          style={[styles.sectionHeader, isExpanded && styles.sectionHeaderExpanded]}
+          onPress={() => toggleSection(section.id)}
+        >
+          <View style={styles.sectionHeaderContent}>
+            <Icon name={icon} size={24} color="#222222" style={styles.sectionIcon} />
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={styles.sectionSummary}>{summary}</Text>
+            </View>
+          </View>
+          <Icon
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={24}
+            color="#717171"
+          />
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.sectionContent}>
+            {renderSectionContent(section)}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderSectionContent = (section: ExpandableSection) => {
     switch (section.id) {
@@ -502,17 +546,15 @@ const FiltersScreen = () => {
       {/* Tab Navigation - Fixed at top */}
       <TopTabNavigation />
 
-      {/* Animated Header */}
-      <Animated.View style={[styles.header, { height: headerHeight }]}>
-        <Animated.View style={{ opacity: headerTitleOpacity }}>
-          <Text style={styles.headerTitle}>Set Your Preferences</Text>
-        </Animated.View>
-        <Animated.View style={{ opacity: headerSubtitleOpacity }}>
-          <Text style={styles.headerSubtitle}>
-            These preferences will filter your dashboard results
-          </Text>
-        </Animated.View>
-      </Animated.View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
+          Set Your Preferences
+        </Text>
+        <Text style={styles.headerSubtitle}>
+          These preferences will filter your dashboard results
+        </Text>
+      </View>
 
       {/* Scrollable Content */}
       <Animated.ScrollView 
@@ -555,12 +597,10 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 15,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
-    alignItems: 'center',
-    overflow: 'hidden',
   },
   headerContent: {
     alignItems: 'center',
@@ -569,14 +609,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '600',
     color: '#222222',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#717171',
-    lineHeight: 18,
-    textAlign: 'center',
   },
   topButtonsContainer: {
     flexDirection: 'row',
@@ -623,36 +660,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F9F9',
   },
   sectionsContainer: {
-    paddingTop: 16,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   sectionContainer: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginVertical: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  sectionHeaderExpanded: {
+    backgroundColor: '#F8F8F8',
+  },
+  sectionHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sectionIcon: {
+    marginRight: 12,
+  },
+  sectionHeaderText: {
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#222222',
+    marginBottom: 2,
+  },
+  sectionSummary: {
+    fontSize: 14,
+    color: '#717171',
   },
   sectionContent: {
     padding: 20,
-    paddingTop: 16,
+    paddingTop: 0,
+    backgroundColor: '#FFFFFF',
   },
   optionsGrid: {
     flexDirection: 'row',
