@@ -79,6 +79,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:typeCode', async (req: Request, res: Response) => {
   try {
     const { typeCode } = req.params;
+    const globalFilters = extractGlobalFilters(req.query);
 
     const activityType = await prisma.activityType.findUnique({
       where: { code: typeCode },
@@ -96,14 +97,11 @@ router.get('/:typeCode', async (req: Request, res: Response) => {
       });
     }
 
-    // Get counts for each subtype
+    // Get counts for each subtype with global filters applied
     const subtypesWithCounts = await Promise.all(
       activityType.subtypes.map(async (subtype) => {
         const count = await prisma.activity.count({
-          where: {
-            activitySubtypeId: subtype.id,
-            isActive: true
-          }
+          where: buildActivityWhereClause({ activitySubtypeId: subtype.id }, globalFilters)
         });
         return {
           ...subtype,
@@ -112,12 +110,9 @@ router.get('/:typeCode', async (req: Request, res: Response) => {
       })
     );
 
-    // Count total active activities for this type
+    // Count total active activities for this type with global filters applied
     const totalCount = await prisma.activity.count({
-      where: {
-        activityTypeId: activityType.id,
-        isActive: true
-      }
+      where: buildActivityWhereClause({ activityTypeId: activityType.id }, globalFilters)
     });
 
     res.json({

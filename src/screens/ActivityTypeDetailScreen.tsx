@@ -171,14 +171,18 @@ const ActivityTypeDetailScreen = () => {
         filters.categories = typeName;
       }
 
-      // DO NOT apply global preference filters here
-      // When browsing by activity type, users want to see ALL activities
-      // in that category, not filtered by their preferences
-      // Only apply basic availability filters if needed
-
-      // Optional: You could apply these minimal filters if desired:
-      // filters.hideClosedActivities = true; // Show only activities that are open for registration
-      // But for now, show everything to match the expected behavior
+      // Apply global preference filters including hideClosedOrFull
+      // This ensures consistency across the app - users should only see available activities
+      if (preferences.hideClosedOrFull) {
+        filters.hideClosedOrFull = true;
+      }
+      // Also apply legacy individual filters if present
+      if (preferences.hideClosedActivities) {
+        filters.hideClosedActivities = true;
+      }
+      if (preferences.hideFullActivities) {
+        filters.hideFullActivities = true;
+      }
       
       console.log('ActivityTypeDetailScreen: Searching with filters:', {
         ...filters,
