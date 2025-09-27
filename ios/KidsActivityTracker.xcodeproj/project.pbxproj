@@ -22,7 +22,6 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = KidsActivityTracker/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = KidsActivityTracker/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2F311963FE4AF0F384C10F79 /* Pods-KidsActivityTracker.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-KidsActivityTracker.release.xcconfig"; path = "Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker.release.xcconfig"; sourceTree = "<group>"; };
-		39B28D9F30EB985406889BBD /* backend */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = backend; path = ../backend; sourceTree = "<group>"; };
 		65741AB6E652F04A453C8258 /* libPods-KidsActivityTracker.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-KidsActivityTracker.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EB2CA45674006654ED /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = KidsActivityTracker/AppDelegate.h; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = KidsActivityTracker/AppDelegate.mm; sourceTree = "<group>"; };
@@ -86,7 +85,6 @@
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
 				EB6D5AE0C7DF0B4697682CDF /* docs */,
 				C56DE369FD48467DDF708AB5 /* scripts */,
-				39B28D9F30EB985406889BBD /* backend */,
 				103861D9E302CCFABD5C0A7B /* src */,
 			);
 			indentWidth = 2;
@@ -204,9 +202,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -221,9 +223,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-KidsActivityTracker/Pods-KidsActivityTracker-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -389,10 +395,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -461,10 +464,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;

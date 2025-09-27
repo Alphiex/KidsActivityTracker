@@ -1,3 +1,1 @@
-module.exports = {
-  preset: 'react-native',
-};
+config/jest.config.js

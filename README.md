@@ -30,32 +30,32 @@ cd KidsActivityTracker
 
 # Install dependencies
 npm install
-cd backend && npm install
+cd server && npm install
 cd ../ios && pod install
 
 # Set up environment
-cp .env.example .env
-cp backend/.env.example backend/.env
+cp config/.env.example .env
+cp server/config/.env.example server/.env
 
-# Start backend
-cd backend && npm run dev
+# Start backend server
+cd server && npm run dev
 
-# Start React Native
+# Start React Native (in new terminal)
 npm start
 npm run ios  # or npm run android
 ```
 
 ## 📚 Documentation
 
-### Core Documentation
-All project documentation is consolidated in the `/docs` directory:
+All project documentation is in [`docs/`](docs/) directory:
 
-- **[📖 Development Guide](./docs/DEVELOPMENT_GUIDE.md)** - Complete setup and development workflow
-- **[🏗️ Architecture](./docs/ARCHITECTURE.md)** - System design and technical architecture  
-- **[🚀 Deployment](./docs/DEPLOYMENT.md)** - Production deployment and cloud setup
-- **[📡 API Documentation](./docs/API_DOCUMENTATION.md)** - Backend endpoints and data models
-- **[🕷️ Scraper Documentation](./docs/SCRAPER_DOCUMENTATION.md)** - Web scraping system details
-- **[🔧 Maintenance Guide](./docs/MAINTENANCE.md)** - Monitoring and troubleshooting
+- [📖 Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) - Setup and development workflow
+- [🏗️ Architecture](docs/architecture/ARCHITECTURE.md) - System design  
+- [🚀 Deployment](docs/guides/DEPLOYMENT.md) - Production deployment
+- [📡 API Documentation](docs/api/API_DOCUMENTATION.md) - API endpoints
+- [🔒 Security Plan](docs/security/SECURITY_ENHANCEMENT_PLAN.md) - Security improvements
+- [🎨 Design Specs](docs/design/AIRBNB_REFACTOR_PLAN.md) - UI/UX design
+- [🔧 Maintenance](docs/guides/MAINTENANCE.md) - Troubleshooting
 
 ## 🌐 Production Information
 

@@ -1,5 +1,1 @@
-module.exports = {
-  arrowParens: 'avoid',
-  singleQuote: true,
-  trailingComma: 'all',
-};
+config/.prettierrc.js

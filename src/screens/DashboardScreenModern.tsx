@@ -481,7 +481,7 @@ const DashboardScreenModern = () => {
             style={styles.topButton}
             onPress={() => {
               setActiveTab('Filters');
-              handleNavigate('Filter');
+              handleNavigate('Filters');
             }}
           >
             <Animated.Text 
