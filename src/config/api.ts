@@ -20,10 +20,8 @@ const FORCE_LOCAL = false; // Use production API
 
 // API Configuration
 const API_CONFIG = {
-  // Automatically use local in dev mode, production in release
-  BASE_URL: __DEV__ && FORCE_LOCAL
-    ? API_URLS.LOCAL
-    : API_URLS.PRODUCTION,
+  // Always use production API for now - hardcoded to avoid any issues
+  BASE_URL: 'https://kids-activity-api-4ev6yi22va-uc.a.run.app',
   
   // Endpoints
   ENDPOINTS: {

@@ -8,6 +8,9 @@ interface SimplifiedActivityCardProps {
     name: string;
     location: string;
     cost: number;
+    startTime?: string;
+    endTime?: string;
+    schedule?: string;
   };
 }
 
@@ -45,6 +48,12 @@ const SimplifiedActivityCard: React.FC<SimplifiedActivityCardProps> = ({ activit
     <TouchableOpacity style={styles.card} onPress={handlePress}>
       <Text style={styles.name}>{activity.name}</Text>
       <Text style={styles.location}>{activity.location}</Text>
+      {(activity.startTime || activity.endTime) && (
+        <Text style={styles.time}>
+          {activity.schedule && typeof activity.schedule === 'string' ? `${activity.schedule} • ` : ''}
+          {`${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`}
+        </Text>
+      )}
       <Text style={styles.cost}>${activity.cost}</Text>
     </TouchableOpacity>
   );
@@ -76,6 +85,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#4CAF50',
+  },
+  time: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
   },
 });
 

@@ -1,5 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import axiosRetry from 'axios-retry';
+import DebugLogger from '../utils/debugLogger';
+import DiagnosticInterceptor from '../utils/diagnosticInterceptor';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
@@ -20,6 +22,13 @@ class ActivityService {
     const preferencesService = PreferencesService.getInstance();
     const preferences = preferencesService.getPreferences();
 
+    DebugLogger.pref('ActivityService.getGlobalFilterParams', 'Loading preferences', {
+      hideClosedOrFull: preferences.hideClosedOrFull,
+      hideClosedActivities: preferences.hideClosedActivities,
+      hideFullActivities: preferences.hideFullActivities,
+      preferencesLoaded: !!preferences
+    });
+
     console.log('🔍 [ActivityService] Getting global filter params:', {
       hideClosedOrFull: preferences.hideClosedOrFull,
       hideClosedActivities: preferences.hideClosedActivities,
@@ -30,11 +39,11 @@ class ActivityService {
     const params: any = {};
 
     // Apply the global hideClosedOrFull preference
-    if (preferences.hideClosedOrFull) {
-      params.hideClosedOrFull = true;
-    }
+    // The backend DOES support hideClosedOrFull directly!
+    // IMPORTANT: Always send the parameter explicitly, even when false
+    params.hideClosedOrFull = preferences.hideClosedOrFull || false;
 
-    // Legacy individual preferences (kept for backward compatibility)
+    // Also apply individual preferences (kept for backward compatibility)
     if (preferences.hideClosedActivities) {
       params.hideClosedActivities = true;
     }
@@ -43,17 +52,23 @@ class ActivityService {
     }
 
     console.log('🔍 [ActivityService] Global filter params to send:', params);
+    DebugLogger.pref('ActivityService.getGlobalFilterParams', 'Final params to send', params);
     return params;
   }
 
   private constructor() {
+    // Setup diagnostic interceptors in development
+    if (__DEV__) {
+      DiagnosticInterceptor.setupInterceptors();
+    }
+
     // Log the API configuration
     console.log('=== ActivityService Configuration ===');
     console.log('API Base URL:', API_CONFIG.BASE_URL);
     console.log('Platform:', Platform.OS);
     console.log('Dev Mode:', __DEV__);
     console.log('=================================');
-    
+
     this.api = axios.create({
       baseURL: API_CONFIG.BASE_URL,
       timeout: API_CONFIG.TIMEOUT,
@@ -169,6 +184,10 @@ class ActivityService {
     return ActivityService.instance;
   }
 
+  static resetInstance(): void {
+    ActivityService.instance = null as any;
+  }
+
 
   /**
    * Check network connectivity
@@ -263,12 +282,19 @@ class ActivityService {
       params.limit = filters.limit || 50;
 
       console.log('Searching activities with params:', params);
+      console.log('Full URL will be:', this.api.defaults.baseURL + API_CONFIG.ENDPOINTS.ACTIVITIES);
 
       const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
 
+      // Log the raw response
+      console.log('🔍 API Response Status:', response.status);
+      console.log('🔍 API Response Data:', JSON.stringify(response.data).substring(0, 500));
+      console.log('🔍 API Response Success:', response.data?.success);
+      console.log('🔍 API Response Activities Count:', response.data?.activities?.length);
+
       // Handle various response formats
       let activities = [];
-      
+
       if (response.data) {
         if (response.data.success && response.data.activities) {
           activities = response.data.activities;
@@ -278,7 +304,7 @@ class ActivityService {
           activities = response.data.data;
         }
       }
-      
+
       console.log(`Found ${activities.length} activities`);
       
       // Convert data format for app compatibility
@@ -430,10 +456,28 @@ class ActivityService {
         delete apiParams.activityTypes;
       }
       
-      console.log('Searching activities with pagination:', apiParams);
-      
+      console.log('🚀 [searchActivitiesPaginated] Making API call to:', API_CONFIG.ENDPOINTS.ACTIVITIES);
+      console.log('🚀 [searchActivitiesPaginated] With params:', JSON.stringify(apiParams, null, 2));
+
+      DebugLogger.api('searchActivitiesPaginated', 'Making API call', {
+        url: API_CONFIG.ENDPOINTS.ACTIVITIES,
+        params: apiParams
+      });
+
       const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params: apiParams });
-      
+
+      console.log('📥 [searchActivitiesPaginated] Response status:', response.status);
+      console.log('📥 [searchActivitiesPaginated] Response success:', response.data?.success);
+      console.log('📥 [searchActivitiesPaginated] Activities returned:', response.data?.activities?.length);
+      console.log('📥 [searchActivitiesPaginated] Total count:', response.data?.pagination?.total);
+
+      DebugLogger.api('searchActivitiesPaginated', 'Response received', {
+        status: response.status,
+        success: response.data?.success,
+        activities: response.data?.activities?.length,
+        total: response.data?.pagination?.total
+      });
+
       if (response.data && response.data.success) {
         const activities = response.data.activities.map((activity: any) => ({
           ...activity,
@@ -491,7 +535,16 @@ class ActivityService {
       
       throw new Error('Invalid response format');
     } catch (error: any) {
-      console.error('Error searching activities:', error);
+      console.error('❌ [searchActivitiesPaginated] Error:', error.message);
+      console.error('❌ [searchActivitiesPaginated] Response status:', error.response?.status);
+      console.error('❌ [searchActivitiesPaginated] Response data:', error.response?.data);
+
+      DebugLogger.error('searchActivitiesPaginated', 'API call failed', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+
       throw new Error(error.response?.data?.message || 'Failed to search activities');
     }
   }

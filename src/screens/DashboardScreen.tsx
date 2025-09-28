@@ -97,12 +97,22 @@ const DashboardScreen = () => {
       // Create filters based on user preferences - MUST match RecommendedActivitiesScreen exactly
       // Use limit: 1 for efficiency - we only need the total count, not the items
       // The backend should return the FULL total regardless of limit
+      console.log('🎯 [Dashboard] Current preferences:', {
+        hideClosedOrFull: currentPreferences.hideClosedOrFull,
+        hideClosedActivities: currentPreferences.hideClosedActivities,
+        hideFullActivities: currentPreferences.hideFullActivities
+      });
+
       const filters: any = {
         limit: 1,  // Small limit for efficiency - backend returns full total in pagination.total
         offset: 0
       };
-      
-      // Apply user preference filters
+
+      // NOTE: The global filters (hideClosedOrFull) are now applied automatically
+      // by ActivityService.getGlobalFilterParams() which is called by searchActivitiesPaginated
+      // We don't need to add them here anymore!
+
+      // Apply user preference filters (kept for backward compatibility)
       if (currentPreferences.hideClosedActivities) {
         filters.hideClosedActivities = true;
       }

@@ -134,28 +134,9 @@ app.get('/api/public', optionalAuth, (req, res) => {
   });
 });
 
-// ====== EXISTING ROUTES (to be migrated) ======
-// These are placeholders for your existing routes that need to be integrated
-
-// Activities routes (requires authentication for some operations)
-app.post('/api/activities/search', optionalAuth, async (req, res) => {
-  // TODO: Integrate with existing activity search logic
-  res.json({
-    success: true,
-    message: 'Activity search endpoint (to be integrated)',
-    authenticated: !!req.user
-  });
-});
-
-app.get('/api/activities/:id', optionalAuth, async (req, res) => {
-  // TODO: Integrate with existing activity details logic
-  res.json({
-    success: true,
-    message: 'Activity details endpoint (to be integrated)',
-    activityId: req.params.id,
-    authenticated: !!req.user
-  });
-});
+// ====== REMOVED OLD PLACEHOLDER ROUTES ======
+// Old /api/activities/* routes have been removed to avoid confusion
+// All activity endpoints should use /api/v1/activities/* instead
 
 // Favorites routes (requires authentication)
 app.post('/api/favorites', verifyToken, async (req, res) => {

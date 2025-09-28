@@ -393,7 +393,7 @@ const DashboardScreenModern = () => {
     const imageKey = getActivityImageKey(activityTypeName, subcategory);
     const imageSource = getActivityImageByKey(imageKey);
     const isFavorite = favoriteIds.has(activity.id);
-    
+
     // Format schedule display - check for sessions array first (new format)
     let scheduleText = 'Schedule varies';
     if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
@@ -404,6 +404,17 @@ const DashboardScreenModern = () => {
       scheduleText = firstSchedule.dayOfWeek || 'Schedule available';
     } else if (activity.dates) {
       scheduleText = activity.dates;
+    }
+
+    // Format time display - check for direct startTime/endTime fields from API
+    let timeText = null;
+    if (activity.startTime || activity.endTime) {
+      timeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
+    } else if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
+      const firstSession = activity.sessions[0];
+      if (firstSession.startTime || firstSession.endTime) {
+        timeText = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
+      }
     }
     
     // Format age display
@@ -491,9 +502,16 @@ const DashboardScreenModern = () => {
             <Icon name="calendar" size={12} color="#717171" />
             <Text style={styles.cardDetails}>{scheduleText}</Text>
           </View>
-          
+
+          {timeText && (
+            <View style={styles.cardInfoRow}>
+              <Icon name="clock-outline" size={12} color="#717171" />
+              <Text style={styles.cardDetails}>{timeText}</Text>
+            </View>
+          )}
+
           <View style={styles.cardInfoRow}>
-            <Icon name="clock" size={12} color="#717171" />
+            <Icon name="information" size={12} color="#717171" />
             <Text style={styles.cardDetails}>{activity.registrationStatus || 'In Progress'}</Text>
           </View>
           

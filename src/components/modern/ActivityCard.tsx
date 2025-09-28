@@ -69,7 +69,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   };
 
   const getTimeInfo = () => {
-    // Check for sessions first
+    // Check for direct startTime/endTime fields first (from API)
+    if (activity.startTime || activity.endTime) {
+      const dayPrefix = activity.schedule && typeof activity.schedule === 'string' ? `${activity.schedule} • ` : '';
+      return `${dayPrefix}${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
+    }
+
+    // Check for sessions
     if (activity.sessions && activity.sessions.length > 0) {
       const session = activity.sessions[0];
       if (session.startTime) {

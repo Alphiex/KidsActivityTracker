@@ -250,20 +250,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           </View>
         )}
 
-        {/* Display time prominently */}
-        {((activity.sessions && activity.sessions.length > 0 && activity.sessions[0].startTime) ||
-         (activity.schedule && typeof activity.schedule === 'object' && activity.schedule.startTime)) ? (
+        {/* Display time prominently - ALWAYS show if we have any time data */}
+        {(activity.startTime || activity.endTime) && (
           <View style={[styles.infoRow, styles.timeRow]}>
-            <Icon name="clock-outline" size={16} color={Colors.secondary} />
-            <Text style={[styles.infoText, styles.timeText, { color: colors.text }]}>
-              {activity.sessions && activity.sessions.length > 0 && activity.sessions[0].startTime
-                ? `${activity.sessions[0].startTime}${activity.sessions[0].endTime ? ' - ' + activity.sessions[0].endTime : ''}`
-                : activity.schedule && typeof activity.schedule === 'object' && activity.schedule.startTime
-                  ? `${activity.schedule.startTime}${activity.schedule.endTime ? ' - ' + activity.schedule.endTime : ''}`
-                  : ''}
+            <Icon name="clock-outline" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, styles.timeText, { color: colors.text, fontWeight: '500' }]}>
+              {activity.schedule && typeof activity.schedule === 'string' ? `${activity.schedule} • ` : ''}
+              {`${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`}
             </Text>
           </View>
-        ) : null}
+        )}
 
         {/* Display days of the week prominently */}
         {activity.sessions && activity.sessions?.length > 0 && extractDaysFromSessions(activity.sessions) && (

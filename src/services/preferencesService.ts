@@ -50,7 +50,7 @@ class PreferencesService {
       viewType: 'card',
       hideClosedActivities: false, // Individual filter (not used when hideClosedOrFull is set)
       hideFullActivities: false, // Individual filter (not used when hideClosedOrFull is set)
-      hideClosedOrFull: true, // Default to hiding closed OR full activities
+      hideClosedOrFull: false, // Default to showing all activities (since old activities might be closed)
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
       hasCompletedOnboarding: false,
       createdAt: new Date().toISOString(),
@@ -69,8 +69,8 @@ class PreferencesService {
         // Perform one-time migration if needed
         let needsSave = false;
         if (parsed.hideClosedOrFull === undefined) {
-          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
-          parsed.hideClosedOrFull = true; // Default to true to filter out closed/full activities
+          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=false for existing user');
+          parsed.hideClosedOrFull = false; // Default to false to show all activities
 
           // Also reset individual filters if they were set
           if (parsed.hideClosedActivities === true || parsed.hideFullActivities === true) {
