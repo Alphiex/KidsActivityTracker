@@ -12,7 +12,7 @@ const API_URLS = {
   }),
   
   // Production - Google Cloud Run deployment (Kids Activity Tracker project)
-  PRODUCTION: 'https://kids-activity-api-205843686007.us-central1.run.app',
+  PRODUCTION: 'https://kids-activity-api-4ev6yi22va-uc.a.run.app',
 };
 
 // Force local development server

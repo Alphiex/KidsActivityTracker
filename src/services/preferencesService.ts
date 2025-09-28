@@ -75,17 +75,14 @@ class PreferencesService {
         if (this.preferences && this.preferences.hideClosedOrFull === undefined) {
           console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
           this.preferences.hideClosedOrFull = true; // Default to true to filter out closed/full activities
-          this.savePreferences();
-        }
 
-        // Reset individual filters when hideClosedOrFull is being used
-        if (this.preferences && (this.preferences.hideClosedActivities === true || this.preferences.hideFullActivities === true)) {
-          console.log('🔄 [PreferencesService] Resetting individual filters - using hideClosedOrFull instead');
-          this.preferences.hideClosedActivities = false;
-          this.preferences.hideFullActivities = false;
-          if (this.preferences.hideClosedOrFull === false) {
-            this.preferences.hideClosedOrFull = true; // Enable the combined filter by default
+          // Also reset individual filters if they were set
+          if (this.preferences.hideClosedActivities === true || this.preferences.hideFullActivities === true) {
+            console.log('🔄 [PreferencesService] Resetting individual filters during migration');
+            this.preferences.hideClosedActivities = false;
+            this.preferences.hideFullActivities = false;
           }
+
           this.savePreferences();
         }
       } else {
