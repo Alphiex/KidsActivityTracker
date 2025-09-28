@@ -33,6 +33,17 @@ interface ActivityCardProps {
       start: string;
       end: string;
     };
+    sessions?: Array<{
+      startTime?: string;
+      endTime?: string;
+      dayOfWeek?: string;
+      date?: string;
+    }>;
+    schedule?: string | {
+      startTime?: string;
+      endTime?: string;
+      days?: string[];
+    };
     registrationStatus?: string;
   };
   onPress?: () => void;
@@ -54,6 +65,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     if (activity.ageMin !== undefined && activity.ageMax !== undefined) {
       return `Ages ${activity.ageMin}-${activity.ageMax}`;
     }
+    return null;
+  };
+
+  const getTimeInfo = () => {
+    // Check for sessions first
+    if (activity.sessions && activity.sessions.length > 0) {
+      const session = activity.sessions[0];
+      if (session.startTime) {
+        return `${session.startTime}${session.endTime ? ' - ' + session.endTime : ''}`;
+      }
+    }
+
+    // Check for schedule object
+    if (activity.schedule && typeof activity.schedule === 'object') {
+      if (activity.schedule.startTime) {
+        return `${activity.schedule.startTime}${activity.schedule.endTime ? ' - ' + activity.schedule.endTime : ''}`;
+      }
+    }
+
     return null;
   };
 
@@ -86,6 +116,12 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <View style={styles.compactDetails}>
               <Icon name="map-marker" size={14} color={ModernColors.textMuted} />
               <Text style={styles.compactLocation} numberOfLines={1}>{location}</Text>
+              {getTimeInfo() && (
+                <>
+                  <Icon name="clock-outline" size={14} color={ModernColors.textMuted} style={{ marginLeft: 8 }} />
+                  <Text style={styles.compactLocation}>{getTimeInfo()}</Text>
+                </>
+              )}
               {getAgeRange() && (
                 <>
                   <Icon name="account-child" size={14} color={ModernColors.textMuted} style={{ marginLeft: 8 }} />
@@ -136,6 +172,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <Icon name="map-marker" size={16} color={ModernColors.textMuted} />
           <Text style={styles.location} numberOfLines={1}>{location}</Text>
         </View>
+
+        {getTimeInfo() && (
+          <View style={styles.detailRow}>
+            <Icon name="clock-outline" size={16} color={ModernColors.textMuted} />
+            <Text style={styles.timeText}>{getTimeInfo()}</Text>
+          </View>
+        )}
 
         {getAgeRange() && (
           <View style={styles.detailRow}>
@@ -211,6 +254,13 @@ const styles = StyleSheet.create({
   location: {
     fontSize: ModernTypography.sizes.sm,
     color: ModernColors.textSecondary,
+    marginLeft: ModernSpacing.xs,
+    flex: 1,
+  },
+  timeText: {
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: ModernTypography.weights.semibold as any,
+    color: ModernColors.accent,
     marginLeft: ModernSpacing.xs,
     flex: 1,
   },

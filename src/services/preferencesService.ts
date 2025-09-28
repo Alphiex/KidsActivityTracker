@@ -64,25 +64,32 @@ class PreferencesService {
       console.log('🔄 [PreferencesService] Loading preferences, stored exists:', !!stored);
 
       if (stored) {
-        this.preferences = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+
+        // Perform one-time migration if needed
+        let needsSave = false;
+        if (parsed.hideClosedOrFull === undefined) {
+          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
+          parsed.hideClosedOrFull = true; // Default to true to filter out closed/full activities
+
+          // Also reset individual filters if they were set
+          if (parsed.hideClosedActivities === true || parsed.hideFullActivities === true) {
+            console.log('🔄 [PreferencesService] Resetting individual filters during migration');
+            parsed.hideClosedActivities = false;
+            parsed.hideFullActivities = false;
+          }
+          needsSave = true;
+        }
+
+        this.preferences = parsed;
         console.log('🔄 [PreferencesService] Loaded from storage:', {
           hideClosedOrFull: this.preferences?.hideClosedOrFull,
           hideClosedActivities: this.preferences?.hideClosedActivities,
           hideFullActivities: this.preferences?.hideFullActivities
         });
 
-        // Ensure new fields exist for existing users
-        if (this.preferences && this.preferences.hideClosedOrFull === undefined) {
-          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
-          this.preferences.hideClosedOrFull = true; // Default to true to filter out closed/full activities
-
-          // Also reset individual filters if they were set
-          if (this.preferences.hideClosedActivities === true || this.preferences.hideFullActivities === true) {
-            console.log('🔄 [PreferencesService] Resetting individual filters during migration');
-            this.preferences.hideClosedActivities = false;
-            this.preferences.hideFullActivities = false;
-          }
-
+        // Save back if migration occurred
+        if (needsSave) {
           this.savePreferences();
         }
       } else {
