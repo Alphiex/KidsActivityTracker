@@ -729,18 +729,43 @@ const DashboardScreenModern = () => {
             </View>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {ageGroups.map((group) => (
-              <TouchableOpacity
-                key={group.id}
-                style={styles.ageCard}
-                onPress={() => handleNavigate('Search', { ageGroup: group.range })}
-              >
-                <View style={styles.ageIconContainer}>
-                  <Icon name="account-child" size={32} color="#FF385C" />
-                </View>
-                <Text style={styles.ageTitle}>{group.name}</Text>
-              </TouchableOpacity>
-            ))}
+            {ageGroups.map((group) => {
+              // Parse age range to get min and max ages
+              let ageMin = 0;
+              let ageMax = 18;
+              let ageGroupName = group.name;
+
+              if (group.range !== 'all') {
+                const parts = group.range.split('-');
+                if (parts.length === 2) {
+                  ageMin = parseInt(parts[0]);
+                  ageMax = parts[1].includes('+') ? 18 : parseInt(parts[1]);
+                } else if (group.range.includes('+')) {
+                  ageMin = parseInt(group.range.replace('+', ''));
+                  ageMax = 18;
+                }
+              }
+
+              return (
+                <TouchableOpacity
+                  key={group.id}
+                  style={styles.ageCard}
+                  onPress={() => navigation.navigate('UnifiedResults' as never, {
+                    type: 'ageGroup',
+                    ageMin,
+                    ageMax,
+                    ageGroupName,
+                    title: group.name,
+                    subtitle: 'Perfect for this age range',
+                  } as never)}
+                >
+                  <View style={styles.ageIconContainer}>
+                    <Icon name="account-child" size={32} color="#FF385C" />
+                  </View>
+                  <Text style={styles.ageTitle}>{group.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 

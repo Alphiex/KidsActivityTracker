@@ -266,13 +266,15 @@ const ActivityTypeDetailScreen = () => {
   };
 
   const selectSubtype = (subtypeName: string | null) => {
-    console.log('ActivityTypeDetailScreen: Selecting subtype:', subtypeName);
-    setSelectedSubtype(subtypeName);
-    setActivities([]);
-    setCurrentOffset(0);
-    setHasMore(true);
-    setConsecutiveEmptyResponses(0);
-    // Don't call loadActivities here - it will be called by useEffect
+    console.log('ActivityTypeDetailScreen: Navigating to subtype:', subtypeName);
+    // Navigate to UnifiedResultsScreen instead of showing inline
+    navigation.navigate('UnifiedResults' as never, {
+      type: 'activityType',
+      title: subtypeName || `All ${typeName}`,
+      subtitle: `${typeName} activities`,
+      activityType: typeName,
+      subtype: subtypeName,
+    } as never);
   };
 
   const renderSubtypeCard = ({ item }: { item: Subtype }) => {

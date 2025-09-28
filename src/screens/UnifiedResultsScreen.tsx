@@ -25,7 +25,14 @@ const { width, height } = Dimensions.get('window');
 
 type RouteParams = {
   UnifiedResults: {
-    type: 'budget' | 'new' | 'recommended';
+    type: 'budget' | 'new' | 'recommended' | 'activityType' | 'ageGroup';
+    title?: string;
+    subtitle?: string;
+    activityType?: string;
+    subtype?: string;
+    ageMin?: number;
+    ageMax?: number;
+    ageGroupName?: string;
   };
 };
 
@@ -34,6 +41,13 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const route = useRoute<RouteProp<RouteParams, 'UnifiedResults'>>();
 
   const type = route?.params?.type || 'budget';
+  const customTitle = route?.params?.title;
+  const customSubtitle = route?.params?.subtitle;
+  const activityType = route?.params?.activityType;
+  const subtype = route?.params?.subtype;
+  const ageMin = route?.params?.ageMin;
+  const ageMax = route?.params?.ageMax;
+  const ageGroupName = route?.params?.ageGroupName;
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,31 +57,55 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
   const { user } = useAppSelector((state) => state.auth);
 
-  const configMap = {
-    budget: {
-      title: 'Budget Friendly',
-      subtitle: 'Amazing activities under $20',
-      icon: 'tag',
-      image: placeholderImages.budget,
-      description: 'Discover affordable fun for the whole family',
-    },
-    new: {
-      title: 'New This Week',
-      subtitle: 'Fresh activities just added',
-      icon: 'new-box',
-      image: placeholderImages.new,
-      description: 'Be the first to try these exciting new activities',
-    },
-    recommended: {
-      title: 'Recommended for You',
-      subtitle: 'Personalized based on your preferences',
-      icon: 'star',
-      image: placeholderImages.recommended,
-      description: 'Hand-picked activities we think you\'ll love',
-    },
+  const getConfig = () => {
+    if (type === 'activityType') {
+      return {
+        title: customTitle || subtype || activityType || 'Activities',
+        subtitle: customSubtitle || `${activityType || 'All'} activities`,
+        icon: 'shape',
+        image: placeholderImages.recommended,
+        description: `Explore ${subtype || activityType || 'all'} activities in your area`,
+      };
+    }
+
+    if (type === 'ageGroup') {
+      return {
+        title: customTitle || ageGroupName || 'Age Group',
+        subtitle: customSubtitle || 'Perfect for this age range',
+        icon: 'human-child',
+        image: placeholderImages.budget,
+        description: `Activities suitable for ${ageGroupName || 'this age group'}`,
+      };
+    }
+
+    const configMap = {
+      budget: {
+        title: 'Budget Friendly',
+        subtitle: 'Amazing activities under $20',
+        icon: 'tag',
+        image: placeholderImages.budget,
+        description: 'Discover affordable fun for the whole family',
+      },
+      new: {
+        title: 'New This Week',
+        subtitle: 'Fresh activities just added',
+        icon: 'new-box',
+        image: placeholderImages.new,
+        description: 'Be the first to try these exciting new activities',
+      },
+      recommended: {
+        title: 'Recommended for You',
+        subtitle: 'Personalized based on your preferences',
+        icon: 'star',
+        image: placeholderImages.recommended,
+        description: 'Hand-picked activities we think you\'ll love',
+      },
+    };
+
+    return configMap[type] || configMap.budget;
   };
 
-  const config = configMap[type] || configMap.budget;
+  const config = getConfig();
 
   const loadActivities = async () => {
     try {
@@ -84,6 +122,20 @@ const UnifiedResultsScreenTest: React.FC = () => {
       } else if (type === 'new') {
         baseParams.sortBy = 'createdAt';
         baseParams.sortOrder = 'desc';
+      } else if (type === 'activityType') {
+        if (activityType) {
+          baseParams.activityType = activityType;
+        }
+        if (subtype) {
+          baseParams.subtype = subtype;
+        }
+      } else if (type === 'ageGroup') {
+        if (ageMin !== undefined) {
+          baseParams.ageMin = ageMin;
+        }
+        if (ageMax !== undefined) {
+          baseParams.ageMax = ageMax;
+        }
       }
 
       const activityService = ActivityService.getInstance();
