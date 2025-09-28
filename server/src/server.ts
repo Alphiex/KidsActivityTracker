@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+// import helmet from 'helmet'; // DISABLED: Breaking iOS app
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { PrismaClient } from '../generated/prisma';
@@ -36,9 +36,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Global middleware
-app.use(helmet()); // Security headers
+// Remove problematic security headers that break iOS app
+app.use((req, res, next) => {
+  res.removeHeader('X-Content-Type-Options');
+  res.removeHeader('X-Frame-Options');
+  res.removeHeader('Strict-Transport-Security');
+  res.removeHeader('Cross-Origin-Opener-Policy');
+  res.removeHeader('Cross-Origin-Resource-Policy');
+  next();
+});
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  origin: true, // Allow all origins for mobile app compatibility
   credentials: true
 }));
 app.use(express.json());

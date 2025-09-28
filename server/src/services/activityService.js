@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { standardizeSchedule } = require('../utils/dayFormatter');
+const { buildActivityWhereClause } = require('../utils/activityFilters');
 
 class ActivityService {
   /**
@@ -281,6 +282,9 @@ class ActivityService {
       isActive = true,
       excludeClosed = false,
       excludeFull = false,
+      hideClosedActivities = false, // New global filter
+      hideFullActivities = false,    // New global filter
+      hideClosedOrFull = false,      // New combined global filter
       createdAfter, // For new activities
       updatedAfter, // For recently updated activities
       startDateAfter, // For activities starting after a date
@@ -462,9 +466,22 @@ class ActivityService {
 
     const skip = (page - 1) * limit;
 
+    // Apply global filters using buildActivityWhereClause
+    const finalWhere = buildActivityWhereClause(where, {
+      hideClosedActivities,
+      hideFullActivities,
+      hideClosedOrFull
+    });
+
+    console.log('🔍 [ActivityService.searchActivities] Applying global filters:', {
+      hideClosedActivities,
+      hideFullActivities,
+      hideClosedOrFull
+    });
+
     const [activities, total] = await Promise.all([
       prisma.activity.findMany({
-        where,
+        where: finalWhere,
         include: {
           provider: true,
           location: {
@@ -489,7 +506,7 @@ class ActivityService {
         skip,
         take: limit
       }),
-      prisma.activity.count({ where })
+      prisma.activity.count({ where: finalWhere })
     ]);
 
     return {

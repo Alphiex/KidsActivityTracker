@@ -48,9 +48,9 @@ class PreferencesService {
       },
       theme: 'dark',
       viewType: 'card',
-      hideClosedActivities: true, // Default to hiding closed activities
-      hideFullActivities: false, // Default to showing full activities
-      hideClosedOrFull: false, // Default to showing all activities for now
+      hideClosedActivities: false, // Individual filter (not used when hideClosedOrFull is set)
+      hideFullActivities: false, // Individual filter (not used when hideClosedOrFull is set)
+      hideClosedOrFull: true, // Default to hiding closed OR full activities
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
       hasCompletedOnboarding: false,
       createdAt: new Date().toISOString(),
@@ -73,8 +73,19 @@ class PreferencesService {
 
         // Ensure new fields exist for existing users
         if (this.preferences && this.preferences.hideClosedOrFull === undefined) {
-          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=false for existing user');
-          this.preferences.hideClosedOrFull = false; // Default to false for existing users to avoid filtering everything
+          console.log('🔄 [PreferencesService] Migrating: Adding hideClosedOrFull=true for existing user');
+          this.preferences.hideClosedOrFull = true; // Default to true to filter out closed/full activities
+          this.savePreferences();
+        }
+
+        // Reset individual filters when hideClosedOrFull is being used
+        if (this.preferences && (this.preferences.hideClosedActivities === true || this.preferences.hideFullActivities === true)) {
+          console.log('🔄 [PreferencesService] Resetting individual filters - using hideClosedOrFull instead');
+          this.preferences.hideClosedActivities = false;
+          this.preferences.hideFullActivities = false;
+          if (this.preferences.hideClosedOrFull === false) {
+            this.preferences.hideClosedOrFull = true; // Enable the combined filter by default
+          }
           this.savePreferences();
         }
       } else {

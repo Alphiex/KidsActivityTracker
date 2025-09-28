@@ -40,10 +40,12 @@ export function buildActivityWhereClause(
   if (filters.hideClosedOrFull) {
     console.log('🔧 [buildActivityWhereClause] Applying hideClosedOrFull filter');
     // Exclude activities that are either closed OR have zero spots
-    // We want to hide activities where:
-    // - registrationStatus is explicitly 'Closed' OR
-    // - spotsAvailable is explicitly 0
-    // But show activities where these fields are null/undefined (unknown status)
+    // This is an OR condition - hide if EITHER condition is true:
+    // - registrationStatus is 'Closed' OR
+    // - spotsAvailable is 0
+    // We show activities where BOTH:
+    // - registrationStatus is NOT 'Closed' (or null)
+    // - spotsAvailable is NOT 0 (or null)
     andConditions.push({
       AND: [
         {
