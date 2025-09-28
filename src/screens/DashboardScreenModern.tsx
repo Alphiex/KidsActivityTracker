@@ -66,19 +66,19 @@ const DashboardScreenModern = () => {
     }
   };
 
-  const toggleFavorite = async (activity: Activity) => {
+  const toggleFavorite = (activity: Activity) => {
     try {
       const isCurrentlyFavorite = favoriteIds.has(activity.id);
-      
+
       if (isCurrentlyFavorite) {
-        await favoritesService.removeFavorite(activity.id);
+        favoritesService.removeFavorite(activity.id);
         setFavoriteIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(activity.id);
           return newSet;
         });
       } else {
-        await favoritesService.addFavorite(activity);
+        favoritesService.addFavorite(activity);
         setFavoriteIds(prev => new Set([...prev, activity.id]));
       }
     } catch (error) {

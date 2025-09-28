@@ -11,7 +11,7 @@ import {
   Dimensions,
   RefreshControl,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityCard from '../components/modern/ActivityCard';
 import { Activity } from '../types';
@@ -25,7 +25,7 @@ const { width, height } = Dimensions.get('window');
 
 type RouteParams = {
   UnifiedResults: {
-    type: 'budget' | 'new' | 'recommended' | 'activityType' | 'ageGroup';
+    type: 'budget' | 'new' | 'recommended' | 'activityType' | 'ageGroup' | 'favorites';
     title?: string;
     subtitle?: string;
     activityType?: string;
@@ -58,6 +58,17 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
 
   const getConfig = () => {
+    if (type === 'favorites') {
+      return {
+        title: 'Your Favorites',
+        subtitle: 'Activities you love',
+        icon: 'heart',
+        image: placeholderImages.recommended,
+        description: 'All your saved activities in one place',
+        isFavorites: true,
+      };
+    }
+
     if (type === 'activityType') {
       return {
         title: customTitle || subtype || activityType || 'Activities',
@@ -111,42 +122,73 @@ const UnifiedResultsScreenTest: React.FC = () => {
     try {
       setLoading(true);
 
-      const baseParams: any = {
-        limit: 20,
-        offset: 0,
-        hideFullActivities: true,
-      };
+      if (type === 'favorites') {
+        // Load favorite activities
+        if (!user) {
+          setActivities([]);
+          setTotalCount(0);
+          return;
+        }
 
-      if (type === 'budget') {
-        baseParams.maxCost = 20;
-      } else if (type === 'new') {
-        baseParams.sortBy = 'createdAt';
-        baseParams.sortOrder = 'desc';
-      } else if (type === 'activityType') {
-        if (activityType) {
-          baseParams.activityType = activityType;
-        }
-        if (subtype) {
-          baseParams.subtype = subtype;
-        }
-      } else if (type === 'ageGroup') {
-        if (ageMin !== undefined) {
-          baseParams.ageMin = ageMin;
-        }
-        if (ageMax !== undefined) {
-          baseParams.ageMax = ageMax;
-        }
-      }
+        const favoritesService = FavoritesService.getInstance();
+        const favorites = await favoritesService.getFavorites();
+        const activityService = ActivityService.getInstance();
 
-      const activityService = ActivityService.getInstance();
-      const response = await activityService.searchActivitiesPaginated(baseParams);
+        // Load full activity details for each favorite
+        const activityPromises = favorites.map(async (fav) => {
+          try {
+            const activity = await activityService.getActivityDetails(fav.activityId);
+            return activity;
+          } catch (error) {
+            console.error(`Error loading activity ${fav.activityId}:`, error);
+            return null;
+          }
+        });
+        const favoriteActivities = await Promise.all(activityPromises);
+        const validActivities = favoriteActivities.filter(a => a !== null);
 
-      if (response && response.items) {
-        setActivities(response.items);
-        setTotalCount(response.total || 0);
+        setActivities(validActivities);
+        setTotalCount(validActivities.length);
+        // All favorites screen activities are already favorites
+        setFavoriteIds(new Set(validActivities.map(a => a.id)));
       } else {
-        setActivities([]);
-        setTotalCount(0);
+        const baseParams: any = {
+          limit: 20,
+          offset: 0,
+          hideFullActivities: true,
+        };
+
+        if (type === 'budget') {
+          baseParams.maxCost = 20;
+        } else if (type === 'new') {
+          baseParams.sortBy = 'createdAt';
+          baseParams.sortOrder = 'desc';
+        } else if (type === 'activityType') {
+          if (activityType) {
+            baseParams.activityType = activityType;
+          }
+          if (subtype) {
+            baseParams.subtype = subtype;
+          }
+        } else if (type === 'ageGroup') {
+          if (ageMin !== undefined) {
+            baseParams.ageMin = ageMin;
+          }
+          if (ageMax !== undefined) {
+            baseParams.ageMax = ageMax;
+          }
+        }
+
+        const activityService = ActivityService.getInstance();
+        const response = await activityService.searchActivitiesPaginated(baseParams);
+
+        if (response && response.items) {
+          setActivities(response.items);
+          setTotalCount(response.total || 0);
+        } else {
+          setActivities([]);
+          setTotalCount(0);
+        }
       }
     } catch (error) {
       setActivities([]);
@@ -156,6 +198,17 @@ const UnifiedResultsScreenTest: React.FC = () => {
     }
   };
 
+  // Use focus effect to reload favorites when screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (type === 'favorites') {
+        loadActivities();
+      }
+      loadFavorites();
+    }, [type])
+  );
+
+  // Initial load
   useEffect(() => {
     loadActivities();
     loadFavorites();
@@ -172,21 +225,27 @@ const UnifiedResultsScreenTest: React.FC = () => {
     }
   };
 
-  const toggleFavorite = async (activity: Activity) => {
+  const toggleFavorite = (activity: Activity) => {
     if (!user) return;
     try {
       const favoritesService = FavoritesService.getInstance();
       const isFavorite = favoriteIds.has(activity.id);
 
       if (isFavorite) {
-        await favoritesService.removeFavorite(activity.id);
+        favoritesService.removeFavorite(activity.id);
         setFavoriteIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(activity.id);
           return newSet;
         });
+
+        // If we're on the favorites screen, remove the activity from the list
+        if (type === 'favorites') {
+          setActivities(prev => prev.filter(a => a.id !== activity.id));
+          setTotalCount(prev => prev - 1);
+        }
       } else {
-        await favoritesService.addFavorite(activity.id);
+        favoritesService.addFavorite(activity);
         setFavoriteIds(prev => new Set(prev).add(activity.id));
       }
     } catch (error) {
@@ -231,8 +290,8 @@ const UnifiedResultsScreenTest: React.FC = () => {
             </View>
           </TouchableOpacity>
           <View style={styles.heroContent}>
-            <View style={styles.iconBadge}>
-              <Icon name={config.icon || 'tag'} size={24} color="white" />
+            <View style={[styles.iconBadge, config.isFavorites && styles.favoritesIconBadge]}>
+              <Icon name={config.icon || 'tag'} size={24} color={config.isFavorites ? '#FF385C' : 'white'} />
             </View>
             <Text style={styles.heroTitle}>{String(config.title || '')}</Text>
             <Text style={styles.heroSubtitle}>{String(config.subtitle || '')}</Text>
@@ -346,6 +405,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: ModernSpacing.sm,
+  },
+  favoritesIconBadge: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   heroTitle: {
     fontSize: 28,

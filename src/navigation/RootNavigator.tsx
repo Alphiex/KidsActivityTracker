@@ -16,7 +16,7 @@ import DashboardScreen from '../screens/DashboardScreenModern';
 import SearchScreen from '../screens/SearchScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
 import FiltersScreen from '../screens/FiltersScreen';
-import FavoritesScreen from '../screens/FavoritesScreen';
+import FavoritesRedirect from '../screens/FavoritesRedirect';
 import FriendsAndFamilyScreen from '../screens/FriendsAndFamilyScreenSimple';
 import ProfileScreen from '../screens/ProfileScreen';
 import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenEnhanced';
@@ -58,8 +58,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const HomeStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: false,
       presentation: 'card',
       animationEnabled: true,
@@ -80,7 +80,6 @@ const HomeStack = () => (
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
-    <Stack.Screen name="Favorites" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
@@ -99,7 +98,8 @@ const SearchStack = () => (
 
 const FavoritesStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="FavoritesMain" component={FavoritesScreen} />
+    <Stack.Screen name="FavoritesMain" component={FavoritesRedirect} />
+    <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
   </Stack.Navigator>
 );
