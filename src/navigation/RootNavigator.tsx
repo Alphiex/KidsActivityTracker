@@ -19,7 +19,7 @@ import FiltersScreen from '../screens/FiltersScreen';
 import FavoritesRedirect from '../screens/FavoritesRedirect';
 import FriendsAndFamilyScreen from '../screens/FriendsAndFamilyScreenSimple';
 import ProfileScreen from '../screens/ProfileScreen';
-import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenEnhanced';
+import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenModern';
 import FilterScreen from '../screens/FilterScreen';
 import SiteAccountsScreen from '../screens/SiteAccountsScreen';
 import ActivityListScreen from '../screens/ActivityListScreen';
