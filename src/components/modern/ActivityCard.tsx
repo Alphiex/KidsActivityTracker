@@ -11,22 +11,32 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import Badge from './Badge';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../../theme/modernTheme';
+import { getActivityImageKey } from '../../utils/activityHelpers';
+import { getActivityImageByKey } from '../../assets/images';
+import { formatPrice } from '../../utils/formatters';
 
 const { width } = Dimensions.get('window');
 
 interface ActivityCardProps {
+  isFavorite?: boolean;
+  onFavoritePress?: () => void;
   activity: {
     id: string;
     name: string;
-    location?: string;
+    location?: string | { name: string; address: string; };
     locationName?: string;
     price?: number;
     cost?: number;
     rating?: number;
     image?: string;
+    imageUrl?: string;
     category?: string;
     isNew?: boolean;
     spotsAvailable?: number;
+    ageRange?: {
+      min: number;
+      max: number;
+    };
     ageMin?: number;
     ageMax?: number;
     dateRange?: {
@@ -39,12 +49,18 @@ interface ActivityCardProps {
       dayOfWeek?: string;
       date?: string;
     }>;
-    schedule?: string | {
+    schedule?: string | Array<any> | {
       startTime?: string;
       endTime?: string;
       days?: string[];
     };
     registrationStatus?: string;
+    startTime?: string;
+    endTime?: string;
+    dates?: string;
+    activityType?: any;
+    activitySubtype?: any;
+    subcategory?: string;
   };
   onPress?: () => void;
   variant?: 'default' | 'compact' | 'full';
@@ -54,42 +70,109 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
   onPress,
   variant = 'default',
+  isFavorite = false,
+  onFavoritePress,
 }) => {
   const price = activity.price ?? activity.cost ?? 0;
-  const location = activity.locationName || activity.location || 'Location TBA';
+
+  const activityTypeName = activity.activityType?.name || activity.category || 'general';
+  const subcategory = activity.activitySubtype?.name || activity.subcategory;
+  const imageKey = getActivityImageKey(activityTypeName, subcategory);
+  const imageSource = getActivityImageByKey(imageKey);
+
+  const getLocationName = (): string => {
+    if (activity.locationName) return activity.locationName;
+    if (typeof activity.location === 'string') return activity.location;
+    if (activity.location && typeof activity.location === 'object' && 'name' in activity.location) {
+      return activity.location.name;
+    }
+    return 'Location TBA';
+  };
+
+  const location = getLocationName();
   const isAvailable = activity.registrationStatus !== 'Closed' && 
                      activity.registrationStatus !== 'Waitlist' &&
                      (activity.spotsAvailable === undefined || activity.spotsAvailable > 0);
 
   const getAgeRange = () => {
+    if (activity.ageRange) {
+      return `Ages ${activity.ageRange.min}-${activity.ageRange.max}`;
+    }
     if (activity.ageMin !== undefined && activity.ageMax !== undefined) {
       return `Ages ${activity.ageMin}-${activity.ageMax}`;
     }
     return null;
   };
 
-  const getTimeInfo = () => {
-    // Check for direct startTime/endTime fields first (from API)
-    if (activity.startTime || activity.endTime) {
-      const dayPrefix = activity.schedule && typeof activity.schedule === 'string' ? `${activity.schedule} • ` : '';
-      return `${dayPrefix}${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
+  const getDayAndTime = () => {
+    let dayOfWeek = '';
+    let timeRange = '';
+
+    if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
+      const firstSession = activity.sessions[0];
+      dayOfWeek = firstSession.dayOfWeek || '';
+      if (firstSession.startTime || firstSession.endTime) {
+        timeRange = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
+      }
+    } else if (activity.startTime || activity.endTime) {
+      timeRange = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
     }
 
-    // Check for sessions
-    if (activity.sessions && activity.sessions.length > 0) {
-      const session = activity.sessions[0];
-      if (session.startTime) {
-        return `${session.startTime}${session.endTime ? ' - ' + session.endTime : ''}`;
+    if (dayOfWeek && timeRange) {
+      return `${dayOfWeek} • ${timeRange}`;
+    } else if (timeRange) {
+      return timeRange;
+    } else if (dayOfWeek) {
+      return dayOfWeek;
+    }
+    return null;
+  };
+
+  const getDateRange = () => {
+    if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
+      const start = new Date(activity.dateRange.start);
+      const end = new Date(activity.dateRange.end);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `${startStr} - ${endStr}`;
+    }
+    if (activity.startDate && activity.endDate) {
+      const start = new Date(activity.startDate);
+      const end = new Date(activity.endDate);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `${startStr} - ${endStr}`;
+    }
+    return null;
+  };
+
+  const isInProgress = () => {
+    const now = new Date();
+    if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
+      const start = new Date(activity.dateRange.start);
+      const end = new Date(activity.dateRange.end);
+      return now >= start && now <= end;
+    }
+    if (activity.startDate && activity.endDate) {
+      const start = new Date(activity.startDate);
+      const end = new Date(activity.endDate);
+      return now >= start && now <= end;
+    }
+    return false;
+  };
+
+  const getSpotsText = () => {
+    if (activity.spotsAvailable !== undefined && activity.spotsAvailable !== null) {
+      if (activity.spotsAvailable === 0) {
+        return 'Full';
+      } else if (activity.spotsAvailable === 1) {
+        return 'Only 1 spot left!';
+      } else if (activity.spotsAvailable <= 5) {
+        return `Only ${activity.spotsAvailable} spots left!`;
+      } else {
+        return `${activity.spotsAvailable} spots available`;
       }
     }
-
-    // Check for schedule object
-    if (activity.schedule && typeof activity.schedule === 'object') {
-      if (activity.schedule.startTime) {
-        return `${activity.schedule.startTime}${activity.schedule.endTime ? ' - ' + activity.schedule.endTime : ''}`;
-      }
-    }
-
     return null;
   };
 
@@ -101,7 +184,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       return <Badge variant="warning" size="sm">Waitlist</Badge>;
     }
     if (activity.spotsAvailable !== undefined && activity.spotsAvailable <= 3 && activity.spotsAvailable > 0) {
-      return <Badge variant="warning" size="sm">{activity.spotsAvailable} spots left</Badge>;
+      return <Badge variant="warning" size="sm">{`${activity.spotsAvailable} spots left`}</Badge>;
     }
     if (activity.isNew) {
       return <Badge variant="success" size="sm">New</Badge>;
@@ -155,19 +238,39 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     >
       {/* Image Section */}
       <View style={styles.imageContainer}>
-        {activity.image ? (
-          <Image source={{ uri: activity.image }} style={styles.image} />
-        ) : (
-          <LinearGradient
-            colors={ModernColors.categoryGradients.new}
-            style={styles.imagePlaceholder}
+        <Image source={imageSource} style={styles.image} />
+
+        {/* Favorite Button */}
+        {onFavoritePress && (
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              onFavoritePress();
+            }}
           >
-            <Icon name="image-outline" size={40} color={ModernColors.textOnPrimary} />
-          </LinearGradient>
+            <Icon
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={20}
+              color={isFavorite ? "#FF385C" : "#FFF"}
+            />
+          </TouchableOpacity>
         )}
-        <View style={styles.badgeContainer}>
-          {getStatusBadge()}
-        </View>
+
+        {/* Price Overlay */}
+        {price > 0 && (
+          <View style={styles.priceOverlay}>
+            <Text style={styles.priceOverlayText}>${formatPrice(price)}</Text>
+            <Text style={styles.perChildText}>per child</Text>
+          </View>
+        )}
+
+        {/* NEW Badge */}
+        {activity.isNew && (
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeText}>NEW</Text>
+          </View>
+        )}
       </View>
 
       {/* Content Section */}
@@ -179,10 +282,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <Text style={styles.location} numberOfLines={1}>{location}</Text>
         </View>
 
-        {getTimeInfo() && (
+        {isInProgress() && getDateRange() && (
           <View style={styles.detailRow}>
-            <Icon name="clock-outline" size={16} color={ModernColors.textMuted} />
-            <Text style={styles.timeText}>{getTimeInfo()}</Text>
+            <Icon name="calendar" size={16} color={ModernColors.success} />
+            <Text style={[styles.scheduleText, { color: ModernColors.success, fontWeight: '600' }]}>In Progress</Text>
+            <Text style={styles.scheduleText}> • {getDateRange()}</Text>
+          </View>
+        )}
+
+        {!isInProgress() && getDateRange() && (
+          <View style={styles.detailRow}>
+            <Icon name="calendar" size={16} color={ModernColors.textMuted} />
+            <Text style={styles.scheduleText}>{getDateRange()}</Text>
+          </View>
+        )}
+
+        {getDayAndTime() && (
+          <View style={styles.detailRow}>
+            <Icon name="clock-outline" size={16} color={ModernColors.accent} />
+            <Text style={styles.timeText}>{getDayAndTime()}</Text>
           </View>
         )}
 
@@ -193,17 +311,24 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           </View>
         )}
 
-        <View style={styles.footer}>
-          <Text style={[styles.price, !isAvailable && styles.priceUnavailable]}>
-            ${price.toFixed(2)}
-          </Text>
-          {activity.rating && (
-            <View style={styles.rating}>
-              <Icon name="star" size={16} color={ModernColors.warning} />
-              <Text style={styles.ratingText}>{activity.rating}</Text>
-            </View>
-          )}
-        </View>
+        {getSpotsText() && (
+          <View style={[
+            styles.spotsContainer,
+            activity.spotsAvailable <= 5 ? styles.spotsUrgent : styles.spotsNormal
+          ]}>
+            <Icon
+              name={activity.spotsAvailable === 0 ? "close-circle" : "information"}
+              size={14}
+              color={activity.spotsAvailable <= 5 ? ModernColors.error : ModernColors.textMuted}
+            />
+            <Text style={[
+              styles.spotsText,
+              activity.spotsAvailable <= 5 ? styles.spotsTextUrgent : styles.spotsTextNormal
+            ]}>
+              {getSpotsText()}
+            </Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -216,6 +341,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...ModernShadows.lg,
     marginBottom: ModernSpacing.md,
+    marginHorizontal: ModernSpacing.md,
     borderWidth: 1,
     borderColor: ModernColors.borderLight,
   },
@@ -243,6 +369,52 @@ const styles = StyleSheet.create({
     top: ModernSpacing.sm,
     right: ModernSpacing.sm,
   },
+  favoriteButton: {
+    position: 'absolute',
+    top: ModernSpacing.sm,
+    right: ModernSpacing.sm,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+    ...ModernShadows.md,
+  },
+  priceOverlay: {
+    position: 'absolute',
+    bottom: ModernSpacing.sm,
+    right: ModernSpacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: ModernSpacing.sm,
+    paddingVertical: ModernSpacing.xs / 2,
+    borderRadius: ModernBorderRadius.md,
+  },
+  priceOverlayText: {
+    fontSize: ModernTypography.sizes.base,
+    fontWeight: ModernTypography.weights.bold as any,
+    color: '#FFF',
+  },
+  perChildText: {
+    fontSize: ModernTypography.sizes.xs,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  newBadge: {
+    position: 'absolute',
+    top: ModernSpacing.sm,
+    left: ModernSpacing.sm,
+    backgroundColor: ModernColors.success,
+    paddingHorizontal: ModernSpacing.sm,
+    paddingVertical: ModernSpacing.xs / 2,
+    borderRadius: ModernBorderRadius.sm,
+  },
+  newBadgeText: {
+    fontSize: ModernTypography.sizes.xs,
+    fontWeight: ModernTypography.weights.bold as any,
+    color: ModernColors.textOnPrimary,
+  },
   content: {
     padding: ModernSpacing.md,
   },
@@ -263,12 +435,49 @@ const styles = StyleSheet.create({
     marginLeft: ModernSpacing.xs,
     flex: 1,
   },
+  scheduleText: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
+    marginLeft: ModernSpacing.xs,
+    flex: 1,
+  },
   timeText: {
     fontSize: ModernTypography.sizes.sm,
     fontWeight: ModernTypography.weights.semibold as any,
     color: ModernColors.accent,
     marginLeft: ModernSpacing.xs,
     flex: 1,
+  },
+  statusText: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
+    marginLeft: ModernSpacing.xs,
+    flex: 1,
+  },
+  spotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: ModernSpacing.xs,
+    paddingHorizontal: ModernSpacing.sm,
+    borderRadius: ModernBorderRadius.sm,
+    marginTop: ModernSpacing.xs,
+  },
+  spotsNormal: {
+    backgroundColor: ModernColors.backgroundAlt,
+  },
+  spotsUrgent: {
+    backgroundColor: ModernColors.error + '15',
+  },
+  spotsText: {
+    fontSize: ModernTypography.sizes.sm,
+    marginLeft: ModernSpacing.xs / 2,
+  },
+  spotsTextNormal: {
+    color: ModernColors.textSecondary,
+  },
+  spotsTextUrgent: {
+    color: ModernColors.error,
+    fontWeight: ModernTypography.weights.semibold as any,
   },
   footer: {
     flexDirection: 'row',

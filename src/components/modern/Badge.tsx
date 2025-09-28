@@ -142,11 +142,12 @@ const Badge: React.FC<BadgeProps> = ({
   const content = (
     <>
       {icon && <View style={styles.iconContainer}>{icon}</View>}
-      {typeof children === 'string' ? (
-        <Text style={textStyles}>{children}</Text>
-      ) : (
-        children
-      )}
+      <Text style={textStyles}>
+        {typeof children === 'string' || typeof children === 'number'
+          ? String(children)
+          : children
+        }
+      </Text>
     </>
   );
 

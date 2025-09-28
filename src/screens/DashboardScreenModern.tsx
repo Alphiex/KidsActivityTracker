@@ -394,27 +394,58 @@ const DashboardScreenModern = () => {
     const imageSource = getActivityImageByKey(imageKey);
     const isFavorite = favoriteIds.has(activity.id);
 
-    // Format schedule display - check for sessions array first (new format)
-    let scheduleText = 'Schedule varies';
-    if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
-      const firstSession = activity.sessions[0];
-      scheduleText = firstSession.dayOfWeek || firstSession.date || 'Schedule available';
-    } else if (activity.schedule && Array.isArray(activity.schedule) && activity.schedule.length > 0) {
-      const firstSchedule = activity.schedule[0];
-      scheduleText = firstSchedule.dayOfWeek || 'Schedule available';
+    // Format date range display
+    let dateRangeText = null;
+    if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
+      const start = new Date(activity.dateRange.start);
+      const end = new Date(activity.dateRange.end);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateRangeText = `${startStr} - ${endStr}`;
+    } else if (activity.startDate && activity.endDate) {
+      const start = new Date(activity.startDate);
+      const end = new Date(activity.endDate);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateRangeText = `${startStr} - ${endStr}`;
     } else if (activity.dates) {
-      scheduleText = activity.dates;
+      dateRangeText = activity.dates;
     }
 
-    // Format time display - check for direct startTime/endTime fields from API
-    let timeText = null;
-    if (activity.startTime || activity.endTime) {
-      timeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
-    } else if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
-      const firstSession = activity.sessions[0];
-      if (firstSession.startTime || firstSession.endTime) {
-        timeText = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
+    // Check if activity is in progress
+    const isInProgress = (() => {
+      const now = new Date();
+      if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
+        const start = new Date(activity.dateRange.start);
+        const end = new Date(activity.dateRange.end);
+        return now >= start && now <= end;
       }
+      if (activity.startDate && activity.endDate) {
+        const start = new Date(activity.startDate);
+        const end = new Date(activity.endDate);
+        return now >= start && now <= end;
+      }
+      return false;
+    })();
+
+    // Format day and time on single line
+    let dayAndTimeText = null;
+    if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
+      const firstSession = activity.sessions[0];
+      const dayOfWeek = firstSession.dayOfWeek || '';
+      let timeRange = '';
+      if (firstSession.startTime || firstSession.endTime) {
+        timeRange = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
+      }
+      if (dayOfWeek && timeRange) {
+        dayAndTimeText = `${dayOfWeek} • ${timeRange}`;
+      } else if (timeRange) {
+        dayAndTimeText = timeRange;
+      } else if (dayOfWeek) {
+        dayAndTimeText = dayOfWeek;
+      }
+    } else if (activity.startTime || activity.endTime) {
+      dayAndTimeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
     }
     
     // Format age display
@@ -498,22 +529,27 @@ const DashboardScreenModern = () => {
             </Text>
           </View>
           
-          <View style={styles.cardInfoRow}>
-            <Icon name="calendar" size={12} color="#717171" />
-            <Text style={styles.cardDetails}>{scheduleText}</Text>
-          </View>
-
-          {timeText && (
+          {isInProgress && dateRangeText && (
             <View style={styles.cardInfoRow}>
-              <Icon name="clock-outline" size={12} color="#717171" />
-              <Text style={styles.cardDetails}>{timeText}</Text>
+              <Icon name="calendar" size={12} color="#4CAF50" />
+              <Text style={[styles.cardDetails, { color: '#4CAF50', fontWeight: '600' }]}>In Progress</Text>
+              <Text style={styles.cardDetails}> • {dateRangeText}</Text>
             </View>
           )}
 
-          <View style={styles.cardInfoRow}>
-            <Icon name="information" size={12} color="#717171" />
-            <Text style={styles.cardDetails}>{activity.registrationStatus || 'In Progress'}</Text>
-          </View>
+          {!isInProgress && dateRangeText && (
+            <View style={styles.cardInfoRow}>
+              <Icon name="calendar" size={12} color="#717171" />
+              <Text style={styles.cardDetails}>{dateRangeText}</Text>
+            </View>
+          )}
+
+          {dayAndTimeText && (
+            <View style={styles.cardInfoRow}>
+              <Icon name="clock-outline" size={12} color="#FF9800" />
+              <Text style={[styles.cardDetails, { color: '#FF9800', fontWeight: '600' }]}>{dayAndTimeText}</Text>
+            </View>
+          )}
           
           <View style={styles.cardInfoRow}>
             <Icon name="account-child" size={12} color="#717171" />
@@ -574,7 +610,7 @@ const DashboardScreenModern = () => {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.sectionHeader}
-            onPress={() => handleNavigate('RecommendedActivities')}
+            onPress={() => handleNavigate('UnifiedResults', { type: 'recommended' })}
           >
             <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>Recommended for You</Text>
@@ -601,7 +637,7 @@ const DashboardScreenModern = () => {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.sectionHeader}
-            onPress={() => handleNavigate('NewActivities')}
+            onPress={() => handleNavigate('UnifiedResults', { type: 'new' })}
           >
             <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>New This Week</Text>
@@ -628,7 +664,7 @@ const DashboardScreenModern = () => {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.sectionHeader}
-            onPress={() => handleNavigate('ActivityList', { filter: 'budget' })}
+            onPress={() => handleNavigate('UnifiedResults', { type: 'budget' })}
           >
             <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>Budget Friendly</Text>

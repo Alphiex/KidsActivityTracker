@@ -40,6 +40,7 @@ import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -78,6 +79,7 @@ const HomeStack = () => (
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
+    <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
     <Stack.Screen name="Favorites" component={FavoritesScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
