@@ -7,6 +7,7 @@ interface User {
   email: string;
   name: string;
   phoneNumber?: string;
+  location?: string;
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -177,6 +178,11 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
     },
+    updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
   },
   extraReducers: (builder) => {
     // Login
@@ -300,5 +306,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setTokens, clearAuth } = authSlice.actions;
+export const { clearError, setTokens, clearAuth, updateUserProfile } = authSlice.actions;
 export default authSlice.reducer;
