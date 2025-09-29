@@ -370,11 +370,23 @@ const ActivityDetailScreenModern = () => {
             </View>
           </View>
 
-          {/* Register Now Button at Bottom */}
-          <TouchableOpacity style={styles.bottomRegisterButton} onPress={handleRegister}>
-            <Text style={styles.bottomRegisterText}>Register Now</Text>
-            <Icon name="arrow-right" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionButtonsContainer}>
+            {/* Register Now Button */}
+            <TouchableOpacity style={styles.bottomRegisterButton} onPress={handleRegister}>
+              <Text style={styles.bottomRegisterText}>Register Now</Text>
+              <Icon name="arrow-right" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            {/* Link to Child Button */}
+            <TouchableOpacity
+              style={[styles.bottomRegisterButton, styles.linkToChildButton]}
+              onPress={() => setShowChildAssignModal(true)}
+            >
+              <Icon name="account-child" size={20} color={ModernColors.primary} />
+              <Text style={[styles.bottomRegisterText, styles.linkToChildText]}>Link to Child</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Description */}
           {(activity.fullDescription || activity.description) && (
@@ -733,6 +745,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: ModernColors.text,
   },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: ModernSpacing.md,
+    marginBottom: ModernSpacing.xl,
+  },
   bottomRegisterButton: {
     backgroundColor: ModernColors.primary,
     borderRadius: ModernBorderRadius.lg,
@@ -741,14 +758,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: ModernSpacing.xl,
+    flex: 1,
     ...ModernShadows.md,
+  },
+  linkToChildButton: {
+    backgroundColor: ModernColors.background,
+    borderWidth: 2,
+    borderColor: ModernColors.primary,
   },
   bottomRegisterText: {
     color: '#FFFFFF',
     fontSize: ModernTypography.sizes.lg,
     fontWeight: '600',
     marginRight: ModernSpacing.sm,
+  },
+  linkToChildText: {
+    color: ModernColors.primary,
+    marginLeft: ModernSpacing.sm,
+    marginRight: 0,
   },
   sectionCard: {
     backgroundColor: ModernColors.surface,

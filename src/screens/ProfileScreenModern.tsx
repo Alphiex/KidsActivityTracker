@@ -21,7 +21,14 @@ import PreferencesService from '../services/preferencesService';
 import * as SecureStore from '../utils/secureStorage';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
-import DeviceInfo from 'react-native-device-info';
+// Optional import for DeviceInfo - may not be available in all environments
+let DeviceInfo: any;
+try {
+  DeviceInfo = require('react-native-device-info').default;
+} catch (e) {
+  console.log('DeviceInfo not available, using defaults');
+  DeviceInfo = null;
+}
 
 const ModernColors = {
   primary: '#FF385C',
@@ -52,8 +59,17 @@ const ProfileScreenModern = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Get app version from native iOS project settings
-  const appVersion = DeviceInfo.getVersion();
-  const buildNumber = DeviceInfo.getBuildNumber();
+  let appVersion = '1.0.0';
+  let buildNumber = '1';
+
+  if (DeviceInfo) {
+    try {
+      appVersion = DeviceInfo.getVersion();
+      buildNumber = DeviceInfo.getBuildNumber();
+    } catch (error) {
+      console.log('DeviceInfo error, using defaults');
+    }
+  }
 
   const handleLogout = () => {
     Alert.alert(

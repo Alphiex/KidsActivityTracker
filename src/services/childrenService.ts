@@ -341,6 +341,66 @@ class ChildrenService {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
+
+  // Sharing Methods
+  async shareChildWithUser(childId: string, email: string, permission: 'view' | 'full'): Promise<void> {
+    try {
+      const response = await apiClient.post('/children/share', {
+        childId,
+        email,
+        permission,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error sharing child:', error);
+      throw error;
+    }
+  }
+
+  async getSharedUsers(childId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/children/${childId}/shared`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching shared users:', error);
+      // Return mock data for development
+      return [];
+    }
+  }
+
+  async revokeChildAccess(childId: string, userId: string): Promise<void> {
+    try {
+      const response = await apiClient.delete(`/children/${childId}/shared/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error revoking access:', error);
+      throw error;
+    }
+  }
+
+  async getSharedChildren(): Promise<SharedChild[]> {
+    try {
+      const response = await apiClient.get('/children/shared-with-me');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching shared children:', error);
+      // Return mock data for development
+      const mockData: SharedChild[] = [
+        {
+          id: 'sc1',
+          childId: 'c1',
+          ownerId: 'u1',
+          ownerEmail: 'parent@example.com',
+          ownerName: 'Parent Name',
+          sharedWithEmail: 'me@example.com',
+          permissions: 'view',
+          acceptedAt: new Date(),
+          createdAt: new Date(),
+        },
+      ];
+      return mockData;
+    }
+  }
 }
 
 export default ChildrenService.getInstance();

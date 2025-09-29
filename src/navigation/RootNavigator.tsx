@@ -17,7 +17,9 @@ import SearchScreen from '../screens/SearchScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
 import FiltersScreen from '../screens/FiltersScreen';
 import FavoritesRedirect from '../screens/FavoritesRedirect';
-import FriendsAndFamilyScreen from '../screens/FriendsAndFamilyScreenSimple';
+import FriendsAndFamilyScreenModern from '../screens/FriendsAndFamilyScreenModern';
+import ChildDetailScreen from '../screens/ChildDetailScreen';
+import ShareChildScreen from '../screens/ShareChildScreen';
 import ProfileScreen from '../screens/ProfileScreenModern';
 import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenModern';
 import FilterScreen from '../screens/FilterScreen';
@@ -106,7 +108,9 @@ const FavoritesStack = () => (
 
 const FriendsAndFamilyStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="FriendsAndFamilyMain" component={FriendsAndFamilyScreen} />
+    <Stack.Screen name="FriendsAndFamilyMain" component={FriendsAndFamilyScreenModern} />
+    <Stack.Screen name="ChildDetail" component={ChildDetailScreen} />
+    <Stack.Screen name="ShareChild" component={ShareChildScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="SharingManagement" component={SharingManagementScreen} />
     <Stack.Screen name="ActivityHistory" component={ActivityHistoryScreen} />

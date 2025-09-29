@@ -197,7 +197,8 @@ model Child {
   id              String                 @id @default(uuid())
   userId          String
   name            String
-  dateOfBirth     DateTime
+  dateOfBirth     DateTime?
+  location        String?
   gender          String?
   avatarUrl       String?
   interests       String[]
