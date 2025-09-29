@@ -1,6 +1,8 @@
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Child } from '../store/slices/childrenSlice';
+import { Child as StoreChild } from '../store/slices/childrenSlice';
+
+export type Child = StoreChild;
 import { Activity } from '../types';
 
 interface ChildFormData {
@@ -26,6 +28,12 @@ export interface ChildActivity {
   startedAt?: Date;
   completedAt?: Date;
   notes?: string;
+  scheduledDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  recurring?: boolean;
+  recurrencePattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+  recurrenceEnd?: Date;
 }
 
 export interface SharedChild {
@@ -229,9 +237,16 @@ class ChildrenService {
   }
 
   // Child Activity Management
-  async addActivityToChild(childId: string, activityId: string, status: ChildActivity['status'] = 'planned'): Promise<ChildActivity> {
+  async addActivityToChild(
+    childId: string,
+    activityId: string,
+    status: ChildActivity['status'] = 'planned',
+    scheduledDate?: Date,
+    startTime?: string,
+    endTime?: string
+  ): Promise<ChildActivity> {
     await this.waitForInit();
-    
+
     const newActivity: ChildActivity = {
       id: `ca_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       childId,
@@ -240,6 +255,9 @@ class ChildrenService {
       addedAt: new Date(),
       startedAt: status === 'in_progress' ? new Date() : undefined,
       completedAt: status === 'completed' ? new Date() : undefined,
+      scheduledDate,
+      startTime,
+      endTime,
     };
 
     this.childActivities.push(newActivity);
@@ -378,6 +396,10 @@ class ChildrenService {
     }
   }
 
+  async getMyChildren(): Promise<Child[]> {
+    return this.getChildren();
+  }
+
   async getSharedChildren(): Promise<SharedChild[]> {
     try {
       const response = await apiClient.get('/children/shared-with-me');
@@ -400,6 +422,113 @@ class ChildrenService {
       ];
       return mockData;
     }
+  }
+
+  // Calendar-specific methods
+  async getScheduledActivities(
+    startDate: Date,
+    endDate: Date,
+    childIds?: string[]
+  ): Promise<ChildActivity[]> {
+    await this.waitForInit();
+
+    let activities = this.childActivities.filter(ca => {
+      if (!ca.scheduledDate) return false;
+      const activityDate = new Date(ca.scheduledDate);
+      return activityDate >= startDate && activityDate <= endDate;
+    });
+
+    if (childIds && childIds.length > 0) {
+      activities = activities.filter(ca => childIds.includes(ca.childId));
+    }
+
+    return activities.sort((a, b) => {
+      const dateA = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
+      const dateB = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
+      return dateA - dateB;
+    });
+  }
+
+  async updateActivitySchedule(
+    childActivityId: string,
+    scheduledDate: Date,
+    startTime?: string,
+    endTime?: string,
+    recurring?: boolean,
+    recurrencePattern?: ChildActivity['recurrencePattern'],
+    recurrenceEnd?: Date
+  ): Promise<ChildActivity | null> {
+    await this.waitForInit();
+
+    const index = this.childActivities.findIndex(ca => ca.id === childActivityId);
+    if (index === -1) return null;
+
+    const activity = this.childActivities[index];
+    activity.scheduledDate = scheduledDate;
+    activity.startTime = startTime;
+    activity.endTime = endTime;
+    activity.recurring = recurring;
+    activity.recurrencePattern = recurrencePattern;
+    activity.recurrenceEnd = recurrenceEnd;
+
+    await this.saveLocalData();
+    return activity;
+  }
+
+  async getRecurringActivities(childId?: string): Promise<ChildActivity[]> {
+    await this.waitForInit();
+
+    let activities = this.childActivities.filter(ca => ca.recurring === true);
+
+    if (childId) {
+      activities = activities.filter(ca => ca.childId === childId);
+    }
+
+    return activities;
+  }
+
+  async generateRecurringInstances(
+    activity: ChildActivity,
+    startDate: Date,
+    endDate: Date
+  ): Promise<ChildActivity[]> {
+    if (!activity.recurring || !activity.scheduledDate || !activity.recurrencePattern) {
+      return [];
+    }
+
+    const instances: ChildActivity[] = [];
+    const baseDate = new Date(activity.scheduledDate);
+    let currentDate = new Date(baseDate);
+    const recurrenceEndDate = activity.recurrenceEnd ? new Date(activity.recurrenceEnd) : endDate;
+    const actualEndDate = recurrenceEndDate < endDate ? recurrenceEndDate : endDate;
+
+    while (currentDate <= actualEndDate) {
+      if (currentDate >= startDate) {
+        instances.push({
+          ...activity,
+          id: `${activity.id}_${currentDate.getTime()}`,
+          scheduledDate: new Date(currentDate),
+        });
+      }
+
+      // Move to next occurrence
+      switch (activity.recurrencePattern) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 7);
+          break;
+        case 'biweekly':
+          currentDate.setDate(currentDate.getDate() + 14);
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          break;
+      }
+    }
+
+    return instances;
   }
 }
 

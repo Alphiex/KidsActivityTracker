@@ -214,22 +214,30 @@ model Child {
 }
 
 model ChildActivity {
-  id           String    @id @default(uuid())
-  childId      String
-  activityId   String
-  status       String
-  registeredAt DateTime?
-  completedAt  DateTime?
-  notes        String?
-  rating       Int?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  activity     Activity  @relation(fields: [activityId], references: [id])
-  child        Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  id               String    @id @default(uuid())
+  childId          String
+  activityId       String
+  status           String
+  registeredAt     DateTime?
+  completedAt      DateTime?
+  scheduledDate    DateTime?
+  startTime        String?
+  endTime          String?
+  recurring        Boolean   @default(false)
+  recurrencePattern String?  // e.g., "weekly", "biweekly", "monthly"
+  recurrenceEnd    DateTime?
+  notes            String?
+  rating           Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  activity         Activity  @relation(fields: [activityId], references: [id])
+  child            Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
 
   @@unique([childId, activityId])
   @@index([activityId])
   @@index([childId, status])
+  @@index([scheduledDate])
+  @@index([childId, scheduledDate])
 }
 
 model Favorite {

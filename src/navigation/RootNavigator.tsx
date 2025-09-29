@@ -41,7 +41,7 @@ import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
-import CalendarScreen from '../screens/CalendarScreen';
+import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
 import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
 
 // Import Preference Screens
@@ -71,7 +71,7 @@ const HomeStack = () => (
     <Stack.Screen name="SearchMain" component={SearchScreen} />
     <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     <Stack.Screen name="Filters" component={FiltersScreen} />
-    <Stack.Screen name="Calendar" component={CalendarScreen} />
+    <Stack.Screen name="Calendar" component={CalendarScreenModern} />
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="CityBrowse" component={CityBrowseScreen} />
