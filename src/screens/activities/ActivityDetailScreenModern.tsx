@@ -351,8 +351,9 @@ const ActivityDetailScreenModern = () => {
 
           {/* Key Details Grid */}
           <View style={styles.detailsGrid}>
-            <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
+            {/* Full Width Dates Row */}
+            <View style={styles.detailRowFull}>
+              <View style={styles.detailItemFull}>
                 <Icon name="calendar" size={20} color={ModernColors.primary} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Dates</Text>
@@ -363,7 +364,10 @@ const ActivityDetailScreenModern = () => {
                   </Text>
                 </View>
               </View>
+            </View>
 
+            {/* Day of Week and Duration Row */}
+            <View style={styles.detailRow}>
               {getDayOfWeek() && (
                 <View style={styles.detailItem}>
                   <Icon name="calendar-today" size={20} color={ModernColors.primary} />
@@ -387,6 +391,7 @@ const ActivityDetailScreenModern = () => {
               </View>
             </View>
 
+            {/* Ages and Cost Row */}
             <View style={styles.detailRow}>
               <View style={styles.detailItem}>
                 <Icon name="account-child" size={20} color={ModernColors.primary} />
@@ -653,7 +658,7 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-    height: height * 0.35,
+    height: height * 0.216,
   },
   heroGradient: {
     flex: 1,
@@ -701,7 +706,7 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     padding: ModernSpacing.lg,
-    marginTop: -ModernSpacing.lg,
+    marginTop: ModernSpacing.sm,
   },
   actionSection: {
     marginBottom: ModernSpacing.lg,
@@ -775,10 +780,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: ModernSpacing.lg,
   },
+  detailRowFull: {
+    flexDirection: 'row',
+    marginBottom: ModernSpacing.lg,
+  },
   detailItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  detailItemFull: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
   },
   detailContent: {
     marginLeft: ModernSpacing.sm,
