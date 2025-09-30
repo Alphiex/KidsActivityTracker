@@ -12,7 +12,7 @@ const API_URLS = {
   }),
   
   // Production - Google Cloud Run deployment (Kids Activity Tracker project)
-  PRODUCTION: 'https://kids-activity-api-4ev6yi22va-uc.a.run.app',
+  PRODUCTION: 'https://kids-activity-api-205843686007.us-central1.run.app',
 };
 
 // Force local development server
@@ -21,7 +21,7 @@ const FORCE_LOCAL = false; // Use production API
 // API Configuration
 const API_CONFIG = {
   // Always use production API for now - hardcoded to avoid any issues
-  BASE_URL: 'https://kids-activity-api-4ev6yi22va-uc.a.run.app',
+  BASE_URL: 'https://kids-activity-api-205843686007.us-central1.run.app',
   
   // Endpoints
   ENDPOINTS: {

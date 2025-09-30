@@ -20,6 +20,7 @@ const { width } = Dimensions.get('window');
 interface ActivityCardProps {
   isFavorite?: boolean;
   onFavoritePress?: () => void;
+  isAssignedToCalendar?: boolean;
   activity: {
     id: string;
     name: string;
@@ -72,6 +73,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   variant = 'default',
   isFavorite = false,
   onFavoritePress,
+  isAssignedToCalendar = false,
 }) => {
   const price = activity.price ?? activity.cost ?? 0;
 
@@ -240,22 +242,33 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       <View style={styles.imageContainer}>
         <Image source={imageSource} style={styles.image} />
 
-        {/* Favorite Button */}
-        {onFavoritePress && (
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onFavoritePress();
-            }}
-          >
-            <Icon
-              name={isFavorite ? "heart" : "heart-outline"}
-              size={20}
-              color={isFavorite ? "#FF385C" : "#FFF"}
-            />
-          </TouchableOpacity>
-        )}
+        {/* Favorite and Calendar Buttons */}
+        <View style={styles.iconButtonsContainer}>
+          {isAssignedToCalendar && (
+            <View style={styles.calendarBadge}>
+              <Icon
+                name="calendar-check"
+                size={20}
+                color="#FFF"
+              />
+            </View>
+          )}
+          {onFavoritePress && (
+            <TouchableOpacity
+              style={styles.favoriteButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onFavoritePress();
+              }}
+            >
+              <Icon
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={20}
+                color={isFavorite ? "#FF385C" : "#FFF"}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Price Overlay */}
         {price > 0 && (
@@ -369,10 +382,14 @@ const styles = StyleSheet.create({
     top: ModernSpacing.sm,
     right: ModernSpacing.sm,
   },
-  favoriteButton: {
+  iconButtonsContainer: {
     position: 'absolute',
     top: ModernSpacing.sm,
     right: ModernSpacing.sm,
+    flexDirection: 'row',
+    gap: ModernSpacing.xs,
+  },
+  favoriteButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -381,6 +398,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
+    ...ModernShadows.md,
+  },
+  calendarBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: ModernColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
     ...ModernShadows.md,
   },
   priceOverlay: {

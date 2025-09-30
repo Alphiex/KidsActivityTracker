@@ -22,6 +22,7 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchActivityChildren } from '../../store/slices/childActivitiesSlice';
 import ActivityService from '../../services/activityService';
 import FavoritesService from '../../services/favoritesService';
+import childrenService from '../../services/childrenService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import AssignActivityToChildModal from '../../components/activities/AssignActivityToChildModal';
@@ -41,6 +42,7 @@ const ActivityDetailScreenModern = () => {
   const dispatch = useAppDispatch();
   const favoritesService = FavoritesService.getInstance();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isAssignedToCalendar, setIsAssignedToCalendar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showChildAssignModal, setShowChildAssignModal] = useState(false);
@@ -106,7 +108,19 @@ const ActivityDetailScreenModern = () => {
   useEffect(() => {
     setIsFavorite(favoritesService.isFavorite(activity.id));
     dispatch(fetchActivityChildren(activity.id));
-  }, [activity.id, dispatch]);
+
+    // Check if activity is assigned to any child
+    const checkAssignment = async () => {
+      if (!user) return;
+      try {
+        const isAssigned = await childrenService.isActivityAssignedToAnyChild(activity.id);
+        setIsAssignedToCalendar(isAssigned);
+      } catch (error) {
+        console.error('Error checking activity assignment:', error);
+      }
+    };
+    checkAssignment();
+  }, [activity.id, dispatch, user]);
 
   useEffect(() => {
     const geocodeIfNeeded = async () => {
@@ -390,9 +404,16 @@ const ActivityDetailScreenModern = () => {
               <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
                 <Icon name="arrow-left" size={22} color="#000" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.headerButton} onPress={handleToggleFavorite}>
-                <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#FF385C' : '#000'} />
-              </TouchableOpacity>
+              <View style={styles.headerButtonsRight}>
+                {isAssignedToCalendar && (
+                  <View style={styles.headerCalendarBadge}>
+                    <Icon name="calendar-check" size={22} color="#FFF" />
+                  </View>
+                )}
+                <TouchableOpacity style={styles.headerButton} onPress={handleToggleFavorite}>
+                  <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#FF385C' : '#000'} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Title Overlay */}
@@ -764,7 +785,16 @@ const ActivityDetailScreenModern = () => {
         <AssignActivityToChildModal
           activity={activity}
           visible={showChildAssignModal}
-          onClose={() => setShowChildAssignModal(false)}
+          onClose={async () => {
+            setShowChildAssignModal(false);
+            // Refresh assignment status
+            try {
+              const isAssigned = await childrenService.isActivityAssignedToAnyChild(activity.id);
+              setIsAssignedToCalendar(isAssigned);
+            } catch (error) {
+              console.error('Error checking activity assignment:', error);
+            }
+          }}
         />
       )}
     </SafeAreaView>
@@ -817,11 +847,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: Platform.OS === 'ios' ? 10 : 20,
   },
+  headerButtonsRight: {
+    flexDirection: 'row',
+    gap: ModernSpacing.xs,
+  },
   headerButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...ModernShadows.sm,
+  },
+  headerCalendarBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: ModernColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     ...ModernShadows.sm,

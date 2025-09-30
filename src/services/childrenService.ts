@@ -256,75 +256,153 @@ class ChildrenService {
     startTime?: string,
     endTime?: string
   ): Promise<ChildActivity> {
-    await this.waitForInit();
+    try {
+      const response = await apiClient.post<{ success: boolean; childActivity: any }>(
+        `/api/children/${childId}/activities`,
+        {
+          activityId,
+          status,
+          scheduledDate: scheduledDate?.toISOString(),
+          startTime,
+          endTime,
+        }
+      );
 
-    const newActivity: ChildActivity = {
-      id: `ca_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      childId,
-      activityId,
-      status,
-      addedAt: new Date(),
-      startedAt: status === 'in_progress' ? new Date() : undefined,
-      completedAt: status === 'completed' ? new Date() : undefined,
-      scheduledDate,
-      startTime,
-      endTime,
-    };
+      const childActivity: ChildActivity = {
+        id: response.childActivity.id,
+        childId: response.childActivity.childId,
+        activityId: response.childActivity.activityId,
+        status: response.childActivity.status,
+        addedAt: new Date(response.childActivity.createdAt),
+        startedAt: response.childActivity.registeredAt ? new Date(response.childActivity.registeredAt) : undefined,
+        completedAt: response.childActivity.completedAt ? new Date(response.childActivity.completedAt) : undefined,
+        scheduledDate: response.childActivity.scheduledDate ? new Date(response.childActivity.scheduledDate) : undefined,
+        startTime: response.childActivity.startTime,
+        endTime: response.childActivity.endTime,
+        notes: response.childActivity.notes,
+      };
 
-    this.childActivities.push(newActivity);
-    await this.saveLocalData();
-    return newActivity;
+      // Update local cache
+      await this.waitForInit();
+      this.childActivities.push(childActivity);
+      await this.saveLocalData();
+
+      return childActivity;
+    } catch (error) {
+      console.error('Error adding activity to child:', error);
+      throw error;
+    }
   }
 
   async updateActivityStatus(
-    childActivityId: string, 
+    childActivityId: string,
     status: ChildActivity['status'],
     notes?: string
   ): Promise<ChildActivity | null> {
-    await this.waitForInit();
-    
-    const index = this.childActivities.findIndex(ca => ca.id === childActivityId);
-    if (index === -1) return null;
+    try {
+      // Find the activity to get childId
+      await this.waitForInit();
+      const activity = this.childActivities.find(ca => ca.id === childActivityId);
+      if (!activity) return null;
 
-    const activity = this.childActivities[index];
-    activity.status = status;
-    
-    if (notes !== undefined) {
-      activity.notes = notes;
+      const response = await apiClient.patch<{ success: boolean; childActivity: any }>(
+        `/api/children/${activity.childId}/activities/${childActivityId}`,
+        {
+          status,
+          notes,
+        }
+      );
+
+      const updated: ChildActivity = {
+        id: response.childActivity.id,
+        childId: response.childActivity.childId,
+        activityId: response.childActivity.activityId,
+        status: response.childActivity.status,
+        addedAt: new Date(response.childActivity.createdAt),
+        startedAt: response.childActivity.registeredAt ? new Date(response.childActivity.registeredAt) : undefined,
+        completedAt: response.childActivity.completedAt ? new Date(response.childActivity.completedAt) : undefined,
+        scheduledDate: response.childActivity.scheduledDate ? new Date(response.childActivity.scheduledDate) : undefined,
+        startTime: response.childActivity.startTime,
+        endTime: response.childActivity.endTime,
+        notes: response.childActivity.notes,
+      };
+
+      // Update local cache
+      const index = this.childActivities.findIndex(ca => ca.id === childActivityId);
+      if (index !== -1) {
+        this.childActivities[index] = updated;
+        await this.saveLocalData();
+      }
+
+      return updated;
+    } catch (error) {
+      console.error('Error updating activity status:', error);
+      throw error;
     }
-
-    // Update timestamps based on status
-    if (status === 'in_progress' && !activity.startedAt) {
-      activity.startedAt = new Date();
-    } else if (status === 'completed' && !activity.completedAt) {
-      activity.completedAt = new Date();
-    }
-
-    await this.saveLocalData();
-    return activity;
   }
 
   async removeActivityFromChild(childActivityId: string): Promise<boolean> {
-    await this.waitForInit();
-    
-    const index = this.childActivities.findIndex(ca => ca.id === childActivityId);
-    if (index === -1) return false;
+    try {
+      // Find the activity to get childId
+      await this.waitForInit();
+      const activity = this.childActivities.find(ca => ca.id === childActivityId);
+      if (!activity) return false;
 
-    this.childActivities.splice(index, 1);
-    await this.saveLocalData();
-    return true;
+      await apiClient.delete(`/api/children/${activity.childId}/activities/${childActivityId}`);
+
+      // Update local cache
+      const index = this.childActivities.findIndex(ca => ca.id === childActivityId);
+      if (index !== -1) {
+        this.childActivities.splice(index, 1);
+        await this.saveLocalData();
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error removing activity from child:', error);
+      throw error;
+    }
   }
 
   async getChildActivitiesList(childId: string, status?: ChildActivity['status']): Promise<ChildActivity[]> {
-    await this.waitForInit();
-    
-    let activities = this.childActivities.filter(ca => ca.childId === childId);
-    
-    if (status) {
-      activities = activities.filter(ca => ca.status === status);
-    }
+    try {
+      const response = await apiClient.get<{ success: boolean; activities: any[] }>(
+        `/api/children/${childId}/activities${status ? `?status=${status}` : ''}`
+      );
 
-    return activities.sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime());
+      const activities: ChildActivity[] = response.activities.map((ca: any) => ({
+        id: ca.id,
+        childId: ca.childId,
+        activityId: ca.activityId,
+        status: ca.status,
+        addedAt: new Date(ca.createdAt),
+        startedAt: ca.registeredAt ? new Date(ca.registeredAt) : undefined,
+        completedAt: ca.completedAt ? new Date(ca.completedAt) : undefined,
+        scheduledDate: ca.scheduledDate ? new Date(ca.scheduledDate) : undefined,
+        startTime: ca.startTime,
+        endTime: ca.endTime,
+        notes: ca.notes,
+      }));
+
+      // Update local cache
+      await this.waitForInit();
+      this.childActivities = [
+        ...this.childActivities.filter(ca => ca.childId !== childId),
+        ...activities
+      ];
+      await this.saveLocalData();
+
+      return activities;
+    } catch (error) {
+      console.error('Error fetching child activities:', error);
+      // Fallback to local cache
+      await this.waitForInit();
+      let activities = this.childActivities.filter(ca => ca.childId === childId);
+      if (status) {
+        activities = activities.filter(ca => ca.status === status);
+      }
+      return activities.sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime());
+    }
   }
 
   async getAllChildActivities(status?: ChildActivity['status']): Promise<ChildActivity[]> {
@@ -341,10 +419,24 @@ class ChildrenService {
 
   async isActivityAssignedToChild(childId: string, activityId: string): Promise<boolean> {
     await this.waitForInit();
-    
+
     return this.childActivities.some(
       ca => ca.childId === childId && ca.activityId === activityId
     );
+  }
+
+  async isActivityAssignedToAnyChild(activityId: string): Promise<boolean> {
+    try {
+      const response = await apiClient.get<{ success: boolean; isAssigned: boolean }>(
+        `/api/children/activities/${activityId}/assigned`
+      );
+      return response.isAssigned;
+    } catch (error) {
+      console.error('Error checking if activity is assigned:', error);
+      // Fallback to local cache
+      await this.waitForInit();
+      return this.childActivities.some(ca => ca.activityId === activityId);
+    }
   }
 
   async getChildStatistics(childId: string): Promise<{

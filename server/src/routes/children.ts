@@ -317,7 +317,7 @@ router.delete('/:childId', verifyToken, async (req: Request, res: Response) => {
 router.post('/bulk', verifyToken, async (req: Request, res: Response) => {
   try {
     const { children } = req.body;
-    
+
     if (!Array.isArray(children) || children.length === 0) {
       return res.status(400).json({
         success: false,
@@ -350,6 +350,160 @@ router.post('/bulk', verifyToken, async (req: Request, res: Response) => {
     res.status(201).json({
       success: true,
       children: createdChildren
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============= Child Activity Management =============
+
+// Add activity to child's calendar
+router.post('/:childId/activities', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { activityId, status, scheduledDate, startTime, endTime, notes } = req.body;
+
+    if (!activityId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Activity ID is required'
+      });
+    }
+
+    const childActivity = await childrenService.addActivityToChild(
+      req.params.childId,
+      activityId,
+      req.user!.id,
+      status || 'planned',
+      scheduledDate ? new Date(scheduledDate) : undefined,
+      startTime,
+      endTime,
+      notes
+    );
+
+    res.status(201).json({
+      success: true,
+      childActivity
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get activities for a specific child
+router.get('/:childId/activities', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const status = req.query.status as string | undefined;
+    const activities = await childrenService.getChildActivities(
+      req.params.childId,
+      req.user!.id,
+      status
+    );
+
+    res.json({
+      success: true,
+      activities
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get all activities for all user's children (for calendar)
+router.get('/activities/all', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+    const activities = await childrenService.getAllChildActivitiesForUser(
+      req.user!.id,
+      startDate,
+      endDate
+    );
+
+    res.json({
+      success: true,
+      activities
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update child activity status
+router.patch('/:childId/activities/:activityId', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { status, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        error: 'Status is required'
+      });
+    }
+
+    const childActivity = await childrenService.updateChildActivityStatus(
+      req.params.activityId,
+      req.user!.id,
+      status,
+      notes
+    );
+
+    res.json({
+      success: true,
+      childActivity
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Remove activity from child's calendar
+router.delete('/:childId/activities/:activityId', verifyToken, async (req: Request, res: Response) => {
+  try {
+    await childrenService.removeActivityFromChild(
+      req.params.activityId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      message: 'Activity removed from child calendar'
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Check if activity is assigned to any child
+router.get('/activities/:activityId/assigned', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const isAssigned = await childrenService.isActivityAssignedToAnyChild(
+      req.params.activityId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      isAssigned
     });
   } catch (error: any) {
     res.status(400).json({

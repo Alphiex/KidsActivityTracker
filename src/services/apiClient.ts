@@ -34,8 +34,11 @@ class ApiClient {
     this.axiosInstance.interceptors.request.use(
       async (config) => {
         const token = await SecureStore.getAccessToken();
+        console.log('[API] Request to:', config.url, 'token present:', !!token);
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          console.warn('[API] No access token found for request:', config.url);
         }
         return config;
       },
@@ -97,13 +100,35 @@ class ApiClient {
 
   // HTTP methods
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.axiosInstance.get<T>(url, config);
-    return response.data;
+    console.log('[API] GET', url);
+    try {
+      const response = await this.axiosInstance.get<T>(url, config);
+      console.log('[API] GET', url, 'response:', response.status);
+      return response.data;
+    } catch (error: any) {
+      console.error('[API] GET', url, 'error:', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      throw error;
+    }
   }
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.axiosInstance.post<T>(url, data, config);
-    return response.data;
+    console.log('[API] POST', url, 'data:', JSON.stringify(data, null, 2));
+    try {
+      const response = await this.axiosInstance.post<T>(url, data, config);
+      console.log('[API] POST', url, 'response:', response.status, JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error: any) {
+      console.error('[API] POST', url, 'error:', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      throw error;
+    }
   }
 
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {

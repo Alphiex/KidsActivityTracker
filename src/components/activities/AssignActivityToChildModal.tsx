@@ -31,14 +31,18 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
   const calculateAge = (dateOfBirth: string): number => {
     try {
       const today = new Date();
-      const birthDate = new Date(dateOfBirth);
+      // Parse date as local date, not UTC
+      // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+      const datePart = dateOfBirth.split('T')[0];
+      const parts = datePart.split('-');
+      const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
-      
+
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
         age--;
       }
-      
+
       return age;
     } catch (error) {
       return 0;

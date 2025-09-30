@@ -321,10 +321,234 @@ export class ChildrenService {
     }));
 
     return await prisma.$transaction(
-      data.map(childData => 
+      data.map(childData =>
         prisma.child.create({ data: childData })
       )
     );
+  }
+
+  /**
+   * Add an activity to a child's calendar
+   */
+  async addActivityToChild(
+    childId: string,
+    activityId: string,
+    userId: string,
+    status: string = 'planned',
+    scheduledDate?: Date,
+    startTime?: string,
+    endTime?: string,
+    notes?: string
+  ) {
+    // Verify child ownership
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found or access denied');
+    }
+
+    // Verify activity exists
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId }
+    });
+
+    if (!activity) {
+      throw new Error('Activity not found');
+    }
+
+    // Check if already assigned
+    const existing = await prisma.childActivity.findUnique({
+      where: {
+        childId_activityId: {
+          childId,
+          activityId
+        }
+      }
+    });
+
+    if (existing) {
+      throw new Error('Activity already assigned to this child');
+    }
+
+    // Create the child activity
+    return await prisma.childActivity.create({
+      data: {
+        childId,
+        activityId,
+        status,
+        scheduledDate,
+        startTime,
+        endTime,
+        notes
+      },
+      include: {
+        activity: true,
+        child: true
+      }
+    });
+  }
+
+  /**
+   * Get activities assigned to a child
+   */
+  async getChildActivities(childId: string, userId: string, status?: string) {
+    // Verify child ownership or shared access
+    const child = await prisma.child.findFirst({
+      where: {
+        OR: [
+          { id: childId, userId }, // User owns the child
+          {
+            id: childId,
+            user: {
+              myShares: {
+                some: {
+                  sharedWithUserId: userId,
+                  isActive: true,
+                  profiles: {
+                    some: {
+                      childId
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    if (!child) {
+      throw new Error('Child not found or access denied');
+    }
+
+    const where: any = { childId };
+    if (status) {
+      where.status = status;
+    }
+
+    return await prisma.childActivity.findMany({
+      where,
+      include: {
+        activity: {
+          include: {
+            location: true
+          }
+        }
+      },
+      orderBy: [
+        { scheduledDate: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
+  }
+
+  /**
+   * Get all activities for all children of a user (for calendar view)
+   */
+  async getAllChildActivitiesForUser(userId: string, startDate?: Date, endDate?: Date) {
+    const where: any = {
+      child: {
+        userId
+      }
+    };
+
+    if (startDate || endDate) {
+      where.scheduledDate = {};
+      if (startDate) where.scheduledDate.gte = startDate;
+      if (endDate) where.scheduledDate.lte = endDate;
+    }
+
+    return await prisma.childActivity.findMany({
+      where,
+      include: {
+        activity: {
+          include: {
+            location: true
+          }
+        },
+        child: true
+      },
+      orderBy: [
+        { scheduledDate: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
+  }
+
+  /**
+   * Update child activity status
+   */
+  async updateChildActivityStatus(
+    childActivityId: string,
+    userId: string,
+    status: string,
+    notes?: string
+  ) {
+    // Verify ownership through child
+    const childActivity = await prisma.childActivity.findUnique({
+      where: { id: childActivityId },
+      include: { child: true }
+    });
+
+    if (!childActivity || childActivity.child.userId !== userId) {
+      throw new Error('Activity not found or access denied');
+    }
+
+    const updateData: any = { status };
+    if (notes !== undefined) updateData.notes = notes;
+
+    // Update timestamps based on status
+    if (status === 'completed' && !childActivity.completedAt) {
+      updateData.completedAt = new Date();
+    }
+
+    return await prisma.childActivity.update({
+      where: { id: childActivityId },
+      data: updateData,
+      include: {
+        activity: true,
+        child: true
+      }
+    });
+  }
+
+  /**
+   * Remove activity from child's calendar
+   */
+  async removeActivityFromChild(childActivityId: string, userId: string) {
+    // Verify ownership through child
+    const childActivity = await prisma.childActivity.findUnique({
+      where: { id: childActivityId },
+      include: { child: true }
+    });
+
+    if (!childActivity || childActivity.child.userId !== userId) {
+      throw new Error('Activity not found or access denied');
+    }
+
+    await prisma.childActivity.delete({
+      where: { id: childActivityId }
+    });
+
+    return true;
+  }
+
+  /**
+   * Check if activity is assigned to any of user's children
+   */
+  async isActivityAssignedToAnyChild(activityId: string, userId: string) {
+    const count = await prisma.childActivity.count({
+      where: {
+        activityId,
+        child: {
+          userId
+        }
+      }
+    });
+
+    return count > 0;
   }
 }
 
