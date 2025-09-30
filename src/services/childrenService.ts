@@ -372,6 +372,13 @@ class ChildrenService {
         `/api/children/${childId}/activities${status ? `?status=${status}` : ''}`
       );
 
+      console.log('=== API RESPONSE ===');
+      console.log('Response:', JSON.stringify(response, null, 2));
+      console.log('Activities count:', response.activities?.length || 0);
+      if (response.activities && response.activities.length > 0) {
+        console.log('First activity:', JSON.stringify(response.activities[0], null, 2));
+      }
+
       const activities: ChildActivity[] = response.activities.map((ca: any) => ({
         id: ca.id,
         childId: ca.childId,

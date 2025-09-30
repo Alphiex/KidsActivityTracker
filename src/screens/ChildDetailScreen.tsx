@@ -103,13 +103,27 @@ const ChildDetailScreen: React.FC = () => {
         }
         seenChildActivityIds.add(ca.id);
 
+        // Log raw data for first activity
+        if (activitiesWithDetails.length === 0) {
+          console.log('=== FIRST CHILD ACTIVITY ===');
+          console.log('Full object:', JSON.stringify(ca, null, 2));
+        }
+
         // If we have activity data from the ChildActivity relation, use it
         if (ca.activity) {
+          console.log('Activity data found:', {
+            name: ca.activity.name,
+            id: ca.activity.id,
+            hasLocation: !!ca.activity.location,
+            hasSessions: !!(ca.activity as any).sessions
+          });
+
           activitiesWithDetails.push({
             ...ca.activity,
             childActivity: ca,
           } as ActivityWithChild);
         } else {
+          console.log('NO ACTIVITY DATA - using fallback');
           // Fallback: create minimal activity object from childActivity data
           activitiesWithDetails.push({
             id: ca.activityId,
@@ -255,9 +269,19 @@ const ChildDetailScreen: React.FC = () => {
       dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
     }
 
-    // Get activity image
-    const activityTypeName = (item as any).activityType?.name || item.category || 'general';
+    // Get activity image - fallback to category if activityType not available
+    const activityTypeName = (item as any).activityType?.name || item.category || (item as any).category || 'general';
     const subcategory = (item as any).activitySubtype?.name || (item as any).subcategory;
+
+    // Log for debugging
+    console.log('Activity image lookup:', {
+      activityName,
+      activityTypeName,
+      subcategory,
+      hasActivityType: !!(item as any).activityType,
+      category: item.category
+    });
+
     const imageKey = getActivityImageKey(activityTypeName, subcategory);
     const imageSource = getActivityImageByKey(imageKey);
 

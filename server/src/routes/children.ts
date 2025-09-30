@@ -400,17 +400,23 @@ router.post('/:childId/activities', verifyToken, async (req: Request, res: Respo
 router.get('/:childId/activities', verifyToken, async (req: Request, res: Response) => {
   try {
     const status = req.query.status as string | undefined;
+    console.log('Getting activities for child:', req.params.childId, 'user:', req.user!.id);
     const activities = await childrenService.getChildActivities(
       req.params.childId,
       req.user!.id,
       status
     );
+    console.log('Found activities:', activities.length);
+    if (activities.length > 0) {
+      console.log('First activity:', JSON.stringify(activities[0], null, 2));
+    }
 
     res.json({
       success: true,
       activities
     });
   } catch (error: any) {
+    console.error('Error getting child activities:', error);
     res.status(400).json({
       success: false,
       error: error.message
