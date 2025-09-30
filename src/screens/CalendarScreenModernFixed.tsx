@@ -782,19 +782,38 @@ END:VEVENT
       [...childrenWithActivities, ...sharedChildren]
         .filter(c => c.isVisible)
         .forEach(child => {
-          child.activities
-            .filter(a => a.scheduledDate === dateKey)
-            .forEach(activity => {
-              const startHour = parseInt(activity.startTime?.split(':')[0] || '0');
+          child.activities.forEach(activity => {
+            // Check if activity occurs on this date using expandActivityDates
+            const occurrenceDates = expandActivityDates(activity);
+
+            if (occurrenceDates.includes(dateKey)) {
+              // Extract start hour from activity's startTime or sessions
+              let startTimeStr = activity.startTime;
+
+              // If no startTime on childActivity, try to get from sessions
+              if (!startTimeStr && activity.activity?.sessions) {
+                const matchingSession = activity.activity.sessions.find(s =>
+                  s.dayOfWeek && s.dayOfWeek.toLowerCase() === format(day, 'EEEE').toLowerCase()
+                );
+                startTimeStr = matchingSession?.startTime;
+              }
+
+              // Parse hour from time string (e.g., "9:30 am" -> 9)
+              const startHour = startTimeStr
+                ? parseInt(startTimeStr.replace(/[^\d]/g, '').substring(0, 2))
+                : 0;
+
               if (!weekActivities[dateKey][startHour]) {
                 weekActivities[dateKey][startHour] = [];
               }
+
               weekActivities[dateKey][startHour].push({
                 ...activity,
                 childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
                 childColor: child.color,
               });
-            });
+            }
+          });
         });
     });
 
@@ -859,23 +878,50 @@ END:VEVENT
 
                     return (
                       <View key={dateKey} style={styles.weekTimeSlot}>
-                        {hourActivities.map((activity) => (
-                          <TouchableOpacity
-                            key={activity.id}
-                            style={[
-                              styles.weekActivityBlock,
-                              { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
-                            ]}
-                            onPress={() => handleActivityPress(activity)}
-                          >
-                            <Text style={styles.weekActivityBlockName} numberOfLines={1}>
-                              {activity.activity.name}
-                            </Text>
-                            <Text style={styles.weekActivityBlockTime} numberOfLines={1}>
-                              {activity.startTime}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
+                        {hourActivities.map((activity) => {
+                          // Get time range for display
+                          let timeDisplay = '';
+                          let startTimeStr = activity.startTime;
+                          let endTimeStr = activity.endTime;
+
+                          // If not on childActivity, try to get from sessions
+                          if (!startTimeStr && activity.activity?.sessions) {
+                            const matchingSession = activity.activity.sessions.find(s =>
+                              s.dayOfWeek && s.dayOfWeek.toLowerCase() === format(day, 'EEEE').toLowerCase()
+                            );
+                            startTimeStr = matchingSession?.startTime;
+                            endTimeStr = matchingSession?.endTime;
+                          }
+
+                          if (startTimeStr && endTimeStr) {
+                            timeDisplay = `${startTimeStr} - ${endTimeStr}`;
+                          } else if (startTimeStr) {
+                            timeDisplay = startTimeStr;
+                          }
+
+                          return (
+                            <TouchableOpacity
+                              key={activity.id}
+                              style={[
+                                styles.weekActivityBlock,
+                                { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
+                              ]}
+                              onPress={() => handleActivityPress(activity)}
+                            >
+                              <Text style={styles.weekActivityBlockName} numberOfLines={1}>
+                                {activity.activity.name}
+                              </Text>
+                              {timeDisplay && (
+                                <Text style={styles.weekActivityBlockTime} numberOfLines={1}>
+                                  {timeDisplay}
+                                </Text>
+                              )}
+                              <Text style={styles.weekActivityBlockChild} numberOfLines={1}>
+                                {activity.childName}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </View>
                     );
                   })}
@@ -895,7 +941,11 @@ END:VEVENT
       .filter(c => c.isVisible)
       .flatMap(c => {
         return c.activities
-          .filter(a => a.scheduledDate === selectedDate)
+          .filter(a => {
+            // Check if activity occurs on this date using expandActivityDates
+            const occurrenceDates = expandActivityDates(a);
+            return occurrenceDates.includes(selectedDate);
+          })
           .map(a => ({
             ...a,
             childName: c.isShared ? `${c.name} (${c.sharedBy})` : c.name,
@@ -914,7 +964,20 @@ END:VEVENT
           <View style={styles.dayTimeline}>
             {hours.map((hour) => {
               const hourActivities = dayActivities.filter(a => {
-                const startHour = parseInt(a.startTime?.split(':')[0] || '0');
+                // Get start time from activity or sessions
+                let startTimeStr = a.startTime;
+
+                if (!startTimeStr && a.activity?.sessions) {
+                  const matchingSession = a.activity.sessions.find(s =>
+                    s.dayOfWeek && s.dayOfWeek.toLowerCase() === format(currentDay, 'EEEE').toLowerCase()
+                  );
+                  startTimeStr = matchingSession?.startTime;
+                }
+
+                const startHour = startTimeStr
+                  ? parseInt(startTimeStr.replace(/[^\d]/g, '').substring(0, 2))
+                  : 0;
+
                 return startHour === hour;
               });
 
@@ -925,40 +988,63 @@ END:VEVENT
                   </Text>
                   <View style={styles.dayHourContent}>
                     {hourActivities.length > 0 ? (
-                      hourActivities.map((activity) => (
-                        <TouchableOpacity
-                          key={activity.id}
-                          style={[
-                            styles.dayActivity,
-                            { backgroundColor: activity.childColor + '15' },
-                          ]}
-                          onPress={() => handleActivityPress(activity)}
-                        >
-                          <View style={[styles.dayActivityIndicator, { backgroundColor: activity.childColor }]} />
-                          <View style={styles.dayActivityContent}>
-                            <Text style={styles.dayActivityName}>
-                              {activity.activity.name}
-                            </Text>
-                            <Text style={styles.dayActivityChild}>
-                              {activity.childName}
-                            </Text>
-                            <View style={styles.dayActivityDetails}>
-                              <Icon name="clock-outline" size={12} color={ModernColors.textSecondary} />
-                              <Text style={styles.dayActivityTime}>
-                                {activity.startTime} - {activity.endTime}
+                      hourActivities.map((activity) => {
+                        // Get time range for display
+                        let startTimeStr = activity.startTime;
+                        let endTimeStr = activity.endTime;
+
+                        if (!startTimeStr && activity.activity?.sessions) {
+                          const matchingSession = activity.activity.sessions.find(s =>
+                            s.dayOfWeek && s.dayOfWeek.toLowerCase() === format(currentDay, 'EEEE').toLowerCase()
+                          );
+                          startTimeStr = matchingSession?.startTime;
+                          endTimeStr = matchingSession?.endTime;
+                        }
+
+                        const timeDisplay = startTimeStr && endTimeStr
+                          ? `${startTimeStr} - ${endTimeStr}`
+                          : startTimeStr || 'All day';
+
+                        // Get location name
+                        const locationName = typeof activity.activity.location === 'string'
+                          ? activity.activity.location
+                          : activity.activity.location?.name || '';
+
+                        return (
+                          <TouchableOpacity
+                            key={activity.id}
+                            style={[
+                              styles.dayActivity,
+                              { backgroundColor: activity.childColor + '15' },
+                            ]}
+                            onPress={() => handleActivityPress(activity)}
+                          >
+                            <View style={[styles.dayActivityIndicator, { backgroundColor: activity.childColor }]} />
+                            <View style={styles.dayActivityContent}>
+                              <Text style={styles.dayActivityName}>
+                                {activity.activity.name}
                               </Text>
-                              {activity.activity.location && (
-                                <>
-                                  <Icon name="map-marker" size={12} color={ModernColors.textSecondary} />
-                                  <Text style={styles.dayActivityLocation}>
-                                    {activity.activity.location}
-                                  </Text>
-                                </>
-                              )}
+                              <Text style={styles.dayActivityChild}>
+                                {activity.childName}
+                              </Text>
+                              <View style={styles.dayActivityDetails}>
+                                <Icon name="clock-outline" size={12} color={ModernColors.textSecondary} />
+                                <Text style={styles.dayActivityTime}>
+                                  {timeDisplay}
+                                </Text>
+                                {locationName && (
+                                  <>
+                                    <Icon name="map-marker" size={12} color={ModernColors.textSecondary} style={{ marginLeft: 8 }} />
+                                    <Text style={styles.dayActivityLocation}>
+                                      {locationName}
+                                    </Text>
+                                  </>
+                                )}
+                              </View>
                             </View>
-                          </View>
-                        </TouchableOpacity>
-                      ))
+                          </TouchableOpacity>
+                        );
+                      })
                     ) : (
                       <View style={styles.dayEmptySlot} />
                     )}
@@ -1538,6 +1624,11 @@ const styles = StyleSheet.create({
   weekActivityBlockTime: {
     fontSize: 10,
     color: ModernColors.textSecondary,
+    marginTop: 2,
+  },
+  weekActivityBlockChild: {
+    fontSize: 9,
+    color: ModernColors.textMuted,
     marginTop: 2,
   },
   dayContainer: {
