@@ -544,22 +544,7 @@ END:VEVENT
     }
   };
 
-  const renderHeaderActions = () => (
-    <View style={styles.headerActions}>
-      <TouchableOpacity
-        onPress={() => setShowFilterModal(true)}
-        style={styles.headerActionButton}
-      >
-        <Icon name="filter-variant" size={24} color={ModernColors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={exportToCalendar}
-        style={styles.headerActionButton}
-      >
-        <Icon name="export" size={24} color={ModernColors.text} />
-      </TouchableOpacity>
-    </View>
-  );
+  // Removed - Filter and Export buttons moved to Children legend row
 
   const renderViewModeSelector = () => (
     <View style={styles.viewModeContainer}>
@@ -649,16 +634,32 @@ END:VEVENT
 
     return (
       <View style={styles.legendContainer}>
-        <Text style={styles.legendTitle}>Children</Text>
-        <View style={styles.legendItems}>
-          {visibleChildren.map((child) => (
-            <View key={child.id} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: child.color }]} />
-              <Text style={styles.legendText} numberOfLines={1}>
-                {child.isShared ? `${child.name} (${child.sharedBy})` : child.name}
-              </Text>
-            </View>
-          ))}
+        <View style={styles.legendLeftSection}>
+          <Text style={styles.legendTitle}>Children</Text>
+          <View style={styles.legendItems}>
+            {visibleChildren.map((child) => (
+              <View key={child.id} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: child.color }]} />
+                <Text style={styles.legendText} numberOfLines={1}>
+                  {child.isShared ? `${child.name} (${child.sharedBy})` : child.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        <View style={styles.legendRightActions}>
+          <TouchableOpacity
+            onPress={() => setShowFilterModal(true)}
+            style={styles.headerActionButton}
+          >
+            <Icon name="filter-variant" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={exportToCalendar}
+            style={styles.headerActionButton}
+          >
+            <Icon name="export" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -1329,10 +1330,6 @@ END:VEVENT
       <TopTabNavigation />
 
       <View style={styles.contentContainer}>
-        <View style={styles.calendarActions}>
-          {renderHeaderActions()}
-        </View>
-
         {renderViewModeSelector()}
         {renderChildrenLegend()}
 
@@ -1411,6 +1408,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: ModernColors.borderLight,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  legendLeftSection: {
+    flex: 1,
   },
   legendTitle: {
     fontSize: 12,
@@ -1438,6 +1441,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: ModernColors.text,
     maxWidth: 120,
+  },
+  legendRightActions: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  headerActionButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: ModernColors.surface,
   },
   activitiesListContainer: {
     padding: 20,
