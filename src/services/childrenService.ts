@@ -114,8 +114,8 @@ class ChildrenService {
 
   async getChildren(): Promise<Child[]> {
     try {
-      const response = await apiClient.get<Child[]>('/children');
-      return response;
+      const response = await apiClient.get<{ success: boolean; children: Child[] }>('/api/children');
+      return response.children;
     } catch (error) {
       console.error('Error fetching children:', error);
       throw error;
@@ -124,8 +124,8 @@ class ChildrenService {
 
   async getChild(id: string): Promise<Child> {
     try {
-      const response = await apiClient.get<Child>(`/children/${id}`);
-      return response;
+      const response = await apiClient.get<{ success: boolean; child: Child }>(`/api/children/${id}`);
+      return response.child;
     } catch (error) {
       console.error('Error fetching child:', error);
       throw error;
@@ -134,18 +134,25 @@ class ChildrenService {
 
   async createChild(childData: ChildFormData): Promise<Child> {
     try {
-      const response = await apiClient.post<Child>('/children', childData);
-      return response;
-    } catch (error) {
+      console.log('Creating child with data:', JSON.stringify(childData, null, 2));
+      const response = await apiClient.post<{ success: boolean; child: Child }>('/api/children', childData);
+      console.log('Create child response:', JSON.stringify(response, null, 2));
+      return response.child;
+    } catch (error: any) {
       console.error('Error creating child:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        responseData: JSON.stringify(error?.response?.data),
+        status: error?.response?.status,
+      });
       throw error;
     }
   }
 
   async updateChild(id: string, childData: Partial<ChildFormData>): Promise<Child> {
     try {
-      const response = await apiClient.patch<Child>(`/children/${id}`, childData);
-      return response;
+      const response = await apiClient.patch<{ success: boolean; child: Child }>(`/api/children/${id}`, childData);
+      return response.child;
     } catch (error) {
       console.error('Error updating child:', error);
       throw error;
@@ -154,7 +161,7 @@ class ChildrenService {
 
   async deleteChild(id: string): Promise<void> {
     try {
-      await apiClient.delete(`/children/${id}`);
+      await apiClient.delete(`/api/children/${id}`);
     } catch (error) {
       console.error('Error deleting child:', error);
       throw error;
@@ -213,14 +220,18 @@ class ChildrenService {
   // Helper method to calculate age from date of birth
   calculateAge(dateOfBirth: string): number {
     const today = new Date();
-    const birthDate = new Date(dateOfBirth);
+    // Parse date as local date, not UTC
+    // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+    const datePart = dateOfBirth.split('T')[0];
+    const parts = datePart.split('-');
+    const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
   }
 
@@ -363,7 +374,7 @@ class ChildrenService {
   // Sharing Methods
   async shareChildWithUser(childId: string, email: string, permission: 'view' | 'full'): Promise<void> {
     try {
-      const response = await apiClient.post('/children/share', {
+      const response = await apiClient.post('/api/children/share', {
         childId,
         email,
         permission,
@@ -377,7 +388,7 @@ class ChildrenService {
 
   async getSharedUsers(childId: string): Promise<any[]> {
     try {
-      const response = await apiClient.get(`/children/${childId}/shared`);
+      const response = await apiClient.get(`/api/children/${childId}/shared`);
       return response.data;
     } catch (error) {
       console.error('Error fetching shared users:', error);
@@ -388,11 +399,27 @@ class ChildrenService {
 
   async revokeChildAccess(childId: string, userId: string): Promise<void> {
     try {
-      const response = await apiClient.delete(`/children/${childId}/shared/${userId}`);
+      const response = await apiClient.delete(`/api/children/${childId}/shared/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error revoking access:', error);
       throw error;
+    }
+  }
+
+  async removeActivityFromChild(childId: string, scheduleId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/children/${childId}/activities/${scheduleId}`);
+      // Update local cache
+      this.childActivities = this.childActivities.filter(
+        ca => !(ca.childId === childId && ca.id === scheduleId)
+      );
+    } catch (error) {
+      console.error('Error removing activity from child:', error);
+      // For now, just remove from local cache even if API fails
+      this.childActivities = this.childActivities.filter(
+        ca => !(ca.childId === childId && ca.id === scheduleId)
+      );
     }
   }
 
@@ -402,25 +429,11 @@ class ChildrenService {
 
   async getSharedChildren(): Promise<SharedChild[]> {
     try {
-      const response = await apiClient.get('/children/shared-with-me');
+      const response = await apiClient.get('/api/children/shared-with-me');
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching shared children:', error);
-      // Return mock data for development
-      const mockData: SharedChild[] = [
-        {
-          id: 'sc1',
-          childId: 'c1',
-          ownerId: 'u1',
-          ownerEmail: 'parent@example.com',
-          ownerName: 'Parent Name',
-          sharedWithEmail: 'me@example.com',
-          permissions: 'view',
-          acceptedAt: new Date(),
-          createdAt: new Date(),
-        },
-      ];
-      return mockData;
+      return [];
     }
   }
 

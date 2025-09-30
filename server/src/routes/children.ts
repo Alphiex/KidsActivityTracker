@@ -102,6 +102,23 @@ router.get('/shared', verifyToken, async (req: Request, res: Response) => {
   }
 });
 
+// Get shared children (alias for /shared - for mobile app compatibility)
+router.get('/shared-with-me', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const sharedChildren = await childrenService.getSharedChildren(req.user!.id);
+
+    res.json({
+      success: true,
+      data: sharedChildren
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Search children
 router.get('/search', verifyToken, async (req: Request, res: Response) => {
   try {
@@ -156,7 +173,45 @@ router.get('/:childId', verifyToken, async (req: Request, res: Response) => {
 router.put('/:childId', verifyToken, async (req: Request, res: Response) => {
   try {
     const updateData: any = {};
-    
+
+    if (req.body.name !== undefined) updateData.name = req.body.name;
+    if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = new Date(req.body.dateOfBirth);
+    if (req.body.gender !== undefined) updateData.gender = req.body.gender;
+    if (req.body.avatarUrl !== undefined) updateData.avatarUrl = req.body.avatarUrl;
+    if (req.body.interests !== undefined) updateData.interests = req.body.interests;
+    if (req.body.notes !== undefined) updateData.notes = req.body.notes;
+    if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive;
+
+    const child = await childrenService.updateChild(
+      req.params.childId,
+      req.user!.id,
+      updateData
+    );
+
+    if (!child) {
+      return res.status(404).json({
+        success: false,
+        error: 'Child not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      child
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update child (PATCH - same as PUT for compatibility)
+router.patch('/:childId', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const updateData: any = {};
+
     if (req.body.name !== undefined) updateData.name = req.body.name;
     if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = new Date(req.body.dateOfBirth);
     if (req.body.gender !== undefined) updateData.gender = req.body.gender;

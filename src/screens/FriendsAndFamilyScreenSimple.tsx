@@ -105,7 +105,8 @@ const FriendsAndFamilyScreenSimple = () => {
       return;
     }
     
-    const dateOfBirth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+    // Format as ISO 8601 for API validation
+    const dateOfBirth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}T00:00:00.000Z`;
 
     try {
       await childrenService.createChild({

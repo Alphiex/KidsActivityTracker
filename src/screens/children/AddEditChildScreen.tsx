@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 // TODO: Install these dependencies
 // import * as ImagePicker from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -57,27 +57,48 @@ const AddEditChildScreen: React.FC = () => {
     : null;
 
   const [name, setName] = useState(existingChild?.name || '');
-  
+
   // Date picker state
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const currentDay = new Date().getDate();
-  
-  const [selectedYear, setSelectedYear] = useState(
-    existingChild?.dateOfBirth 
-      ? new Date(existingChild.dateOfBirth).getFullYear() 
-      : currentYear - 5
-  );
-  const [selectedMonth, setSelectedMonth] = useState(
-    existingChild?.dateOfBirth 
-      ? new Date(existingChild.dateOfBirth).getMonth() + 1
-      : currentMonth
-  );
-  const [selectedDay, setSelectedDay] = useState(
-    existingChild?.dateOfBirth 
-      ? new Date(existingChild.dateOfBirth).getDate()
-      : currentDay
-  );
+  const [birthDate, setBirthDate] = useState(() => {
+    if (existingChild?.dateOfBirth) {
+      console.log('Loading existing child dateOfBirth:', existingChild.dateOfBirth);
+      console.log('Type of dateOfBirth:', typeof existingChild.dateOfBirth);
+
+      try {
+        // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+        const dateString = String(existingChild.dateOfBirth);
+
+        // Extract just the date part (YYYY-MM-DD) if it's ISO 8601
+        const datePart = dateString.split('T')[0];
+        const parts = datePart.split('-');
+        console.log('Date parts:', parts);
+
+        if (parts.length === 3) {
+          const year = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1;
+          const day = parseInt(parts[2]);
+
+          console.log('Parsed values:', { year, month, day });
+
+          const parsedDate = new Date(year, month, day);
+          console.log('Parsed date:', parsedDate.toString());
+          console.log('isValid:', !isNaN(parsedDate.getTime()));
+
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing date:', error);
+      }
+    }
+
+    // Default to 5 years ago
+    const defaultDate = new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate());
+    console.log('Using default date:', defaultDate.toString());
+    return defaultDate;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>(
     existingChild?.interests || []
   );
@@ -86,36 +107,29 @@ const AddEditChildScreen: React.FC = () => {
   const [avatarUri, setAvatarUri] = useState(existingChild?.avatar || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // Generate date options
-  const yearOptions = Array.from({ length: 18 }, (_, i) => currentYear - i);
-  const monthOptions = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' },
-  ];
-
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      console.log('DatePicker selected date:', selectedDate);
+      console.log('Selected date details:', {
+        year: selectedDate.getFullYear(),
+        month: selectedDate.getMonth(),
+        date: selectedDate.getDate(),
+        isValid: !isNaN(selectedDate.getTime())
+      });
+      setBirthDate(selectedDate);
+    }
   };
 
-  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-  const dayOptions = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-  // Adjust day if it exceeds days in the selected month
-  useEffect(() => {
-    if (selectedDay > daysInMonth) {
-      setSelectedDay(daysInMonth);
+  const formatDate = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) {
+      console.error('Invalid date passed to formatDate:', date);
+      return 'Invalid Date';
     }
-  }, [selectedMonth, selectedYear, daysInMonth, selectedDay]);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  };
 
 
   const toggleInterest = (interest: string) => {
@@ -140,14 +154,30 @@ const AddEditChildScreen: React.FC = () => {
       return;
     }
 
+    // Format date as YYYY-MM-DD in local timezone (not UTC)
+    console.log('birthDate object:', birthDate);
+    console.log('birthDate.getFullYear():', birthDate.getFullYear());
+    console.log('birthDate.getMonth():', birthDate.getMonth());
+    console.log('birthDate.getDate():', birthDate.getDate());
+
+    const year = birthDate.getFullYear();
+    const month = String(birthDate.getMonth() + 1).padStart(2, '0');
+    const day = String(birthDate.getDate()).padStart(2, '0');
+    // Format as ISO 8601 for API validation
+    const dateOfBirth = `${year}-${month}-${day}T00:00:00.000Z`;
+
+    console.log('Formatted dateOfBirth:', dateOfBirth);
+
     const childData = {
       name: name.trim(),
-      dateOfBirth: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`,
+      dateOfBirth,
       interests: selectedInterests,
       allergies: allergies ? allergies.split(',').map(a => a.trim()) : undefined,
       medicalInfo: medicalInfo.trim() || undefined,
       avatar: avatarUri || undefined,
     };
+
+    console.log('Child data to save:', childData);
 
     try {
       if (isEdit && existingChild) {
@@ -247,58 +277,24 @@ const AddEditChildScreen: React.FC = () => {
             {/* Date of Birth */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of Birth</Text>
-              <View style={styles.datePickerContainer}>
-                {/* Year Picker */}
-                <View style={styles.pickerWrapper}>
-                  <Text style={styles.pickerLabel}>Year</Text>
-                  <View style={styles.pickerBox}>
-                    <Picker
-                      selectedValue={selectedYear}
-                      onValueChange={setSelectedYear}
-                      style={styles.picker}
-                      itemStyle={styles.pickerItem}
-                    >
-                      {yearOptions.map(year => (
-                        <Picker.Item key={year} label={year.toString()} value={year} />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Icon name="calendar-today" size={20} color="#666" />
+                <Text style={styles.datePickerText}>{formatDate(birthDate)}</Text>
+              </TouchableOpacity>
 
-                {/* Month Picker */}
-                <View style={styles.pickerWrapper}>
-                  <Text style={styles.pickerLabel}>Month</Text>
-                  <View style={styles.pickerBox}>
-                    <Picker
-                      selectedValue={selectedMonth}
-                      onValueChange={setSelectedMonth}
-                      style={styles.picker}
-                      itemStyle={styles.pickerItem}
-                    >
-                      {monthOptions.map(month => (
-                        <Picker.Item key={month.value} label={month.label} value={month.value} />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
-
-                {/* Day Picker */}
-                <View style={styles.pickerWrapper}>
-                  <Text style={styles.pickerLabel}>Day</Text>
-                  <View style={styles.pickerBox}>
-                    <Picker
-                      selectedValue={selectedDay}
-                      onValueChange={setSelectedDay}
-                      style={styles.picker}
-                      itemStyle={styles.pickerItem}
-                    >
-                      {dayOptions.map(day => (
-                        <Picker.Item key={day} label={day.toString()} value={day} />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
-              </View>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={birthDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                  minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                />
+              )}
             </View>
 
             {/* Interests */}
@@ -457,36 +453,22 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  datePickerContainer: {
+  datePickerButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  pickerWrapper: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  pickerLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  pickerBox: {
+    alignItems: 'center',
     backgroundColor: '#fff',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 8,
-    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 8,
   },
-  picker: {
-    height: Platform.OS === 'ios' ? 120 : 50,
-    width: '100%',
-    color: '#333',
-  },
-  pickerItem: {
+  datePickerText: {
     fontSize: 16,
-    height: Platform.OS === 'ios' ? 120 : 50,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
   },
   interestsGrid: {
     flexDirection: 'row',

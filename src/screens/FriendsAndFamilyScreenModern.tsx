@@ -11,8 +11,10 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../store';
 import childrenService, { Child as ServiceChild, SharedChild as ServiceSharedChild } from '../services/childrenService';
@@ -72,13 +74,22 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
     setLoading(true);
     try {
       const [myChildrenData, sharedChildrenData] = await Promise.all([
-        childrenService.getMyChildren(),
-        childrenService.getSharedChildren(),
+        childrenService.getMyChildren().catch(err => {
+          console.error('Error loading my children:', err);
+          // Don't fail completely, just return empty array
+          return [];
+        }),
+        childrenService.getSharedChildren().catch(err => {
+          console.error('Error loading shared children:', err);
+          // Don't fail completely, just return empty array
+          return [];
+        }),
       ]);
       setChildren(myChildrenData);
       setSharedChildren(sharedChildrenData);
     } catch (error) {
       console.error('Error loading children:', error);
+      // Don't alert or block the UI, just show empty state
     } finally {
       setLoading(false);
     }
@@ -332,8 +343,11 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
             }
             await loadChildren();
             setShowAddChildModal(false);
+            setEditingChild(null);
           } catch (error) {
-            Alert.alert('Error', 'Failed to save child profile');
+            console.error('Error saving child:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to save child profile';
+            Alert.alert('Error', errorMessage);
           }
         }}
         child={editingChild}
@@ -362,32 +376,94 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
 
   useEffect(() => {
     if (child) {
       setName(child.name || '');
-      setDateOfBirth(child.dateOfBirth || '');
+      if (child.dateOfBirth) {
+        // Parse date as local date, not UTC
+        // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+        const datePart = child.dateOfBirth.split('T')[0];
+        setDateOfBirth(datePart);  // Store just the YYYY-MM-DD part
+        const parts = datePart.split('-');
+        setSelectedDate(new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+      } else {
+        setDateOfBirth('');
+      }
       setLocation(child.location || '');
     } else {
       setName('');
       setDateOfBirth('');
       setLocation(defaultLocation || '');
+      setSelectedDate(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
     }
   }, [child, defaultLocation, visible]);
 
+  const onDateChange = (event: any, date?: Date) => {
+    // On Android, automatically close the picker after selection
+    // On iOS, keep it open so user can adjust and then tap elsewhere to close
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (date) {
+      setSelectedDate(date);
+      // Format date as YYYY-MM-DD in local timezone (not UTC)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      setDateOfBirth(`${year}-${month}-${day}`);
+    }
+  };
+
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr) return 'Select date';
+    // Parse the date string components directly without creating a Date object
+    // to avoid timezone and off-by-one issues
+    // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+    const datePart = dateStr.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // month is already 1-indexed in the string, so subtract 1 for array access
+    return `${months[month - 1]} ${day}, ${year}`;
+  };
+
   const handleSave = async () => {
+    console.log('HandleSave called with:', { name, dateOfBirth, location });
+
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a name');
       return;
     }
 
     setSaving(true);
-    await onSave({
+
+    // Build child data with required fields
+    // Format date as ISO 8601 (YYYY-MM-DDTHH:MM:SS.SSSZ)
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}T00:00:00.000Z`;
+
+    const childData: any = {
       name: name.trim(),
-      dateOfBirth: dateOfBirth || null,
-      location: location.trim() || null,
-    });
-    setSaving(false);
+      // Always provide a dateOfBirth in ISO 8601 format
+      dateOfBirth: dateOfBirth ? `${dateOfBirth}T00:00:00.000Z` : formattedDate,
+    };
+
+    console.log('Saving child data:', childData);
+
+    try {
+      await onSave(childData);
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      Alert.alert('Error', 'Failed to save child profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -422,13 +498,65 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Date of Birth (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={dateOfBirth}
-                onChangeText={setDateOfBirth}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={ModernColors.textLight}
-              />
+              {Platform.OS === 'ios' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.datePickerButton}
+                    onPress={() => {
+                      console.log('Date picker button pressed, current showDatePicker:', showDatePicker);
+                      setShowDatePicker(!showDatePicker);
+                    }}
+                  >
+                    <Icon name="calendar" size={20} color={ModernColors.textLight} />
+                    <Text style={[styles.datePickerText, !dateOfBirth && styles.placeholderText]}>
+                      {dateOfBirth ? formatDate(dateOfBirth) : 'Select date'}
+                    </Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <View style={styles.datePickerContainer}>
+                      <DateTimePicker
+                        testID="dateTimePicker"
+                        value={selectedDate}
+                        mode="date"
+                        is24Hour={true}
+                        display="spinner"
+                        onChange={onDateChange}
+                        maximumDate={new Date()}
+                        minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                        themeVariant="light"
+                      />
+                      <TouchableOpacity
+                        style={styles.datePickerDoneButton}
+                        onPress={() => setShowDatePicker(false)}
+                      >
+                        <Text style={styles.datePickerDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.datePickerButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Icon name="calendar" size={20} color={ModernColors.textLight} />
+                  <Text style={[styles.datePickerText, !dateOfBirth && styles.placeholderText]}>
+                    {dateOfBirth ? formatDate(dateOfBirth) : 'Select date'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showDatePicker && Platform.OS === 'android' && (
+                <DateTimePicker
+                  testID="dateTimePicker"
+                  value={selectedDate}
+                  mode="date"
+                  is24Hour={true}
+                  display="default"
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                  minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                />
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -698,6 +826,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: ModernColors.background,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: ModernColors.backgroundLight,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: ModernColors.text,
+    marginLeft: 12,
+    flex: 1,
+  },
+  placeholderText: {
+    color: ModernColors.textLight,
+  },
+  datePickerContainer: {
+    backgroundColor: ModernColors.backgroundLight,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    height: 250,
+    justifyContent: 'space-between',
+  },
+  datePickerDoneButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+  },
+  datePickerDoneText: {
+    fontSize: 16,
+    color: ModernColors.primary,
+    fontWeight: '600',
   },
 });
 

@@ -198,7 +198,6 @@ model Child {
   userId          String
   name            String
   dateOfBirth     DateTime?
-  location        String?
   gender          String?
   avatarUrl       String?
   interests       String[]
