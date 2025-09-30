@@ -234,17 +234,32 @@ async function extractComprehensiveDetails(page) {
       data.fullDescription = aboutMatch[1].trim();
     }
     
-    // Extract location (Parkgate Community Centre)
-    const locationMatch = pageText.match(/([^,\n]*(Centre|Center)[^,\n]*)/i);
-    if (locationMatch) {
-      data.location = locationMatch[1].trim();
-      data.facility = locationMatch[1].trim();
+    // Extract location - look for it after description and before Course ID
+    // Pattern 1: Look for location between "About this Course" and "Course ID" or "Show Map"
+    const locationSectionMatch = pageText.match(/About this Course[^]*?([^\n]+(Community Recreation Centre|Recreation Centre|Community Centre|Centre|Center|Arena|Pool|Facility)[^\n]*?)(?=\n\s*Show Map|\n\s*Course ID|$)/i);
+    if (locationSectionMatch) {
+      data.location = locationSectionMatch[1].trim();
+      data.facility = locationSectionMatch[1].trim();
+    } else {
+      // Pattern 2: General pattern for Centre/Center
+      const locationMatch = pageText.match(/([A-Z][^,\n]*(Community Recreation Centre|Recreation Centre|Community Centre|Centre|Center)[^,\n]*?)(?=\n|Show Map|Course ID|$)/i);
+      if (locationMatch) {
+        data.location = locationMatch[1].trim();
+        data.facility = locationMatch[1].trim();
+      }
     }
-    
-    // Extract age restrictions
-    const ageMatch = pageText.match(/Age Restriction[s]?\s*(\d+)\s*to\s*(\d+)/i);
-    if (ageMatch) {
-      data.ageRestrictions = `${ageMatch[1]} to ${ageMatch[2]} years`;
+
+    // Extract age restrictions - handle both formats
+    // Format 1: "Age Restriction 1m to 5 y 12m"
+    const ageComplexMatch = pageText.match(/Age Restriction[s]?\s*([^\n]+)/i);
+    if (ageComplexMatch) {
+      data.ageRestrictions = ageComplexMatch[1].trim();
+    } else {
+      // Format 2: Simple "1 to 5 years"
+      const ageMatch = pageText.match(/Age Restriction[s]?\s*(\d+)\s*to\s*(\d+)/i);
+      if (ageMatch) {
+        data.ageRestrictions = `${ageMatch[1]} to ${ageMatch[2]} years`;
+      }
     }
     
     // Look for instructor - must be preceded by "Instructor" label and followed by a name
