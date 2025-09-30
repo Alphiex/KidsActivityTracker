@@ -219,24 +219,34 @@ const CalendarScreenModernFixed = () => {
       dates.push(format(new Date(activity.scheduledDate), 'yyyy-MM-dd'));
     }
 
-    // If activity has dateRange and schedule/sessions, expand to all occurrences
-    if (activity.activity?.dateRange && activity.activity.dateRange.start && activity.activity.dateRange.end) {
-      const startDate = parseISO(activity.activity.dateRange.start as any);
-      const endDate = parseISO(activity.activity.dateRange.end as any);
-
-      // Check if activity has sessions with specific dates
-      if (activity.activity.sessions && activity.activity.sessions.length > 0) {
-        activity.activity.sessions.forEach((session) => {
-          if (session.date) {
+    // If activity has sessions, use those dates (most specific)
+    if (activity.activity?.sessions && activity.activity.sessions.length > 0) {
+      activity.activity.sessions.forEach((session) => {
+        if (session.date) {
+          try {
             dates.push(format(parseISO(session.date), 'yyyy-MM-dd'));
+          } catch (e) {
+            console.warn('Invalid session date:', session.date);
           }
-        });
+        }
+      });
+    }
+    // Otherwise, if activity has dateRange, expand based on schedule
+    else if (activity.activity?.dateRange || (activity.activity as any)?.dateStart) {
+      let startDate, endDate;
+
+      // Handle both dateRange and dateStart/dateEnd formats
+      if (activity.activity.dateRange) {
+        startDate = parseISO(activity.activity.dateRange.start as any);
+        endDate = parseISO(activity.activity.dateRange.end as any);
+      } else if ((activity.activity as any).dateStart && (activity.activity as any).dateEnd) {
+        startDate = parseISO((activity.activity as any).dateStart);
+        endDate = parseISO((activity.activity as any).dateEnd);
       }
-      // Otherwise, check if activity has a schedule with days of week
-      else if (activity.activity.schedule && typeof activity.activity.schedule === 'object') {
-        const schedule = activity.activity.schedule;
-        if (schedule.days && Array.isArray(schedule.days)) {
-          // Map day names to day numbers (0 = Sunday, 1 = Monday, etc.)
+
+      if (startDate && endDate) {
+        // If activity has sessions with dayOfWeek, use those
+        if (activity.activity?.sessions && activity.activity.sessions.length > 0) {
           const dayMap: { [key: string]: number } = {
             'sunday': 0, 'sun': 0,
             'monday': 1, 'mon': 1,
@@ -247,15 +257,45 @@ const CalendarScreenModernFixed = () => {
             'saturday': 6, 'sat': 6,
           };
 
-          const targetDays = schedule.days.map(day => dayMap[day.toLowerCase()]).filter(d => d !== undefined);
+          const targetDays = activity.activity.sessions
+            .map(s => s.dayOfWeek ? dayMap[s.dayOfWeek.toLowerCase()] : undefined)
+            .filter((d): d is number => d !== undefined);
 
-          // Generate all dates between start and end that match the target days
-          let currentDate = startDate;
-          while (currentDate <= endDate) {
-            if (targetDays.includes(currentDate.getDay())) {
-              dates.push(format(currentDate, 'yyyy-MM-dd'));
+          if (targetDays.length > 0) {
+            let currentDate = startDate;
+            while (currentDate <= endDate) {
+              if (targetDays.includes(currentDate.getDay())) {
+                dates.push(format(currentDate, 'yyyy-MM-dd'));
+              }
+              currentDate = addDays(currentDate, 1);
             }
-            currentDate = addDays(currentDate, 1);
+          }
+        }
+        // Otherwise, check if activity has a schedule object with days of week
+        else if (activity.activity?.schedule && typeof activity.activity.schedule === 'object') {
+          const schedule = activity.activity.schedule;
+          if (schedule.days && Array.isArray(schedule.days)) {
+            const dayMap: { [key: string]: number } = {
+              'sunday': 0, 'sun': 0,
+              'monday': 1, 'mon': 1,
+              'tuesday': 2, 'tue': 2, 'tues': 2,
+              'wednesday': 3, 'wed': 3,
+              'thursday': 4, 'thu': 4, 'thur': 4, 'thurs': 4,
+              'friday': 5, 'fri': 5,
+              'saturday': 6, 'sat': 6,
+            };
+
+            const targetDays = schedule.days.map(day => dayMap[day.toLowerCase()]).filter((d): d is number => d !== undefined);
+
+            if (targetDays.length > 0) {
+              let currentDate = startDate;
+              while (currentDate <= endDate) {
+                if (targetDays.includes(currentDate.getDay())) {
+                  dates.push(format(currentDate, 'yyyy-MM-dd'));
+                }
+                currentDate = addDays(currentDate, 1);
+              }
+            }
           }
         }
       }
