@@ -114,19 +114,32 @@ const ActivityDetailScreenModern = () => {
         return;
       }
 
-      const address = getFullAddress(activity);
-      if (!address) return;
+      // Try location name first (most accurate), then full address
+      const locationToGeocode = activity.locationName ||
+                                (typeof activity.location === 'string' ? activity.location : activity.location?.name) ||
+                                activity.fullAddress ||
+                                getFullAddress(activity);
+
+      if (!locationToGeocode) return;
+
+      // Add "North Vancouver BC" to location name for better geocoding accuracy
+      const searchAddress = locationToGeocode.includes('Vancouver') || locationToGeocode.includes('BC')
+        ? locationToGeocode
+        : `${locationToGeocode}, North Vancouver, BC`;
+
+      console.log('[ActivityDetail] Geocoding:', searchAddress);
 
       try {
-        const coords = await geocodeAddressWithCache(address);
+        const coords = await geocodeAddressWithCache(searchAddress);
         if (coords) {
+          console.log('[ActivityDetail] Geocoded coordinates:', coords);
           setGeocodedCoords(coords);
           setTimeout(() => {
             mapRef.current?.animateToRegion({
               latitude: coords.latitude,
               longitude: coords.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
             }, 1000);
           }, 100);
         }
@@ -553,12 +566,6 @@ const ActivityDetailScreenModern = () => {
                   <Text style={styles.locationAddress}>{activity.fullAddress}</Text>
                 )}
               </View>
-              <TouchableOpacity
-                style={styles.directionsButton}
-                onPress={handleGetDirections}
-              >
-                <Icon name="directions" size={20} color={ModernColors.primary} />
-              </TouchableOpacity>
             </View>
 
             {/* Map */}
