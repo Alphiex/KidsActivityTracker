@@ -86,47 +86,29 @@ const ChildDetailScreen: React.FC = () => {
 
   const loadActivities = async () => {
     try {
-      const childActivities = await childrenService.getChildActivitiesList(childId);
+      // Get child activities with full activity details from API
+      const response = await childrenService.getChildActivitiesList(childId);
 
-      // Load full activity details for each child activity
-      const activitiesWithDetails = await Promise.all(
-        childActivities.map(async (ca) => {
-          try {
-            // In a real app, this would fetch from the API
-            // For now, create mock activity data
-            const mockActivity: ActivityWithChild = {
-              id: ca.activityId,
-              name: `Activity ${ca.activityId}`,
-              category: 'Sports',
-              subcategory: 'Swimming',
-              description: 'A fun activity for kids',
-              dateStart: ca.startedAt || new Date(),
-              dateEnd: ca.completedAt || undefined,
-              ageMin: 5,
-              ageMax: 12,
-              cost: 50,
-              location: {
-                id: '1',
-                name: 'Community Center',
-                address: '123 Main St',
-                city: 'Vancouver',
-              },
-              provider: {
-                id: '1',
-                name: 'Local Provider',
-              },
-              childActivity: ca,
-            };
-            return mockActivity;
-          } catch (error) {
-            console.error('Error loading activity details:', error);
-            return null;
-          }
-        })
-      );
+      // The API now returns activities with full details, so we can use them directly
+      const activitiesWithDetails = response.map((ca) => {
+        // If we have activity data from the ChildActivity relation, use it
+        if (ca.activity) {
+          return {
+            ...ca.activity,
+            childActivity: ca,
+          } as ActivityWithChild;
+        }
 
-      const validActivities = activitiesWithDetails.filter((a): a is ActivityWithChild => a !== null);
-      setActivities(validActivities);
+        // Fallback: create minimal activity object from childActivity data
+        return {
+          id: ca.activityId,
+          name: `Activity ${ca.activityId}`,
+          category: 'General',
+          childActivity: ca,
+        } as ActivityWithChild;
+      });
+
+      setActivities(activitiesWithDetails);
     } catch (error) {
       console.error('Error loading activities:', error);
       setActivities([]);
@@ -205,7 +187,7 @@ const ChildDetailScreen: React.FC = () => {
 
   const handleActivityPress = (activity: ActivityWithChild) => {
     navigation.navigate('ActivityDetail' as never, {
-      activityId: activity.id,
+      activity: activity,
       childId,
       childName,
     } as never);

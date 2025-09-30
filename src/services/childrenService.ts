@@ -34,6 +34,7 @@ export interface ChildActivity {
   recurring?: boolean;
   recurrencePattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   recurrenceEnd?: Date;
+  activity?: Activity; // Include full activity details from API
 }
 
 export interface SharedChild {
@@ -382,6 +383,7 @@ class ChildrenService {
         startTime: ca.startTime,
         endTime: ca.endTime,
         notes: ca.notes,
+        activity: ca.activity, // Include full activity object from API
       }));
 
       // Update local cache
