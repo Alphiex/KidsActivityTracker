@@ -17,6 +17,7 @@ import childrenService, { ChildActivity } from '../services/childrenService';
 import { Child } from '../store/slices/childrenSlice';
 import activityService from '../services/activityService';
 import { Activity } from '../types';
+import ActivityCard from '../components/modern/ActivityCard';
 
 // Airbnb-style colors
 const ModernColors = {
@@ -209,29 +210,23 @@ const ChildDetailScreen: React.FC = () => {
     };
 
     return (
-      <TouchableOpacity
-        style={styles.activityCard}
-        onPress={() => handleActivityPress(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.activityHeader}>
-          <View style={styles.activityInfo}>
-            <Text style={styles.activityName}>{item.name}</Text>
-            <Text style={styles.activityCategory}>{item.category}</Text>
-            {item.location && (
-              <View style={styles.locationRow}>
-                <Icon name="map-marker" size={14} color={ModernColors.textLight} />
-                <Text style={styles.locationText}>{item.location.name}</Text>
-              </View>
-            )}
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColors[status] }]}>
-            <Text style={styles.statusText}>
-              {status.replace('_', ' ').toUpperCase()}
-            </Text>
-          </View>
+      <View style={styles.activityWrapper}>
+        {/* Activity Card with Image */}
+        <ActivityCard
+          activity={item}
+          onPress={() => handleActivityPress(item)}
+          variant="default"
+          isAssignedToCalendar={true}
+        />
+
+        {/* Status Badge Overlay */}
+        <View style={[styles.statusBadgeOverlay, { backgroundColor: statusColors[status] }]}>
+          <Text style={styles.statusText}>
+            {status.replace('_', ' ').toUpperCase()}
+          </Text>
         </View>
 
+        {/* Action Buttons */}
         {!isShared && (
           <View style={styles.activityActions}>
             {status === 'planned' && (
@@ -262,13 +257,14 @@ const ChildDetailScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Notes Section */}
         {item.childActivity?.notes && (
           <View style={styles.notesContainer}>
             <Text style={styles.notesLabel}>Notes:</Text>
             <Text style={styles.notesText}>{item.childActivity.notes}</Text>
           </View>
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -442,49 +438,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: ModernColors.text,
   },
-  activityCard: {
-    backgroundColor: ModernColors.background,
-    marginHorizontal: 20,
-    marginVertical: 8,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: ModernColors.borderLight,
+  activityWrapper: {
+    position: 'relative',
+    marginVertical: 4,
   },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  activityInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  activityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: ModernColors.text,
-    marginBottom: 4,
-  },
-  activityCategory: {
-    fontSize: 14,
-    color: ModernColors.textLight,
-    marginBottom: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  locationText: {
-    fontSize: 13,
-    color: ModernColors.textLight,
-    marginLeft: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+  statusBadgeOverlay: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   statusText: {
     fontSize: 11,
@@ -493,10 +463,15 @@ const styles = StyleSheet.create({
   },
   activityActions: {
     flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.backgroundLight,
     borderTopWidth: 1,
     borderTopColor: ModernColors.borderLight,
+    marginTop: -12,
+    marginHorizontal: 20,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   actionButton: {
     flexDirection: 'row',
@@ -509,8 +484,13 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   notesContainer: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginHorizontal: 20,
+    marginTop: -8,
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: ModernColors.backgroundLight,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     borderTopWidth: 1,
     borderTopColor: ModernColors.borderLight,
   },
