@@ -539,21 +539,64 @@ class ChildrenService {
   ): Promise<ChildActivity[]> {
     await this.waitForInit();
 
-    let activities = this.childActivities.filter(ca => {
-      if (!ca.scheduledDate) return false;
-      const activityDate = new Date(ca.scheduledDate);
-      return activityDate >= startDate && activityDate <= endDate;
-    });
+    try {
+      // Fetch from API with date range filter
+      const params = new URLSearchParams();
+      params.append('startDate', startDate.toISOString());
+      params.append('endDate', endDate.toISOString());
 
-    if (childIds && childIds.length > 0) {
-      activities = activities.filter(ca => childIds.includes(ca.childId));
+      const response = await api.get(`/api/children/activities/all?${params.toString()}`);
+
+      if (response.data.success && response.data.activities) {
+        const activities: ChildActivity[] = response.data.activities.map((ca: any) => ({
+          id: ca.id,
+          childId: ca.childId,
+          activityId: ca.activityId,
+          status: ca.status,
+          addedAt: new Date(ca.createdAt),
+          startedAt: ca.registeredAt ? new Date(ca.registeredAt) : undefined,
+          completedAt: ca.completedAt ? new Date(ca.completedAt) : undefined,
+          scheduledDate: ca.scheduledDate ? new Date(ca.scheduledDate) : undefined,
+          startTime: ca.startTime,
+          endTime: ca.endTime,
+          notes: ca.notes,
+          activity: ca.activity, // Include full activity object from API
+        }));
+
+        // Filter by childIds if provided
+        const filteredActivities = childIds && childIds.length > 0
+          ? activities.filter(ca => childIds.includes(ca.childId))
+          : activities;
+
+        // Sort by scheduled date
+        return filteredActivities.sort((a, b) => {
+          const dateA = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
+          const dateB = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
+          return dateA - dateB;
+        });
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error fetching scheduled activities from API:', error);
+
+      // Fallback to local cache
+      let activities = this.childActivities.filter(ca => {
+        if (!ca.scheduledDate) return false;
+        const activityDate = new Date(ca.scheduledDate);
+        return activityDate >= startDate && activityDate <= endDate;
+      });
+
+      if (childIds && childIds.length > 0) {
+        activities = activities.filter(ca => childIds.includes(ca.childId));
+      }
+
+      return activities.sort((a, b) => {
+        const dateA = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
+        const dateB = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
+        return dateA - dateB;
+      });
     }
-
-    return activities.sort((a, b) => {
-      const dateA = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
-      const dateB = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
-      return dateA - dateB;
-    });
   }
 
   async updateActivitySchedule(

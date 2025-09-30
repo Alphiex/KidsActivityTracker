@@ -144,7 +144,7 @@ const CalendarScreenModernFixed = () => {
       const startDate = startOfMonth(new Date());
       const endDate = endOfMonth(addMonths(new Date(), 2));
 
-      // Fetch scheduled activities for all children
+      // Fetch scheduled activities for all children with full activity details
       let scheduledActivities = [];
       if (myChildren && myChildren.length > 0) {
         const childIds = myChildren.map(c => c.id);
@@ -159,36 +159,10 @@ const CalendarScreenModernFixed = () => {
         }
       }
 
-      // Fetch actual activity details for scheduled activities
-      const activityIds = [...new Set(scheduledActivities.map(sa => sa.activityId))];
-      let activityDetails: any = {};
-
-      if (activityIds.length > 0) {
-        try {
-          // Fetch activity details for all unique activity IDs
-          const activityPromises = activityIds.map(id =>
-            activityService.getActivityById(id).catch(err => {
-              console.warn(`Failed to fetch activity ${id}:`, err);
-              return null;
-            })
-          );
-          const activities = await Promise.all(activityPromises);
-
-          // Create a map of activity details
-          activities.forEach((activity) => {
-            if (activity) {
-              activityDetails[activity.id] = activity;
-            }
-          });
-        } catch (error) {
-          console.warn('Error fetching activity details:', error);
-        }
-      }
-
-      // Enhance scheduled activities with actual activity data
+      // Activities now come with full details from the API, no need to fetch separately
       const enhancedActivities = scheduledActivities.map(sa => ({
         ...sa,
-        activity: activityDetails[sa.activityId] || {
+        activity: sa.activity || {
           id: sa.activityId,
           name: `Activity ${sa.activityId}`,
           description: 'Activity details unavailable',
@@ -244,7 +218,8 @@ const CalendarScreenModernFixed = () => {
 
       child.activities.forEach((activity) => {
         if (activity.scheduledDate) {
-          const dateKey = activity.scheduledDate;
+          // Format the scheduledDate as 'yyyy-MM-dd' for calendar marking
+          const dateKey = format(new Date(activity.scheduledDate), 'yyyy-MM-dd');
           if (!dates[dateKey]) {
             dates[dateKey] = { dots: [] };
           }
@@ -285,7 +260,12 @@ const CalendarScreenModernFixed = () => {
         if (!child.isVisible) return;
 
         child.activities
-          .filter((activity) => activity.scheduledDate === date)
+          .filter((activity) => {
+            if (!activity.scheduledDate) return false;
+            // Format the scheduledDate as 'yyyy-MM-dd' for comparison
+            const activityDate = format(new Date(activity.scheduledDate), 'yyyy-MM-dd');
+            return activityDate === date;
+          })
           .forEach((activity) => {
             items[date].push({
               ...activity,
