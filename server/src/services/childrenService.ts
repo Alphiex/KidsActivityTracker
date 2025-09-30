@@ -433,7 +433,8 @@ export class ChildrenService {
       include: {
         activity: {
           include: {
-            location: true
+            location: true,
+            sessions: true // Include sessions for recurring activities
           }
         }
       },
@@ -465,7 +466,8 @@ export class ChildrenService {
       include: {
         activity: {
           include: {
-            location: true
+            location: true,
+            sessions: true // Include sessions for recurring activities
           }
         },
         child: true
