@@ -186,11 +186,47 @@ const ActivityDetailScreenModern = () => {
   };
 
   const getDayOfWeek = () => {
+    // First check if schedule field contains day information
+    if (activity.schedule) {
+      const schedule = activity.schedule.toLowerCase();
+      const dayPattern = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)/gi;
+      const matches = schedule.match(dayPattern);
+
+      if (matches && matches.length > 0) {
+        // Remove duplicates and convert to full day names
+        const uniqueDays = [...new Set(matches.map(day => {
+          const dayLower = day.toLowerCase();
+          // Map abbreviations to full names
+          const dayMap: {[key: string]: string} = {
+            'mon': 'Monday',
+            'tue': 'Tuesday',
+            'wed': 'Wednesday',
+            'thu': 'Thursday',
+            'fri': 'Friday',
+            'sat': 'Saturday',
+            'sun': 'Sunday'
+          };
+
+          // Check if it's an abbreviation
+          if (dayMap[dayLower]) {
+            return dayMap[dayLower];
+          }
+
+          // Capitalize full day name
+          return day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+        }))];
+
+        return uniqueDays.join(', ');
+      }
+    }
+
+    // Fallback to date range if available
     if (activity.dateRange?.start) {
       return activity.dateRange.start.toLocaleDateString('en-US', { weekday: 'long' });
     }
+
+    // Fallback to dates field
     if (activity.dates) {
-      // Try to parse the date string if it's in a recognizable format
       const dateMatch = activity.dates.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
       if (dateMatch) {
         const parsedDate = new Date(dateMatch[0]);
@@ -199,6 +235,7 @@ const ActivityDetailScreenModern = () => {
         }
       }
     }
+
     return null;
   };
 
@@ -272,7 +309,6 @@ const ActivityDetailScreenModern = () => {
             <View style={styles.heroContent}>
               <Text style={styles.categoryBadge}>{activity.category?.toUpperCase() || 'ACTIVITY'} • {activity.subcategory || 'GENERAL'}</Text>
               <Text style={styles.activityTitle}>{activity.name}</Text>
-              <Text style={styles.activitySubtitle}>{activity.schedule || 'Schedule TBD'}</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
