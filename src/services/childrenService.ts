@@ -281,6 +281,7 @@ class ChildrenService {
         startTime: response.childActivity.startTime,
         endTime: response.childActivity.endTime,
         notes: response.childActivity.notes,
+        activity: response.childActivity.activity, // Include full activity object from API
       };
 
       // Update local cache
