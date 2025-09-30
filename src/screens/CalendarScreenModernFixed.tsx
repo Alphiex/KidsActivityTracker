@@ -104,6 +104,13 @@ const CalendarScreenModernFixed = () => {
     return unsubscribe;
   }, [navigation]);
 
+  // Update marked dates when selected date or children visibility changes
+  useEffect(() => {
+    if (childrenWithActivities.length > 0 || sharedChildren.length > 0) {
+      generateMarkedDates([...childrenWithActivities, ...sharedChildren]);
+    }
+  }, [selectedDate, childrenWithActivities, sharedChildren, generateMarkedDates]);
+
   // Prevent re-renders when switching to agenda view
   useEffect(() => {
     if (viewMode === 'agenda' && !isAgendaReady && !loading) {
