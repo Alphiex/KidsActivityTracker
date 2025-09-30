@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
   Platform,
   Linking,
+  SafeAreaView,
 } from 'react-native';
 import { Calendar, Agenda } from 'react-native-calendars';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { getWeek } from 'date-fns';
+import { getWeek, subMonths, subWeeks } from 'date-fns';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   format,
@@ -34,6 +34,7 @@ import childrenService from '../services/childrenService';
 import activityService from '../services/activityService';
 import { ModernColors } from '../theme/modernTheme';
 import { ChildActivity } from '../services/childrenService';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
@@ -85,8 +86,6 @@ const CalendarScreenModernFixed = () => {
   const [showSharedChildren, setShowSharedChildren] = useState(true);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState<'date' | 'month' | 'week'>('date');
   const [selectedActivity, setSelectedActivity] = useState<ChildActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [markedDates, setMarkedDates] = useState<any>({});
@@ -464,29 +463,20 @@ END:VEVENT
     }
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
+  const renderHeaderActions = () => (
+    <View style={styles.headerActions}>
       <TouchableOpacity
-        onPress={() => navigation.navigate('Dashboard' as any)}
-        style={styles.backButton}
+        onPress={() => setShowFilterModal(true)}
+        style={styles.headerActionButton}
       >
-        <Icon name="arrow-left" size={24} color={ModernColors.text} />
+        <Icon name="filter-variant" size={24} color={ModernColors.text} />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Calendar</Text>
-      <View style={styles.headerActions}>
-        <TouchableOpacity
-          onPress={() => setShowFilterModal(true)}
-          style={styles.headerActionButton}
-        >
-          <Icon name="filter-variant" size={24} color={ModernColors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={exportToCalendar}
-          style={styles.headerActionButton}
-        >
-          <Icon name="export" size={24} color={ModernColors.text} />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        onPress={exportToCalendar}
+        style={styles.headerActionButton}
+      >
+        <Icon name="export" size={24} color={ModernColors.text} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -514,23 +504,151 @@ END:VEVENT
     </View>
   );
 
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const currentDate = parseISO(selectedDate);
+    const newDate = direction === 'next' ? addMonths(currentDate, 1) : subMonths(currentDate, 1);
+    setSelectedDate(format(newDate, 'yyyy-MM-dd'));
+  };
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const currentDate = parseISO(selectedDate);
+    const newDate = direction === 'next' ? addDays(currentDate, 7) : addDays(currentDate, -7);
+    setSelectedDate(format(newDate, 'yyyy-MM-dd'));
+  };
+
+  const navigateDay = (direction: 'prev' | 'next') => {
+    const currentDate = parseISO(selectedDate);
+    const newDate = direction === 'next' ? addDays(currentDate, 1) : addDays(currentDate, -1);
+    setSelectedDate(format(newDate, 'yyyy-MM-dd'));
+  };
+
+  const renderDateNavigation = (label: string, onPrev: () => void, onNext: () => void) => (
+    <View style={styles.dateNavigationContainer}>
+      <TouchableOpacity onPress={onPrev} style={styles.dateNavButton}>
+        <Icon name="chevron-left" size={24} color={ModernColors.text} />
+      </TouchableOpacity>
+      <Text style={styles.dateNavigationText}>{label}</Text>
+      <TouchableOpacity onPress={onNext} style={styles.dateNavButton}>
+        <Icon name="chevron-right" size={24} color={ModernColors.text} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const getActivitiesForDate = (date: string): ExtendedChildActivity[] => {
+    const allChildren = [...childrenWithActivities, ...sharedChildren];
+    const activities: ExtendedChildActivity[] = [];
+
+    allChildren.forEach((child) => {
+      if (!child.isVisible) return;
+
+      child.activities
+        .filter((activity) => activity.scheduledDate === date)
+        .forEach((activity) => {
+          activities.push({
+            ...activity,
+            childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
+            childColor: child.color,
+          });
+        });
+    });
+
+    return activities.sort((a, b) => {
+      const timeA = a.startTime || '00:00';
+      const timeB = b.startTime || '00:00';
+      return timeA.localeCompare(timeB);
+    });
+  };
+
+  const renderChildrenLegend = () => {
+    const visibleChildren = [...childrenWithActivities, ...sharedChildren].filter(c => c.isVisible);
+
+    if (visibleChildren.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.legendContainer}>
+        <Text style={styles.legendTitle}>Children</Text>
+        <View style={styles.legendItems}>
+          {visibleChildren.map((child) => (
+            <View key={child.id} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: child.color }]} />
+              <Text style={styles.legendText} numberOfLines={1}>
+                {child.isShared ? `${child.name} (${child.sharedBy})` : child.name}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderActivitiesList = () => {
+    const activities = getActivitiesForDate(selectedDate);
+
+    if (activities.length === 0) {
+      return (
+        <View style={styles.emptyActivitiesContainer}>
+          <Icon name="calendar-blank" size={48} color={ModernColors.textMuted} />
+          <Text style={styles.emptyActivitiesText}>No activities scheduled for this day</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.activitiesListContainer}>
+        <Text style={styles.activitiesListTitle}>
+          Activities for {format(parseISO(selectedDate), 'MMMM d, yyyy')}
+        </Text>
+        {activities.map((activity) => (
+          <TouchableOpacity
+            key={activity.id}
+            style={[
+              styles.activityListItem,
+              { borderLeftColor: activity.childColor, borderLeftWidth: 4 }
+            ]}
+            onPress={() => handleActivityPress(activity)}
+          >
+            <View style={styles.activityListHeader}>
+              <Text style={styles.activityListName}>{activity.activity.name}</Text>
+              <View style={[styles.activityListChildBadge, { backgroundColor: activity.childColor + '20' }]}>
+                <Text style={[styles.activityListChildName, { color: activity.childColor }]}>
+                  {activity.childName}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.activityListDetails}>
+              <View style={styles.activityListDetailRow}>
+                <Icon name="clock-outline" size={16} color={ModernColors.textSecondary} />
+                <Text style={styles.activityListDetailText}>
+                  {activity.startTime} - {activity.endTime}
+                </Text>
+              </View>
+              {activity.activity.location && (
+                <View style={styles.activityListDetailRow}>
+                  <Icon name="map-marker" size={16} color={ModernColors.textSecondary} />
+                  <Text style={styles.activityListDetailText}>
+                    {activity.activity.location}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   const renderMonthView = () => {
     const currentMonth = parseISO(selectedDate);
 
     return (
       <View>
-        <TouchableOpacity
-          style={styles.dateHeaderButton}
-          onPress={() => {
-            setDatePickerMode('month');
-            setShowDatePicker(true);
-          }}
-        >
-          <Text style={styles.dateHeaderText}>
-            {format(currentMonth, 'MMMM yyyy')}
-          </Text>
-          <Icon name="chevron-down" size={20} color={ModernColors.text} />
-        </TouchableOpacity>
+        {renderDateNavigation(
+          format(currentMonth, 'MMMM yyyy'),
+          () => navigateMonth('prev'),
+          () => navigateMonth('next')
+        )}
 
         <Calendar
           current={selectedDate}
@@ -574,18 +692,11 @@ END:VEVENT
 
     return (
       <View style={styles.weekContainer}>
-        <TouchableOpacity
-          style={styles.dateHeaderButton}
-          onPress={() => {
-            setDatePickerMode('week');
-            setShowDatePicker(true);
-          }}
-        >
-          <Text style={styles.dateHeaderText}>
-            Week {weekNumber}, {format(currentWeek, 'yyyy')}
-          </Text>
-          <Icon name="chevron-down" size={20} color={ModernColors.text} />
-        </TouchableOpacity>
+        {renderDateNavigation(
+          `Week ${weekNumber}, ${format(currentWeek, 'yyyy')}`,
+          () => navigateWeek('prev'),
+          () => navigateWeek('next')
+        )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.weekGrid}>
@@ -658,18 +769,11 @@ END:VEVENT
 
     return (
       <View style={styles.dayContainer}>
-        <TouchableOpacity
-          style={styles.dateHeaderButton}
-          onPress={() => {
-            setDatePickerMode('date');
-            setShowDatePicker(true);
-          }}
-        >
-          <Text style={styles.dateHeaderText}>
-            {format(currentDay, 'EEEE, MMMM d, yyyy')}
-          </Text>
-          <Icon name="chevron-down" size={20} color={ModernColors.text} />
-        </TouchableOpacity>
+        {renderDateNavigation(
+          format(currentDay, 'EEEE, MMMM d, yyyy'),
+          () => navigateDay('prev'),
+          () => navigateDay('next')
+        )}
         <ScrollView style={styles.dayScroll}>
           <View style={styles.dayTimeline}>
             {hours.map((hour) => {
@@ -999,37 +1103,31 @@ END:VEVENT
   }
 
   return (
-    <View style={styles.container}>
-      {renderHeader()}
-      {renderViewModeSelector()}
+    <SafeAreaView style={styles.container}>
+      <TopTabNavigation />
 
-      {viewMode === 'month' && renderMonthView()}
-      {viewMode === 'week' && renderWeekView()}
-      {viewMode === 'day' && renderDayView()}
-      {viewMode === 'agenda' && renderAgendaView()}
+      <View style={styles.contentContainer}>
+        <View style={styles.calendarActions}>
+          {renderHeaderActions()}
+        </View>
+
+        {renderViewModeSelector()}
+        {renderChildrenLegend()}
+
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          {viewMode === 'month' && renderMonthView()}
+          {viewMode === 'week' && renderWeekView()}
+          {viewMode === 'day' && renderDayView()}
+          {viewMode === 'agenda' && renderAgendaView()}
+
+          {/* Show activities list only for month, week, and day views */}
+          {viewMode !== 'agenda' && renderActivitiesList()}
+        </ScrollView>
+      </View>
 
       {renderActivityModal()}
       {renderFilterModal()}
-
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={parseISO(selectedDate)}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (date) {
-              // For month mode, set to first day of selected month
-              // For week mode, set to the selected date (user picks a date, we'll show its week)
-              // For day mode, just set the selected date
-              const formattedDate = format(date, 'yyyy-MM-dd');
-              setSelectedDate(formattedDate);
-            }
-          }}
-        />
-      )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -1049,31 +1147,140 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: ModernColors.textSecondary,
   },
-  header: {
+  contentContainer: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  calendarActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.borderLight,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerActionButton: {
+    padding: 8,
+  },
+  dateNavigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 16,
     backgroundColor: ModernColors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
   },
-  backButton: {
+  dateNavButton: {
     padding: 8,
   },
-  headerTitle: {
-    fontSize: 20,
+  dateNavigationText: {
+    fontSize: 18,
     fontWeight: '600',
     color: ModernColors.text,
   },
-  headerActions: {
+  legendContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.borderLight,
+  },
+  legendTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: ModernColors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  legendItems: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 13,
+    color: ModernColors.text,
+    maxWidth: 120,
+  },
+  activitiesListContainer: {
+    padding: 20,
+  },
+  activitiesListTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 16,
+  },
+  activityListItem: {
+    backgroundColor: ModernColors.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  activityListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  activityListName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+    flex: 1,
+    marginRight: 12,
+  },
+  activityListChildBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activityListChildName: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activityListDetails: {
     gap: 8,
   },
-  headerActionButton: {
-    padding: 8,
+  activityListDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityListDetailText: {
+    fontSize: 14,
+    color: ModernColors.textSecondary,
+  },
+  emptyActivitiesContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyActivitiesText: {
+    fontSize: 14,
+    color: ModernColors.textMuted,
+    marginTop: 12,
+    textAlign: 'center',
   },
   viewModeContainer: {
     flexDirection: 'row',
@@ -1100,23 +1307,6 @@ const styles = StyleSheet.create({
   },
   viewModeTextActive: {
     color: '#FFFFFF',
-  },
-  dateHeaderButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    backgroundColor: ModernColors.borderLight,
-    borderRadius: 8,
-  },
-  dateHeaderText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: ModernColors.text,
-    marginRight: 8,
   },
   weekContainer: {
     flex: 1,
