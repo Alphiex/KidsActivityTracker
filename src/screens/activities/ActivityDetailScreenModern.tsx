@@ -395,6 +395,15 @@ const ActivityDetailScreenModern = () => {
               <Icon name="open-in-new" size={18} color="#FFFFFF" />
             </TouchableOpacity>
 
+            {/* Add Activity to Child's Calendar Button */}
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => setShowChildAssignModal(true)}
+            >
+              <Icon name="calendar-plus" size={20} color="#FFFFFF" />
+              <Text style={styles.primaryButtonText}>Add Activity to Child's Calendar</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={() => shareActivityViaEmail({ activity })}
@@ -507,16 +516,64 @@ const ActivityDetailScreenModern = () => {
             </View>
           </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtonsContainer}>
-            {/* Add Activity to Child's Calendar Button */}
-            <TouchableOpacity
-              style={styles.addToCalendarButton}
-              onPress={() => setShowChildAssignModal(true)}
-            >
-              <Icon name="calendar-plus" size={20} color="#FFFFFF" />
-              <Text style={styles.addToCalendarButtonText}>Add Activity to Child's Calendar</Text>
-            </TouchableOpacity>
+          {/* Location and Map */}
+          <View style={styles.locationSection}>
+            <View style={styles.locationHeader}>
+              <Icon name="map-marker" size={24} color={ModernColors.primary} />
+              <View style={styles.locationTextContainer}>
+                <Text style={styles.locationLabel}>Location</Text>
+                <Text style={styles.locationName}>
+                  {activity.locationName || activity.fullAddress || getFullAddress(activity)}
+                </Text>
+                {activity.fullAddress && activity.locationName && (
+                  <Text style={styles.locationAddress}>{activity.fullAddress}</Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.directionsButton}
+                onPress={handleGetDirections}
+              >
+                <Icon name="directions" size={20} color={ModernColors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Map */}
+            <View style={styles.mapContainer}>
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={{
+                  latitude: mapLat,
+                  longitude: mapLng,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: mapLat,
+                    longitude: mapLng,
+                  }}
+                  title={activity.locationName || activity.name}
+                  description={activity.fullAddress || getFullAddress(activity)}
+                />
+              </MapView>
+              <TouchableOpacity
+                style={styles.mapOverlay}
+                onPress={() => {
+                  mapRef.current?.animateToRegion({
+                    latitude: mapLat,
+                    longitude: mapLng,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  });
+                }}
+              />
+            </View>
           </View>
 
           {/* Description */}
@@ -877,6 +934,57 @@ const styles = StyleSheet.create({
     fontSize: ModernTypography.sizes.base,
     fontWeight: '500',
     color: ModernColors.text,
+  },
+  locationSection: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    marginBottom: ModernSpacing.lg,
+    overflow: 'hidden',
+    ...ModernShadows.sm,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: ModernSpacing.lg,
+  },
+  locationTextContainer: {
+    flex: 1,
+    marginLeft: ModernSpacing.sm,
+  },
+  locationLabel: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
+    marginBottom: 4,
+  },
+  locationName: {
+    fontSize: ModernTypography.sizes.base,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 2,
+  },
+  locationAddress: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
+  },
+  directionsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ModernColors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: ModernSpacing.sm,
+  },
+  mapContainer: {
+    height: 200,
+    position: 'relative',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  mapOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   actionButtonsContainer: {
     marginBottom: ModernSpacing.xl,
