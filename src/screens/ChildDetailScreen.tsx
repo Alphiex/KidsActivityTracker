@@ -249,21 +249,31 @@ const ChildDetailScreen: React.FC = () => {
     const endTime = item.childActivity?.endTime || (item as any).endTime;
     const location = (item as any).location?.name || (item as any).location || 'Location TBA';
 
-    // Get date and day of week from sessions if available
+    // Get date and day of week - prioritize activity dateStart/dateEnd
     let dateInfo = '';
     let dayOfWeek = '';
-    if ((item as any).sessions && (item as any).sessions.length > 0) {
+
+    // First check for activity's dateStart and dateEnd
+    if ((item as any).dateStart && (item as any).dateEnd) {
+      const startDate = new Date((item as any).dateStart);
+      const endDate = new Date((item as any).dateEnd);
+      dateInfo = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      // Get day of week from first session or activity schedule
+      if ((item as any).schedule) {
+        dayOfWeek = (item as any).schedule;
+      } else if ((item as any).sessions && (item as any).sessions.length > 0) {
+        dayOfWeek = (item as any).sessions[0].dayOfWeek || '';
+      }
+    } else if ((item as any).sessions && (item as any).sessions.length > 0) {
+      // Fallback to sessions
       const session = (item as any).sessions[0];
       dayOfWeek = session.dayOfWeek || '';
       if (session.date) {
         const date = new Date(session.date);
         dateInfo = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
-    } else if ((item as any).dateStart && (item as any).dateEnd) {
-      const startDate = new Date((item as any).dateStart);
-      const endDate = new Date((item as any).dateEnd);
-      dateInfo = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     } else if (item.childActivity?.scheduledDate) {
+      // Last resort: use scheduled date from childActivity
       const date = new Date(item.childActivity.scheduledDate);
       dateInfo = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -301,6 +311,24 @@ const ChildDetailScreen: React.FC = () => {
               {status.replace('_', ' ').toUpperCase()}
             </Text>
           </View>
+
+          {/* Favorite Button - Top Right */}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={() => {/* TODO: Handle favorite */}}
+          >
+            <Icon name="heart-outline" size={24} color="#FFF" />
+          </TouchableOpacity>
+
+          {/* Delete Button - Bottom Right */}
+          {!isShared && (
+            <TouchableOpacity
+              style={styles.deleteButtonOverlay}
+              onPress={() => handleRemoveActivity(item.id)}
+            >
+              <Icon name="trash-can-outline" size={20} color="#FFF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Activity Info */}
@@ -332,16 +360,6 @@ const ChildDetailScreen: React.FC = () => {
             </View>
           )}
         </View>
-
-        {/* Delete Button */}
-        {!isShared && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleRemoveActivity(item.id)}
-          >
-            <Icon name="trash-can-outline" size={20} color={ModernColors.error} />
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
     );
   };
@@ -392,12 +410,7 @@ const ChildDetailScreen: React.FC = () => {
       </View>
 
       {/* Filter Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
+      <View style={styles.filterContainer}>
         {(['all', 'planned', 'in_progress', 'completed'] as ActivityStatus[]).map((status) => (
           <TouchableOpacity
             key={status}
@@ -405,11 +418,11 @@ const ChildDetailScreen: React.FC = () => {
             onPress={() => setFilter(status)}
           >
             <Text style={[styles.filterTabText, filter === status && styles.filterTabTextActive]}>
-              {status === 'all' ? 'All' : status.replace('_', ' ')}
+              {status === 'all' ? 'All' : status === 'in_progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       {/* Activities List */}
       {loading ? (
@@ -472,31 +485,30 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   filterContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.borderLight,
-  },
-  filterContent: {
+    flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 12,
+    gap: 8,
+    backgroundColor: ModernColors.borderLight,
   },
   filterTab: {
-    paddingHorizontal: 16,
+    flex: 1,
     paddingVertical: 8,
-    marginRight: 12,
-    borderRadius: 20,
-    backgroundColor: ModernColors.backgroundLight,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: ModernColors.background,
   },
   filterTabActive: {
-    backgroundColor: ModernColors.text,
+    backgroundColor: ModernColors.primary,
   },
   filterTabText: {
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '500',
     color: ModernColors.text,
-    textTransform: 'capitalize',
   },
   filterTabTextActive: {
-    color: ModernColors.background,
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -575,23 +587,27 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     flex: 1,
   },
-  deleteButton: {
+  favoriteButton: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
-    backgroundColor: ModernColors.background,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: ModernColors.border,
+  },
+  deleteButtonOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(220, 53, 69, 0.9)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notesContainer: {
     marginHorizontal: 20,
