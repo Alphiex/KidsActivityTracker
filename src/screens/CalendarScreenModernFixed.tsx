@@ -687,65 +687,118 @@ END:VEVENT
   const renderWeekView = () => {
     const currentWeek = parseISO(selectedDate);
     const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    const weekNumber = getWeek(currentWeek, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+
+    // Get all activities for the week, organized by day and hour
+    const weekActivities: { [dateKey: string]: { [hour: number]: ExtendedChildActivity[] } } = {};
+
+    weekDays.forEach(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      weekActivities[dateKey] = {};
+
+      [...childrenWithActivities, ...sharedChildren]
+        .filter(c => c.isVisible)
+        .forEach(child => {
+          child.activities
+            .filter(a => a.scheduledDate === dateKey)
+            .forEach(activity => {
+              const startHour = parseInt(activity.startTime?.split(':')[0] || '0');
+              if (!weekActivities[dateKey][startHour]) {
+                weekActivities[dateKey][startHour] = [];
+              }
+              weekActivities[dateKey][startHour].push({
+                ...activity,
+                childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
+                childColor: child.color,
+              });
+            });
+        });
+    });
 
     return (
       <View style={styles.weekContainer}>
         {renderDateNavigation(
-          `Week ${weekNumber}, ${format(currentWeek, 'yyyy')}`,
+          `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`,
           () => navigateWeek('prev'),
           () => navigateWeek('next')
         )}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.weekGrid}>
-            {weekDays.map((day) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
-              const dayActivities = [...childrenWithActivities, ...sharedChildren]
-                .filter(c => c.isVisible)
-                .flatMap(c => c.activities.filter(a => a.scheduledDate === dateKey));
+        <ScrollView style={styles.weekScrollContainer}>
+          <View style={styles.weekGridContainer}>
+            {/* Header row with day names and dates */}
+            <View style={styles.weekHeaderRow}>
+              <View style={styles.weekTimeColumn} />
+              {weekDays.map((day) => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const isToday = isSameDay(day, new Date());
+                const isSelected = dateKey === selectedDate;
 
-              return (
-                <TouchableOpacity
-                  key={dateKey}
-                  style={[
-                    styles.weekDay,
-                    isSameDay(day, new Date()) && styles.weekDayToday,
-                    dateKey === selectedDate && styles.weekDaySelected,
-                  ]}
-                  onPress={() => setSelectedDate(dateKey)}
-                >
-                  <Text style={styles.weekDayName}>{format(day, 'EEE')}</Text>
-                  <Text style={styles.weekDayNumber}>{format(day, 'd')}</Text>
+                return (
+                  <TouchableOpacity
+                    key={dateKey}
+                    style={[
+                      styles.weekDayHeader,
+                      isToday && styles.weekDayHeaderToday,
+                      isSelected && styles.weekDayHeaderSelected,
+                    ]}
+                    onPress={() => setSelectedDate(dateKey)}
+                  >
+                    <Text style={[
+                      styles.weekDayHeaderName,
+                      isToday && styles.weekDayHeaderTextToday,
+                    ]}>
+                      {format(day, 'EEE')}
+                    </Text>
+                    <Text style={[
+                      styles.weekDayHeaderDate,
+                      isToday && styles.weekDayHeaderTextToday,
+                    ]}>
+                      {format(day, 'd')}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-                  <ScrollView style={styles.weekDayActivities}>
-                    {dayActivities.map((activity) => {
-                      const child = [...childrenWithActivities, ...sharedChildren]
-                        .find(c => c.id === activity.childId);
-                      return (
+            {/* Time slots grid */}
+            {hours.map((hour) => (
+              <View key={hour} style={styles.weekTimeRow}>
+                <View style={styles.weekTimeLabel}>
+                  <Text style={styles.weekTimeLabelText}>
+                    {hour.toString().padStart(2, '0')}:00
+                  </Text>
+                </View>
+
+                {weekDays.map((day) => {
+                  const dateKey = format(day, 'yyyy-MM-dd');
+                  const hourActivities = weekActivities[dateKey][hour] || [];
+
+                  return (
+                    <View key={dateKey} style={styles.weekTimeSlot}>
+                      {hourActivities.map((activity) => (
                         <TouchableOpacity
                           key={activity.id}
                           style={[
-                            styles.weekActivity,
-                            { backgroundColor: child?.color + '20' },
+                            styles.weekActivityBlock,
+                            { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
                           ]}
                           onPress={() => handleActivityPress(activity)}
                         >
-                          <View style={[styles.weekActivityIndicator, { backgroundColor: child?.color }]} />
-                          <Text style={styles.weekActivityText} numberOfLines={1}>
+                          <Text style={styles.weekActivityBlockName} numberOfLines={1}>
                             {activity.activity.name}
                           </Text>
-                          <Text style={styles.weekActivityTime}>
+                          <Text style={styles.weekActivityBlockTime} numberOfLines={1}>
                             {activity.startTime}
                           </Text>
                         </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </TouchableOpacity>
-              );
-            })}
+                      ))}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
           </View>
         </ScrollView>
       </View>
@@ -1312,63 +1365,93 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ModernColors.background,
   },
-  weekGrid: {
+  weekScrollContainer: {
+    flex: 1,
+  },
+  weekGridContainer: {
+    flexDirection: 'column',
+  },
+  weekHeaderRow: {
     flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: ModernColors.border,
+    backgroundColor: ModernColors.background,
   },
-  weekDay: {
-    width: 100,
-    marginHorizontal: 5,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: ModernColors.borderLight,
+  weekTimeColumn: {
+    width: 60,
+    borderRightWidth: 1,
+    borderRightColor: ModernColors.borderLight,
+  },
+  weekDayHeader: {
+    flex: 1,
+    minWidth: 100,
+    padding: 12,
     alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: ModernColors.borderLight,
   },
-  weekDayToday: {
+  weekDayHeaderToday: {
     backgroundColor: ModernColors.primary + '10',
   },
-  weekDaySelected: {
-    borderWidth: 2,
-    borderColor: ModernColors.primary,
+  weekDayHeaderSelected: {
+    backgroundColor: ModernColors.primary + '20',
   },
-  weekDayName: {
+  weekDayHeaderName: {
     fontSize: 12,
     fontWeight: '600',
     color: ModernColors.textSecondary,
-    marginBottom: 4,
+    textTransform: 'uppercase',
   },
-  weekDayNumber: {
+  weekDayHeaderDate: {
     fontSize: 18,
+    fontWeight: '700',
+    color: ModernColors.text,
+    marginTop: 4,
+  },
+  weekDayHeaderTextToday: {
+    color: ModernColors.primary,
+  },
+  weekTimeRow: {
+    flexDirection: 'row',
+    minHeight: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.borderLight,
+  },
+  weekTimeLabel: {
+    width: 60,
+    paddingTop: 4,
+    paddingRight: 8,
+    alignItems: 'flex-end',
+    borderRightWidth: 1,
+    borderRightColor: ModernColors.borderLight,
+  },
+  weekTimeLabelText: {
+    fontSize: 11,
+    color: ModernColors.textSecondary,
+    fontWeight: '500',
+  },
+  weekTimeSlot: {
+    flex: 1,
+    minWidth: 100,
+    borderRightWidth: 1,
+    borderRightColor: ModernColors.borderLight,
+    padding: 2,
+  },
+  weekActivityBlock: {
+    padding: 4,
+    marginBottom: 2,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+  },
+  weekActivityBlockName: {
+    fontSize: 11,
     fontWeight: '600',
     color: ModernColors.text,
-    marginBottom: 8,
   },
-  weekDayActivities: {
-    width: '100%',
-    maxHeight: 200,
-  },
-  weekActivity: {
-    padding: 4,
-    marginVertical: 2,
-    borderRadius: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  weekActivityIndicator: {
-    width: 3,
-    height: '100%',
-    borderRadius: 2,
-    marginRight: 4,
-  },
-  weekActivityText: {
-    fontSize: 11,
-    color: ModernColors.text,
-    flex: 1,
-  },
-  weekActivityTime: {
+  weekActivityBlockTime: {
     fontSize: 10,
     color: ModernColors.textSecondary,
+    marginTop: 2,
   },
   dayContainer: {
     flex: 1,
