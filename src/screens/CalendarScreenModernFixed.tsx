@@ -210,6 +210,60 @@ const CalendarScreenModernFixed = () => {
     }
   };
 
+  // Helper function to expand recurring activities into individual dates
+  const expandActivityDates = (activity: ChildActivity): string[] => {
+    const dates: string[] = [];
+
+    // If activity has a specific scheduledDate, use that
+    if (activity.scheduledDate) {
+      dates.push(format(new Date(activity.scheduledDate), 'yyyy-MM-dd'));
+    }
+
+    // If activity has dateRange and schedule/sessions, expand to all occurrences
+    if (activity.activity?.dateRange && activity.activity.dateRange.start && activity.activity.dateRange.end) {
+      const startDate = parseISO(activity.activity.dateRange.start as any);
+      const endDate = parseISO(activity.activity.dateRange.end as any);
+
+      // Check if activity has sessions with specific dates
+      if (activity.activity.sessions && activity.activity.sessions.length > 0) {
+        activity.activity.sessions.forEach((session) => {
+          if (session.date) {
+            dates.push(format(parseISO(session.date), 'yyyy-MM-dd'));
+          }
+        });
+      }
+      // Otherwise, check if activity has a schedule with days of week
+      else if (activity.activity.schedule && typeof activity.activity.schedule === 'object') {
+        const schedule = activity.activity.schedule;
+        if (schedule.days && Array.isArray(schedule.days)) {
+          // Map day names to day numbers (0 = Sunday, 1 = Monday, etc.)
+          const dayMap: { [key: string]: number } = {
+            'sunday': 0, 'sun': 0,
+            'monday': 1, 'mon': 1,
+            'tuesday': 2, 'tue': 2, 'tues': 2,
+            'wednesday': 3, 'wed': 3,
+            'thursday': 4, 'thu': 4, 'thur': 4, 'thurs': 4,
+            'friday': 5, 'fri': 5,
+            'saturday': 6, 'sat': 6,
+          };
+
+          const targetDays = schedule.days.map(day => dayMap[day.toLowerCase()]).filter(d => d !== undefined);
+
+          // Generate all dates between start and end that match the target days
+          let currentDate = startDate;
+          while (currentDate <= endDate) {
+            if (targetDays.includes(currentDate.getDay())) {
+              dates.push(format(currentDate, 'yyyy-MM-dd'));
+            }
+            currentDate = addDays(currentDate, 1);
+          }
+        }
+      }
+    }
+
+    return [...new Set(dates)]; // Remove duplicates
+  };
+
   const generateMarkedDates = useCallback((allChildren: ChildWithActivities[]) => {
     const dates: any = {};
 
@@ -217,14 +271,15 @@ const CalendarScreenModernFixed = () => {
       if (!child.isVisible) return;
 
       child.activities.forEach((activity) => {
-        if (activity.scheduledDate) {
-          // Format the scheduledDate as 'yyyy-MM-dd' for calendar marking
-          const dateKey = format(new Date(activity.scheduledDate), 'yyyy-MM-dd');
+        // Expand activity to all its occurrence dates
+        const occurrenceDates = expandActivityDates(activity);
+
+        occurrenceDates.forEach((dateKey) => {
           if (!dates[dateKey]) {
             dates[dateKey] = { dots: [] };
           }
-          dates[dateKey].dots.push({ color: child.color, key: activity.id });
-        }
+          dates[dateKey].dots.push({ color: child.color, key: `${activity.id}-${dateKey}` });
+        });
       });
     });
 
@@ -259,20 +314,19 @@ const CalendarScreenModernFixed = () => {
       allChildren.forEach((child) => {
         if (!child.isVisible) return;
 
-        child.activities
-          .filter((activity) => {
-            if (!activity.scheduledDate) return false;
-            // Format the scheduledDate as 'yyyy-MM-dd' for comparison
-            const activityDate = format(new Date(activity.scheduledDate), 'yyyy-MM-dd');
-            return activityDate === date;
-          })
-          .forEach((activity) => {
+        child.activities.forEach((activity) => {
+          // Expand activity to all its occurrence dates
+          const occurrenceDates = expandActivityDates(activity);
+
+          // Check if this activity occurs on this date
+          if (occurrenceDates.includes(date)) {
             items[date].push({
               ...activity,
               childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
               childColor: child.color,
             });
-          });
+          }
+        });
       });
 
       if (items[date].length === 0) {
