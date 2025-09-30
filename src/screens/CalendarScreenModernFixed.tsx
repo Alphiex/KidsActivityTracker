@@ -725,81 +725,83 @@ END:VEVENT
           () => navigateWeek('next')
         )}
 
-        <ScrollView style={styles.weekScrollContainer}>
-          <View style={styles.weekGridContainer}>
-            {/* Header row with day names and dates */}
-            <View style={styles.weekHeaderRow}>
-              <View style={styles.weekTimeColumn} />
-              {weekDays.map((day) => {
-                const dateKey = format(day, 'yyyy-MM-dd');
-                const isToday = isSameDay(day, new Date());
-                const isSelected = dateKey === selectedDate;
-
-                return (
-                  <TouchableOpacity
-                    key={dateKey}
-                    style={[
-                      styles.weekDayHeader,
-                      isToday && styles.weekDayHeaderToday,
-                      isSelected && styles.weekDayHeaderSelected,
-                    ]}
-                    onPress={() => setSelectedDate(dateKey)}
-                  >
-                    <Text style={[
-                      styles.weekDayHeaderName,
-                      isToday && styles.weekDayHeaderTextToday,
-                    ]}>
-                      {format(day, 'EEE')}
-                    </Text>
-                    <Text style={[
-                      styles.weekDayHeaderDate,
-                      isToday && styles.weekDayHeaderTextToday,
-                    ]}>
-                      {format(day, 'd')}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Time slots grid */}
-            {hours.map((hour) => (
-              <View key={hour} style={styles.weekTimeRow}>
-                <View style={styles.weekTimeLabel}>
-                  <Text style={styles.weekTimeLabelText}>
-                    {hour.toString().padStart(2, '0')}:00
-                  </Text>
-                </View>
-
+        <ScrollView style={styles.weekVerticalScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weekHorizontalScroll}>
+            <View style={styles.weekGridContainer}>
+              {/* Header row with day names and dates */}
+              <View style={styles.weekHeaderRow}>
+                <View style={styles.weekTimeColumn} />
                 {weekDays.map((day) => {
                   const dateKey = format(day, 'yyyy-MM-dd');
-                  const hourActivities = weekActivities[dateKey][hour] || [];
+                  const isToday = isSameDay(day, new Date());
+                  const isSelected = dateKey === selectedDate;
 
                   return (
-                    <View key={dateKey} style={styles.weekTimeSlot}>
-                      {hourActivities.map((activity) => (
-                        <TouchableOpacity
-                          key={activity.id}
-                          style={[
-                            styles.weekActivityBlock,
-                            { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
-                          ]}
-                          onPress={() => handleActivityPress(activity)}
-                        >
-                          <Text style={styles.weekActivityBlockName} numberOfLines={1}>
-                            {activity.activity.name}
-                          </Text>
-                          <Text style={styles.weekActivityBlockTime} numberOfLines={1}>
-                            {activity.startTime}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    <TouchableOpacity
+                      key={dateKey}
+                      style={[
+                        styles.weekDayHeader,
+                        isToday && styles.weekDayHeaderToday,
+                        isSelected && styles.weekDayHeaderSelected,
+                      ]}
+                      onPress={() => setSelectedDate(dateKey)}
+                    >
+                      <Text style={[
+                        styles.weekDayHeaderName,
+                        isToday && styles.weekDayHeaderTextToday,
+                      ]}>
+                        {format(day, 'EEE')}
+                      </Text>
+                      <Text style={[
+                        styles.weekDayHeaderDate,
+                        isToday && styles.weekDayHeaderTextToday,
+                      ]}>
+                        {format(day, 'd')}
+                      </Text>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
-            ))}
-          </View>
+
+              {/* Time slots grid */}
+              {hours.map((hour) => (
+                <View key={hour} style={styles.weekTimeRow}>
+                  <View style={styles.weekTimeLabel}>
+                    <Text style={styles.weekTimeLabelText}>
+                      {hour.toString().padStart(2, '0')}:00
+                    </Text>
+                  </View>
+
+                  {weekDays.map((day) => {
+                    const dateKey = format(day, 'yyyy-MM-dd');
+                    const hourActivities = weekActivities[dateKey][hour] || [];
+
+                    return (
+                      <View key={dateKey} style={styles.weekTimeSlot}>
+                        {hourActivities.map((activity) => (
+                          <TouchableOpacity
+                            key={activity.id}
+                            style={[
+                              styles.weekActivityBlock,
+                              { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
+                            ]}
+                            onPress={() => handleActivityPress(activity)}
+                          >
+                            <Text style={styles.weekActivityBlockName} numberOfLines={1}>
+                              {activity.activity.name}
+                            </Text>
+                            <Text style={styles.weekActivityBlockTime} numberOfLines={1}>
+                              {activity.startTime}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         </ScrollView>
       </View>
     );
@@ -1365,11 +1367,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ModernColors.background,
   },
-  weekScrollContainer: {
+  weekVerticalScroll: {
+    flex: 1,
+  },
+  weekHorizontalScroll: {
     flex: 1,
   },
   weekGridContainer: {
     flexDirection: 'column',
+    minWidth: 760, // 60px time column + 100px * 7 days
   },
   weekHeaderRow: {
     flexDirection: 'row',
