@@ -360,12 +360,42 @@ const DashboardScreenModern = () => {
 
   const loadAgeGroups = async () => {
     setAgeGroups([
-      { id: 1, name: '0-2 years', range: '0-2' },
-      { id: 2, name: '3-5 years', range: '3-5' },
-      { id: 3, name: '6-8 years', range: '6-8' },
-      { id: 4, name: '9-12 years', range: '9-12' },
-      { id: 5, name: '13+ years', range: '13+' },
-      { id: 6, name: 'All Ages', range: 'all' },
+      {
+        id: 1,
+        name: '0-2 years',
+        range: '0-2',
+        image: require('../assets/images/activities/toddler_play.jpg'),
+      },
+      {
+        id: 2,
+        name: '3-5 years',
+        range: '3-5',
+        image: require('../assets/images/activities/preschool.jpg'),
+      },
+      {
+        id: 3,
+        name: '6-8 years',
+        range: '6-8',
+        image: require('../assets/images/activities/kids_activities.jpg'),
+      },
+      {
+        id: 4,
+        name: '9-12 years',
+        range: '9-12',
+        image: require('../assets/images/activities/youth_activities.jpg'),
+      },
+      {
+        id: 5,
+        name: '13+ years',
+        range: '13+',
+        image: require('../assets/images/activities/leadership.jpg'),
+      },
+      {
+        id: 6,
+        name: 'All Ages',
+        range: 'all',
+        image: require('../assets/images/activities/family_fun.jpg'),
+      },
     ]);
   };
 
@@ -721,7 +751,7 @@ const DashboardScreenModern = () => {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.sectionHeader}
-            onPress={() => handleNavigate('AllCategories')}
+            onPress={() => handleNavigate('AllAgeGroups')}
           >
             <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>Browse by Age Group</Text>
@@ -759,9 +789,7 @@ const DashboardScreenModern = () => {
                     subtitle: 'Perfect for this age range',
                   } as never)}
                 >
-                  <View style={styles.ageIconContainer}>
-                    <Icon name="account-child" size={32} color="#FF385C" />
-                  </View>
+                  <Image source={group.image} style={styles.ageImage} />
                   <Text style={styles.ageTitle}>{group.name}</Text>
                 </TouchableOpacity>
               );
@@ -992,21 +1020,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   ageCard: {
-    width: 100,
+    width: 120,
     marginLeft: 20,
     alignItems: 'center',
   },
-  ageIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF0F3',
-    justifyContent: 'center',
-    alignItems: 'center',
+  ageImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
     marginBottom: 8,
+    resizeMode: 'cover',
   },
   ageTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#222',
     textAlign: 'center',

@@ -37,6 +37,7 @@ import SharingManagementScreen from '../screens/SharingManagementScreen';
 import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import RecommendedActivitiesScreen from '../screens/RecommendedActivitiesScreen';
 import AllActivityTypesScreen from '../screens/AllActivityTypesScreen';
+import AllAgeGroupsScreen from '../screens/AllAgeGroupsScreen';
 import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
 import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
@@ -78,6 +79,7 @@ const HomeStack = () => (
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
     <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
     <Stack.Screen name="AllActivityTypes" component={AllActivityTypesScreen} />
+    <Stack.Screen name="AllAgeGroups" component={AllAgeGroupsScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
