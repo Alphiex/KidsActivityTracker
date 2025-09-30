@@ -514,6 +514,19 @@ const ActivityDetailScreenModern = () => {
                 </View>
               </View>
             </View>
+
+            {/* Course ID Row */}
+            {activity.courseId && (
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Icon name="identifier" size={20} color={ModernColors.primary} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Course ID</Text>
+                    <Text style={styles.detailValue}>{activity.courseId}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Location and Map */}
