@@ -239,6 +239,76 @@ const ActivityDetailScreenModern = () => {
     return null;
   };
 
+  const getAgeRange = () => {
+    // First check if we have proper ageRange data from API
+    if (activity.ageRange && activity.ageRange.min !== undefined && activity.ageRange.max !== undefined) {
+      // Validate it's not the default 0-18 fallback when there's specific age info in the name
+      if (activity.ageRange.min === 0 && activity.ageRange.max === 18) {
+        // Try to parse from name/description first
+        const parsedAge = parseAgeFromText();
+        if (parsedAge) {
+          return parsedAge;
+        }
+      }
+      return `${activity.ageRange.min}-${activity.ageRange.max} yrs`;
+    }
+
+    // Fallback: try to parse from name or description
+    const parsedAge = parseAgeFromText();
+    if (parsedAge) {
+      return parsedAge;
+    }
+
+    // Last resort fallback
+    return '0-18 yrs';
+  };
+
+  const parseAgeFromText = (): string | null => {
+    const text = `${activity.name} ${activity.description || ''} ${activity.category || ''}`.toLowerCase();
+
+    // Helper to convert years and months to decimal years, then round
+    const parseAgeWithMonths = (years: number, months: number) => {
+      return Math.round(years + (months / 12));
+    };
+
+    // Pattern: "1m to 5 y 12m" - complex format with years and months
+    const complexRangeMatch = text.match(/(\d+)\s*m?\s*(?:to|through|-)\s*(\d+)\s*y\s*(\d+)?\s*m?/i);
+    if (complexRangeMatch) {
+      const firstNum = parseInt(complexRangeMatch[1]);
+      const minAge = text.match(/(\d+)\s*m\s*(?:to|through|-)/i)
+        ? parseAgeWithMonths(0, firstNum)  // First is months only
+        : firstNum;  // First is years
+
+      const maxYears = parseInt(complexRangeMatch[2]);
+      const maxMonths = complexRangeMatch[3] ? parseInt(complexRangeMatch[3]) : 0;
+      const maxAge = parseAgeWithMonths(maxYears, maxMonths);
+
+      return `${minAge}-${maxAge} yrs`;
+    }
+
+    // Pattern: "1-5yrs", "1-5 yrs", "1-5 years"
+    const rangePattern = /(\d+)\s*-\s*(\d+)\s*(yrs?|years?)/i;
+    const rangeMatch = text.match(rangePattern);
+    if (rangeMatch) {
+      return `${rangeMatch[1]}-${rangeMatch[2]} yrs`;
+    }
+
+    // Pattern: "ages 1-5", "for 1-5"
+    const agesPattern = /(ages?|for)\s+(\d+)\s*-\s*(\d+)/i;
+    const agesMatch = text.match(agesPattern);
+    if (agesMatch) {
+      return `${agesMatch[2]}-${agesMatch[3]} yrs`;
+    }
+
+    // Pattern: "toddler" (1-3), "preschool" (3-5), "youth" (6-12), "teen" (13-18)
+    if (text.includes('toddler')) return '1-3 yrs';
+    if (text.includes('preschool')) return '3-5 yrs';
+    if (text.includes('youth') || text.includes('elementary')) return '6-12 yrs';
+    if (text.includes('teen')) return '13-18 yrs';
+
+    return null;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'open':
@@ -398,7 +468,7 @@ const ActivityDetailScreenModern = () => {
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Ages</Text>
                   <Text style={styles.detailValue}>
-                    {activity.ageRange ? `${activity.ageRange.min}-${activity.ageRange.max} yrs` : '0-18 yrs'}
+                    {getAgeRange()}
                   </Text>
                 </View>
               </View>
