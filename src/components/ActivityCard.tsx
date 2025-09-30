@@ -220,7 +220,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           <Icon
             name={isFavorite ? 'heart' : 'heart-outline'}
             size={24}
-            color={isFavorite ? '#FF6B6B' : colors.textSecondary}
+            color={isFavorite ? '#FF6B6B' : '#FFF'}
           />
         </TouchableOpacity>
       </View>
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Theme.spacing.sm,
     right: Theme.spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: Theme.borderRadius.round,
     padding: 10,
     elevation: 3,
