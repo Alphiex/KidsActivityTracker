@@ -185,6 +185,23 @@ const ActivityDetailScreenModern = () => {
     });
   };
 
+  const getDayOfWeek = () => {
+    if (activity.dateRange?.start) {
+      return activity.dateRange.start.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+    if (activity.dates) {
+      // Try to parse the date string if it's in a recognizable format
+      const dateMatch = activity.dates.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+      if (dateMatch) {
+        const parsedDate = new Date(dateMatch[0]);
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+      }
+    }
+    return null;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'open':
@@ -255,8 +272,7 @@ const ActivityDetailScreenModern = () => {
             <View style={styles.heroContent}>
               <Text style={styles.categoryBadge}>{activity.category?.toUpperCase() || 'ACTIVITY'} • {activity.subcategory || 'GENERAL'}</Text>
               <Text style={styles.activityTitle}>{activity.name}</Text>
-              <Text style={styles.activitySubtitle}>{activity.schedule || activity.dates || 'Schedule TBD'}</Text>
-              <Text style={styles.activityLocation}>Learn & Play</Text>
+              <Text style={styles.activitySubtitle}>{activity.schedule || 'Schedule TBD'}</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
@@ -311,6 +327,16 @@ const ActivityDetailScreenModern = () => {
                   </Text>
                 </View>
               </View>
+
+              {getDayOfWeek() && (
+                <View style={styles.detailItem}>
+                  <Icon name="calendar-today" size={20} color={ModernColors.primary} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Day of Week</Text>
+                    <Text style={styles.detailValue}>{getDayOfWeek()}</Text>
+                  </View>
+                </View>
+              )}
 
               <View style={styles.detailItem}>
                 <Icon name="clock-outline" size={20} color={ModernColors.primary} />
@@ -372,19 +398,13 @@ const ActivityDetailScreenModern = () => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtonsContainer}>
-            {/* Register Now Button */}
-            <TouchableOpacity style={styles.bottomRegisterButton} onPress={handleRegister}>
-              <Text style={styles.bottomRegisterText}>Register Now</Text>
-              <Icon name="arrow-right" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            {/* Link to Child Button */}
+            {/* Add Activity to Child's Calendar Button */}
             <TouchableOpacity
-              style={[styles.bottomRegisterButton, styles.linkToChildButton]}
+              style={styles.addToCalendarButton}
               onPress={() => setShowChildAssignModal(true)}
             >
-              <Icon name="account-child" size={20} color={ModernColors.primary} />
-              <Text style={[styles.bottomRegisterText, styles.linkToChildText]}>Link to Child</Text>
+              <Icon name="calendar-plus" size={20} color="#FFFFFF" />
+              <Text style={styles.addToCalendarButtonText}>Add Activity to Child's Calendar</Text>
             </TouchableOpacity>
           </View>
 
@@ -540,13 +560,6 @@ const ActivityDetailScreenModern = () => {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => setShowChildAssignModal(true)}
-            >
-              <Icon name="account-child" size={18} color={ModernColors.primary} />
-              <Text style={styles.linkButtonText}>Assign to Child</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -746,11 +759,9 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
   },
   actionButtonsContainer: {
-    flexDirection: 'row',
-    gap: ModernSpacing.md,
     marginBottom: ModernSpacing.xl,
   },
-  bottomRegisterButton: {
+  addToCalendarButton: {
     backgroundColor: ModernColors.primary,
     borderRadius: ModernBorderRadius.lg,
     paddingVertical: 18,
@@ -758,24 +769,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
+    gap: ModernSpacing.sm,
     ...ModernShadows.md,
   },
-  linkToChildButton: {
-    backgroundColor: ModernColors.background,
-    borderWidth: 2,
-    borderColor: ModernColors.primary,
-  },
-  bottomRegisterText: {
+  addToCalendarButtonText: {
     color: '#FFFFFF',
     fontSize: ModernTypography.sizes.lg,
     fontWeight: '600',
-    marginRight: ModernSpacing.sm,
-  },
-  linkToChildText: {
-    color: ModernColors.primary,
-    marginLeft: ModernSpacing.sm,
-    marginRight: 0,
   },
   sectionCard: {
     backgroundColor: ModernColors.surface,
