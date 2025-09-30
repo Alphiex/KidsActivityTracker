@@ -76,6 +76,13 @@ const ActivityDetailScreenModern = () => {
         const details = await activityService.getActivityDetails(serializedActivity.id);
 
         if (details) {
+          console.log('[ActivityDetail] Location data:', {
+            locationName: details.locationName,
+            fullAddress: details.fullAddress,
+            latitude: details.latitude,
+            longitude: details.longitude,
+            location: details.location
+          });
           const parsedActivity = {
             ...details,
             dateRange: details.dateRange ? {
@@ -536,9 +543,13 @@ const ActivityDetailScreenModern = () => {
               <View style={styles.locationTextContainer}>
                 <Text style={styles.locationLabel}>Location</Text>
                 <Text style={styles.locationName}>
-                  {activity.locationName || activity.fullAddress || getFullAddress(activity)}
+                  {activity.locationName ||
+                   (typeof activity.location === 'string' ? activity.location : activity.location?.name) ||
+                   activity.fullAddress ||
+                   getFullAddress(activity) ||
+                   'Location not specified'}
                 </Text>
-                {activity.fullAddress && activity.locationName && (
+                {activity.fullAddress && (activity.locationName || (typeof activity.location === 'string' ? activity.location : activity.location?.name)) && (
                   <Text style={styles.locationAddress}>{activity.fullAddress}</Text>
                 )}
               </View>
