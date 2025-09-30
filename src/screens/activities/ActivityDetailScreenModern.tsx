@@ -572,8 +572,8 @@ const ActivityDetailScreenModern = () => {
                   latitudeDelta: 0.01,
                   longitudeDelta: 0.01,
                 }}
-                scrollEnabled={false}
-                zoomEnabled={false}
+                scrollEnabled={true}
+                zoomEnabled={true}
                 rotateEnabled={false}
                 pitchEnabled={false}
               >
@@ -586,17 +586,6 @@ const ActivityDetailScreenModern = () => {
                   description={activity.fullAddress || getFullAddress(activity)}
                 />
               </MapView>
-              <TouchableOpacity
-                style={styles.mapOverlay}
-                onPress={() => {
-                  mapRef.current?.animateToRegion({
-                    latitude: mapLat,
-                    longitude: mapLng,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  });
-                }}
-              />
             </View>
           </View>
 
@@ -1006,9 +995,6 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
-  },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
   },
   actionButtonsContainer: {
     marginBottom: ModernSpacing.xl,
