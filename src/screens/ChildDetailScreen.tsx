@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Alert,
   SectionList,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,7 +18,8 @@ import childrenService, { ChildActivity } from '../services/childrenService';
 import { Child } from '../store/slices/childrenSlice';
 import activityService from '../services/activityService';
 import { Activity } from '../types';
-import ActivityCard from '../components/modern/ActivityCard';
+import { getActivityImageKey } from '../utils/activityHelpers';
+import { getActivityImageByKey } from '../assets/images';
 
 // Airbnb-style colors
 const ModernColors = {
@@ -90,23 +92,41 @@ const ChildDetailScreen: React.FC = () => {
       // Get child activities with full activity details from API
       const response = await childrenService.getChildActivitiesList(childId);
 
-      // The API now returns activities with full details, so we can use them directly
-      const activitiesWithDetails = response.map((ca) => {
+      // Deduplicate activities by childActivity.id (not activity.id)
+      const seenChildActivityIds = new Set<string>();
+      const activitiesWithDetails: ActivityWithChild[] = [];
+
+      for (const ca of response) {
+        // Skip if we've already seen this childActivity
+        if (seenChildActivityIds.has(ca.id)) {
+          continue;
+        }
+        seenChildActivityIds.add(ca.id);
+
         // If we have activity data from the ChildActivity relation, use it
         if (ca.activity) {
-          return {
+          activitiesWithDetails.push({
             ...ca.activity,
             childActivity: ca,
-          } as ActivityWithChild;
+          } as ActivityWithChild);
+        } else {
+          // Fallback: create minimal activity object from childActivity data
+          activitiesWithDetails.push({
+            id: ca.activityId,
+            name: `Activity ${ca.activityId}`,
+            category: 'General',
+            childActivity: ca,
+          } as ActivityWithChild);
         }
+      }
 
-        // Fallback: create minimal activity object from childActivity data
-        return {
-          id: ca.activityId,
-          name: `Activity ${ca.activityId}`,
-          category: 'General',
-          childActivity: ca,
-        } as ActivityWithChild;
+      // Sort by start date (newest to oldest)
+      activitiesWithDetails.sort((a, b) => {
+        const dateA = a.childActivity?.scheduledDate ? new Date(a.childActivity.scheduledDate).getTime() :
+                     (a as any).dateStart ? new Date((a as any).dateStart).getTime() : 0;
+        const dateB = b.childActivity?.scheduledDate ? new Date(b.childActivity.scheduledDate).getTime() :
+                     (b as any).dateStart ? new Date((b as any).dateStart).getTime() : 0;
+        return dateB - dateA; // Newest first
       });
 
       setActivities(activitiesWithDetails);
@@ -209,62 +229,96 @@ const ChildDetailScreen: React.FC = () => {
       completed: ModernColors.success,
     };
 
-    return (
-      <View style={styles.activityWrapper}>
-        {/* Activity Card with Image */}
-        <ActivityCard
-          activity={item}
-          onPress={() => handleActivityPress(item)}
-          variant="default"
-          isAssignedToCalendar={true}
-        />
+    // Extract activity details
+    const activityName = item.name || `Activity ${item.id}`;
+    const startTime = item.childActivity?.startTime || (item as any).startTime;
+    const endTime = item.childActivity?.endTime || (item as any).endTime;
+    const location = (item as any).location?.name || (item as any).location || 'Location TBA';
 
-        {/* Status Badge Overlay */}
-        <View style={[styles.statusBadgeOverlay, { backgroundColor: statusColors[status] }]}>
-          <Text style={styles.statusText}>
-            {status.replace('_', ' ').toUpperCase()}
-          </Text>
+    // Get date and day of week from sessions if available
+    let dateInfo = '';
+    let dayOfWeek = '';
+    if ((item as any).sessions && (item as any).sessions.length > 0) {
+      const session = (item as any).sessions[0];
+      dayOfWeek = session.dayOfWeek || '';
+      if (session.date) {
+        const date = new Date(session.date);
+        dateInfo = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    } else if ((item as any).dateStart && (item as any).dateEnd) {
+      const startDate = new Date((item as any).dateStart);
+      const endDate = new Date((item as any).dateEnd);
+      dateInfo = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    } else if (item.childActivity?.scheduledDate) {
+      const date = new Date(item.childActivity.scheduledDate);
+      dateInfo = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+
+    // Get activity image
+    const activityTypeName = (item as any).activityType?.name || item.category || 'general';
+    const subcategory = (item as any).activitySubtype?.name || (item as any).subcategory;
+    const imageKey = getActivityImageKey(activityTypeName, subcategory);
+    const imageSource = getActivityImageByKey(imageKey);
+
+    return (
+      <TouchableOpacity
+        style={styles.activityCard}
+        onPress={() => handleActivityPress(item)}
+        activeOpacity={0.9}
+      >
+        {/* Image Container */}
+        <View style={styles.imageContainer}>
+          <Image source={imageSource} style={styles.activityImage} resizeMode="cover" />
+
+          {/* Status Badge Overlay */}
+          <View style={[styles.statusBadge, { backgroundColor: statusColors[status] }]}>
+            <Text style={styles.statusBadgeText}>
+              {status.replace('_', ' ').toUpperCase()}
+            </Text>
+          </View>
         </View>
 
-        {/* Action Buttons */}
-        {!isShared && (
-          <View style={styles.activityActions}>
-            {status === 'planned' && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleUpdateStatus(item, 'in_progress')}
-              >
-                <Icon name="play" size={20} color={ModernColors.secondary} />
-                <Text style={styles.actionButtonText}>Start</Text>
-              </TouchableOpacity>
-            )}
-            {status === 'in_progress' && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleUpdateStatus(item, 'completed')}
-              >
-                <Icon name="check" size={20} color={ModernColors.success} />
-                <Text style={styles.actionButtonText}>Complete</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleRemoveActivity(item.id)}
-            >
-              <Icon name="delete-outline" size={20} color={ModernColors.error} />
-              <Text style={styles.actionButtonText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Activity Info */}
+        <View style={styles.activityInfo}>
+          <Text style={styles.activityTitle} numberOfLines={2}>{activityName}</Text>
 
-        {/* Notes Section */}
-        {item.childActivity?.notes && (
-          <View style={styles.notesContainer}>
-            <Text style={styles.notesLabel}>Notes:</Text>
-            <Text style={styles.notesText}>{item.childActivity.notes}</Text>
-          </View>
+          {(dateInfo || dayOfWeek) && (
+            <View style={styles.infoRow}>
+              <Icon name="calendar" size={14} color={ModernColors.textLight} />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {dayOfWeek}{dayOfWeek && dateInfo && ' • '}{dateInfo}
+              </Text>
+            </View>
+          )}
+
+          {(startTime || endTime) && (
+            <View style={styles.infoRow}>
+              <Icon name="clock-outline" size={14} color={ModernColors.textLight} />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {startTime}{endTime && ` - ${endTime}`}
+              </Text>
+            </View>
+          )}
+
+          {location && (
+            <View style={styles.infoRow}>
+              <Icon name="map-marker" size={14} color={ModernColors.textLight} />
+              <Text style={styles.infoText} numberOfLines={1}>{location}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Delete Button */}
+        {!isShared && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleRemoveActivity(item.id)}
+          >
+            <Icon name="trash-can-outline" size={20} color={ModernColors.error} />
+          </TouchableOpacity>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -438,50 +492,82 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: ModernColors.text,
   },
-  activityWrapper: {
-    position: 'relative',
-    marginVertical: 4,
+  activityCard: {
+    backgroundColor: ModernColors.background,
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: 'hidden',
   },
-  statusBadgeOverlay: {
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+  },
+  activityImage: {
+    width: '100%',
+    height: '100%',
+  },
+  statusBadge: {
     position: 'absolute',
     top: 12,
     left: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
-    zIndex: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
-  statusText: {
+  statusBadgeText: {
     fontSize: 11,
     color: ModernColors.background,
     fontWeight: '600',
   },
-  activityActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: ModernColors.backgroundLight,
-    borderTopWidth: 1,
-    borderTopColor: ModernColors.borderLight,
-    marginTop: -12,
-    marginHorizontal: 20,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+  activityInfo: {
+    padding: 16,
   },
-  actionButton: {
+  activityTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 10,
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
+    marginBottom: 6,
   },
-  actionButtonText: {
-    fontSize: 14,
-    color: ModernColors.text,
+  infoText: {
+    fontSize: 13,
+    color: ModernColors.textLight,
     marginLeft: 6,
+    flex: 1,
+  },
+  deleteButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: ModernColors.background,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
   },
   notesContainer: {
     marginHorizontal: 20,

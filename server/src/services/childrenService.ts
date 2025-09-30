@@ -387,7 +387,9 @@ export class ChildrenService {
         activity: {
           include: {
             location: true,
-            sessions: true
+            sessions: true,
+            activityType: true, // Include activity type for image display
+            activitySubtype: true // Include activity subtype for image display
           }
         },
         child: true
@@ -439,7 +441,9 @@ export class ChildrenService {
         activity: {
           include: {
             location: true,
-            sessions: true // Include sessions for recurring activities
+            sessions: true, // Include sessions for recurring activities
+            activityType: true, // Include activity type for image display
+            activitySubtype: true // Include activity subtype for image display
           }
         }
       },
@@ -472,7 +476,9 @@ export class ChildrenService {
         activity: {
           include: {
             location: true,
-            sessions: true // Include sessions for recurring activities
+            sessions: true, // Include sessions for recurring activities
+            activityType: true, // Include activity type for image display
+            activitySubtype: true // Include activity subtype for image display
           }
         },
         child: true
