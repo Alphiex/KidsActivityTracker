@@ -12,6 +12,8 @@ import {
   Linking,
 } from 'react-native';
 import { Calendar, Agenda } from 'react-native-calendars';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { getWeek } from 'date-fns';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   format,
@@ -30,7 +32,7 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { fetchChildren } from '../store/slices/childrenSlice';
 import childrenService from '../services/childrenService';
 import activityService from '../services/activityService';
-import { Colors as ModernColors } from '../theme';
+import { ModernColors } from '../theme/modernTheme';
 import { ChildActivity } from '../services/childrenService';
 
 type ViewMode = 'month' | 'week' | 'day' | 'agenda';
@@ -71,6 +73,7 @@ interface ExtendedChildActivity extends ChildActivity {
 }
 
 const CalendarScreenModernFixed = () => {
+  const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { children: myChildren } = useAppSelector((state) => state.children);
   const { user } = useAppSelector((state) => state.auth);
@@ -82,16 +85,25 @@ const CalendarScreenModernFixed = () => {
   const [showSharedChildren, setShowSharedChildren] = useState(true);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<'date' | 'month' | 'week'>('date');
   const [selectedActivity, setSelectedActivity] = useState<ChildActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [markedDates, setMarkedDates] = useState<any>({});
-  const [agendaItems, setAgendaItems] = useState<any>({});
   const [isAgendaReady, setIsAgendaReady] = useState(false);
 
   // Load children and their activities
   useEffect(() => {
     loadData();
   }, []);
+
+  // Reload data when returning from other screens
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // Prevent re-renders when switching to agenda view
   useEffect(() => {
@@ -141,54 +153,48 @@ const CalendarScreenModernFixed = () => {
         }
       }
 
-      // Mock additional activity data for now - will be replaced with actual activity details
+      // Fetch actual activity details for scheduled activities
+      const activityIds = [...new Set(scheduledActivities.map(sa => sa.activityId))];
+      let activityDetails: any = {};
+
+      if (activityIds.length > 0) {
+        try {
+          // Fetch activity details for all unique activity IDs
+          const activityPromises = activityIds.map(id =>
+            activityService.getActivityById(id).catch(err => {
+              console.warn(`Failed to fetch activity ${id}:`, err);
+              return null;
+            })
+          );
+          const activities = await Promise.all(activityPromises);
+
+          // Create a map of activity details
+          activities.forEach((activity) => {
+            if (activity) {
+              activityDetails[activity.id] = activity;
+            }
+          });
+        } catch (error) {
+          console.warn('Error fetching activity details:', error);
+        }
+      }
+
+      // Enhance scheduled activities with actual activity data
       const enhancedActivities = scheduledActivities.map(sa => ({
         ...sa,
-        activity: {
+        activity: activityDetails[sa.activityId] || {
           id: sa.activityId,
           name: `Activity ${sa.activityId}`,
-          description: 'Activity description',
-          location: 'Activity location',
+          description: 'Activity details unavailable',
+          location: 'TBD',
           category: 'General',
         },
       }));
 
-      // Add some demo activities if no real data
+      // If no activities, show helpful placeholder for first child
       if (enhancedActivities.length === 0 && myChildren.length > 0) {
-        enhancedActivities.push(
-          {
-            id: '1',
-            childId: myChildren[0]?.id || '1',
-            activityId: '1',
-            scheduledDate: format(new Date(), 'yyyy-MM-dd'),
-            startTime: '09:00',
-            endTime: '10:30',
-            status: 'scheduled',
-            activity: {
-              id: '1',
-              name: 'Swimming Lessons',
-              description: 'Beginner swimming class',
-              location: 'Community Pool',
-              category: 'Sports',
-            },
-          },
-          {
-            id: '2',
-            childId: myChildren[0]?.id || '1',
-            activityId: '2',
-            scheduledDate: format(addDays(new Date(), 2), 'yyyy-MM-dd'),
-            startTime: '14:00',
-            endTime: '15:00',
-            status: 'scheduled',
-            activity: {
-              id: '2',
-              name: 'Piano Practice',
-              description: 'Weekly piano lesson',
-              location: 'Music School',
-              category: 'Music',
-            },
-          }
-        );
+        // Don't add demo activities - let the user see their real data
+        console.log('No scheduled activities found for children');
       }
 
       // Process children with activities
@@ -216,9 +222,6 @@ const CalendarScreenModernFixed = () => {
 
       // Generate marked dates for calendar
       generateMarkedDates([...processedChildren, ...processedShared]);
-
-      // Generate agenda items
-      generateAgendaItems([...processedChildren, ...processedShared]);
 
     } catch (error) {
       console.error('Error loading calendar data:', error);
@@ -254,8 +257,18 @@ const CalendarScreenModernFixed = () => {
     setMarkedDates(dates);
   }, [selectedDate]);
 
-  const generateAgendaItems = useCallback((allChildren: ChildWithActivities[]) => {
+  // Create a stable key for agenda items to prevent infinite loop
+  const agendaKey = useMemo(() => {
+    const allChildren = [...childrenWithActivities, ...sharedChildren];
+    const visibleChildren = allChildren.filter(c => c.isVisible);
+    const activityCount = visibleChildren.reduce((sum, c) => sum + c.activities.length, 0);
+    return `${visibleChildren.length}-${activityCount}-${selectedDate}`;
+  }, [childrenWithActivities, sharedChildren, selectedDate]);
+
+  // Memoize agenda items to prevent infinite loop in Agenda component
+  const memoizedAgendaItems = useMemo(() => {
     const items: any = {};
+    const allChildren = [...childrenWithActivities, ...sharedChildren];
 
     // Generate items for next 30 days
     for (let i = 0; i < 30; i++) {
@@ -281,8 +294,8 @@ const CalendarScreenModernFixed = () => {
       }
     }
 
-    setAgendaItems(items);
-  }, []);
+    return items;
+  }, [agendaKey]);
 
   const toggleChildVisibility = useCallback((childId: string, isShared: boolean = false) => {
     const updateChildren = isShared ? setSharedChildren : setChildrenWithActivities;
@@ -298,12 +311,11 @@ const CalendarScreenModernFixed = () => {
           ? [...childrenWithActivities, ...updated]
           : [...updated, ...sharedChildren];
         generateMarkedDates(allChildren);
-        generateAgendaItems(allChildren);
       }, 0);
 
       return updated;
     });
-  }, [childrenWithActivities, sharedChildren, generateMarkedDates, generateAgendaItems]);
+  }, [childrenWithActivities, sharedChildren, generateMarkedDates]);
 
   const toggleSharedChildrenVisibility = useCallback(() => {
     const newVisibility = !showSharedChildren;
@@ -315,12 +327,11 @@ const CalendarScreenModernFixed = () => {
       // Regenerate with updated children
       setTimeout(() => {
         generateMarkedDates([...childrenWithActivities, ...updated]);
-        generateAgendaItems([...childrenWithActivities, ...updated]);
       }, 0);
 
       return updated;
     });
-  }, [showSharedChildren, childrenWithActivities, generateMarkedDates, generateAgendaItems]);
+  }, [showSharedChildren, childrenWithActivities, generateMarkedDates]);
 
   const handleDayPress = (day: any) => {
     setSelectedDate(day.dateString);
@@ -329,6 +340,54 @@ const CalendarScreenModernFixed = () => {
   const handleActivityPress = (activity: ChildActivity) => {
     setSelectedActivity(activity);
     setShowActivityModal(true);
+  };
+
+  const handleActivityEdit = async (activity: ChildActivity) => {
+    setShowActivityModal(false);
+    // Navigate to activity detail screen with the activity and scheduling info
+    navigation.navigate('ActivityDetail' as any, {
+      activityId: activity.activityId,
+      childId: activity.childId,
+      scheduleId: activity.id,
+      fromCalendar: true,
+    });
+  };
+
+  const handleActivityDelete = async (activity: ChildActivity) => {
+    Alert.alert(
+      'Remove Activity',
+      'Are you sure you want to remove this activity from the calendar?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await childrenService.removeActivityFromChild(activity.childId, activity.id);
+              setShowActivityModal(false);
+              // Reload calendar data
+              loadData();
+              Alert.alert('Success', 'Activity removed from calendar');
+            } catch (error) {
+              console.error('Error removing activity:', error);
+              Alert.alert('Error', 'Failed to remove activity');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleQuickAdd = async (date: string) => {
+    // Navigate to search screen with pre-selected date for quick activity addition
+    navigation.navigate('SearchResults' as any, {
+      preselectedDate: date,
+      quickAdd: true,
+    });
   };
 
   const exportToCalendar = async () => {
@@ -408,7 +467,7 @@ END:VEVENT
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity
-        onPress={() => useNavigation().goBack()}
+        onPress={() => navigation.navigate('Dashboard' as any)}
         style={styles.backButton}
       >
         <Icon name="arrow-left" size={24} color={ModernColors.text} />
@@ -455,41 +514,79 @@ END:VEVENT
     </View>
   );
 
-  const renderMonthView = () => (
-    <Calendar
-      current={selectedDate}
-      onDayPress={handleDayPress}
-      markedDates={markedDates}
-      markingType={'multi-dot'}
-      theme={{
-        backgroundColor: ModernColors.background,
-        calendarBackground: ModernColors.background,
-        textSectionTitleColor: ModernColors.textLight,
-        selectedDayBackgroundColor: ModernColors.primary,
-        selectedDayTextColor: ModernColors.background,
-        todayTextColor: ModernColors.primary,
-        dayTextColor: ModernColors.text,
-        textDisabledColor: ModernColors.textLight,
-        dotColor: ModernColors.primary,
-        selectedDotColor: ModernColors.background,
-        arrowColor: ModernColors.primary,
-        monthTextColor: ModernColors.text,
-        textDayFontWeight: '400',
-        textMonthFontWeight: '600',
-        textDayHeaderFontWeight: '500',
-        textDayFontSize: 16,
-        textMonthFontSize: 18,
-        textDayHeaderFontSize: 14,
-      }}
-    />
-  );
+  const renderMonthView = () => {
+    const currentMonth = parseISO(selectedDate);
+
+    return (
+      <View>
+        <TouchableOpacity
+          style={styles.dateHeaderButton}
+          onPress={() => {
+            setDatePickerMode('month');
+            setShowDatePicker(true);
+          }}
+        >
+          <Text style={styles.dateHeaderText}>
+            {format(currentMonth, 'MMMM yyyy')}
+          </Text>
+          <Icon name="chevron-down" size={20} color={ModernColors.text} />
+        </TouchableOpacity>
+
+        <Calendar
+          current={selectedDate}
+          onDayPress={handleDayPress}
+          markedDates={markedDates}
+          markingType={'multi-dot'}
+          hideArrows={true}
+          hideExtraDays={false}
+          disableMonthChange={true}
+          theme={{
+            backgroundColor: ModernColors.background,
+            calendarBackground: ModernColors.background,
+            textSectionTitleColor: ModernColors.textSecondary,
+            selectedDayBackgroundColor: ModernColors.primary,
+            selectedDayTextColor: ModernColors.background,
+            todayTextColor: ModernColors.primary,
+            dayTextColor: ModernColors.text,
+            textDisabledColor: ModernColors.textMuted,
+            dotColor: ModernColors.primary,
+            selectedDotColor: ModernColors.background,
+            arrowColor: ModernColors.primary,
+            monthTextColor: 'transparent',
+            textDayFontWeight: '400',
+            textMonthFontWeight: '600',
+            textDayHeaderFontWeight: '500',
+            textDayFontSize: 16,
+            textMonthFontSize: 0,
+            textDayHeaderFontSize: 14,
+          }}
+          renderHeader={() => null}
+        />
+      </View>
+    );
+  };
 
   const renderWeekView = () => {
-    const weekStart = startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 });
+    const currentWeek = parseISO(selectedDate);
+    const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+    const weekNumber = getWeek(currentWeek, { weekStartsOn: 1 });
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     return (
       <View style={styles.weekContainer}>
+        <TouchableOpacity
+          style={styles.dateHeaderButton}
+          onPress={() => {
+            setDatePickerMode('week');
+            setShowDatePicker(true);
+          }}
+        >
+          <Text style={styles.dateHeaderText}>
+            Week {weekNumber}, {format(currentWeek, 'yyyy')}
+          </Text>
+          <Icon name="chevron-down" size={20} color={ModernColors.text} />
+        </TouchableOpacity>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.weekGrid}>
             {weekDays.map((day) => {
@@ -561,11 +658,18 @@ END:VEVENT
 
     return (
       <View style={styles.dayContainer}>
-        <View style={styles.dayHeader}>
-          <Text style={styles.dayHeaderText}>
+        <TouchableOpacity
+          style={styles.dateHeaderButton}
+          onPress={() => {
+            setDatePickerMode('date');
+            setShowDatePicker(true);
+          }}
+        >
+          <Text style={styles.dateHeaderText}>
             {format(currentDay, 'EEEE, MMMM d, yyyy')}
           </Text>
-        </View>
+          <Icon name="chevron-down" size={20} color={ModernColors.text} />
+        </TouchableOpacity>
         <ScrollView style={styles.dayScroll}>
           <View style={styles.dayTimeline}>
             {hours.map((hour) => {
@@ -599,13 +703,13 @@ END:VEVENT
                               {activity.childName}
                             </Text>
                             <View style={styles.dayActivityDetails}>
-                              <Icon name="clock-outline" size={12} color={ModernColors.textLight} />
+                              <Icon name="clock-outline" size={12} color={ModernColors.textSecondary} />
                               <Text style={styles.dayActivityTime}>
                                 {activity.startTime} - {activity.endTime}
                               </Text>
                               {activity.activity.location && (
                                 <>
-                                  <Icon name="map-marker" size={12} color={ModernColors.textLight} />
+                                  <Icon name="map-marker" size={12} color={ModernColors.textSecondary} />
                                   <Text style={styles.dayActivityLocation}>
                                     {activity.activity.location}
                                   </Text>
@@ -629,8 +733,7 @@ END:VEVENT
   };
 
   const renderAgendaView = () => {
-    // Prevent rendering agenda until data is ready to avoid infinite loops
-    if (loading || !isAgendaReady) {
+    if (loading) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={ModernColors.primary} />
@@ -639,92 +742,89 @@ END:VEVENT
       );
     }
 
-    // Ensure agendaItems is properly structured for the Agenda component
-    const safeAgendaItems = agendaItems || {};
+    // Get activities for the next 30 days
+    const allChildren = [...childrenWithActivities, ...sharedChildren];
+    const upcomingActivities: Array<{ date: string; activities: any[] }> = [];
+
+    for (let i = 0; i < 30; i++) {
+      const date = format(addDays(new Date(), i), 'yyyy-MM-dd');
+      const dayActivities: any[] = [];
+
+      allChildren.forEach((child) => {
+        if (!child.isVisible) return;
+
+        child.activities
+          .filter((activity) => activity.scheduledDate === date)
+          .forEach((activity) => {
+            dayActivities.push({
+              ...activity,
+              childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
+              childColor: child.color,
+            });
+          });
+      });
+
+      if (dayActivities.length > 0) {
+        upcomingActivities.push({ date, activities: dayActivities });
+      }
+    }
+
+    if (upcomingActivities.length === 0) {
+      return (
+        <View style={styles.emptyAgenda}>
+          <Icon name="calendar-blank" size={48} color={ModernColors.textSecondary} />
+          <Text style={styles.emptyAgendaTitle}>No Activities Scheduled</Text>
+          <Text style={styles.emptyAgendaText}>
+            Activities will appear here when scheduled
+          </Text>
+        </View>
+      );
+    }
 
     return (
-      <Agenda
-        items={safeAgendaItems}
-        selected={selectedDate}
-        renderItem={(item: any, firstItemInDay: boolean) => {
-          // Handle empty items
-          if (!item || item.empty) {
-            return (
-              <View style={styles.emptyDate}>
-                <Text style={styles.emptyDateText}>No activities scheduled</Text>
-              </View>
-            );
-          }
-
-          // Ensure we have the required data
-          const activityName = item.activity?.name || 'Activity';
-          const childName = item.childName || 'Child';
-          const startTime = item.startTime || '00:00';
-          const endTime = item.endTime || '00:00';
-          const childColor = item.childColor || ModernColors.primary;
-          const location = item.activity?.location;
-
-          return (
-            <TouchableOpacity
-              style={[styles.agendaItem, firstItemInDay && styles.firstAgendaItem]}
-              onPress={() => handleActivityPress(item)}
-            >
-              <View style={[styles.agendaItemIndicator, { backgroundColor: childColor }]} />
-              <View style={styles.agendaItemContent}>
-                <Text style={styles.agendaItemTitle}>{activityName}</Text>
-                <Text style={styles.agendaItemChild}>{childName}</Text>
-                <View style={styles.agendaItemDetails}>
-                  <Icon name="clock-outline" size={14} color={ModernColors.textLight} />
-                  <Text style={styles.agendaItemTime}>
-                    {startTime} - {endTime}
-                  </Text>
-                  {location && (
-                    <>
-                      <Icon name="map-marker" size={14} color={ModernColors.textLight} />
-                      <Text style={styles.agendaItemLocation}>{location}</Text>
-                    </>
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
-        renderEmptyDate={() => (
-          <View style={styles.emptyDate}>
-            <Text style={styles.emptyDateText}>No activities</Text>
-          </View>
-        )}
-        renderEmptyData={() => (
-          <View style={styles.emptyAgenda}>
-            <Icon name="calendar-blank" size={48} color={ModernColors.textLight} />
-            <Text style={styles.emptyAgendaTitle}>No Activities Scheduled</Text>
-            <Text style={styles.emptyAgendaText}>
-              Activities will appear here when scheduled
+      <ScrollView style={styles.agendaContainer}>
+        {upcomingActivities.map(({ date, activities }) => (
+          <View key={date} style={styles.agendaDateSection}>
+            <Text style={styles.agendaDateHeader}>
+              {format(parseISO(date), 'EEEE, MMMM d, yyyy')}
             </Text>
+            {activities.map((activity) => {
+              const activityName = activity.activity?.name || 'Activity';
+              const childName = activity.childName || 'Child';
+              const startTime = activity.startTime || '00:00';
+              const endTime = activity.endTime || '00:00';
+              const childColor = activity.childColor || ModernColors.primary;
+              const location = activity.activity?.location;
+
+              return (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={styles.agendaItem}
+                  onPress={() => handleActivityPress(activity)}
+                >
+                  <View style={[styles.agendaItemIndicator, { backgroundColor: childColor }]} />
+                  <View style={styles.agendaItemContent}>
+                    <Text style={styles.agendaItemTitle}>{activityName}</Text>
+                    <Text style={styles.agendaItemChild}>{childName}</Text>
+                    <View style={styles.agendaItemDetails}>
+                      <Icon name="clock-outline" size={14} color={ModernColors.textSecondary} />
+                      <Text style={styles.agendaItemTime}>
+                        {startTime} - {endTime}
+                      </Text>
+                      {location && (
+                        <>
+                          <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
+                          <Text style={styles.agendaItemLocation}>{location}</Text>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        )}
-        rowHasChanged={(r1: any, r2: any) => {
-          return r1.id !== r2.id;
-        }}
-        showClosingKnob={true}
-        markingType={'dot'}
-        theme={{
-          backgroundColor: ModernColors.backgroundGray,
-          calendarBackground: ModernColors.background,
-          agendaKnobColor: ModernColors.primary,
-          agendaDayTextColor: ModernColors.text,
-          agendaDayNumColor: ModernColors.text,
-          agendaTodayColor: ModernColors.primary,
-          agendaMonthTextColor: ModernColors.text,
-          selectedDayBackgroundColor: ModernColors.primary,
-          selectedDayTextColor: ModernColors.background,
-          dotColor: ModernColors.primary,
-          selectedDotColor: ModernColors.background,
-        }}
-        // Prevent unnecessary re-renders
-        hideKnob={false}
-        showOnlySelectedDayItems={false}
-      />
+        ))}
+      </ScrollView>
     );
   };
 
@@ -757,7 +857,7 @@ END:VEVENT
               )}
 
               <View style={styles.activityDetailRow}>
-                <Icon name="calendar" size={20} color={ModernColors.textLight} />
+                <Icon name="calendar" size={20} color={ModernColors.textSecondary} />
                 <Text style={styles.activityDetailText}>
                   {selectedActivity.scheduledDate &&
                     format(parseISO(selectedActivity.scheduledDate), 'MMMM d, yyyy')}
@@ -765,7 +865,7 @@ END:VEVENT
               </View>
 
               <View style={styles.activityDetailRow}>
-                <Icon name="clock-outline" size={20} color={ModernColors.textLight} />
+                <Icon name="clock-outline" size={20} color={ModernColors.textSecondary} />
                 <Text style={styles.activityDetailText}>
                   {selectedActivity.startTime} - {selectedActivity.endTime}
                 </Text>
@@ -773,7 +873,7 @@ END:VEVENT
 
               {selectedActivity.activity.location && (
                 <View style={styles.activityDetailRow}>
-                  <Icon name="map-marker" size={20} color={ModernColors.textLight} />
+                  <Icon name="map-marker" size={20} color={ModernColors.textSecondary} />
                   <Text style={styles.activityDetailText}>
                     {selectedActivity.activity.location}
                   </Text>
@@ -783,12 +883,15 @@ END:VEVENT
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={() => {
-                    setShowActivityModal(false);
-                    // Navigate to activity detail
-                  }}
+                  onPress={() => handleActivityEdit(selectedActivity)}
                 >
-                  <Text style={styles.modalButtonTextPrimary}>View Details</Text>
+                  <Text style={styles.modalButtonTextPrimary}>Edit Activity</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonDanger]}
+                  onPress={() => handleActivityDelete(selectedActivity)}
+                >
+                  <Text style={styles.modalButtonTextDanger}>Remove</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonSecondary]}
@@ -837,7 +940,7 @@ END:VEVENT
                 <Icon
                   name={child.isVisible ? 'checkbox-marked' : 'checkbox-blank-outline'}
                   size={24}
-                  color={child.isVisible ? ModernColors.primary : ModernColors.textLight}
+                  color={child.isVisible ? ModernColors.primary : ModernColors.textSecondary}
                 />
               </TouchableOpacity>
             ))}
@@ -874,7 +977,7 @@ END:VEVENT
                       <Icon
                         name={child.isVisible ? 'checkbox-marked' : 'checkbox-blank-outline'}
                         size={24}
-                        color={child.isVisible ? ModernColors.primary : ModernColors.textLight}
+                        color={child.isVisible ? ModernColors.primary : ModernColors.textSecondary}
                       />
                     </TouchableOpacity>
                   ))}
@@ -907,6 +1010,25 @@ END:VEVENT
 
       {renderActivityModal()}
       {renderFilterModal()}
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={parseISO(selectedDate)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, date) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (date) {
+              // For month mode, set to first day of selected month
+              // For week mode, set to the selected date (user picks a date, we'll show its week)
+              // For day mode, just set the selected date
+              const formattedDate = format(date, 'yyyy-MM-dd');
+              setSelectedDate(formattedDate);
+            }
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -925,7 +1047,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
   },
   header: {
     flexDirection: 'row',
@@ -958,7 +1080,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: ModernColors.backgroundGray,
+    backgroundColor: ModernColors.borderLight,
   },
   viewModeButton: {
     flex: 1,
@@ -977,7 +1099,24 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
   },
   viewModeTextActive: {
-    color: ModernColors.background,
+    color: '#FFFFFF',
+  },
+  dateHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    backgroundColor: ModernColors.borderLight,
+    borderRadius: 8,
+  },
+  dateHeaderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginRight: 8,
   },
   weekContainer: {
     flex: 1,
@@ -993,7 +1132,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     padding: 8,
     borderRadius: 8,
-    backgroundColor: ModernColors.backgroundGray,
+    backgroundColor: ModernColors.borderLight,
     alignItems: 'center',
   },
   weekDayToday: {
@@ -1006,7 +1145,7 @@ const styles = StyleSheet.create({
   weekDayName: {
     fontSize: 12,
     fontWeight: '600',
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginBottom: 4,
   },
   weekDayNumber: {
@@ -1039,7 +1178,7 @@ const styles = StyleSheet.create({
   },
   weekActivityTime: {
     fontSize: 10,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
   },
   dayContainer: {
     flex: 1,
@@ -1072,7 +1211,7 @@ const styles = StyleSheet.create({
   dayHourText: {
     width: 50,
     fontSize: 12,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     paddingTop: 4,
   },
   dayHourContent: {
@@ -1101,7 +1240,7 @@ const styles = StyleSheet.create({
   },
   dayActivityChild: {
     fontSize: 12,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginTop: 2,
   },
   dayActivityDetails: {
@@ -1112,12 +1251,12 @@ const styles = StyleSheet.create({
   },
   dayActivityTime: {
     fontSize: 11,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginRight: 8,
   },
   dayActivityLocation: {
     fontSize: 11,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
   },
   dayEmptySlot: {
     height: 20,
@@ -1150,7 +1289,7 @@ const styles = StyleSheet.create({
   },
   agendaItemChild: {
     fontSize: 14,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginTop: 4,
   },
   agendaItemDetails: {
@@ -1161,12 +1300,12 @@ const styles = StyleSheet.create({
   },
   agendaItemTime: {
     fontSize: 12,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginRight: 12,
   },
   agendaItemLocation: {
     fontSize: 12,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
   },
   emptyDate: {
     height: 60,
@@ -1176,7 +1315,7 @@ const styles = StyleSheet.create({
   },
   emptyDateText: {
     fontSize: 14,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
   },
   emptyAgenda: {
     flex: 1,
@@ -1193,8 +1332,23 @@ const styles = StyleSheet.create({
   },
   emptyAgendaText: {
     fontSize: 14,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     textAlign: 'center',
+  },
+  agendaContainer: {
+    flex: 1,
+    backgroundColor: ModernColors.background,
+  },
+  agendaDateSection: {
+    marginBottom: 20,
+  },
+  agendaDateHeader: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.borderLight,
   },
   modalOverlay: {
     flex: 1,
@@ -1235,7 +1389,7 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     fontSize: 16,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginBottom: 20,
   },
   activityDetailRow: {
@@ -1263,9 +1417,17 @@ const styles = StyleSheet.create({
     backgroundColor: ModernColors.primary,
   },
   modalButtonSecondary: {
-    backgroundColor: ModernColors.backgroundGray,
+    backgroundColor: ModernColors.borderLight,
+  },
+  modalButtonDanger: {
+    backgroundColor: '#FF6B6B',
   },
   modalButtonTextPrimary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.background,
+  },
+  modalButtonTextDanger: {
     fontSize: 16,
     fontWeight: '600',
     color: ModernColors.background,
@@ -1319,7 +1481,7 @@ const styles = StyleSheet.create({
   },
   filterItemSubtext: {
     fontSize: 12,
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     marginTop: 2,
   },
 });
