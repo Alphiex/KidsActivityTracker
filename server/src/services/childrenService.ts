@@ -384,7 +384,12 @@ export class ChildrenService {
         notes
       },
       include: {
-        activity: true,
+        activity: {
+          include: {
+            location: true,
+            sessions: true
+          }
+        },
         child: true
       }
     });
