@@ -553,10 +553,10 @@ class ChildrenService {
       params.append('startDate', startDate.toISOString());
       params.append('endDate', endDate.toISOString());
 
-      const response = await api.get(`/api/children/activities/all?${params.toString()}`);
+      const response = await apiClient.get<{ success: boolean; activities: any[] }>(`/api/children/activities/all?${params.toString()}`);
 
-      if (response.data.success && response.data.activities) {
-        const activities: ChildActivity[] = response.data.activities.map((ca: any) => ({
+      if (response.success && response.activities) {
+        const activities: ChildActivity[] = response.activities.map((ca: any) => ({
           id: ca.id,
           childId: ca.childId,
           activityId: ca.activityId,

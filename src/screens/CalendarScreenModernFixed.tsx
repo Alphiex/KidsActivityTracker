@@ -154,6 +154,8 @@ const CalendarScreenModernFixed = () => {
             endDate,
             childIds
           );
+          console.log('[CalendarScreen] Fetched scheduled activities:', scheduledActivities.length);
+          console.log('[CalendarScreen] First activity:', JSON.stringify(scheduledActivities[0], null, 2));
         } catch (error) {
           console.warn('Error fetching scheduled activities:', error);
         }
@@ -214,9 +216,50 @@ const CalendarScreenModernFixed = () => {
   const expandActivityDates = (activity: ChildActivity): string[] => {
     const dates: string[] = [];
 
-    // If activity has a specific scheduledDate, use that
+    // Check if activity has sessions in rawData (most specific and reliable)
+    const rawDataSessions = (activity.activity as any)?.rawData?.sessions;
+    if (rawDataSessions && Array.isArray(rawDataSessions) && rawDataSessions.length > 0) {
+      rawDataSessions.forEach((session: any) => {
+        if (session.date) {
+          try {
+            // Parse MM/DD/YY format (e.g., "10/19/25")
+            const parts = session.date.split('/');
+            if (parts.length === 3) {
+              const month = parseInt(parts[0], 10);
+              const day = parseInt(parts[1], 10);
+              let year = parseInt(parts[2], 10);
+              // Convert 2-digit year to 4-digit (assume 20xx for years < 50, 19xx otherwise)
+              if (year < 100) {
+                year = year < 50 ? 2000 + year : 1900 + year;
+              }
+              const parsedDate = new Date(year, month - 1, day);
+              if (!isNaN(parsedDate.getTime())) {
+                const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+                dates.push(formattedDate);
+                console.log('[expandActivityDates] Session date:', session.date, '→', formattedDate);
+              }
+            }
+          } catch (e) {
+            // Silently skip invalid dates
+          }
+        }
+      });
+
+      // If we found session dates, return them and skip other logic
+      if (dates.length > 0) {
+        console.log('[expandActivityDates] Activity', activity.id, 'has', dates.length, 'session dates from rawData');
+        return [...new Set(dates)];
+      }
+    }
+
+    // Otherwise, if activity has a specific scheduledDate, use that (fix timezone issue)
     if (activity.scheduledDate) {
-      dates.push(format(new Date(activity.scheduledDate), 'yyyy-MM-dd'));
+      const dateStr = typeof activity.scheduledDate === 'string' ? activity.scheduledDate : activity.scheduledDate.toISOString();
+      // Parse as UTC date to avoid timezone conversion
+      const utcDate = new Date(dateStr);
+      const formattedDate = format(new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate()), 'yyyy-MM-dd');
+      dates.push(formattedDate);
+      console.log('[expandActivityDates] Activity', activity.id, 'has scheduledDate:', formattedDate);
     }
 
     // If activity has sessions, use those dates (most specific)
@@ -224,9 +267,30 @@ const CalendarScreenModernFixed = () => {
       activity.activity.sessions.forEach((session) => {
         if (session.date) {
           try {
-            dates.push(format(parseISO(session.date), 'yyyy-MM-dd'));
+            // Try parsing as ISO format first
+            let parsedDate;
+            try {
+              parsedDate = parseISO(session.date);
+            } catch {
+              // If that fails, try parsing MM/DD/YY format (e.g., "10/19/25")
+              const parts = session.date.split('/');
+              if (parts.length === 3) {
+                const month = parseInt(parts[0], 10);
+                const day = parseInt(parts[1], 10);
+                let year = parseInt(parts[2], 10);
+                // Convert 2-digit year to 4-digit (assume 20xx for years < 50, 19xx otherwise)
+                if (year < 100) {
+                  year = year < 50 ? 2000 + year : 1900 + year;
+                }
+                parsedDate = new Date(year, month - 1, day);
+              }
+            }
+
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+              dates.push(format(parsedDate, 'yyyy-MM-dd'));
+            }
           } catch (e) {
-            console.warn('Invalid session date:', session.date);
+            // Silently skip invalid dates
           }
         }
       });
@@ -307,12 +371,20 @@ const CalendarScreenModernFixed = () => {
   const generateMarkedDates = useCallback((allChildren: ChildWithActivities[]) => {
     const dates: any = {};
 
+    console.log('[generateMarkedDates] Processing', allChildren.length, 'children');
+
     allChildren.forEach((child) => {
-      if (!child.isVisible) return;
+      if (!child.isVisible) {
+        console.log('[generateMarkedDates] Child', child.name, 'is not visible, skipping');
+        return;
+      }
+
+      console.log('[generateMarkedDates] Child', child.name, 'has', child.activities.length, 'activities');
 
       child.activities.forEach((activity) => {
         // Expand activity to all its occurrence dates
         const occurrenceDates = expandActivityDates(activity);
+        console.log('[generateMarkedDates] Activity', activity.id, 'expanded to', occurrenceDates.length, 'dates:', occurrenceDates);
 
         occurrenceDates.forEach((dateKey) => {
           if (!dates[dateKey]) {
@@ -323,6 +395,10 @@ const CalendarScreenModernFixed = () => {
       });
     });
 
+    console.log('[generateMarkedDates] Final marked dates:', Object.keys(dates).length, 'dates with dots');
+    console.log('[generateMarkedDates] Sample dates:', Object.keys(dates).slice(0, 5));
+    console.log('[generateMarkedDates] Full markedDates object:', JSON.stringify(dates, null, 2));
+
     // Mark selected date
     dates[selectedDate] = {
       ...dates[selectedDate],
@@ -330,6 +406,7 @@ const CalendarScreenModernFixed = () => {
       selectedColor: ModernColors.primary,
     };
 
+    console.log('[generateMarkedDates] Setting markedDates with', Object.keys(dates).length, 'total dates');
     setMarkedDates(dates);
   }, [selectedDate]);
 
@@ -573,7 +650,10 @@ END:VEVENT
   const navigateMonth = (direction: 'prev' | 'next') => {
     const currentDate = parseISO(selectedDate);
     const newDate = direction === 'next' ? addMonths(currentDate, 1) : subMonths(currentDate, 1);
-    setSelectedDate(format(newDate, 'yyyy-MM-dd'));
+    // Keep the same day of month when navigating, or use last day if month is shorter
+    const newDateFormatted = format(newDate, 'yyyy-MM-dd');
+    console.log('[navigateMonth] Moving from', selectedDate, 'to', newDateFormatted);
+    setSelectedDate(newDateFormatted);
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -735,6 +815,10 @@ END:VEVENT
         <Calendar
           current={selectedDate}
           onDayPress={handleDayPress}
+          onMonthChange={(month: any) => {
+            console.log('[Calendar] onMonthChange to:', month.dateString);
+            // Don't change selected date on month change, just stay in current view
+          }}
           markedDates={markedDates}
           markingType={'multi-dot'}
           hideArrows={true}
