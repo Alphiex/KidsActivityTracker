@@ -8,6 +8,9 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Build Hermes from source to include dSYM for crash symbolication
+ENV['RCT_BUILD_HERMES_FROM_SOURCE'] = '1' if ENV['ARCHIVE_BUILD'] == '1'
+
 # Workaround for Xcode 16.3
 def __apply_Xcode_16_3_RC_post_install_workaround(installer)
   installer.pods_project.targets.each do |target|
@@ -55,7 +58,7 @@ target 'KidsActivityTracker' do
       target.build_configurations.each do |config|
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
-        
+
         if target.name == 'RCT-Folly'
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'
@@ -63,6 +66,11 @@ target 'KidsActivityTracker' do
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_USE_LIBCPP=1'
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_CFG_NO_COROUTINES=1'
           config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -DFOLLY_CFG_NO_COROUTINES=1'
+        end
+
+        # Generate Hermes dSYM for crash symbolication
+        if target.name == 'hermes-engine'
+          config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
         end
       end
     end

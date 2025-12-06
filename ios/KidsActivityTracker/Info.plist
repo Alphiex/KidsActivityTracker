@@ -39,6 +39,10 @@
 	<string>We need access to your calendar to sync your kids' activities and set reminders.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find activities near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to save and share calendar screenshots and activity images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save calendar screenshots and activity images to your photo library.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>We need access to create reminders for your kids' activities.</string>
 	<key>NSUserNotificationUsageDescription</key>

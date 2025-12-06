@@ -458,24 +458,93 @@ const DashboardScreenModern = () => {
       return false;
     })();
 
-    // Format day and time on single line
-    let dayAndTimeText = null;
+    // Extract days of week from sessions, schedule object, or schedule string
+    const getDaysOfWeek = (): string | null => {
+      const daysSet = new Set<string>();
+      const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+      // Extract from sessions array
+      if (activity.sessions && activity.sessions.length > 0) {
+        activity.sessions.forEach(session => {
+          if (session.dayOfWeek) {
+            const day = session.dayOfWeek.substring(0, 3);
+            const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+            if (dayOrder.includes(normalized)) {
+              daysSet.add(normalized);
+            }
+          }
+        });
+      }
+
+      // Extract from schedule object with days array
+      if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
+        const scheduleObj = activity.schedule as { days?: string[] };
+        if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
+          scheduleObj.days.forEach(day => {
+            const abbrev = day.substring(0, 3);
+            const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+            if (dayOrder.includes(normalized)) {
+              daysSet.add(normalized);
+            }
+          });
+        }
+      }
+
+      // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
+      if (typeof activity.schedule === 'string' && activity.schedule) {
+        const dayPatterns = [
+          /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
+          /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
+          /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
+        ];
+
+        dayPatterns.forEach(pattern => {
+          let match;
+          while ((match = pattern.exec(activity.schedule as string)) !== null) {
+            const day = match[1].substring(0, 3);
+            const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+            if (dayOrder.includes(normalized)) {
+              daysSet.add(normalized);
+            }
+          }
+        });
+      }
+
+      if (daysSet.size === 0) return null;
+
+      // Sort days in order
+      const sortedDays = Array.from(daysSet).sort((a, b) =>
+        dayOrder.indexOf(a) - dayOrder.indexOf(b)
+      );
+
+      // Check for common patterns
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+      const weekend = ['Sat', 'Sun'];
+
+      if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) {
+        return 'Weekdays';
+      }
+      if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) {
+        return 'Weekends';
+      }
+      if (sortedDays.length === 7) {
+        return 'Daily';
+      }
+
+      return sortedDays.join(', ');
+    };
+
+    const daysOfWeekText = getDaysOfWeek();
+
+    // Format time only
+    let timeText = null;
     if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
       const firstSession = activity.sessions[0];
-      const dayOfWeek = firstSession.dayOfWeek || '';
-      let timeRange = '';
       if (firstSession.startTime || firstSession.endTime) {
-        timeRange = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
-      }
-      if (dayOfWeek && timeRange) {
-        dayAndTimeText = `${dayOfWeek} • ${timeRange}`;
-      } else if (timeRange) {
-        dayAndTimeText = timeRange;
-      } else if (dayOfWeek) {
-        dayAndTimeText = dayOfWeek;
+        timeText = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
       }
     } else if (activity.startTime || activity.endTime) {
-      dayAndTimeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
+      timeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
     }
     
     // Format age display
@@ -574,10 +643,17 @@ const DashboardScreenModern = () => {
             </View>
           )}
 
-          {dayAndTimeText && (
+          {daysOfWeekText && (
+            <View style={styles.daysRow}>
+              <Icon name="calendar-week" size={12} color="#E91E63" />
+              <Text style={styles.daysText}>{daysOfWeekText}</Text>
+            </View>
+          )}
+
+          {timeText && (
             <View style={styles.cardInfoRow}>
               <Icon name="clock-outline" size={12} color="#FF9800" />
-              <Text style={[styles.cardDetails, { color: '#FF9800', fontWeight: '600' }]}>{dayAndTimeText}</Text>
+              <Text style={[styles.cardDetails, { color: '#FF9800', fontWeight: '600' }]}>{timeText}</Text>
             </View>
           )}
           
@@ -975,6 +1051,23 @@ const styles = StyleSheet.create({
     color: '#717171',
     marginLeft: 4,
     flex: 1,
+  },
+  daysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: '#E91E63' + '15',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  daysText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E91E63',
+    marginLeft: 4,
+    letterSpacing: 0.5,
   },
   spotsContainer: {
     flexDirection: 'row',

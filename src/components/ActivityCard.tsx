@@ -133,11 +133,80 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
     return null;
   };
 
-  const extractDaysFromSessions = (sessions: typeof activity.sessions) => {
-    if (!sessions || sessions.length === 0) return null;
+  // Extract days of week from sessions, schedule object, or schedule string
+  const extractDaysOfWeek = (): string | null => {
+    const daysSet = new Set<string>();
+    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    // For now, we don't have dayOfWeek in sessions, so return null
-    return null;
+    // Extract from sessions array
+    if (activity.sessions && activity.sessions.length > 0) {
+      activity.sessions.forEach(session => {
+        if (session.dayOfWeek) {
+          const day = session.dayOfWeek.substring(0, 3);
+          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
+
+    // Extract from schedule object with days array
+    if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
+      const scheduleObj = activity.schedule as { days?: string[] };
+      if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
+        scheduleObj.days.forEach(day => {
+          const abbrev = day.substring(0, 3);
+          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        });
+      }
+    }
+
+    // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
+    if (typeof activity.schedule === 'string' && activity.schedule) {
+      const dayPatterns = [
+        /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
+        /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
+        /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
+      ];
+
+      dayPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(activity.schedule as string)) !== null) {
+          const day = match[1].substring(0, 3);
+          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
+
+    if (daysSet.size === 0) return null;
+
+    // Sort days in order
+    const sortedDays = Array.from(daysSet).sort((a, b) =>
+      dayOrder.indexOf(a) - dayOrder.indexOf(b)
+    );
+
+    // Check for common patterns
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const weekend = ['Sat', 'Sun'];
+
+    if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) {
+      return 'Weekdays';
+    }
+    if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) {
+      return 'Weekends';
+    }
+    if (sortedDays.length === 7) {
+      return 'Daily';
+    }
+
+    return sortedDays.join(', ');
   };
 
   const getActivityIcon = (type: string) => {
@@ -262,11 +331,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
         )}
 
         {/* Display days of the week prominently */}
-        {activity.sessions && activity.sessions?.length > 0 && extractDaysFromSessions(activity.sessions) && (
+        {extractDaysOfWeek() && (
           <View style={[styles.infoRow, styles.daysRow]}>
-            <Icon name="calendar-week" size={16} color={Colors.secondary} />
-            <Text style={[styles.infoText, styles.daysText, { color: colors.text }]}>
-              {extractDaysFromSessions(activity.sessions)}
+            <Icon name="calendar-week" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, styles.daysText, { color: Colors.primary }]}>
+              {extractDaysOfWeek()}
             </Text>
           </View>
         )}
@@ -525,12 +594,12 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
   },
   daysRow: {
-    backgroundColor: Colors.secondary + '20',
+    backgroundColor: Colors.primary + '15',
     paddingHorizontal: Theme.spacing.sm,
-    paddingVertical: Theme.spacing.xs,
-    borderRadius: Theme.borderRadius.sm,
+    paddingVertical: Theme.spacing.sm,
+    borderRadius: Theme.borderRadius.md,
     marginHorizontal: -Theme.spacing.xs,
-    marginBottom: Theme.spacing.xs,
+    marginBottom: Theme.spacing.sm,
   },
   daysText: {
     fontWeight: '700',
