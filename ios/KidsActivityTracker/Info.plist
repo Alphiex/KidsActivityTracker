@@ -33,8 +33,16 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>We need access to your calendar to sync your kids' activities and set reminders.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>We need access to your calendar to sync your kids' activities and set reminders.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>We use your location to find activities near you.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>We need access to create reminders for your kids' activities.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>We send notifications to remind you about upcoming activities.</string>
 	<key>RCTNewArchEnabled</key>
 	<false/>
 	<key>UIAppFonts</key>

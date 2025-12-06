@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,11 @@ import activityService from '../services/activityService';
 import { ModernColors } from '../theme/modernTheme';
 import { ChildActivity } from '../services/childrenService';
 import TopTabNavigation from '../components/TopTabNavigation';
+import ViewShot from 'react-native-view-shot';
+import Share from 'react-native-share';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { detectRescheduleConflicts, suggestAlternativeTimes, TimeSlot } from '../utils/conflictDetection';
+import ConflictWarning from '../components/ConflictWarning';
 
 type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
@@ -74,7 +79,7 @@ interface ExtendedChildActivity extends ChildActivity {
 }
 
 const CalendarScreenModernFixed = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { children: myChildren } = useAppSelector((state) => state.children);
   const { user } = useAppSelector((state) => state.auth);
@@ -90,6 +95,25 @@ const CalendarScreenModernFixed = () => {
   const [loading, setLoading] = useState(true);
   const [markedDates, setMarkedDates] = useState<any>({});
   const [isAgendaReady, setIsAgendaReady] = useState(false);
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
+
+  // Bulk operations state (Feature 7)
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedActivities, setSelectedActivities] = useState<Set<string>>(new Set());
+
+  // Reschedule state (Feature 3: Drag & Drop alternative)
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleActivity, setRescheduleActivity] = useState<ChildActivity | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState(new Date());
+  const [rescheduleStartTime, setRescheduleStartTime] = useState(new Date());
+  const [rescheduleEndTime, setRescheduleEndTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [rescheduleConflicts, setRescheduleConflicts] = useState<any[]>([]);
+  const [showConflictWarning, setShowConflictWarning] = useState(false);
+  const [alternativeTimes, setAlternativeTimes] = useState<TimeSlot[]>([]);
 
   // Load children and their activities
   useEffect(() => {
@@ -189,16 +213,61 @@ const CalendarScreenModernFixed = () => {
 
       setChildrenWithActivities(processedChildren);
 
-      // Process shared children
-      const processedShared = shared.map((sharedChild: any, index: number) => ({
-        id: sharedChild.childId,
-        name: sharedChild.childName || `${sharedChild.ownerName}'s child`,
-        color: CHILD_COLORS[(myChildren.length + index) % CHILD_COLORS.length],
-        isVisible: showSharedChildren,
-        isShared: true,
-        sharedBy: sharedChild.ownerName,
-        activities: [],
-      }));
+      // Fetch shared children's activities from the dedicated API endpoint
+      let sharedChildrenActivities: { childId: string; childName: string; activities: any[] }[] = [];
+      try {
+        sharedChildrenActivities = await childrenService.getSharedChildrenActivities(
+          startDate,
+          endDate
+        );
+        console.log('[CalendarScreen] Fetched shared children activities:', sharedChildrenActivities.length, 'children');
+      } catch (error) {
+        console.warn('[CalendarScreen] Error fetching shared children activities:', error);
+      }
+
+      // Create a map of shared children activities by childId for quick lookup
+      const sharedActivitiesMap = new Map<string, any[]>();
+      for (const item of sharedChildrenActivities) {
+        sharedActivitiesMap.set(item.childId, item.activities);
+      }
+
+      // Process shared children with their activities
+      const processedShared = shared.map((sharedChild: any, index: number) => {
+        const childId = sharedChild.childId || sharedChild.id;
+        const activities = sharedActivitiesMap.get(childId) || [];
+
+        return {
+          id: childId,
+          name: sharedChild.childName || sharedChild.name || `${sharedChild.ownerName}'s child`,
+          color: CHILD_COLORS[(myChildren.length + index) % CHILD_COLORS.length],
+          isVisible: showSharedChildren,
+          isShared: true,
+          sharedBy: sharedChild.ownerName || sharedChild.sharedBy,
+          activities: activities,
+        };
+      });
+
+      // Also add any shared children from activities that weren't in the shared list
+      for (const item of sharedChildrenActivities) {
+        const existsInProcessed = processedShared.some(p => p.id === item.childId);
+        if (!existsInProcessed && item.activities.length > 0) {
+          processedShared.push({
+            id: item.childId,
+            name: item.childName,
+            color: CHILD_COLORS[(myChildren.length + processedShared.length) % CHILD_COLORS.length],
+            isVisible: showSharedChildren,
+            isShared: true,
+            sharedBy: undefined,
+            activities: item.activities,
+          });
+        }
+      }
+
+      console.log('[CalendarScreen] Processed shared children:', processedShared.map(c => ({
+        id: c.id,
+        name: c.name,
+        activityCount: c.activities.length,
+      })));
 
       setSharedChildren(processedShared);
 
@@ -492,6 +561,225 @@ const CalendarScreenModernFixed = () => {
 
   const handleDayPress = (day: any) => {
     setSelectedDate(day.dateString);
+  };
+
+  // Quick Add handlers for Feature 2
+  const handleDayLongPress = (day: any) => {
+    setQuickAddDate(day.dateString);
+    setShowQuickAddModal(true);
+  };
+
+  const handleQuickAddActivity = () => {
+    setShowQuickAddModal(false);
+    // Navigate to search with pre-selected date
+    navigation.navigate('SearchResults', {
+      preselectedDate: quickAddDate,
+      mode: 'schedule',
+    });
+  };
+
+  const handleFabPress = () => {
+    setQuickAddDate(selectedDate);
+    setShowQuickAddModal(true);
+  };
+
+  // Bulk operations handlers (Feature 7)
+  const toggleActivitySelection = (activityId: string) => {
+    const newSelection = new Set(selectedActivities);
+    if (newSelection.has(activityId)) {
+      newSelection.delete(activityId);
+    } else {
+      newSelection.add(activityId);
+    }
+    setSelectedActivities(newSelection);
+
+    // Exit selection mode if no activities selected
+    if (newSelection.size === 0) {
+      setSelectionMode(false);
+    }
+  };
+
+  const handleActivityLongPressForSelection = (activity: ChildActivity) => {
+    if (!selectionMode) {
+      setSelectionMode(true);
+    }
+    toggleActivitySelection(activity.id);
+  };
+
+  const handleBulkDelete = () => {
+    Alert.alert(
+      'Delete Activities',
+      `Remove ${selectedActivities.size} activities from calendar?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              for (const activityId of selectedActivities) {
+                await childrenService.removeActivityFromChild(activityId);
+              }
+              setSelectionMode(false);
+              setSelectedActivities(new Set());
+              loadData();
+            } catch (error) {
+              console.error('Bulk delete failed:', error);
+              Alert.alert('Error', 'Failed to delete some activities');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedActivities(new Set());
+  };
+
+  // Reschedule handlers (Feature 3)
+  const handleActivityLongPressForReschedule = (activity: ChildActivity) => {
+    // Parse existing times
+    const activityDate = activity.scheduledDate
+      ? typeof activity.scheduledDate === 'string'
+        ? parseISO(activity.scheduledDate)
+        : activity.scheduledDate
+      : new Date();
+
+    // Parse start time
+    let startDate = new Date(activityDate);
+    if (activity.startTime) {
+      const timeParts = activity.startTime.match(/(\d+):(\d+)\s*(am|pm)?/i);
+      if (timeParts) {
+        let hours = parseInt(timeParts[1], 10);
+        const minutes = parseInt(timeParts[2], 10);
+        if (timeParts[3]?.toLowerCase() === 'pm' && hours < 12) hours += 12;
+        if (timeParts[3]?.toLowerCase() === 'am' && hours === 12) hours = 0;
+        startDate.setHours(hours, minutes);
+      }
+    }
+
+    // Parse end time
+    let endDate = new Date(activityDate);
+    if (activity.endTime) {
+      const timeParts = activity.endTime.match(/(\d+):(\d+)\s*(am|pm)?/i);
+      if (timeParts) {
+        let hours = parseInt(timeParts[1], 10);
+        const minutes = parseInt(timeParts[2], 10);
+        if (timeParts[3]?.toLowerCase() === 'pm' && hours < 12) hours += 12;
+        if (timeParts[3]?.toLowerCase() === 'am' && hours === 12) hours = 0;
+        endDate.setHours(hours, minutes);
+      }
+    } else {
+      endDate.setHours(startDate.getHours() + 1);
+    }
+
+    setRescheduleActivity(activity);
+    setRescheduleDate(activityDate);
+    setRescheduleStartTime(startDate);
+    setRescheduleEndTime(endDate);
+    setShowRescheduleModal(true);
+  };
+
+  const checkRescheduleConflicts = () => {
+    if (!rescheduleActivity) return;
+
+    const allActivities = [
+      ...childrenWithActivities.flatMap(c => c.activities),
+      ...sharedChildren.flatMap(c => c.activities),
+    ];
+
+    const newSlot: TimeSlot = {
+      date: format(rescheduleDate, 'yyyy-MM-dd'),
+      startTime: format(rescheduleStartTime, 'HH:mm'),
+      endTime: format(rescheduleEndTime, 'HH:mm'),
+    };
+
+    const conflicts = detectRescheduleConflicts(
+      rescheduleActivity.id,
+      newSlot,
+      rescheduleActivity.childId,
+      allActivities
+    );
+
+    if (conflicts.length > 0) {
+      setRescheduleConflicts(conflicts);
+      const alternatives = suggestAlternativeTimes(
+        newSlot,
+        rescheduleActivity.childId,
+        allActivities,
+        Math.round((rescheduleEndTime.getTime() - rescheduleStartTime.getTime()) / 60000)
+      );
+      setAlternativeTimes(alternatives);
+      setShowConflictWarning(true);
+    } else {
+      confirmReschedule();
+    }
+  };
+
+  const confirmReschedule = async () => {
+    if (!rescheduleActivity) return;
+
+    try {
+      const newDate = format(rescheduleDate, 'yyyy-MM-dd');
+      const newStartTime = format(rescheduleStartTime, 'h:mm a').toLowerCase();
+      const newEndTime = format(rescheduleEndTime, 'h:mm a').toLowerCase();
+
+      await childrenService.updateChildActivity(rescheduleActivity.id, {
+        scheduledDate: newDate,
+        startTime: newStartTime,
+        endTime: newEndTime,
+      });
+
+      setShowRescheduleModal(false);
+      setShowConflictWarning(false);
+      setRescheduleActivity(null);
+      loadData();
+      Alert.alert('Success', 'Activity rescheduled successfully');
+    } catch (error) {
+      console.error('Reschedule failed:', error);
+      Alert.alert('Error', 'Failed to reschedule activity');
+    }
+  };
+
+  const handleSelectAlternativeTime = (slot: TimeSlot) => {
+    const [startHours, startMinutes] = slot.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = slot.endTime.split(':').map(Number);
+
+    const newStart = new Date(rescheduleDate);
+    newStart.setHours(startHours, startMinutes);
+
+    const newEnd = new Date(rescheduleDate);
+    newEnd.setHours(endHours, endMinutes);
+
+    setRescheduleStartTime(newStart);
+    setRescheduleEndTime(newEnd);
+    setShowConflictWarning(false);
+
+    // Re-check for conflicts with new time
+    setTimeout(() => checkRescheduleConflicts(), 100);
+  };
+
+  // Share calendar functionality (Feature 8)
+  const calendarRef = useRef<ViewShot>(null);
+
+  const handleShareCalendar = async () => {
+    try {
+      if (calendarRef.current?.capture) {
+        const uri = await calendarRef.current.capture();
+        await Share.open({
+          url: uri,
+          type: 'image/png',
+          title: `Calendar - ${format(parseISO(selectedDate), 'MMMM yyyy')}`,
+          message: 'Shared from Kids Activity Tracker',
+        });
+      }
+    } catch (error: any) {
+      if (error.message !== 'User did not share') {
+        console.error('Share failed:', error);
+      }
+    }
   };
 
   const handleActivityPress = (activity: ChildActivity) => {
@@ -815,6 +1103,7 @@ END:VEVENT
         <Calendar
           current={selectedDate}
           onDayPress={handleDayPress}
+          onDayLongPress={handleDayLongPress}
           onMonthChange={(month: any) => {
             console.log('[Calendar] onMonthChange to:', month.dateString);
             // Don't change selected date on month change, just stay in current view
@@ -992,10 +1281,15 @@ END:VEVENT
                                 { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
                               ]}
                               onPress={() => handleActivityPress(activity)}
+                              onLongPress={() => handleActivityLongPressForReschedule(activity)}
+                              delayLongPress={400}
                             >
-                              <Text style={styles.weekActivityBlockName} numberOfLines={1}>
-                                {activity.activity.name}
-                              </Text>
+                              <View style={styles.weekActivityBlockHeader}>
+                                <Text style={styles.weekActivityBlockName} numberOfLines={1}>
+                                  {activity.activity.name}
+                                </Text>
+                                <Icon name="drag" size={12} color={ModernColors.textMuted} />
+                              </View>
                               {timeDisplay && (
                                 <Text style={styles.weekActivityBlockTime} numberOfLines={1}>
                                   {timeDisplay}
@@ -1413,23 +1707,286 @@ END:VEVENT
     <SafeAreaView style={styles.container}>
       <TopTabNavigation />
 
-      <View style={styles.contentContainer}>
-        {renderViewModeSelector()}
-        {renderChildrenLegend()}
+      {/* Bulk Selection Toolbar */}
+      {selectionMode && (
+        <View style={styles.bulkToolbar}>
+          <Text style={styles.bulkToolbarText}>
+            {selectedActivities.size} selected
+          </Text>
+          <View style={styles.bulkToolbarActions}>
+            <TouchableOpacity
+              style={styles.bulkToolbarButton}
+              onPress={handleBulkDelete}
+            >
+              <Icon name="trash-can-outline" size={22} color="#FF6B6B" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bulkToolbarButton}
+              onPress={handleShareCalendar}
+            >
+              <Icon name="share-variant" size={22} color={ModernColors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bulkToolbarButton}
+              onPress={exitSelectionMode}
+            >
+              <Icon name="close" size={22} color={ModernColors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-          {viewMode === 'month' && renderMonthView()}
-          {viewMode === 'week' && renderWeekView()}
-          {viewMode === 'day' && renderDayView()}
-          {viewMode === 'agenda' && renderAgendaView()}
+      <ViewShot ref={calendarRef} options={{ format: 'png', quality: 0.9 }} style={{ flex: 1 }}>
+        <View style={styles.contentContainer}>
+          {renderViewModeSelector()}
+          {renderChildrenLegend()}
 
-          {/* Show activities list only for month, week, and day views */}
-          {viewMode !== 'agenda' && renderActivitiesList()}
-        </ScrollView>
-      </View>
+          <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+            {viewMode === 'month' && renderMonthView()}
+            {viewMode === 'week' && renderWeekView()}
+            {viewMode === 'day' && renderDayView()}
+            {viewMode === 'agenda' && renderAgendaView()}
+
+            {/* Show activities list only for month, week, and day views */}
+            {viewMode !== 'agenda' && renderActivitiesList()}
+          </ScrollView>
+        </View>
+      </ViewShot>
 
       {renderActivityModal()}
       {renderFilterModal()}
+
+      {/* Quick Add Modal */}
+      <Modal
+        visible={showQuickAddModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowQuickAddModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.quickAddOverlay}
+          activeOpacity={1}
+          onPress={() => setShowQuickAddModal(false)}
+        >
+          <View style={styles.quickAddContent}>
+            <View style={styles.quickAddHeader}>
+              <Icon name="calendar-plus" size={32} color={ModernColors.primary} />
+              <Text style={styles.quickAddTitle}>Add Activity</Text>
+              <Text style={styles.quickAddDate}>
+                {quickAddDate && format(parseISO(quickAddDate), 'EEEE, MMMM d, yyyy')}
+              </Text>
+            </View>
+
+            <View style={styles.quickAddActions}>
+              <TouchableOpacity
+                style={styles.quickAddButton}
+                onPress={handleQuickAddActivity}
+              >
+                <Icon name="magnify" size={24} color={ModernColors.primary} />
+                <Text style={styles.quickAddButtonText}>Browse Activities</Text>
+                <Text style={styles.quickAddButtonSubtext}>Search and add an activity for this date</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickAddButton}
+                onPress={() => {
+                  setShowQuickAddModal(false);
+                  setViewMode('day');
+                  if (quickAddDate) setSelectedDate(quickAddDate);
+                }}
+              >
+                <Icon name="calendar-today" size={24} color={ModernColors.primary} />
+                <Text style={styles.quickAddButtonText}>View Day</Text>
+                <Text style={styles.quickAddButtonSubtext}>See all activities for this day</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.quickAddCancelButton}
+              onPress={() => setShowQuickAddModal(false)}
+            >
+              <Text style={styles.quickAddCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Reschedule Modal (Feature 3) */}
+      <Modal
+        visible={showRescheduleModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowRescheduleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.rescheduleModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reschedule Activity</Text>
+              <TouchableOpacity
+                onPress={() => setShowRescheduleModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={ModernColors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {rescheduleActivity && (
+              <View style={styles.rescheduleBody}>
+                <View style={styles.rescheduleActivityInfo}>
+                  <Icon name="calendar-check" size={24} color={ModernColors.primary} />
+                  <Text style={styles.rescheduleActivityName}>
+                    {rescheduleActivity.activity?.name || 'Activity'}
+                  </Text>
+                </View>
+
+                {/* Date Picker */}
+                <TouchableOpacity
+                  style={styles.reschedulePickerButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Icon name="calendar" size={20} color={ModernColors.textSecondary} />
+                  <Text style={styles.reschedulePickerLabel}>Date</Text>
+                  <Text style={styles.reschedulePickerValue}>
+                    {format(rescheduleDate, 'EEEE, MMMM d, yyyy')}
+                  </Text>
+                  <Icon name="chevron-right" size={20} color={ModernColors.textMuted} />
+                </TouchableOpacity>
+
+                {/* Start Time Picker */}
+                <TouchableOpacity
+                  style={styles.reschedulePickerButton}
+                  onPress={() => setShowStartTimePicker(true)}
+                >
+                  <Icon name="clock-start" size={20} color={ModernColors.textSecondary} />
+                  <Text style={styles.reschedulePickerLabel}>Start Time</Text>
+                  <Text style={styles.reschedulePickerValue}>
+                    {format(rescheduleStartTime, 'h:mm a')}
+                  </Text>
+                  <Icon name="chevron-right" size={20} color={ModernColors.textMuted} />
+                </TouchableOpacity>
+
+                {/* End Time Picker */}
+                <TouchableOpacity
+                  style={styles.reschedulePickerButton}
+                  onPress={() => setShowEndTimePicker(true)}
+                >
+                  <Icon name="clock-end" size={20} color={ModernColors.textSecondary} />
+                  <Text style={styles.reschedulePickerLabel}>End Time</Text>
+                  <Text style={styles.reschedulePickerValue}>
+                    {format(rescheduleEndTime, 'h:mm a')}
+                  </Text>
+                  <Icon name="chevron-right" size={20} color={ModernColors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.rescheduleActions}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.modalButtonSecondary]}
+                    onPress={() => setShowRescheduleModal(false)}
+                  >
+                    <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.modalButtonPrimary]}
+                    onPress={checkRescheduleConflicts}
+                  >
+                    <Text style={styles.modalButtonTextPrimary}>Reschedule</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* iOS Date Pickers */}
+      {showDatePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide">
+          <View style={styles.pickerModalOverlay}>
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={rescheduleDate}
+                mode="date"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) setRescheduleDate(date);
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showStartTimePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide">
+          <View style={styles.pickerModalOverlay}>
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={rescheduleStartTime}
+                mode="time"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) setRescheduleStartTime(date);
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showEndTimePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide">
+          <View style={styles.pickerModalOverlay}>
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={rescheduleEndTime}
+                mode="time"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) setRescheduleEndTime(date);
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Conflict Warning */}
+      <ConflictWarning
+        visible={showConflictWarning}
+        conflicts={rescheduleConflicts}
+        newActivityName={rescheduleActivity?.activity?.name || 'Activity'}
+        alternativeTimes={alternativeTimes}
+        onProceed={() => {
+          setShowConflictWarning(false);
+          confirmReschedule();
+        }}
+        onCancel={() => setShowConflictWarning(false)}
+        onSelectAlternative={handleSelectAlternativeTime}
+      />
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={handleFabPress}
+        activeOpacity={0.8}
+      >
+        <Icon name="plus" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -2031,6 +2588,195 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: ModernColors.textSecondary,
     marginTop: 2,
+  },
+  // FAB (Floating Action Button) styles
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: ModernColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  // Quick Add Modal styles
+  quickAddOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  quickAddContent: {
+    backgroundColor: ModernColors.background,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  quickAddHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  quickAddTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: ModernColors.text,
+    marginTop: 12,
+  },
+  quickAddDate: {
+    fontSize: 15,
+    color: ModernColors.textSecondary,
+    marginTop: 4,
+  },
+  quickAddActions: {
+    gap: 12,
+  },
+  quickAddButton: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: ModernColors.borderLight,
+  },
+  quickAddButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginTop: 8,
+  },
+  quickAddButtonSubtext: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+    marginTop: 4,
+  },
+  quickAddCancelButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  quickAddCancelText: {
+    fontSize: 16,
+    color: ModernColors.textSecondary,
+    fontWeight: '500',
+  },
+  // Bulk Selection Toolbar styles
+  bulkToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.borderLight,
+  },
+  bulkToolbarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+  },
+  bulkToolbarActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  bulkToolbarButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: ModernColors.background,
+  },
+  // Week view activity block header
+  weekActivityBlockHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  // Reschedule Modal styles
+  rescheduleModalContent: {
+    backgroundColor: ModernColors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '70%',
+  },
+  rescheduleBody: {
+    paddingHorizontal: 20,
+  },
+  rescheduleActivityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.borderLight,
+    marginBottom: 16,
+  },
+  rescheduleActivityName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: ModernColors.text,
+    flex: 1,
+  },
+  reschedulePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.borderLight,
+    gap: 12,
+  },
+  reschedulePickerLabel: {
+    fontSize: 14,
+    color: ModernColors.textSecondary,
+    width: 80,
+  },
+  reschedulePickerValue: {
+    fontSize: 16,
+    color: ModernColors.text,
+    flex: 1,
+    textAlign: 'right',
+  },
+  rescheduleActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  // Picker Modal styles
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalContent: {
+    backgroundColor: ModernColors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 30,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.borderLight,
+  },
+  pickerDoneText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: ModernColors.primary,
   },
 });
 

@@ -525,6 +525,62 @@ class ChildrenService {
     }
   }
 
+  async updateChildActivity(
+    activityId: string,
+    updates: {
+      scheduledDate?: string;
+      startTime?: string;
+      endTime?: string;
+      notes?: string;
+      status?: 'planned' | 'in_progress' | 'completed';
+    }
+  ): Promise<ChildActivity> {
+    await this.waitForInit();
+
+    try {
+      // Find the activity to get the childId
+      const activity = this.childActivities.find(ca => ca.id === activityId);
+      if (!activity) {
+        throw new Error('Activity not found');
+      }
+
+      const response = await apiClient.put<{ success: boolean; activity: any }>(
+        `/api/children/${activity.childId}/activities/${activityId}`,
+        updates
+      );
+
+      if (response.success && response.activity) {
+        // Update local cache
+        const index = this.childActivities.findIndex(ca => ca.id === activityId);
+        if (index >= 0) {
+          this.childActivities[index] = {
+            ...this.childActivities[index],
+            ...updates,
+            scheduledDate: updates.scheduledDate ? new Date(updates.scheduledDate) : this.childActivities[index].scheduledDate,
+          };
+          await this.saveLocalData();
+        }
+        return this.childActivities[index];
+      }
+
+      throw new Error('Failed to update activity');
+    } catch (error) {
+      console.error('Error updating child activity:', error);
+      // Update local cache anyway for offline support
+      const index = this.childActivities.findIndex(ca => ca.id === activityId);
+      if (index >= 0) {
+        this.childActivities[index] = {
+          ...this.childActivities[index],
+          ...updates,
+          scheduledDate: updates.scheduledDate ? new Date(updates.scheduledDate) : this.childActivities[index].scheduledDate,
+        };
+        await this.saveLocalData();
+        return this.childActivities[index];
+      }
+      throw error;
+    }
+  }
+
   async getMyChildren(): Promise<Child[]> {
     return this.getChildren();
   }
@@ -687,6 +743,107 @@ class ChildrenService {
     }
 
     return instances;
+  }
+
+  /**
+   * Get scheduled activities for shared children (children shared with the user by other parents)
+   * This fetches activities from the /api/shared-activities/calendar endpoint
+   */
+  async getSharedChildrenActivities(
+    startDate: Date,
+    endDate: Date,
+    childIds?: string[]
+  ): Promise<{ childId: string; childName: string; sharedBy?: string; activities: ChildActivity[] }[]> {
+    try {
+      const params = new URLSearchParams();
+      params.append('startDate', startDate.toISOString());
+      params.append('endDate', endDate.toISOString());
+      if (childIds && childIds.length > 0) {
+        params.append('childIds', childIds.join(','));
+      }
+
+      const response = await apiClient.get<{
+        success: boolean;
+        calendar: Record<string, any[]>;
+        children: { id: string; name: string; avatarUrl?: string }[];
+      }>(`/api/shared-activities/calendar?${params.toString()}`);
+
+      if (!response.success) {
+        console.warn('[getSharedChildrenActivities] API returned unsuccessful response');
+        return [];
+      }
+
+      // Group activities by child
+      const childActivitiesMap = new Map<string, ChildActivity[]>();
+      const childNamesMap = new Map<string, string>();
+
+      // Initialize with children info
+      for (const child of response.children || []) {
+        childActivitiesMap.set(child.id, []);
+        childNamesMap.set(child.id, child.name);
+      }
+
+      // Process calendar data (grouped by date)
+      for (const [dateKey, activities] of Object.entries(response.calendar || {})) {
+        if (dateKey === 'unscheduled') continue;
+
+        for (const item of activities) {
+          const childId = item.childId;
+          if (!childActivitiesMap.has(childId)) {
+            childActivitiesMap.set(childId, []);
+            childNamesMap.set(childId, item.childName || 'Unknown Child');
+          }
+
+          // Convert to ChildActivity format
+          const childActivity: ChildActivity = {
+            id: item.childActivity?.id || `shared-${childId}-${item.activity.id}`,
+            childId: childId,
+            activityId: item.activity.id,
+            status: item.childActivity?.status || 'planned',
+            addedAt: new Date(),
+            scheduledDate: item.activity.dateStart ? new Date(item.activity.dateStart) : undefined,
+            startTime: item.activity.schedule?.startTime,
+            endTime: item.activity.schedule?.endTime,
+            notes: item.childActivity?.notes,
+            activity: {
+              id: item.activity.id,
+              name: item.activity.name,
+              category: item.activity.category,
+              description: item.activity.description,
+              location: item.activity.location,
+              dateRange: item.activity.dateStart && item.activity.dateEnd ? {
+                start: item.activity.dateStart,
+                end: item.activity.dateEnd,
+              } : undefined,
+              sessions: item.activity.schedule ? [{
+                dayOfWeek: item.activity.schedule.dayOfWeek,
+                startTime: item.activity.schedule.startTime,
+                endTime: item.activity.schedule.endTime,
+              }] : undefined,
+              cost: item.activity.cost,
+            } as any,
+          };
+
+          childActivitiesMap.get(childId)?.push(childActivity);
+        }
+      }
+
+      // Convert to array format
+      const result = Array.from(childActivitiesMap.entries()).map(([childId, activities]) => ({
+        childId,
+        childName: childNamesMap.get(childId) || 'Unknown Child',
+        activities,
+      }));
+
+      console.log('[getSharedChildrenActivities] Fetched activities for', result.length, 'shared children');
+      return result;
+    } catch (error: any) {
+      // 404 is expected if user has no shared children
+      if (error?.response?.status !== 404) {
+        console.error('[getSharedChildrenActivities] Error:', error);
+      }
+      return [];
+    }
   }
 }
 
