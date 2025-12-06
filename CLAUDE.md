@@ -11,8 +11,9 @@ When asked to run the app on iOS simulator, ALWAYS use one of these methods:
 
 1. **Preferred Method**: Run the custom script
    ```bash
-   ./scripts/development/run-ios-18-6.sh
+   ./scripts/ios/run-simulator.sh
    ```
+   (Also available via symlink: `./run-ios-18-6.sh`)
 
 2. **Alternative Method**: Use the UDID directly
    ```bash
@@ -20,8 +21,8 @@ When asked to run the app on iOS simulator, ALWAYS use one of these methods:
    ```
 
 3. **Never use**:
-   - ❌ `npx react-native run-ios` (without specifying simulator - may default to 18.4)
-   - ❌ `npx react-native run-ios --simulator="iPhone 16 Pro"` (may pick wrong iOS version)
+   - `npx react-native run-ios` (without specifying simulator - may default to 18.4)
+   - `npx react-native run-ios --simulator="iPhone 16 Pro"` (may pick wrong iOS version)
 
 ### Available iOS 18.6 Simulators
 - iPhone 16 Pro: `A8661E75-FE3E-483F-8F13-AC87110E8EE2` (PRIMARY)
@@ -38,41 +39,73 @@ npm run lint        # Check for linting issues
 npm run typecheck   # Check for TypeScript errors
 ```
 
-### Activity Time Display
-- Activities from the API have `startTime` and `endTime` fields at the root level
+### Activity Display
+- Activities have `startTime` and `endTime` fields at root level
+- Days of week shown in pink badges on activity cards
 - Format: "9:30 am - 12:00 pm"
-- Always check for these fields when displaying activity information
 
 ## API Configuration
 - API endpoint: `https://kids-activity-api-205843686007.us-central1.run.app`
 - Database: PostgreSQL on Google Cloud SQL
 
+## Scripts Reference
+
+### iOS Development
+```bash
+./scripts/ios/run-simulator.sh       # Run on iOS 18.6 simulator
+./scripts/ios/build-archive.sh       # Build for App Store
+./scripts/ios/deploy-testflight.sh   # Deploy to TestFlight
+```
+
+### Deployment
+```bash
+./scripts/deployment/deploy-api.sh     # Deploy API to Cloud Run
+./scripts/deployment/deploy-server.sh  # Full server deployment
+./scripts/deployment/deploy-schema.js  # Deploy database schema
+```
+
+### Database
+```bash
+node scripts/database/run-migration.js    # Run migrations
+node scripts/database/seed-database.js    # Seed database
+node scripts/database/check-database.js   # Verify database
+```
+
 ## Development Workflow
 1. Start Metro bundler: `npx react-native start --reset-cache`
-2. Run iOS app: `./scripts/development/run-ios-18-6.sh`
+2. Run iOS app: `./scripts/ios/run-simulator.sh`
 3. If network issues occur, restart Metro and rebuild
 4. For physical device testing, use Xcode or `npx react-native run-ios --device`
-5. Deploy API: `./scripts/deployment/deploy-api.sh`
 
 ## Project Structure
 ```
-/
+KidsActivityTracker/
 ├── src/                    # React Native source code
-│   ├── components/         # Reusable UI components
-│   ├── screens/            # Screen components
+│   ├── components/         # UI components (ActivityCard, modern/)
+│   ├── screens/            # Screen components (*Modern.tsx active)
 │   ├── services/           # API and business logic
 │   ├── store/              # Redux store and slices
 │   ├── theme/              # Styling and theming
 │   └── utils/              # Utility functions
+├── server/                 # Backend API server
+│   ├── src/                # TypeScript source
+│   ├── prisma/             # Database schema
+│   └── scrapers/           # Web scrapers
 ├── ios/                    # iOS native code
 ├── android/                # Android native code
-├── server/                 # Backend API server
-├── scripts/                # Build and deployment scripts
-│   ├── development/        # Dev scripts (run-ios-18-6.sh)
-│   └── deployment/         # Deploy scripts (deploy-api.sh)
-├── docs/                   # Documentation
-│   └── planning/           # Feature planning docs
+├── scripts/                # All project scripts
+│   ├── ios/                # iOS build/run scripts
+│   ├── deployment/         # Deploy scripts
+│   ├── database/           # Database scripts
+│   └── development/        # Dev utilities
+├── docs/                   # Documentation (10 files)
 ├── config/                 # Configuration files
 ├── __tests__/              # Test files
 └── assets/                 # Static assets
 ```
+
+## Key Active Files
+- Dashboard: `src/screens/DashboardScreenModern.tsx`
+- Calendar: `src/screens/CalendarScreenModernFixed.tsx`
+- Activity Card: `src/components/modern/ActivityCard.tsx`
+- API Service: `src/services/api.ts`
