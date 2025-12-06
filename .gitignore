@@ -136,6 +136,13 @@ backend/data/
 .DS_Store
 *.DS_Store
 
+# IDE/Editor statistics
+.VSCodeCounter/
+
+# Build logs
+*-build.log
+ios-build.log
+
 # Archive
 .archive/
 

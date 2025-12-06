@@ -11,7 +11,7 @@ When asked to run the app on iOS simulator, ALWAYS use one of these methods:
 
 1. **Preferred Method**: Run the custom script
    ```bash
-   ./run-ios-18-6.sh
+   ./scripts/development/run-ios-18-6.sh
    ```
 
 2. **Alternative Method**: Use the UDID directly
@@ -43,14 +43,36 @@ npm run typecheck   # Check for TypeScript errors
 - Format: "9:30 am - 12:00 pm"
 - Always check for these fields when displaying activity information
 
-## Project Structure
-- Main app code: `/src/`
-- Activity card components: `/src/components/ActivityCard.tsx`, `/src/components/SimplifiedActivityCard.tsx`, `/src/components/modern/ActivityCard.tsx`
-- API endpoint: `https://kids-activity-api-4ev6yi22va-uc.a.run.app`
+## API Configuration
+- API endpoint: `https://kids-activity-api-205843686007.us-central1.run.app`
 - Database: PostgreSQL on Google Cloud SQL
 
 ## Development Workflow
 1. Start Metro bundler: `npx react-native start --reset-cache`
-2. Run iOS app: `./run-ios-18-6.sh`
+2. Run iOS app: `./scripts/development/run-ios-18-6.sh`
 3. If network issues occur, restart Metro and rebuild
 4. For physical device testing, use Xcode or `npx react-native run-ios --device`
+5. Deploy API: `./scripts/deployment/deploy-api.sh`
+
+## Project Structure
+```
+/
+├── src/                    # React Native source code
+│   ├── components/         # Reusable UI components
+│   ├── screens/            # Screen components
+│   ├── services/           # API and business logic
+│   ├── store/              # Redux store and slices
+│   ├── theme/              # Styling and theming
+│   └── utils/              # Utility functions
+├── ios/                    # iOS native code
+├── android/                # Android native code
+├── server/                 # Backend API server
+├── scripts/                # Build and deployment scripts
+│   ├── development/        # Dev scripts (run-ios-18-6.sh)
+│   └── deployment/         # Deploy scripts (deploy-api.sh)
+├── docs/                   # Documentation
+│   └── planning/           # Feature planning docs
+├── config/                 # Configuration files
+├── __tests__/              # Test files
+└── assets/                 # Static assets
+```
