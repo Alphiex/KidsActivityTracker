@@ -16,7 +16,6 @@ RUN npx prisma generate
 
 # Copy source code
 COPY src ./src
-COPY api ./api
 
 # Build TypeScript
 RUN npm run build

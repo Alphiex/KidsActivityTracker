@@ -21,6 +21,7 @@ import PreferencesService from '../services/preferencesService';
 import * as SecureStore from '../utils/secureStorage';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
+import { authService } from '../services/authService';
 // Optional import for DeviceInfo - may not be available in all environments
 let DeviceInfo: any;
 try {
@@ -47,6 +48,7 @@ const ProfileScreenModern = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     location: user?.location || '',
@@ -56,6 +58,7 @@ const ProfileScreenModern = () => {
     newPassword: '',
     confirmPassword: '',
   });
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Get app version from native iOS project settings
@@ -192,6 +195,57 @@ const ProfileScreenModern = () => {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    if (!deleteAccountPassword) {
+      Alert.alert('Error', 'Please enter your password to confirm account deletion');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authService.deleteAccount(deleteAccountPassword);
+
+      // Clear local data and logout
+      await SecureStore.clearAllAuthData();
+      setIsDeletingAccount(false);
+      setDeleteAccountPassword('');
+
+      Alert.alert(
+        'Account Deleted',
+        'Your account and all associated data have been permanently deleted.',
+        [
+          {
+            text: 'OK',
+            onPress: () => dispatch(logout()),
+          },
+        ],
+      );
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      Alert.alert('Error', error.message || 'Failed to delete account. Please check your password and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data including children profiles, favorites, and preferences will be permanently deleted.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => setIsDeletingAccount(true),
+        },
+      ],
+    );
+  };
+
   const ProfileSection = ({ title, children }: { title?: string; children: React.ReactNode }) => (
     <View style={styles.section}>
       {title && <Text style={styles.sectionTitle}>{title}</Text>}
@@ -288,6 +342,13 @@ const ProfileScreenModern = () => {
             subtitle="Manage your notification preferences"
             onPress={() => navigation.navigate('NotificationPreferences' as never)}
           />
+          <View style={styles.divider} />
+          <ProfileItem
+            icon="account-remove-outline"
+            title="Delete Account"
+            subtitle="Permanently delete your account and data"
+            onPress={confirmDeleteAccount}
+          />
         </ProfileSection>
 
         {/* Support */}
@@ -313,14 +374,14 @@ const ProfileScreenModern = () => {
             icon="shield-check-outline"
             title="Privacy Policy"
             subtitle="How we protect your data"
-            onPress={() => Alert.alert('Privacy Policy', 'Coming soon!')}
+            onPress={() => navigation.navigate('Legal' as never, { type: 'privacy' } as never)}
           />
           <View style={styles.divider} />
           <ProfileItem
             icon="file-document-outline"
             title="Terms of Service"
             subtitle="Terms and conditions"
-            onPress={() => Alert.alert('Terms of Service', 'Coming soon!')}
+            onPress={() => navigation.navigate('Legal' as never, { type: 'terms' } as never)}
           />
         </ProfileSection>
 
@@ -466,6 +527,77 @@ const ProfileScreenModern = () => {
               </View>
 
               <Text style={styles.passwordHint}>Password must be at least 6 characters long</Text>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={isDeletingAccount}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setIsDeletingAccount(false);
+          setDeleteAccountPassword('');
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => {
+                setIsDeletingAccount(false);
+                setDeleteAccountPassword('');
+              }}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Delete Account</Text>
+              <View style={{ width: 50 }} />
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.deleteWarningBox}>
+                <Icon name="alert-circle" size={24} color={ModernColors.error} />
+                <Text style={styles.deleteWarningTitle}>This action cannot be undone</Text>
+                <Text style={styles.deleteWarningText}>
+                  Deleting your account will permanently remove:
+                </Text>
+                <View style={styles.deleteList}>
+                  <Text style={styles.deleteListItem}>Your profile and personal information</Text>
+                  <Text style={styles.deleteListItem}>All children profiles</Text>
+                  <Text style={styles.deleteListItem}>Your saved favorites</Text>
+                  <Text style={styles.deleteListItem}>Sharing settings with family members</Text>
+                  <Text style={styles.deleteListItem}>All preferences and settings</Text>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Enter your password to confirm</Text>
+                <TextInput
+                  style={styles.input}
+                  value={deleteAccountPassword}
+                  onChangeText={setDeleteAccountPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor={ModernColors.textLight}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.deleteButton, !deleteAccountPassword && styles.deleteButtonDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={isLoading || !deleteAccountPassword}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteButtonText}>Delete My Account</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -676,6 +808,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: ModernColors.textLight,
     marginTop: 8,
+  },
+  deleteWarningBox: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  deleteWarningTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.error,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  deleteWarningText: {
+    fontSize: 14,
+    color: ModernColors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteList: {
+    alignSelf: 'stretch',
+    marginTop: 8,
+  },
+  deleteListItem: {
+    fontSize: 14,
+    color: ModernColors.textLight,
+    marginBottom: 4,
+    paddingLeft: 8,
+  },
+  deleteButton: {
+    backgroundColor: ModernColors.error,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  deleteButtonDisabled: {
+    backgroundColor: '#CCCCCC',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

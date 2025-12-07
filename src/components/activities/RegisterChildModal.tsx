@@ -37,7 +37,7 @@ const RegisterChildModal: React.FC<RegisterChildModalProps> = ({
   const children = useAppSelector(selectAllChildren);
   const registeredChildIds = useAppSelector(selectActivityChildren(activityId));
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [status, setStatus] = useState<ActivityStatus>('interested');
+  const [status, setStatus] = useState<ActivityStatus>('planned');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +45,7 @@ const RegisterChildModal: React.FC<RegisterChildModalProps> = ({
     // Reset form when modal opens
     if (visible) {
       setSelectedChildId(null);
-      setStatus('interested');
+      setStatus('planned');
       setNotes('');
     }
   }, [visible]);
@@ -67,7 +67,7 @@ const RegisterChildModal: React.FC<RegisterChildModalProps> = ({
 
       Alert.alert(
         'Success',
-        `Child has been ${status === 'registered' ? 'registered for' : 'linked to'} the activity`,
+        `Child has been ${status === 'in_progress' ? 'registered for' : 'added to'} the activity`,
         [{ text: 'OK', onPress: onClose }]
       );
     } catch (error) {
@@ -79,17 +79,16 @@ const RegisterChildModal: React.FC<RegisterChildModalProps> = ({
 
   const getStatusColor = (status: ActivityStatus) => {
     switch (status) {
-      case 'interested': return '#FFA500';
-      case 'registered': return '#4CAF50';
+      case 'planned': return '#FFA500';
+      case 'in_progress': return '#4CAF50';
       case 'completed': return '#2196F3';
-      case 'cancelled': return '#F44336';
       default: return '#666';
     }
   };
 
   const statusOptions: { value: ActivityStatus; label: string; icon: string }[] = [
-    { value: 'interested', label: 'Interested', icon: 'star-border' },
-    { value: 'registered', label: 'Registered', icon: 'check-circle' },
+    { value: 'planned', label: 'Planned', icon: 'schedule' },
+    { value: 'in_progress', label: 'In Progress', icon: 'play-circle-outline' },
   ];
 
   return (
@@ -220,7 +219,7 @@ const RegisterChildModal: React.FC<RegisterChildModalProps> = ({
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Text style={styles.registerButtonText}>
-                  {status === 'registered' ? 'Register' : 'Add to Interested'}
+                  {status === 'in_progress' ? 'Start Activity' : 'Add to Planned'}
                 </Text>
               )}
             </TouchableOpacity>

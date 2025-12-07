@@ -1,19 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { StatusBar } from 'react-native';
+import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { MMKV } from 'react-native-mmkv';
 import RootNavigator from './src/navigation/RootNavigator';
-import SplashScreen from './src/components/SplashScreen';
 import NetworkStatus from './src/components/NetworkStatus';
 import { store, persistor } from './src/store';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import ActivityService from './src/services/activityService';
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
-
   // Note: Removed automatic clearing of MMKV storage to allow persistent authentication
   useEffect(() => {
     // Reset ActivityService instance to ensure it uses the latest API configuration
@@ -71,19 +67,6 @@ function App() {
       }
     }
   }, []);
-
-  const handleSplashFinish = () => {
-    setIsLoading(false);
-  };
-
-  if (isLoading) {
-    return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <SplashScreen onFinish={handleSplashFinish} />
-      </GestureHandlerRootView>
-    );
-  }
 
   return (
     <Provider store={store}>

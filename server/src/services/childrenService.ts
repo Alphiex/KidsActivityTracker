@@ -163,14 +163,16 @@ export class ChildrenService {
 
     return children.map(child => {
       const stats = {
-        interested: 0,
-        registered: 0,
-        completed: 0,
-        cancelled: 0
+        planned: 0,
+        in_progress: 0,
+        completed: 0
       };
 
       child.childActivities.forEach(activity => {
-        stats[activity.status as keyof typeof stats]++;
+        const status = activity.status as keyof typeof stats;
+        if (status in stats) {
+          stats[status]++;
+        }
       });
 
       const { childActivities, ...childData } = child;

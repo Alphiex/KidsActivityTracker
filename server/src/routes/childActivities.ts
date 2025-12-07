@@ -9,12 +9,12 @@ const router = Router();
 const validateActivityLink = [
   body('childId').isUUID().withMessage('Valid child ID is required'),
   body('activityId').isUUID().withMessage('Valid activity ID is required'),
-  body('status').isIn(['interested', 'registered', 'completed', 'cancelled']).withMessage('Invalid status'),
+  body('status').isIn(['planned', 'in_progress', 'completed']).withMessage('Invalid status'),
   body('notes').optional().trim()
 ];
 
 const validateActivityUpdate = [
-  body('status').isIn(['interested', 'registered', 'completed', 'cancelled']).withMessage('Invalid status'),
+  body('status').isIn(['planned', 'in_progress', 'completed']).withMessage('Invalid status'),
   body('notes').optional().trim(),
   body('rating').optional().isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5')
 ];
@@ -55,7 +55,7 @@ router.post('/link', verifyToken, validateActivityLink, handleValidationErrors, 
 // Bulk link activities to a child
 router.post('/bulk-link', verifyToken, async (req: Request, res: Response) => {
   try {
-    const { childId, activityIds, status = 'interested' } = req.body;
+    const { childId, activityIds, status = 'planned' } = req.body;
 
     if (!childId || !Array.isArray(activityIds) || activityIds.length === 0) {
       return res.status(400).json({

@@ -44,6 +44,7 @@ import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
 import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
+import LegalScreen from '../screens/legal/LegalScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -133,6 +134,7 @@ const ProfileStack = () => (
     <Stack.Screen name="BudgetPreferences" component={BudgetPreferencesScreen} />
     <Stack.Screen name="SchedulePreferences" component={SchedulePreferencesScreen} />
     <Stack.Screen name="ViewSettings" component={ViewSettingsScreen} />
+    <Stack.Screen name="Legal" component={LegalScreen} />
   </Stack.Navigator>
 );
 

@@ -2,7 +2,7 @@ import apiClient from './apiClient';
 import { Activity } from '../types/activity';
 import { Child } from '../store/slices/childrenSlice';
 
-export type ActivityStatus = 'interested' | 'registered' | 'completed' | 'cancelled';
+export type ActivityStatus = 'planned' | 'in_progress' | 'completed';
 
 export interface ChildActivity {
   id: string;
@@ -239,7 +239,7 @@ class ChildActivityService {
   async bulkLinkActivities(
     childId: string,
     activityIds: string[],
-    status: ActivityStatus = 'interested'
+    status: ActivityStatus = 'planned'
   ): Promise<number> {
     try {
       const response = await apiClient.post('/child-activities/bulk-link', {

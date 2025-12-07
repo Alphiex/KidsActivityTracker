@@ -28,20 +28,38 @@ const { width } = Dimensions.get('window');
 interface ActivityCardProps {
   activity: Activity;
   onPress?: () => void;
+  // Optional external favorite control (when provided, overrides internal state)
+  isFavorite?: boolean;
+  onFavoritePress?: () => void;
+  // Variant support for different card styles
+  variant?: 'default' | 'compact';
 }
 
-const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
+const ActivityCard: React.FC<ActivityCardProps> = ({
+  activity,
+  onPress,
+  isFavorite: externalIsFavorite,
+  onFavoritePress,
+  variant = 'default',
+}) => {
   const favoritesService = FavoritesService.getInstance();
-  const [isFavorite, setIsFavorite] = useState(false);
+  // Use external state if provided, otherwise manage internally
+  const isExternallyControlled = externalIsFavorite !== undefined;
+  const [internalIsFavorite, setInternalIsFavorite] = useState(false);
+  const isFavorite = isExternallyControlled ? externalIsFavorite : internalIsFavorite;
+
   const [hasCapacityAlert, setHasCapacityAlert] = useState(false);
   const { colors, isDark } = useTheme();
   const registeredChildIds = useAppSelector(selectActivityChildren(activity.id));
 
   useEffect(() => {
-    setIsFavorite(favoritesService.isFavorite(activity.id));
+    // Only set internal state if not externally controlled
+    if (!isExternallyControlled) {
+      setInternalIsFavorite(favoritesService.isFavorite(activity.id));
+    }
     const alerts = favoritesService.getCapacityAlertsForActivity(activity.id);
     setHasCapacityAlert(alerts.length > 0);
-  }, [activity.id]);
+  }, [activity.id, isExternallyControlled]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -279,10 +297,15 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           onPress={() => {
             console.log('Toggling favorite for activity:', activity.id, activity.name);
             console.log('Current favorite status:', isFavorite);
-            favoritesService.toggleFavorite(activity);
-            setIsFavorite(!isFavorite);
+            if (onFavoritePress) {
+              // Use external handler if provided
+              onFavoritePress();
+            } else {
+              // Use internal handler
+              favoritesService.toggleFavorite(activity);
+              setInternalIsFavorite(!internalIsFavorite);
+            }
             console.log('New favorite status:', !isFavorite);
-            console.log('All favorites after toggle:', favoritesService.getFavorites());
           }}
           style={styles.favoriteButton}
         >
@@ -324,14 +347,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           <View style={[styles.infoRow, styles.timeRow]}>
             <Icon name="clock-outline" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.timeText, { color: colors.text, fontWeight: '500' }]}>
-              {activity.schedule && typeof activity.schedule === 'string' ? `${activity.schedule} • ` : ''}
+              {extractDaysOfWeek() ? `${extractDaysOfWeek()} • ` : ''}
               {`${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`}
             </Text>
           </View>
         )}
 
-        {/* Display days of the week prominently */}
-        {extractDaysOfWeek() && (
+        {/* Only show days of the week separately if we don't have start/end time */}
+        {extractDaysOfWeek() && !activity.startTime && !activity.endTime && (
           <View style={[styles.infoRow, styles.daysRow]}>
             <Icon name="calendar-week" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.daysText, { color: Colors.primary }]}>
@@ -340,54 +363,57 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onPress }) => {
           </View>
         )}
 
-        {activity.sessions && activity.sessions?.length > 0 ? (
-          <View style={[styles.sessionsContainer]}>
-            {activity.sessions?.length === 1 ? (
-              // Single session - display inline
-              <View style={[styles.infoRow, styles.scheduleRow]}>
-                <Icon name="clock-outline" size={16} color={Colors.primary} />
-                <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
-                  {activity.sessions[0].date && `${activity.sessions[0].date} • `}
-                  {activity.sessions[0].startTime && activity.sessions[0].endTime 
-                    ? `${activity.sessions[0].startTime} - ${activity.sessions[0].endTime}`
-                    : activity.sessions[0].startTime || ''}
-                </Text>
-              </View>
-            ) : (
-              // Multiple sessions
-              <View style={styles.multipleSessionsContainer}>
-                <View style={styles.sessionHeader}>
-                  <Icon name="calendar-multiple" size={16} color={Colors.primary} />
-                  <Text style={[styles.sessionHeaderText, { color: colors.text }]}>
-                    {activity.sessions?.length || 0} Sessions Available
+        {/* Only show sessions/schedule section if we don't already have start/end time displayed */}
+        {!activity.startTime && !activity.endTime && (
+          activity.sessions && activity.sessions?.length > 0 ? (
+            <View style={[styles.sessionsContainer]}>
+              {activity.sessions?.length === 1 ? (
+                // Single session - display inline
+                <View style={[styles.infoRow, styles.scheduleRow]}>
+                  <Icon name="clock-outline" size={16} color={Colors.primary} />
+                  <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
+                    {activity.sessions[0].date && `${activity.sessions[0].date} • `}
+                    {activity.sessions[0].startTime && activity.sessions[0].endTime
+                      ? `${activity.sessions[0].startTime} - ${activity.sessions[0].endTime}`
+                      : activity.sessions[0].startTime || ''}
                   </Text>
                 </View>
-                {activity.sessions?.slice(0, 2).map((session, index) => (
-                  <View key={index} style={styles.sessionItem}>
-                    <Text style={[styles.sessionText, { color: colors.textSecondary }]}>
-                      {session.date && `${session.date}`}
-                      {session.startTime && ` • ${session.startTime}`}
-                      {session.endTime && ` - ${session.endTime}`}
+              ) : (
+                // Multiple sessions
+                <View style={styles.multipleSessionsContainer}>
+                  <View style={styles.sessionHeader}>
+                    <Icon name="calendar-multiple" size={16} color={Colors.primary} />
+                    <Text style={[styles.sessionHeaderText, { color: colors.text }]}>
+                      {activity.sessions?.length || 0} Sessions Available
                     </Text>
                   </View>
-                ))}
-                {(activity.sessions?.length || 0) > 2 && (
-                  <Text style={[styles.moreSessionsText, { color: Colors.primary }]}>
-                    +{(activity.sessions?.length || 0) - 2} more sessions
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        ) : activity.schedule && formatSchedule(activity.schedule) ? (
-          // Fallback to old schedule format if no sessions
-          <View style={[styles.infoRow, styles.scheduleRow]}>
-            <Icon name="clock-outline" size={16} color={Colors.primary} />
-            <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
-              {formatSchedule(activity.schedule)}
-            </Text>
-          </View>
-        ) : null}
+                  {activity.sessions?.slice(0, 2).map((session, index) => (
+                    <View key={index} style={styles.sessionItem}>
+                      <Text style={[styles.sessionText, { color: colors.textSecondary }]}>
+                        {session.date && `${session.date}`}
+                        {session.startTime && ` • ${session.startTime}`}
+                        {session.endTime && ` - ${session.endTime}`}
+                      </Text>
+                    </View>
+                  ))}
+                  {(activity.sessions?.length || 0) > 2 && (
+                    <Text style={[styles.moreSessionsText, { color: Colors.primary }]}>
+                      +{(activity.sessions?.length || 0) - 2} more sessions
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+          ) : activity.schedule && formatSchedule(activity.schedule) ? (
+            // Fallback to old schedule format if no sessions
+            <View style={[styles.infoRow, styles.scheduleRow]}>
+              <Icon name="clock-outline" size={16} color={Colors.primary} />
+              <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
+                {formatSchedule(activity.schedule)}
+              </Text>
+            </View>
+          ) : null
+        )}
 
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />

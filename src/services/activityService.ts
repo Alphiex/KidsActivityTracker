@@ -519,16 +519,20 @@ class ActivityService {
         
         // The backend returns the total in pagination.total
         const total = response.data.pagination?.total || response.data.total || activities.length;
-        const currentPage = response.data.pagination?.page || 1;
         const limit = response.data.pagination?.limit || params.limit || 50;
+        const offset = response.data.pagination?.offset ?? params.offset ?? 0;
         const totalPages = response.data.pagination?.pages || Math.ceil(total / limit);
-        
+
+        // Use hasMore directly from API response (correctly calculated using offset-based pagination)
+        // Fallback: calculate based on offset if API doesn't provide it
+        const hasMore = response.data.hasMore ?? (offset + activities.length < total);
+
         return {
           items: activities,
           total: total,  // This is the FULL count regardless of pagination
           limit: limit,
-          offset: params.offset || 0,
-          hasMore: currentPage < totalPages,
+          offset: offset,
+          hasMore: hasMore,
           pages: totalPages
         };
       }
@@ -883,18 +887,21 @@ class ActivityService {
         
         // The backend returns the total in pagination.total
         const total = response.data.pagination?.total || response.data.total || activities.length;
-        const currentPage = response.data.pagination?.page || 1;
         const limit = response.data.pagination?.limit || params.limit || 50;
+        const offset = response.data.pagination?.offset ?? params.offset ?? 0;
         const totalPages = response.data.pagination?.pages || Math.ceil(total / limit);
-        
-        console.log(`✅ Venue API returned ${activities.length} activities out of ${total} total`);
-        
+
+        // Use hasMore directly from API response (correctly calculated using offset-based pagination)
+        const hasMore = response.data.hasMore ?? (offset + activities.length < total);
+
+        console.log(`✅ Venue API returned ${activities.length} activities out of ${total} total, hasMore: ${hasMore}`);
+
         return {
           items: activities,
           total: total,
           limit: limit,
-          offset: params.offset || 0,
-          hasMore: currentPage < totalPages,
+          offset: offset,
+          hasMore: hasMore,
           pages: totalPages
         };
       }

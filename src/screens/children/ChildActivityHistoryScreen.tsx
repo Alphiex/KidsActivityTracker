@@ -137,20 +137,18 @@ const ChildActivityHistoryScreen = () => {
 
   const getStatusColor = (status: ActivityStatus) => {
     switch (status) {
-      case 'interested': return '#FFA500';
-      case 'registered': return '#4CAF50';
+      case 'planned': return '#FFA500';
+      case 'in_progress': return '#4CAF50';
       case 'completed': return '#2196F3';
-      case 'cancelled': return '#F44336';
       default: return '#666';
     }
   };
 
   const getStatusIcon = (status: ActivityStatus) => {
     switch (status) {
-      case 'interested': return 'star-border';
-      case 'registered': return 'check-circle';
+      case 'planned': return 'schedule';
+      case 'in_progress': return 'play-circle-outline';
       case 'completed': return 'done-all';
-      case 'cancelled': return 'cancel';
       default: return 'help-outline';
     }
   };
@@ -166,10 +164,9 @@ const ChildActivityHistoryScreen = () => {
 
   const filterOptions: { value: FilterStatus; label: string }[] = [
     { value: 'all', label: 'All' },
-    { value: 'interested', label: 'Interested' },
-    { value: 'registered', label: 'Registered' },
+    { value: 'planned', label: 'Planned' },
+    { value: 'in_progress', label: 'In Progress' },
     { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
   ];
 
   const renderActivityCard = (item: ChildActivity) => {
@@ -237,16 +234,16 @@ const ChildActivityHistoryScreen = () => {
         )}
 
         <View style={styles.activityActions}>
-          {item.status === 'interested' && (
+          {item.status === 'planned' && (
             <TouchableOpacity
               style={[styles.actionButton, styles.registerButton]}
-              onPress={() => handleStatusChange(item, 'registered')}
+              onPress={() => handleStatusChange(item, 'in_progress')}
             >
-              <Icon name="check-circle" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Register</Text>
+              <Icon name="play-circle-outline" size={16} color="#fff" />
+              <Text style={styles.actionButtonText}>Start</Text>
             </TouchableOpacity>
           )}
-          {item.status === 'registered' && (
+          {item.status === 'in_progress' && (
             <TouchableOpacity
               style={[styles.actionButton, styles.completeButton]}
               onPress={() => handleStatusChange(item, 'completed')}

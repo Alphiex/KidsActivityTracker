@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import ActivityCard from '../components/modern/ActivityCard';
+import ActivityCard from '../components/ActivityCard';
 import { Activity } from '../types';
 import ActivityService from '../services/activityService';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
@@ -51,9 +51,14 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentOffset, setCurrentOffset] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  const ITEMS_PER_PAGE = 50;
 
   const { user } = useAppSelector((state) => state.auth);
 
@@ -118,15 +123,21 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
   const config = getConfig();
 
-  const loadActivities = async () => {
+  const loadActivities = async (isLoadMore = false) => {
     try {
-      setLoading(true);
+      if (!isLoadMore) {
+        setLoading(true);
+        setCurrentOffset(0);
+      } else {
+        setLoadingMore(true);
+      }
 
       if (type === 'favorites') {
-        // Load favorite activities
+        // Load favorite activities (no pagination for favorites)
         if (!user) {
           setActivities([]);
           setTotalCount(0);
+          setHasMore(false);
           return;
         }
 
@@ -149,12 +160,14 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
         setActivities(validActivities);
         setTotalCount(validActivities.length);
+        setHasMore(false); // Favorites don't paginate
         // All favorites screen activities are already favorites
         setFavoriteIds(new Set(validActivities.map(a => a.id)));
       } else {
+        const offset = isLoadMore ? currentOffset : 0;
         const baseParams: any = {
-          limit: 20,
-          offset: 0,
+          limit: ITEMS_PER_PAGE,
+          offset: offset,
           hideFullActivities: true,
         };
 
@@ -183,18 +196,37 @@ const UnifiedResultsScreenTest: React.FC = () => {
         const response = await activityService.searchActivitiesPaginated(baseParams);
 
         if (response && response.items) {
-          setActivities(response.items);
+          if (isLoadMore) {
+            setActivities(prev => [...prev, ...response.items]);
+          } else {
+            setActivities(response.items);
+          }
           setTotalCount(response.total || 0);
+          setHasMore(response.hasMore);
+          setCurrentOffset(offset + response.items.length);
         } else {
-          setActivities([]);
-          setTotalCount(0);
+          if (!isLoadMore) {
+            setActivities([]);
+            setTotalCount(0);
+          }
+          setHasMore(false);
         }
       }
     } catch (error) {
-      setActivities([]);
-      setTotalCount(0);
+      if (!isLoadMore) {
+        setActivities([]);
+        setTotalCount(0);
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore && !loading) {
+      loadActivities(true);
     }
   };
 
@@ -326,6 +358,25 @@ const UnifiedResultsScreenTest: React.FC = () => {
     );
   }
 
+  const renderFooter = () => {
+    if (loadingMore) {
+      return (
+        <View style={styles.footerLoader}>
+          <ActivityIndicator size="small" color={ModernColors.primary} />
+          <Text style={styles.loadingMoreText}>Loading more activities...</Text>
+        </View>
+      );
+    }
+    if (!hasMore && activities.length > 0) {
+      return (
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>All {totalCount} activities loaded</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
@@ -333,6 +384,9 @@ const UnifiedResultsScreenTest: React.FC = () => {
         renderItem={renderActivity}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -475,6 +529,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: ModernColors.text,
     marginTop: ModernSpacing.lg,
+  },
+  footerLoader: {
+    paddingVertical: ModernSpacing.lg,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    marginTop: ModernSpacing.sm,
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
+  },
+  footerContainer: {
+    paddingVertical: ModernSpacing.lg,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
   },
 });
 

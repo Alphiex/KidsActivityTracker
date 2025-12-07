@@ -38,6 +38,7 @@ const API_CONFIG = {
       CHANGE_PASSWORD: '/api/auth/change-password',
       PROFILE: '/api/auth/profile',
       CHECK: '/api/auth/check',
+      DELETE_ACCOUNT: '/api/auth/delete-account',
     },
     
     // Activities

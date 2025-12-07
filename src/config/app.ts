@@ -4,7 +4,7 @@
 
 export const APP_CONFIG = {
   name: 'Kids Activity Tracker',
-  version: '1.1.0',
+  version: '1.1.8',
   buildNumber: '1',
   
   // API Configuration

@@ -643,17 +643,13 @@ const DashboardScreenModern = () => {
             </View>
           )}
 
-          {daysOfWeekText && (
+          {/* Combined days and time row */}
+          {(daysOfWeekText || timeText) && (
             <View style={styles.daysRow}>
               <Icon name="calendar-week" size={12} color="#E91E63" />
-              <Text style={styles.daysText}>{daysOfWeekText}</Text>
-            </View>
-          )}
-
-          {timeText && (
-            <View style={styles.cardInfoRow}>
-              <Icon name="clock-outline" size={12} color="#FF9800" />
-              <Text style={[styles.cardDetails, { color: '#FF9800', fontWeight: '600' }]}>{timeText}</Text>
+              <Text style={styles.daysText}>
+                {daysOfWeekText}{daysOfWeekText && timeText ? ' • ' : ''}{timeText ? timeText : ''}
+              </Text>
             </View>
           )}
           

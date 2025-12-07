@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
-export type ActivityStatus = 'interested' | 'registered' | 'completed' | 'cancelled';
+export type ActivityStatus = 'planned' | 'in_progress' | 'completed';
 
 export interface LinkActivityInput {
   childId: string;
@@ -76,7 +76,7 @@ export class ChildActivityService {
     const data: Prisma.ChildActivityUpdateInput = {
       status: input.status,
       notes: input.notes,
-      ...(input.status === 'registered' && !existingLink?.registeredAt && { registeredAt: now }),
+      ...(input.status === 'in_progress' && !existingLink?.registeredAt && { registeredAt: now }),
       ...(input.status === 'completed' && { completedAt: now })
     };
 
@@ -93,7 +93,7 @@ export class ChildActivityService {
         activityId: input.activityId,
         status: input.status,
         notes: input.notes,
-        ...(input.status === 'registered' && { registeredAt: now }),
+        ...(input.status === 'in_progress' && { registeredAt: now }),
         ...(input.status === 'completed' && { completedAt: now }),
       }
     });
@@ -129,7 +129,7 @@ export class ChildActivityService {
       status: input.status,
       notes: input.notes,
       rating: input.rating,
-      ...(input.status === 'registered' && !childActivity.registeredAt && { registeredAt: now }),
+      ...(input.status === 'in_progress' && !childActivity.registeredAt && { registeredAt: now }),
       ...(input.status === 'completed' && { completedAt: now })
     };
 
@@ -308,7 +308,7 @@ export class ChildActivityService {
       where: {
         childId,
         OR: [
-          { status: 'registered' },
+          { status: 'in_progress' },
           { status: 'completed', rating: { gte: 4 } }
         ]
       },
@@ -357,7 +357,7 @@ export class ChildActivityService {
           isActive: true,
           ...(childIds && childIds.length > 0 && { id: { in: childIds } })
         },
-        status: { in: ['registered', 'completed'] },
+        status: { in: ['in_progress', 'completed', 'planned'] },
         activity: {
           OR: [
             {
@@ -463,7 +463,7 @@ export class ChildActivityService {
     userId: string,
     childId: string,
     activityIds: string[],
-    status: ActivityStatus = 'interested'
+    status: ActivityStatus = 'planned'
   ): Promise<number> {
     // Verify child ownership
     const isOwner = await childrenService.verifyChildOwnership(childId, userId);
@@ -492,7 +492,7 @@ export class ChildActivityService {
       childId,
       activityId,
       status,
-      ...(status === 'registered' && { registeredAt: now }),
+      ...(status === 'in_progress' && { registeredAt: now }),
     }));
 
     const result = await prisma.childActivity.createMany({
@@ -516,7 +516,7 @@ export class ChildActivityService {
           userId,
           isActive: true
         },
-        status: 'registered',
+        status: { in: ['in_progress', 'planned'] },
         activity: {
           dateStart: {
             gte: new Date(),

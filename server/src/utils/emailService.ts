@@ -555,6 +555,60 @@ export class EmailService {
   }
 
   /**
+   * Send account deleted confirmation email
+   */
+  async sendAccountDeletedEmail(email: string, name: string): Promise<void> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #607D8B; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f4f4f4; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+          .info-box { background-color: #e3f2fd; border: 1px solid #90caf9; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Account Deleted</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${name},</h2>
+            <p>This email confirms that your Kids Activity Tracker account has been successfully deleted.</p>
+            <div class="info-box">
+              <strong>What was deleted:</strong>
+              <ul>
+                <li>Your account profile</li>
+                <li>All children profiles you added</li>
+                <li>Your saved favorites</li>
+                <li>Your sharing settings</li>
+                <li>All associated preferences and data</li>
+              </ul>
+            </div>
+            <p>If you didn't request this deletion, please contact our support team immediately.</p>
+            <p>We're sorry to see you go. If you'd like to use Kids Activity Tracker again in the future, you're welcome to create a new account anytime.</p>
+            <p>Best regards,<br>The Kids Activity Tracker Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message, please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: email,
+      subject: 'Your Kids Activity Tracker account has been deleted',
+      html
+    });
+  }
+
+  /**
    * Verify transporter connection
    */
   async verifyConnection(): Promise<boolean> {

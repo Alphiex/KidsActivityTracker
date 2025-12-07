@@ -3,7 +3,7 @@ import childActivityService from '../../services/childActivityService';
 import { RootState } from '../index';
 import { Activity } from '../../types/activity';
 
-export type ActivityStatus = 'interested' | 'registered' | 'completed' | 'cancelled';
+export type ActivityStatus = 'planned' | 'in_progress' | 'completed';
 
 export interface ChildActivity {
   id: string;

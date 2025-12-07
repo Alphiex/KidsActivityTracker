@@ -421,6 +421,89 @@ export class AuthService {
   }
 
   /**
+   * Delete user account and all associated data
+   * Apple App Store requirement: Users must be able to delete their accounts
+   */
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    // Find user and verify password
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Verify password before deletion
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new Error('Invalid password');
+    }
+
+    // Delete all user data in a transaction
+    // The schema has onDelete: Cascade for most relations, but we'll be explicit
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete activity share profiles (related to user's shares)
+      const userShares = await tx.activityShare.findMany({
+        where: { OR: [{ sharingUserId: userId }, { sharedWithUserId: userId }] },
+        select: { id: true }
+      });
+      const shareIds = userShares.map(s => s.id);
+
+      if (shareIds.length > 0) {
+        await tx.activityShareProfile.deleteMany({
+          where: { activityShareId: { in: shareIds } }
+        });
+      }
+
+      // 2. Delete activity shares (both as sharer and recipient)
+      await tx.activityShare.deleteMany({
+        where: { OR: [{ sharingUserId: userId }, { sharedWithUserId: userId }] }
+      });
+
+      // 3. Delete child activities (for all user's children)
+      const children = await tx.child.findMany({
+        where: { userId },
+        select: { id: true }
+      });
+      const childIds = children.map(c => c.id);
+
+      if (childIds.length > 0) {
+        await tx.childActivity.deleteMany({
+          where: { childId: { in: childIds } }
+        });
+      }
+
+      // 4. Delete children
+      await tx.child.deleteMany({
+        where: { userId }
+      });
+
+      // 5. Delete favorites
+      await tx.favorite.deleteMany({
+        where: { userId }
+      });
+
+      // 6. Delete invitations (both sent and received)
+      await tx.invitation.deleteMany({
+        where: { OR: [{ senderId: userId }, { recipientUserId: userId }] }
+      });
+
+      // 7. Finally, delete the user
+      await tx.user.delete({
+        where: { id: userId }
+      });
+    });
+
+    // Send confirmation email (best effort, don't fail if email fails)
+    try {
+      await emailService.sendAccountDeletedEmail(user.email, user.name);
+    } catch (error) {
+      console.error('Failed to send account deletion email:', error);
+    }
+  }
+
+  /**
    * Validate password strength
    */
   private validatePasswordStrength(password: string): void {

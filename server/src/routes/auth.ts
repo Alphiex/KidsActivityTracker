@@ -358,4 +358,37 @@ router.get('/check', verifyToken, async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * @route   DELETE /api/auth/delete-account
+ * @desc    Delete user account and all associated data
+ * @access  Private
+ * @note    Apple App Store requirement - users must be able to delete their accounts
+ */
+router.delete('/delete-account', verifyToken, authLimiter, logActivity('delete-account'), async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password is required to delete account'
+      });
+    }
+
+    // Delete account and all associated data
+    await authService.deleteAccount(req.user!.id, password);
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('Account deletion error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to delete account'
+    });
+  }
+});
+
 export default router;

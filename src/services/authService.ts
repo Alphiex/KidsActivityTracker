@@ -277,6 +277,21 @@ class AuthService {
       throw new Error(error.response?.data?.error || 'Token verification failed');
     }
   }
+
+  /**
+   * Delete user account and all associated data
+   * Apple App Store requirement - users must be able to delete their accounts
+   */
+  async deleteAccount(password: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.delete(API_CONFIG.ENDPOINTS.AUTH.DELETE_ACCOUNT, {
+        data: { password },
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to delete account');
+    }
+  }
 }
 
 export const authService = new AuthService();
