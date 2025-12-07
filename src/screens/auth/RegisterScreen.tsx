@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,7 +18,6 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { register, clearError } from '../../store/slices/authSlice';
-import { colors } from '../../theme';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -27,6 +27,9 @@ type AuthStackParamList = {
 
 type RegisterScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Register'>;
 
+// Import the illustration
+const loginHeaderImage = require('../../assets/illustrations/login-header.png');
+
 const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
   const dispatch = useAppDispatch();
@@ -34,15 +37,13 @@ const RegisterScreen: React.FC = () => {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const [nameError, setNameError] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [phoneError, setPhoneError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
@@ -84,15 +85,6 @@ const RegisterScreen: React.FC = () => {
     return true;
   };
 
-  const validatePhone = (phone: string): boolean => {
-    if (phone && phone.length < 10) {
-      setPhoneError('Please enter a valid phone number');
-      return false;
-    }
-    setPhoneError('');
-    return true;
-  };
-
   const validatePassword = (password: string): boolean => {
     if (!password) {
       setPasswordError('Password is required');
@@ -126,11 +118,10 @@ const RegisterScreen: React.FC = () => {
   const handleRegister = async () => {
     const isNameValid = validateName(name);
     const isEmailValid = validateEmail(email);
-    const isPhoneValid = validatePhone(phoneNumber);
     const isPasswordValid = validatePassword(password);
     const isConfirmPasswordValid = validateConfirmPassword(confirmPassword);
 
-    if (!isNameValid || !isEmailValid || !isPhoneValid || !isPasswordValid || !isConfirmPasswordValid) {
+    if (!isNameValid || !isEmailValid || !isPasswordValid || !isConfirmPasswordValid) {
       return;
     }
 
@@ -138,12 +129,11 @@ const RegisterScreen: React.FC = () => {
       name: name.trim(),
       email: email.trim(),
       password,
-      phoneNumber: phoneNumber.trim() || undefined,
     }));
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -153,130 +143,155 @@ const RegisterScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Sign up to get started</Text>
+          {/* Header Illustration */}
+          <View style={styles.headerContainer}>
+            <Image
+              source={loginHeaderImage}
+              style={styles.headerImage}
+              resizeMode="cover"
+            />
+            {/* Back Button */}
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <View style={styles.backButtonCircle}>
+                <Icon name="arrow-left" size={24} color="#1F2937" />
+              </View>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Icon name="account-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, nameError ? styles.inputError : null]}
-                placeholder="Full Name"
-                placeholderTextColor={colors.gray}
-                value={name}
-                onChangeText={setName}
-                onBlur={() => validateName(name)}
-                autoCapitalize="words"
-              />
-            </View>
-            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+          {/* Welcome Text */}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeTitle}>Create Account</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Join us to discover amazing activities for your kids
+            </Text>
+          </View>
 
-            <View style={styles.inputContainer}>
-              <Icon name="email-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, emailError ? styles.inputError : null]}
-                placeholder="Email"
-                placeholderTextColor={colors.gray}
-                value={email}
-                onChangeText={setEmail}
-                onBlur={() => validateEmail(email)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
-
-            <View style={styles.inputContainer}>
-              <Icon name="phone-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, phoneError ? styles.inputError : null]}
-                placeholder="Phone Number (Optional)"
-                placeholderTextColor={colors.gray}
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                onBlur={() => validatePhone(phoneNumber)}
-                keyboardType="phone-pad"
-              />
-            </View>
-            {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
-
-            <View style={styles.inputContainer}>
-              <Icon name="lock-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, passwordError ? styles.inputError : null]}
-                placeholder="Password"
-                placeholderTextColor={colors.gray}
-                value={password}
-                onChangeText={setPassword}
-                onBlur={() => validatePassword(password)}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.passwordToggle}
-              >
-                <Icon
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.gray}
+          {/* Form */}
+          <View style={styles.formContainer}>
+            {/* Name Input */}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, nameError ? styles.inputError : null]}>
+                <Icon name="account-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Full Name"
+                  placeholderTextColor="#9CA3AF"
+                  value={name}
+                  onChangeText={setName}
+                  onBlur={() => validateName(name)}
+                  autoCapitalize="words"
                 />
-              </TouchableOpacity>
+              </View>
+              {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
             </View>
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-            <View style={styles.inputContainer}>
-              <Icon name="lock-check-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, confirmPasswordError ? styles.inputError : null]}
-                placeholder="Confirm Password"
-                placeholderTextColor={colors.gray}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                onBlur={() => validateConfirmPassword(confirmPassword)}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.passwordToggle}
-              >
-                <Icon
-                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.gray}
+            {/* Email Input */}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
+                <Icon name="email-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email address"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={setEmail}
+                  onBlur={() => validateEmail(email)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
-              </TouchableOpacity>
+              </View>
+              {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
             </View>
-            {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
 
+            {/* Password Input */}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                <Icon name="lock-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={setPassword}
+                  onBlur={() => validatePassword(password)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.passwordToggle}
+                >
+                  <Icon
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
+              {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            </View>
+
+            {/* Confirm Password Input */}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, confirmPasswordError ? styles.inputError : null]}>
+                <Icon name="lock-check-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#9CA3AF"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  onBlur={() => validateConfirmPassword(confirmPassword)}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.passwordToggle}
+                >
+                  <Icon
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
+              {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
+            </View>
+
+            {/* Password Requirements */}
             <View style={styles.passwordRequirements}>
               <Text style={styles.requirementTitle}>Password must contain:</Text>
-              <Text style={styles.requirementText}>• At least 8 characters</Text>
-              <Text style={styles.requirementText}>• One uppercase letter</Text>
-              <Text style={styles.requirementText}>• One lowercase letter</Text>
-              <Text style={styles.requirementText}>• One number</Text>
+              <View style={styles.requirementRow}>
+                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.requirementText}>At least 8 characters</Text>
+              </View>
+              <View style={styles.requirementRow}>
+                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.requirementText}>One uppercase letter</Text>
+              </View>
+              <View style={styles.requirementRow}>
+                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.requirementText}>One lowercase letter & number</Text>
+              </View>
             </View>
 
+            {/* Create Account Button */}
             <TouchableOpacity
-              style={[styles.registerButton, isLoading && styles.disabledButton]}
               onPress={handleRegister}
               disabled={isLoading}
+              activeOpacity={0.8}
+              style={[styles.registerButton, isLoading && styles.disabledButton]}
             >
               {isLoading ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.registerButtonText}>Create Account</Text>
               )}
             </TouchableOpacity>
 
+            {/* Login Link */}
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -284,6 +299,7 @@ const RegisterScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
+            {/* Terms */}
             <Text style={styles.termsText}>
               By creating an account, you agree to our{' '}
               <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
@@ -299,123 +315,171 @@ const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  },
+  // Header Illustration Styles
+  headerContainer: {
+    width: '100%',
+    height: 120,
+    overflow: 'hidden',
+  },
+  headerImage: {
+    width: '100%',
+    height: '100%',
   },
   backButton: {
-    marginBottom: 20,
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    zIndex: 10,
   },
-  header: {
-    marginBottom: 30,
+  backButtonCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
+  // Welcome Text Styles
+  welcomeContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
-    color: colors.gray,
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
   },
-  form: {
-    flex: 1,
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  // Form Styles
+  formContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  inputWrapper: {
+    marginBottom: 10,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBackground,
+    backgroundColor: '#F9FAFB',
     borderRadius: 12,
-    marginBottom: 8,
-    paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
   },
   inputIcon: {
     marginRight: 10,
   },
   input: {
     flex: 1,
-    height: 50,
-    fontSize: 16,
-    color: colors.text,
+    height: 46,
+    fontSize: 15,
+    color: '#1F2937',
   },
   inputError: {
-    borderColor: colors.error,
+    borderColor: '#EF4444',
   },
   passwordToggle: {
-    padding: 10,
+    padding: 8,
   },
   errorText: {
-    color: colors.error,
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
+    color: '#EF4444',
+    fontSize: 13,
+    marginTop: 6,
+    marginLeft: 4,
   },
+  // Password Requirements Styles
   passwordRequirements: {
-    backgroundColor: colors.lightBackground,
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 20,
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 2,
+    marginBottom: 12,
   },
   requirementTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
+    color: '#1F2937',
+    marginBottom: 6,
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
   },
   requirementText: {
-    fontSize: 12,
-    color: colors.gray,
-    marginBottom: 4,
+    fontSize: 11,
+    color: '#6B7280',
+    marginLeft: 6,
   },
+  // Button Styles
   registerButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF385C',
     borderRadius: 12,
-    height: 50,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabledButton: {
     opacity: 0.7,
   },
   registerButtonText: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
+  // Login Link Styles
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 8,
   },
   loginText: {
-    color: colors.gray,
+    color: '#6B7280',
     fontSize: 14,
   },
   loginLink: {
-    color: colors.primary,
+    color: '#FF385C',
     fontSize: 14,
     fontWeight: '600',
   },
+  // Terms Styles
   termsText: {
     textAlign: 'center',
-    fontSize: 12,
-    color: colors.gray,
-    lineHeight: 18,
+    fontSize: 11,
+    color: '#9CA3AF',
+    lineHeight: 16,
+    paddingHorizontal: 16,
   },
   termsLink: {
-    color: colors.primary,
+    color: '#FF385C',
     fontWeight: '500',
   },
 });

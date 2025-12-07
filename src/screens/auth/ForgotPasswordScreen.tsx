@@ -17,7 +17,19 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { forgotPassword, clearError } from '../../store/slices/authSlice';
-import { colors } from '../../theme';
+
+// App-consistent colors
+const appColors = {
+  primary: '#FF385C',
+  text: '#1F2937',
+  textSecondary: '#6B7280',
+  background: '#FFFFFF',
+  inputBackground: '#F9FAFB',
+  inputBorder: '#E5E7EB',
+  error: '#EF4444',
+  white: '#FFFFFF',
+  divider: '#E5E7EB',
+};
 
 type AuthStackParamList = {
   Login: undefined;
@@ -87,7 +99,7 @@ const ForgotPasswordScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.successContainer}>
-          <Icon name="email-check-outline" size={80} color={colors.primary} />
+          <Icon name="email-check-outline" size={80} color={appColors.primary} />
           <Text style={styles.successTitle}>Check Your Email</Text>
           <Text style={styles.successText}>
             We've sent password reset instructions to your email address.
@@ -118,11 +130,11 @@ const ForgotPasswordScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color={colors.text} />
+            <Icon name="arrow-left" size={24} color={appColors.text} />
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Icon name="lock-reset" size={80} color={colors.primary} />
+            <Icon name="lock-reset" size={80} color={appColors.primary} />
             <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
               Enter your email address and we'll send you instructions to reset your password.
@@ -131,11 +143,11 @@ const ForgotPasswordScreen: React.FC = () => {
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Icon name="email-outline" size={20} color={colors.gray} style={styles.inputIcon} />
+              <Icon name="email-outline" size={20} color={appColors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, emailError ? styles.inputError : null]}
                 placeholder="Email"
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={appColors.textSecondary}
                 value={email}
                 onChangeText={setEmail}
                 onBlur={() => validateEmail(email)}
@@ -152,7 +164,7 @@ const ForgotPasswordScreen: React.FC = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color={appColors.white} />
               ) : (
                 <Text style={styles.submitButtonText}>Send Reset Link</Text>
               )}
@@ -183,7 +195,7 @@ const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: appColors.background,
   },
   keyboardView: {
     flex: 1,
@@ -203,13 +215,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.text,
+    color: appColors.text,
     marginTop: 20,
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.gray,
+    color: appColors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
@@ -220,12 +232,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBackground,
+    backgroundColor: appColors.inputBackground,
     borderRadius: 12,
     marginBottom: 8,
     paddingHorizontal: 15,
     borderWidth: 1,
-    borderColor: colors.inputBorder,
+    borderColor: appColors.inputBorder,
   },
   inputIcon: {
     marginRight: 10,
@@ -234,19 +246,19 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: colors.text,
+    color: appColors.text,
   },
   inputError: {
-    borderColor: colors.error,
+    borderColor: appColors.error,
   },
   errorText: {
-    color: colors.error,
+    color: appColors.error,
     fontSize: 12,
     marginBottom: 10,
     marginLeft: 5,
   },
   submitButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: appColors.primary,
     borderRadius: 12,
     height: 50,
     justifyContent: 'center',
@@ -258,7 +270,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: {
-    color: colors.white,
+    color: appColors.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -270,11 +282,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.divider,
+    backgroundColor: appColors.divider,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: colors.gray,
+    color: appColors.textSecondary,
     fontSize: 14,
   },
   linksContainer: {
@@ -283,12 +295,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   linkText: {
-    color: colors.primary,
+    color: appColors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   linkSeparator: {
-    color: colors.gray,
+    color: appColors.textSecondary,
     marginHorizontal: 10,
   },
   successContainer: {
@@ -300,30 +312,30 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    color: appColors.text,
     marginTop: 20,
     marginBottom: 10,
   },
   successText: {
     fontSize: 16,
-    color: colors.text,
+    color: appColors.text,
     textAlign: 'center',
     marginBottom: 10,
   },
   successSubtext: {
     fontSize: 14,
-    color: colors.gray,
+    color: appColors.textSecondary,
     textAlign: 'center',
     marginBottom: 30,
   },
   backButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: appColors.primary,
     borderRadius: 12,
     paddingHorizontal: 30,
     paddingVertical: 15,
   },
   backButtonText: {
-    color: colors.white,
+    color: appColors.white,
     fontSize: 16,
     fontWeight: '600',
   },

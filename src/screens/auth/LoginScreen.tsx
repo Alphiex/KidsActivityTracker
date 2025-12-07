@@ -10,6 +10,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,7 +19,6 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/slices/authSlice';
-import { colors } from '../../theme';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -26,6 +27,11 @@ type AuthStackParamList = {
 };
 
 type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
+
+const { width: screenWidth } = Dimensions.get('window');
+
+// Import the illustration
+const loginHeaderImage = require('../../assets/illustrations/login-header.png');
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
@@ -39,7 +45,6 @@ const LoginScreen: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
-    // Clear any existing errors when component mounts
     dispatch(clearError());
   }, [dispatch]);
 
@@ -89,7 +94,7 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -99,54 +104,74 @@ const LoginScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.header}>
-            <Icon name="account-circle" size={80} color={colors.primary} />
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+          {/* Header Illustration */}
+          <View style={styles.headerContainer}>
+            <Image
+              source={loginHeaderImage}
+              style={styles.headerImage}
+              resizeMode="cover"
+            />
+            <View style={styles.headerOverlay} />
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Icon name="email-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, emailError ? styles.inputError : null]}
-                placeholder="Email"
-                placeholderTextColor={colors.gray}
-                value={email}
-                onChangeText={setEmail}
-                onBlur={() => validateEmail(email)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+          {/* Welcome Text */}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeTitle}>Welcome Back!</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Sign in to discover amazing activities for your kids
+            </Text>
+          </View>
 
-            <View style={styles.inputContainer}>
-              <Icon name="lock-outline" size={20} color={colors.gray} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, passwordError ? styles.inputError : null]}
-                placeholder="Password"
-                placeholderTextColor={colors.gray}
-                value={password}
-                onChangeText={setPassword}
-                onBlur={() => validatePassword(password)}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.passwordToggle}
-              >
-                <Icon
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.gray}
+          {/* Form */}
+          <View style={styles.formContainer}>
+            {/* Email Input */}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
+                <Icon name="email-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email address"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={setEmail}
+                  onBlur={() => validateEmail(email)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
-              </TouchableOpacity>
+              </View>
+              {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
             </View>
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
+            {/* Password Input */}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                <Icon name="lock-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={setPassword}
+                  onBlur={() => validatePassword(password)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.passwordToggle}
+                >
+                  <Icon
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
+              {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            </View>
+
+            {/* Forgot Password */}
             <TouchableOpacity
               style={styles.forgotPassword}
               onPress={() => navigation.navigate('ForgotPassword')}
@@ -154,24 +179,28 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
+            {/* Sign In Button */}
             <TouchableOpacity
-              style={[styles.loginButton, isLoading && styles.disabledButton]}
               onPress={handleLogin}
               disabled={isLoading}
+              activeOpacity={0.8}
+              style={[styles.loginButton, isLoading && styles.disabledButton]}
             >
               {isLoading ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.loginButtonText}>Sign In</Text>
               )}
             </TouchableOpacity>
 
+            {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
+              <Text style={styles.dividerText}>or</Text>
               <View style={styles.dividerLine} />
             </View>
 
+            {/* Register Link */}
             <View style={styles.registerContainer}>
               <Text style={styles.registerText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -188,90 +217,120 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 40,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
+  // Header Illustration Styles
+  headerContainer: {
+    width: '100%',
+    height: 220,
+    overflow: 'hidden',
   },
-  title: {
+  headerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  headerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: 'transparent',
+  },
+  // Welcome Text Styles
+  welcomeContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 8,
+  },
+  welcomeTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
   },
-  subtitle: {
+  welcomeSubtitle: {
     fontSize: 16,
-    color: colors.gray,
-    marginTop: 8,
+    color: '#6B7280',
+    lineHeight: 22,
   },
-  form: {
-    flex: 1,
+  // Form Styles
+  formContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  inputWrapper: {
+    marginBottom: 16,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBackground,
-    borderRadius: 12,
-    marginBottom: 8,
-    paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    height: 50,
+    height: 56,
     fontSize: 16,
-    color: colors.text,
+    color: '#1F2937',
   },
   inputError: {
-    borderColor: colors.error,
+    borderColor: '#EF4444',
   },
   passwordToggle: {
-    padding: 10,
+    padding: 8,
   },
   errorText: {
-    color: colors.error,
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
+    color: '#EF4444',
+    fontSize: 13,
+    marginTop: 6,
+    marginLeft: 4,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: colors.primary,
+    color: '#FF385C',
     fontSize: 14,
+    fontWeight: '600',
   },
+  // Button Styles
   loginButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF385C',
     borderRadius: 12,
-    height: 50,
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabledButton: {
     opacity: 0.7,
   },
   loginButtonText: {
-    color: colors.white,
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 17,
     fontWeight: '600',
   },
+  // Divider Styles
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -280,25 +339,27 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.divider,
+    backgroundColor: '#E5E7EB',
   },
   dividerText: {
     marginHorizontal: 16,
-    color: colors.gray,
+    color: '#9CA3AF',
     fontSize: 14,
+    fontWeight: '500',
   },
+  // Register Link Styles
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   registerText: {
-    color: colors.gray,
-    fontSize: 14,
+    color: '#6B7280',
+    fontSize: 15,
   },
   registerLink: {
-    color: colors.primary,
-    fontSize: 14,
+    color: '#FF385C',
+    fontSize: 15,
     fontWeight: '600',
   },
 });
