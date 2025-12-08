@@ -720,16 +720,6 @@ class ActivityService {
     }
   }
 
-  async getActivityTypeDetails(typeCode: string): Promise<any> {
-    try {
-      const response = await this.api.get(`/api/v1/reference/activity-types/${encodeURIComponent(typeCode)}`);
-      return response.data.success ? response.data.data : null;
-    } catch (error) {
-      console.error('Error fetching activity type details:', error);
-      return null;
-    }
-  }
-
   async getCities(): Promise<any[]> {
     try {
       const response = await this.api.get('/api/v1/cities');

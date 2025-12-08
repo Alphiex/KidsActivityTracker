@@ -52,8 +52,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       sortOrder = 'asc'
     } = req.query;
 
-    console.error('🚨🚨🚨 NEW CODE DEPLOYED - DEBUGGING LOCATION FILTER ISSUE 🚨🚨🚨');
-    console.log('🌐 [Routes] Activities API Request:', {
+    console.log('[Routes] Activities API Request:', {
       activityType,
       activitySubtype,
       hideClosedActivities,

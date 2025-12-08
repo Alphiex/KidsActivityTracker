@@ -7,15 +7,23 @@ const router = Router();
 const prisma = new PrismaClient();
 
 // One-time setup endpoint to create test user
-// This should be removed after initial setup
+// BLOCKED IN PRODUCTION for security
 router.post('/setup/test-user', async (req, res) => {
   try {
+    // Block this endpoint in production
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({
+        success: false,
+        error: 'Not found'
+      });
+    }
+
     // Check if setup key is provided
     const setupKey = req.headers['x-setup-key'];
-    if (setupKey !== process.env.SETUP_KEY) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Invalid setup key' 
+    if (!process.env.SETUP_KEY || setupKey !== process.env.SETUP_KEY) {
+      return res.status(403).json({
+        success: false,
+        error: 'Invalid setup key'
       });
     }
 

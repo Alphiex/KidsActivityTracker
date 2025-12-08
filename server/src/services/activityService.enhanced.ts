@@ -79,14 +79,6 @@ export class EnhancedActivityService {
 
     // Determine search type early to control filtering logic
     const isActivityTypeSearch = !!(activityType || activitySubtype || categories);
-    console.log('🚨🚨🚨 [LOCATION FILTER DEBUG] Search type determination:', {
-      activityType,
-      activitySubtype, 
-      categories,
-      isActivityTypeSearch,
-      locations,
-      location
-    });
 
     // Build where clause
     const where: Prisma.ActivityWhereInput = {
@@ -318,17 +310,6 @@ export class EnhancedActivityService {
         ]
       };
     }
-    
-    console.log('🚨🚨🚨 [LOCATION FILTER DEBUG] Location filtering logic:', {
-      isActivityTypeSearch,
-      isLocationBasedSearch,
-      activityType,
-      activitySubtype,
-      categories,
-      locations,
-      location,
-      willApplyLocationFilter: isLocationBasedSearch
-    });
 
     // Provider filter
     if (providerId) {

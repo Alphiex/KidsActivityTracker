@@ -116,24 +116,10 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
- * Rate limiting middleware - DISABLED FOR PRODUCTION
+ * Rate limiting middleware
  */
 import rateLimit from 'express-rate-limit';
 
-// Create no-op middleware that bypasses rate limiting
-const createNoOpLimiter = () => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    next();
-  };
-};
-
-// RATE LIMITING DISABLED - Using no-op middleware
-export const apiLimiter = createNoOpLimiter();
-export const authLimiter = createNoOpLimiter();
-export const passwordResetLimiter = createNoOpLimiter();
-export const emailVerificationLimiter = createNoOpLimiter();
-
-/* ORIGINAL RATE LIMITING CONFIGURATION (DISABLED)
 // General API rate limit
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -146,7 +132,7 @@ export const apiLimiter = rateLimit({
 // Strict rate limit for auth endpoints
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: 10, // Limit each IP to 10 requests per windowMs
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -156,7 +142,7 @@ export const authLimiter = rateLimit({
 // Very strict rate limit for password reset
 export const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // Limit each IP to 3 requests per hour
+  max: 5, // Limit each IP to 5 requests per hour
   message: 'Too many password reset attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -165,12 +151,11 @@ export const passwordResetLimiter = rateLimit({
 // Email verification rate limit
 export const emailVerificationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Limit each IP to 5 requests per hour
+  max: 10, // Limit each IP to 10 requests per hour
   message: 'Too many email verification attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
-*/
 
 /**
  * CSRF protection middleware

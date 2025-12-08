@@ -36,19 +36,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Global middleware
-// Remove problematic security headers that break iOS app
-app.use((req, res, next) => {
-  res.removeHeader('X-Content-Type-Options');
-  res.removeHeader('X-Frame-Options');
-  res.removeHeader('Strict-Transport-Security');
-  res.removeHeader('Cross-Origin-Opener-Policy');
-  res.removeHeader('Cross-Origin-Resource-Policy');
-  next();
-});
-
+// Configure CORS for mobile app compatibility
 app.use(cors({
   origin: true, // Allow all origins for mobile app compatibility
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

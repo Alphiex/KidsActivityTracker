@@ -103,11 +103,11 @@ const ChildDetailScreen: React.FC = () => {
       await loadActivities();
     } catch (error) {
       console.error('Error loading child details:', error);
-      // Use mock data for now
+      // Use route params as fallback for child name display
       setChild({
         id: childId,
         name: childName,
-        dateOfBirth: '2018-01-01',
+        dateOfBirth: '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });

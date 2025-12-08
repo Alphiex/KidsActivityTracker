@@ -12,6 +12,8 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../contexts/ThemeContext';
 import ActivityCard from '../components/ActivityCard';
+import { API_CONFIG } from '../config/api';
+import PreferencesService from '../services/preferencesService';
 
 interface Activity {
   id: string;
@@ -63,13 +65,14 @@ const CategoryDetailScreen = () => {
       }
 
       console.log(`📋 Loading activities for category ${categoryName} (offset: ${offset})`);
-      
-      // Apply global filters - TODO: get from user preferences
-      const hideClosedActivities = 'true';
-      const hideFullActivities = 'false';
-      
+
+      // Apply global filters from user preferences
+      const prefs = PreferencesService.getInstance().getPreferences();
+      const hideClosedActivities = prefs.hideClosedOrFull ? 'true' : 'false';
+      const hideFullActivities = prefs.hideClosedOrFull ? 'true' : 'false';
+
       const response = await fetch(
-        `http://localhost:3000/api/v1/categories/${categoryId}/activities?` +
+        `${API_CONFIG.BASE_URL}/api/v1/categories/${categoryId}/activities?` +
         `limit=50&offset=${offset}&hideClosedActivities=${hideClosedActivities}&hideFullActivities=${hideFullActivities}`
       );
       

@@ -2,6 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SharedChild, SharingInvitation } from '../types/sharing';
 import { Child } from '../store/slices/childrenSlice';
 import { Alert } from 'react-native';
+import { store } from '../store';
+import apiClient from './apiClient';
+
+// Helper to get current user from Redux store
+const getCurrentUser = () => {
+  const state = store.getState();
+  return state.auth?.user || null;
+};
 
 const STORAGE_KEYS = {
   SHARED_CHILDREN: '@shared_children',
@@ -88,11 +96,16 @@ class SharingService {
       throw new Error('Child already shared with this email');
     }
 
+    // Get current user from auth context
+    const user = getCurrentUser();
+    const userId = user?.id || 'unknown';
+    const userName = user?.name || user?.email || 'Unknown User';
+
     // Create invitation
     const invitation: SharingInvitation = {
       id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      fromUserId: 'current_user', // TODO: Get from auth
-      fromUserName: 'Current User', // TODO: Get from auth
+      fromUserId: userId,
+      fromUserName: userName,
       toEmail: email,
       childId: child.id,
       childName: child.name,
@@ -108,7 +121,7 @@ class SharingService {
     const sharedChild: SharedChild = {
       id: `sc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       childId: child.id,
-      sharedByUserId: 'current_user', // TODO: Get from auth
+      sharedByUserId: userId,
       sharedWithEmail: email,
       permissions,
       status: 'pending',
@@ -202,35 +215,64 @@ class SharingService {
 
   async getChildrenSharedWithMe(): Promise<{ child: Child; sharedBy: string; permissions: SharedChild['permissions'] }[]> {
     await this.waitForInit();
-    
-    // For now, return empty array since we need backend integration
-    // TODO: Implement actual fetching of shared children from other users
-    return [];
+
+    try {
+      // Call the backend API to get children shared with the current user
+      const response = await apiClient.get<{
+        success: boolean;
+        sharedChildren: Array<{
+          child: Child;
+          sharedBy: string;
+          permissions: SharedChild['permissions'];
+        }>;
+      }>('/api/sharing/shared-with-me');
+
+      if (response.success && response.sharedChildren) {
+        return response.sharedChildren;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching shared children:', error);
+      // Return empty array on error - no mock data
+      return [];
+    }
   }
 
-  // Mock method to simulate receiving an invitation
-  async mockReceiveInvitation(fromName: string, childName: string, email: string): Promise<void> {
+  async getSharedWithMe(): Promise<Array<{
+    childId: string;
+    childName: string;
+    sharedByName?: string;
+    sharedByEmail?: string;
+    sharedAt?: Date;
+    activities?: any[];
+  }>> {
     await this.waitForInit();
 
-    const invitation: SharingInvitation = {
-      id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      fromUserId: 'mock_user',
-      fromUserName: fromName,
-      toEmail: email,
-      childId: 'mock_child_id',
-      childName: childName,
-      permissions: {
-        viewActivities: true,
-        viewSchedule: true,
-        viewDetails: true,
-      },
-      status: 'pending',
-      sentAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    };
+    try {
+      // Call the backend API to get sharing data
+      const response = await apiClient.get<{
+        success: boolean;
+        data: Array<{
+          childId: string;
+          childName: string;
+          sharedByName?: string;
+          sharedByEmail?: string;
+          sharedAt?: string;
+          activities?: any[];
+        }>;
+      }>('/api/sharing/shared-with-me');
 
-    this.receivedInvitations.push(invitation);
-    await this.saveData();
+      if (response.success && response.data) {
+        return response.data.map(item => ({
+          ...item,
+          sharedAt: item.sharedAt ? new Date(item.sharedAt) : undefined,
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching shared with me data:', error);
+      return [];
+    }
   }
 }
 

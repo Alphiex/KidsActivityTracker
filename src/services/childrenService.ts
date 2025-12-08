@@ -343,29 +343,6 @@ class ChildrenService {
     }
   }
 
-  async removeActivityFromChild(childActivityId: string): Promise<boolean> {
-    try {
-      // Find the activity to get childId
-      await this.waitForInit();
-      const activity = this.childActivities.find(ca => ca.id === childActivityId);
-      if (!activity) return false;
-
-      await apiClient.delete(`/api/children/${activity.childId}/activities/${childActivityId}`);
-
-      // Update local cache
-      const index = this.childActivities.findIndex(ca => ca.id === childActivityId);
-      if (index !== -1) {
-        this.childActivities.splice(index, 1);
-        await this.saveLocalData();
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error removing activity from child:', error);
-      throw error;
-    }
-  }
-
   async getChildActivitiesList(childId: string, status?: ChildActivity['status']): Promise<ChildActivity[]> {
     try {
       const response = await apiClient.get<{ success: boolean; activities: any[] }>(

@@ -62,16 +62,8 @@ const ShareChildScreen: React.FC = () => {
       setSharedUsers(users);
     } catch (error) {
       console.error('Error loading shared users:', error);
-      // Mock data for development
-      setSharedUsers([
-        {
-          id: '1',
-          email: 'grandma@example.com',
-          name: 'Grandma Smith',
-          sharedAt: new Date().toISOString(),
-          permissionLevel: 'view',
-        },
-      ]);
+      // Show error state - no mock data
+      setSharedUsers([]);
     } finally {
       setLoading(false);
     }
