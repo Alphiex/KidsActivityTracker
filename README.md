@@ -1,38 +1,34 @@
 # Kids Activity Tracker
 
-> A React Native mobile application for discovering and managing children's activities in North Vancouver and across British Columbia. Features automated web scraping, smart filtering, modern Airbnb-style UI, and comprehensive calendar management.
+> A React Native mobile application for discovering and managing children's activities in Greater Vancouver. Features automated web scraping, smart filtering, modern Airbnb-style UI, and comprehensive calendar management.
 
 ## Overview
 
-Kids Activity Tracker helps parents find, track, and manage recreational activities for their children by aggregating data from multiple recreation centers and providers across BC.
+Kids Activity Tracker helps parents find, track, and manage recreational activities for their children by aggregating data from local recreation centers and providers.
 
 ### Key Features
-- Browse 1000+ activities with smart filtering (age, location, date, cost)
-- Manage multiple child profiles with personalized recommendations
-- Budget-friendly filtering and cost tracking
-- Location-based search with interactive map view
-- Hide closed or full activities automatically (global preference)
-- Real-time availability tracking with registration status
-- Modern Airbnb-style UI with card and list views
-- Favorite activities and get notifications
 
-### Calendar Features (v2.1.0)
-- Shared Children Calendar Overlay - view activities from children shared by other parents
-- Quick Add Activity - FAB button and long-press on calendar dates
-- Drag & Drop Rescheduling - long-press activities to reschedule
-- Native iOS Calendar Sync - two-way sync with iOS Calendar app
-- Activity Reminders & Push Notifications
-- Conflict Detection - automatic detection of overlapping activities
-- Bulk Operations - multi-select activities for batch operations
-- Print/Share Calendar - export calendar view as image
+- **Activity Discovery**: Browse 2,900+ activities with smart filtering (age, location, date, cost)
+- **Child Profiles**: Manage multiple children with personalized recommendations
+- **Calendar Integration**: Track activities with week/month views and color-coded child assignments
+- **Favorites**: Save and organize activities you're interested in
+- **Activity Sharing**: Share children profiles with co-parents and family members
+- **Real-time Status**: Live availability tracking and registration status
+- **Modern UI**: Airbnb-style design with card views and smooth animations
 
 ### Technology Stack
-- **Frontend**: React Native 0.80 (TypeScript) - iOS & Android
-- **Backend**: Node.js + Express + TypeScript
-- **Database**: PostgreSQL with Prisma ORM
-- **Cloud**: Google Cloud Platform (Cloud Run, Cloud SQL)
-- **Scraping**: Puppeteer for automated data collection
-- **State Management**: Redux Toolkit + MMKV for persistence
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React Native 0.80+ (TypeScript) |
+| **Backend** | Node.js + Express + TypeScript |
+| **Database** | PostgreSQL 15 with Prisma 6.x ORM |
+| **Cloud** | Google Cloud Platform (Cloud Run, Cloud SQL) |
+| **Scraping** | Puppeteer for automated data collection |
+| **State** | Redux Toolkit + MMKV (encrypted persistence) |
+| **Auth** | JWT (access + refresh tokens) |
+
+---
 
 ## Quick Start
 
@@ -50,24 +46,35 @@ npx react-native start --reset-cache
 
 # Run on iOS (terminal 2)
 # IMPORTANT: Use iOS 18.6 simulator to avoid network issues
-./scripts/development/run-ios-18-6.sh
+./run-ios-18-6.sh
 
 # Run on Android
 npx react-native run-android
 ```
 
+---
+
 ## Production Information
 
 ### Live Services
-- **API**: https://kids-activity-api-205843686007.us-central1.run.app
-- **Project**: kids-activity-tracker-2024
-- **Region**: us-central1
-- **Database**: Cloud SQL PostgreSQL
+
+| Service | URL/Details |
+|---------|-------------|
+| **API** | https://kids-activity-api-205843686007.us-central1.run.app |
+| **Database** | Cloud SQL PostgreSQL (34.42.149.102) |
+| **Region** | us-central1 |
+| **Memory** | 2GB (Cloud Run) |
 
 ### Key Statistics
-- **Activities Tracked**: 1000+ active activities
-- **Providers**: North Vancouver Recreation, Community Centers BC-wide
-- **Performance**: <200ms API response time
+
+| Metric | Value |
+|--------|-------|
+| **Activities** | 2,900+ active |
+| **Database Tables** | 24 |
+| **API Endpoints** | 60+ |
+| **Response Time** | <200ms (p95) |
+
+---
 
 ## Project Structure
 
@@ -75,35 +82,39 @@ npx react-native run-android
 KidsActivityTracker/
 ├── src/                          # React Native app source
 │   ├── components/               # Reusable UI components
-│   │   └── modern/              # Modern UI components
+│   │   └── modern/              # Modern Airbnb-style components
 │   ├── screens/                 # App screens
 │   ├── services/                # API and business logic
 │   ├── store/                   # Redux state management
+│   │   └── slices/             # Redux slices (auth, children, etc.)
+│   ├── navigation/              # React Navigation setup
 │   ├── types/                   # TypeScript definitions
 │   └── utils/                   # Helper functions
-├── server/                       # Backend server (Node.js/Express)
-│   ├── prisma/                  # Database schema & migrations
+├── server/                       # Backend server
+│   ├── prisma/                  # Database schema (24 tables)
 │   ├── src/
 │   │   ├── routes/             # REST API routes
 │   │   ├── services/           # Business logic
-│   │   ├── middleware/         # Auth, rate limiting, etc.
-│   │   └── utils/              # Utilities & filters
-│   ├── scrapers/               # Web scraping modules
-│   └── generated/              # Prisma client
-├── ios/                         # iOS native code & Xcode project
+│   │   ├── middleware/         # Auth, rate limiting
+│   │   └── swagger/            # API documentation
+│   └── scrapers/               # Web scraping modules
+├── ios/                         # iOS native code
 ├── android/                     # Android native code
-├── scripts/                     # Development & deployment scripts
-│   ├── development/            # run-ios-18-6.sh, etc.
-│   ├── deployment/             # deploy-api.sh, etc.
-│   └── database/               # Database scripts
 ├── docs/                        # Documentation
-├── assets/                      # Static assets (icons, images)
+│   ├── ARCHITECTURE.md         # System architecture
+│   ├── API.md                  # API reference
+│   ├── DATABASE.md             # Schema documentation
+│   ├── FEATURES.md             # Feature guide
+│   └── SECURITY.md             # Security documentation
 ├── CLAUDE.md                    # Development instructions
-├── package.json                 # Dependencies
-└── tsconfig.json               # TypeScript configuration
+└── package.json                 # Dependencies
 ```
 
-## Development Commands
+---
+
+## Development
+
+### Commands
 
 ```bash
 # Development
@@ -113,10 +124,10 @@ npm run lint            # Lint code
 npm run typecheck       # TypeScript checking
 
 # iOS with specific simulator (recommended)
-./scripts/development/run-ios-18-6.sh
+./run-ios-18-6.sh
 
-# Backend Deployment
-./scripts/deployment/deploy-api.sh
+# Backend
+cd server && npm run dev    # Run local server
 ```
 
 ### iOS Simulator Configuration
@@ -125,18 +136,60 @@ npm run typecheck       # TypeScript checking
 
 ```bash
 # Preferred method
-./scripts/development/run-ios-18-6.sh
+./run-ios-18-6.sh
 
 # Alternative - use UDID directly
 npx react-native run-ios --udid="A8661E75-FE3E-483F-8F13-AC87110E8EE2"
 ```
 
+### Available iOS 18.6 Simulators
+
+| Device | UDID |
+|--------|------|
+| iPhone 16 Pro (Primary) | A8661E75-FE3E-483F-8F13-AC87110E8EE2 |
+| iPhone 16 Pro Max | 9F3BA117-5391-4064-9FAF-8A7CA82CE93C |
+| iPhone 16 | 6558E69E-75D4-4088-B42B-DBD7F5FDFAFA |
+
+---
+
+## Security
+
+### Implemented Security Measures
+
+**API Security:**
+- Helmet security headers (HSTS, X-Frame-Options, X-Content-Type-Options)
+- CORS restricted to approved origins
+- Rate limiting (100 req/15min general, 5 req/15min auth)
+- Input validation on all endpoints
+- JWT secret validation at startup
+
+**Authentication:**
+- JWT access tokens (15-minute expiry)
+- JWT refresh tokens (7-day expiry, hashed in database)
+- Session table tracks all active sessions
+- Automatic token refresh
+
+**Mobile Security:**
+- MMKV encryption with device-specific keys
+- No hardcoded fallback tokens
+- Secure logger redacts sensitive data
+
+**Database Security:**
+- Prisma parameterized queries (SQL injection protection)
+- Optimized indexes for performance
+- Pagination limits (max 100 items)
+- Batch operations to prevent N+1 queries
+
+See [docs/SECURITY.md](docs/SECURITY.md) for complete security documentation.
+
+---
+
 ## Common Issues & Solutions
 
 ### No Activities Showing
-1. Check API URL in `src/config/api.ts` matches deployed service
-2. Verify `hideClosedOrFull` filter isn't too restrictive
-3. Check network connectivity and CORS settings
+1. Check API URL in `src/config/api.ts`
+2. Verify `hideClosedOrFull` filter setting
+3. Check network connectivity
 
 ### Build Failures
 ```bash
@@ -146,27 +199,32 @@ cd .. && npx react-native clean
 ```
 
 ### Native Module Issues
-After installing new packages with native modules:
 ```bash
 cd ios && pod install && cd ..
-./scripts/development/run-ios-18-6.sh
+./run-ios-18-6.sh
 ```
 
-## Security Considerations
+---
 
-- API rate limiting implemented (100 req/15min)
-- SQL injection protection via Prisma parameterized queries
-- XSS prevention through React Native's default escaping
-- Environment variables for sensitive configuration
-- HTTPS-only in production
-- Input validation on all API endpoints
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and data flow |
+| [API.md](docs/API.md) | Complete API reference (60+ endpoints) |
+| [DATABASE.md](docs/DATABASE.md) | Database schema (24 tables) |
+| [FEATURES.md](docs/FEATURES.md) | Feature guide and navigation |
+| [SECURITY.md](docs/SECURITY.md) | Security implementation details |
+
+---
 
 ## Contributing
 
-We welcome contributions! Please follow these guidelines:
 1. Run `npm run lint` and `npm run typecheck` before committing
-2. Keep the root directory clean - place files in appropriate subdirectories
+2. Keep the root directory clean - use appropriate subdirectories
 3. Update documentation when adding new features
+
+---
 
 ## License
 
@@ -174,6 +232,6 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Version**: 2.2.0
+**Version**: 3.0.0
 **Last Updated**: December 2024
 **Maintained By**: Mike

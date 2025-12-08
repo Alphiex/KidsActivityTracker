@@ -1,8 +1,10 @@
-# System Architecture
+# Kids Activity Tracker - System Architecture
 
 ## Overview
 
 Kids Activity Tracker is a full-stack application with React Native frontend, Node.js backend, PostgreSQL database, and automated web scraping, deployed on Google Cloud Platform.
+
+---
 
 ## Architecture Diagram
 
@@ -14,18 +16,20 @@ Kids Activity Tracker is a full-stack application with React Native frontend, No
           ┌──────────▼──────────┐
           │   React Native App   │
           │    (iOS/Android)     │
+          │   MMKV Encrypted     │
           └──────────┬──────────┘
                      │ HTTPS
           ┌──────────▼──────────┐
           │   Cloud Run API      │
           │  (Node.js/Express)   │
+          │  Helmet + CORS       │
           └─────┬─────────┬──────┘
                 │         │
     ┌───────────▼───┐ ┌───▼──────────────┐
     │  Cloud SQL    │ │  Cloud Scheduler  │
     │  (PostgreSQL) │ │  (Cron Jobs)      │
-    └───────────────┘ └───┬──────────────┘
-                          │
+    │  24 Tables    │ └───┬──────────────┘
+    └───────────────┘     │
                   ┌───────▼────────┐
                   │ Cloud Run Jobs  │
                   │ (Web Scraper)   │
@@ -33,140 +37,174 @@ Kids Activity Tracker is a full-stack application with React Native frontend, No
                           │
                   ┌───────▼────────┐
                   │  NVRC Website   │
+                  │  (PerfectMind)  │
                   └────────────────┘
 ```
+
+---
 
 ## Component Architecture
 
 ### Frontend - React Native
 
 #### Technology Stack
-- **Framework**: React Native 0.80
+- **Framework**: React Native 0.80+
 - **Language**: TypeScript
 - **State Management**: Redux Toolkit + MMKV persistence
-- **Navigation**: React Navigation
-- **UI Components**: Custom Airbnb-style components
-- **Storage**: MMKV for persistent storage
+- **Navigation**: React Navigation 6.x
+- **UI Components**: Custom Airbnb-style design system
+- **Storage**: MMKV (encrypted, device-specific keys)
+- **Theme**: Light/Dark mode support
 
 #### Key Libraries
-- `react-native-maps`: Map integration
-- `react-native-reanimated`: Animations
-- `@notifee/react-native`: Push notifications
-- `react-native-webview`: Web content display
+| Library | Purpose |
+|---------|---------|
+| `react-native-mmkv` | Encrypted persistent storage |
+| `react-native-reanimated` | Smooth animations |
+| `@react-navigation/*` | Navigation system |
+| `@reduxjs/toolkit` | State management |
+| `react-native-device-info` | Device encryption keys |
+| `react-native-vector-icons` | Icon system |
 
-#### Screen Architecture
+#### Navigation Architecture
 ```
 App.tsx
-├── Navigation
-│   ├── HomeScreen (Activity listing)
-│   ├── SearchScreen (Filters and search)
-│   ├── ActivityDetailScreen
-│   ├── MapScreen (Location view)
-│   └── ProfileScreen (User/children)
-└── Services
-    ├── ApiService (HTTP client)
-    ├── AuthService
-    └── StorageService
+├── RootNavigator
+│   ├── AuthNavigator
+│   │   ├── LoginScreen
+│   │   └── RegisterScreen
+│   ├── OnboardingNavigator
+│   │   ├── WelcomeScreen
+│   │   ├── ActivityTypePreferences
+│   │   ├── AgePreferences
+│   │   ├── LocationPreferences
+│   │   └── SchedulePreferences
+│   └── MainTabs
+│       ├── Explore (HomeStack)
+│       │   ├── Dashboard
+│       │   ├── Search & Filters
+│       │   ├── Calendar
+│       │   ├── ActivityList
+│       │   ├── ActivityDetail
+│       │   ├── CityBrowse
+│       │   └── LocationBrowse
+│       ├── Favourites (FavoritesStack)
+│       ├── Friends & Family (FriendsStack)
+│       │   ├── Children Management
+│       │   ├── Sharing
+│       │   └── Activity History
+│       └── Profile (ProfileStack)
+│           ├── Settings
+│           ├── Preferences
+│           └── Account
+```
+
+#### State Architecture
+```
+store/
+├── slices/
+│   ├── authSlice.ts        # Authentication state
+│   ├── childrenSlice.ts    # Children profiles
+│   ├── activitiesSlice.ts  # Activity data
+│   ├── favoritesSlice.ts   # User favorites
+│   └── preferencesSlice.ts # User preferences
+├── store.ts                 # Redux configuration
+└── hooks.ts                 # Typed hooks
 ```
 
 ### Backend - Node.js API
 
 #### Technology Stack
-- **Runtime**: Node.js 20
-- **Framework**: Express 4.x
-- **Language**: TypeScript
-- **ORM**: Prisma 6.x
-- **Authentication**: JWT tokens
-- **Validation**: Express-validator
+| Component | Technology |
+|-----------|------------|
+| Runtime | Node.js 20 |
+| Framework | Express 4.x |
+| Language | TypeScript |
+| ORM | Prisma 6.x |
+| Auth | JWT (access + refresh tokens) |
+| Validation | express-validator |
+| Security | Helmet, CORS |
+| Documentation | Swagger/OpenAPI |
 
 #### API Structure
 ```
 server/src/
 ├── routes/
-│   ├── activities.ts      # Activity CRUD
-│   ├── auth.ts           # Authentication
-│   ├── children.ts       # Child profiles
-│   └── sharing.ts        # Activity sharing
+│   ├── auth.ts              # Authentication (14 endpoints)
+│   ├── activities.ts        # Activity search
+│   ├── activityTypes.ts     # Type browsing
+│   ├── children.ts          # Child management
+│   ├── childActivities.ts   # Activity tracking
+│   ├── cities.ts            # Location data
+│   ├── locations.ts         # Venue data
+│   ├── invitations.ts       # Sharing invites
+│   └── sharing.ts           # Activity sharing
 ├── services/
-│   ├── activityService.ts
-│   ├── sessionService.ts  # Session management
-│   └── notificationService.ts
+│   ├── authService.ts       # Auth logic
+│   ├── activityService.enhanced.ts
+│   ├── childrenService.ts
+│   ├── childActivityService.ts
+│   └── invitationService.ts
 ├── middleware/
-│   ├── auth.ts           # JWT verification & rate limiting
-│   └── validateBody.ts   # Input validation
+│   ├── auth.ts              # JWT + rate limiting
+│   └── validateBody.ts      # Input validation
 ├── utils/
-│   ├── tokenUtils.ts     # Token hashing
-│   └── filters.ts        # Query filters
-└── server.ts             # Express app
+│   ├── tokenUtils.ts        # Token hashing
+│   ├── activityFilters.ts   # Query building
+│   └── dateUtils.ts         # Date helpers
+├── swagger/
+│   └── config.ts            # API documentation
+└── server.ts                # Express app + Helmet + CORS
 ```
 
-#### API Endpoints
-- `/api/v1/activities` - Activity operations
-- `/api/auth` - Authentication
-- `/api/children` - Child profile management
-- `/api/shared-activities` - Activity sharing
+#### API Endpoint Groups
+- `/api/auth/*` - Authentication (14 endpoints)
+- `/api/v1/activities/*` - Activity operations (3 endpoints)
+- `/api/v1/activity-types/*` - Category browsing (3 endpoints)
+- `/api/v1/cities/*` - City data (3 endpoints)
+- `/api/v1/locations/*` - Venue data (3 endpoints)
+- `/api/children/*` - Child management (12 endpoints)
+- `/api/child-activities/*` - Activity tracking (11 endpoints)
+- `/api/favorites/*` - Favorites (3 endpoints)
+- `/api/invitations/*` - Sharing (4 endpoints)
 
 ### Database - PostgreSQL
 
-#### Schema Design (Prisma)
+#### Schema Overview (24 Tables)
+
+**Core Domain:**
+- Activity, ActivitySession, ActivityPrerequisite
+- ActivityType, ActivitySubtype, Category, ActivityCategory
+- Provider, Location, City
+
+**User Domain:**
+- User, Session, TrustedDevice
+- Child, ChildActivity, Favorite
+
+**Sharing Domain:**
+- ActivityShare, ActivityShareProfile, Invitation
+
+**Operations:**
+- ScrapeJob, ScraperRun, ProviderMetrics
+- ScraperHealthCheck, ActivityHistory
+
+#### Key Indexes for Performance
 ```prisma
-model Activity {
-  id                String    @id @default(uuid())
-  providerId        String
-  externalId        String    # Unique from provider
-  courseId          String?   # Course identifier
-  name              String
-  category          String
-  subcategory       String?
-  dateStart         DateTime?
-  dateEnd           DateTime?
-  cost              Float     @default(0)
-  spotsAvailable    Int?
-  locationId        String?
-  isActive          Boolean   @default(true)
-  
-  // Relations
-  provider          Provider  @relation(...)
-  location          Location? @relation(...)
-  
-  @@unique([providerId, externalId])
-  @@index([isActive, category])
-}
+// ChildActivity - Calendar & History queries
+@@index([status])
+@@index([completedAt])
+@@index([registeredAt])
+@@index([childId, scheduledDate])
 
-model Provider {
-  id           String     @id @default(uuid())
-  name         String     @unique
-  website      String
-  scraperConfig Json
-  activities   Activity[]
-}
+// User - Auth lookups
+@@index([verificationToken])
+@@index([resetToken])
+@@index([isVerified])
 
-model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  passwordHash   String
-  children       Child[]
-  favorites      Favorite[]
-  sessions       Session[]
-  trustedDevices TrustedDevice[]
-}
-
-model Session {
-  id               String   @id @default(cuid())
-  userId           String
-  refreshTokenHash String
-  expiresAt        DateTime
-  lastAccessedAt   DateTime
-}
-
-model Child {
-  id           String     @id @default(uuid())
-  userId       String
-  name         String
-  dateOfBirth  DateTime?
-  interests    String[]
-  activities   ChildActivity[]
-}
+// Activity - Search queries
+@@index([activityTypeId, activitySubtypeId])
+@@index([isActive, category])
+@@index([registrationStatus])
 ```
 
 ### Web Scraper - Puppeteer
@@ -177,190 +215,299 @@ server/scrapers/
 ├── base/
 │   └── BaseScraper.js       # Abstract base class
 ├── nvrcEnhancedParallelScraper.js
-└── scraperJob.js            # Entry point
+├── scraperJob.js            # Entry point
+└── utils/
+    ├── browserPool.js       # Browser management
+    └── dataProcessor.js     # Data normalization
 ```
 
 #### Scraping Flow
-1. **Initialization**: Load provider config
-2. **Pre-processing**: Mark existing activities inactive
-3. **Data Collection**: Navigate and extract data
-4. **Processing**: Normalize and deduplicate
-5. **Storage**: Update database
-6. **Post-processing**: Clean up inactive records
+1. **Initialization**: Load provider config, create browser pool
+2. **Pre-processing**: Mark existing activities with `isUpdated: false`
+3. **Data Collection**: Navigate pages in parallel
+4. **Extraction**: Parse activity details, sessions, prerequisites
+5. **Transformation**: Normalize data, deduplicate by courseId
+6. **Loading**: Upsert to database, update `isUpdated: true`
+7. **Post-processing**: Deactivate stale records, log metrics
 
-#### Key Features
-- Parallel browser instances for speed
-- Activity deduplication by courseId
-- Incremental updates (only changed data)
-- Error recovery and retry logic
+---
 
 ## Cloud Infrastructure
 
 ### Google Cloud Platform Services
 
-#### Cloud Run (Serverless Containers)
-- **API Service**: `kids-activity-api`
-  - Auto-scaling 0-100 instances
-  - 1GB memory, 1 vCPU
-  - HTTPS endpoint with managed SSL
+#### Cloud Run API
+- **Service**: `kids-activity-api`
+- **Specs**: 2GB memory, auto-scaling 0-100 instances
+- **URL**: `https://kids-activity-api-205843686007.us-central1.run.app`
+- **Features**: Managed SSL, HTTPS endpoint
 
-- **Scraper Job**: `kids-activity-scraper-job`
-  - Scheduled execution (daily 6 AM UTC)
-  - 2GB memory for Puppeteer
-  - 30-minute timeout
-
-#### Cloud SQL (Managed PostgreSQL)
+#### Cloud SQL
 - **Instance**: `kids-activity-db-dev`
-- **Specs**: db-f1-micro (1 vCPU, 0.6GB RAM)
+- **Type**: PostgreSQL 15
+- **IP**: 34.42.149.102
 - **Location**: us-central1
 - **Backup**: Daily automated backups
-- **High Availability**: Not enabled (dev tier)
 
 #### Cloud Scheduler
 - **Job**: `kids-activity-scraper-schedule`
-- **Schedule**: `0 6 * * *` (Daily 6 AM UTC)
+- **Schedule**: Daily at 6 AM UTC
 - **Target**: Cloud Run Job trigger
 
-#### Container Registry
+#### Artifact Registry
 - Docker images for API and scraper
 - Automated builds via Cloud Build
 
 ### Deployment Pipeline
 
-#### Cloud Build Configuration
-```yaml
-steps:
-  # Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/api', '.']
-  
-  # Push to registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/api']
-  
-  # Deploy to Cloud Run
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['run', 'deploy', 'kids-activity-api', '--image', 'gcr.io/$PROJECT_ID/api']
+```bash
+# Build and deploy API
+gcloud builds submit --tag us-central1-docker.pkg.dev/$PROJECT/cloud-run-source-deploy/kids-activity-api
+gcloud run deploy kids-activity-api \
+  --image us-central1-docker.pkg.dev/$PROJECT/cloud-run-source-deploy/kids-activity-api \
+  --region us-central1 \
+  --memory 2Gi \
+  --allow-unauthenticated
 ```
 
-## Data Flow
-
-### Activity Data Pipeline
-1. **Source**: NVRC website (PerfectMind platform)
-2. **Extraction**: Puppeteer scrapes HTML
-3. **Transformation**: Normalize to schema
-4. **Loading**: Upsert to PostgreSQL
-5. **API**: Serve to mobile app
-6. **Client**: Display in React Native
-
-### Request Flow
-1. User opens app → React Native
-2. App requests data → API Service
-3. API queries database → PostgreSQL
-4. Results returned → JSON response
-5. App renders UI → React Native components
+---
 
 ## Security Architecture
 
-### Authentication & Authorization
-- JWT tokens for API authentication
-- Token refresh with hashed storage in database
-- Session management with Session/TrustedDevice tables
-- Automatic session cleanup (7-day expiry, max 5 per user)
+### Authentication Flow
+```
+User Login
+    │
+    ▼
+┌─────────────────┐
+│ POST /api/auth  │
+│    /login       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Verify Password │
+│ (bcrypt)        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐       ┌──────────────────┐
+│ Generate Tokens │──────>│ Store Session    │
+│ - Access (15m)  │       │ (hashed refresh) │
+│ - Refresh (7d)  │       └──────────────────┘
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Return to App   │
+│ Store in MMKV   │
+│ (encrypted)     │
+└─────────────────┘
+```
 
-### Data Protection
-- HTTPS for all communications
-- Environment variables for secrets
-- Helmet security headers
-- Input validation and sanitization
+### Security Layers
 
-### Rate Limiting
-- API rate limiting (100 requests/15 minutes)
-- Auth rate limiting (5 requests/15 minutes)
-- Scraper throttling (prevent blocking)
+**API Level:**
+- Helmet security headers (HSTS, X-Frame-Options, etc.)
+- CORS restricted to approved origins
+- Rate limiting (100 req/15min general, 5 req/15min auth)
+- Input validation on all endpoints
+
+**Token Security:**
+- Access tokens: 15-minute expiry
+- Refresh tokens: 7-day expiry, hash stored in DB
+- Session table tracks all active sessions
+- Automatic cleanup of expired sessions
+
+**Mobile Security:**
+- MMKV encryption with device-specific keys
+- No hardcoded fallback tokens
+- Secure logger redacts sensitive data
+
+---
+
+## Data Flow
+
+### Activity Search Flow
+```
+User Search
+    │
+    ▼
+┌──────────────────┐
+│ Mobile App       │
+│ Apply filters    │
+└────────┬─────────┘
+         │ GET /api/v1/activities
+         │ ?activityType=aquatics
+         │ &ageMin=5&ageMax=10
+         ▼
+┌──────────────────┐
+│ API Server       │
+│ Build where      │
+│ clause           │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ PostgreSQL       │
+│ Query with       │
+│ indexes          │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ API Response     │
+│ activities: []   │
+│ pagination: {}   │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Mobile App       │
+│ Render list      │
+└──────────────────┘
+```
+
+### Calendar Data Flow
+```
+Calendar View
+    │
+    ▼
+┌──────────────────┐
+│ GET /calendar    │
+│ ?view=month      │
+│ &childIds=a,b    │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Verify Child     │
+│ Ownership        │
+│ (batch query)    │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Query Child      │
+│ Activities in    │
+│ date range       │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Return Calendar  │
+│ Events with      │
+│ child colors     │
+└──────────────────┘
+```
+
+---
 
 ## Performance Optimization
 
 ### Frontend
-- Lazy loading of screens
-- Image caching
-- MMKV for fast local storage
-- Optimized list rendering
+- **Lazy Loading**: Screens loaded on demand
+- **List Virtualization**: FlatList with windowSize optimization
+- **Image Caching**: Automatic with react-native-fast-image
+- **MMKV Storage**: 30x faster than AsyncStorage
+- **Memoization**: useMemo/useCallback for expensive renders
 
 ### Backend
-- Database indexing on key fields
-- Query optimization with Prisma
-- Connection pooling
-- Response caching (planned)
+- **Database Indexes**: On frequently queried columns
+- **Batch Operations**: Prevent N+1 queries
+- **Pagination**: Max 100 items per page
+- **Connection Pooling**: Prisma default pool size
+- **Query Optimization**: Selective includes
 
 ### Infrastructure
-- Auto-scaling for traffic spikes
-- CDN for static assets (planned)
-- Database query optimization
+- **Auto-scaling**: 0 to 100 instances on Cloud Run
+- **Cold Start Mitigation**: Min instances = 0 (cost optimization)
+- **Memory Allocation**: 2GB for API
+
+---
 
 ## Monitoring & Logging
 
 ### Application Monitoring
 - Cloud Logging for all services
-- Error tracking and alerting
-- Performance metrics
+- Structured JSON logs
+- Error tracking with stack traces
 
 ### Key Metrics
-- API response times
-- Scraper success rate
-- Database query performance
-- Error rates
+| Metric | Target |
+|--------|--------|
+| API Response Time | < 200ms (p95) |
+| Database Query Time | < 50ms (p95) |
+| Error Rate | < 0.1% |
+| Scraper Success | > 99% |
+
+### Health Endpoints
+- `GET /health` - API health check
+- Scraper health tracking in database
+
+---
 
 ## Scalability Considerations
 
 ### Current Capacity
-- Handles 1,000+ active activities
+- 2,900+ active activities
 - Supports concurrent users
-- Daily scraping without issues
-- 22 database tables
+- Daily scraping pipeline
+- 24 database tables
 
-### Future Scaling
-- Horizontal scaling via Cloud Run
-- Database read replicas
-- Caching layer (Redis)
-- CDN for media content
+### Scaling Strategies
+1. **Horizontal**: Cloud Run auto-scaling
+2. **Database**: Read replicas (future)
+3. **Caching**: Redis layer (planned)
+4. **CDN**: Static assets (planned)
 
-## Technology Decisions
-
-### Why React Native?
-- Single codebase for iOS/Android
-- Native performance
-- Large ecosystem
-- Hot reload for development
-
-### Why Node.js?
-- JavaScript everywhere
-- Excellent async handling
-- Large package ecosystem
-- Good for I/O operations
-
-### Why PostgreSQL?
-- Relational data model fits well
-- ACID compliance
-- Excellent performance
-- Prisma ORM support
-
-### Why Google Cloud?
-- Serverless scaling
-- Managed services
-- Cost-effective
-- Good free tier
-
-## Future Architecture Improvements
-
-1. **Microservices**: Split scraper and API
-2. **Message Queue**: For async processing
-3. **Caching Layer**: Redis for performance
-4. **Search Service**: Elasticsearch for better search
-5. **Analytics Pipeline**: User behavior tracking
-6. **Multi-region**: For global availability
+### Future Architecture
+```
+                    ┌─────────────┐
+                    │   CDN       │
+                    │  (images)   │
+                    └──────┬──────┘
+                           │
+┌──────────────────────────┼──────────────────────────┐
+│                  Load Balancer                       │
+└──────────┬───────────────┼───────────────┬──────────┘
+           │               │               │
+     ┌─────▼─────┐   ┌─────▼─────┐   ┌─────▼─────┐
+     │  API Pod  │   │  API Pod  │   │  API Pod  │
+     └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+           │               │               │
+           └───────────────┼───────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │   Redis     │
+                    │  (cache)    │
+                    └──────┬──────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+        ┌─────▼─────┐ ┌────▼────┐ ┌─────▼─────┐
+        │  Primary  │ │ Replica │ │ Replica   │
+        │    DB     │ │   DB    │ │    DB     │
+        └───────────┘ └─────────┘ └───────────┘
+```
 
 ---
 
-**Document Version**: 2.0
+## Technology Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| React Native | Single codebase, native performance, hot reload |
+| TypeScript | Type safety, better IDE support, fewer bugs |
+| Node.js/Express | JavaScript everywhere, async I/O, ecosystem |
+| PostgreSQL | Relational model fits, ACID, Prisma support |
+| Google Cloud | Serverless scaling, managed services, cost-effective |
+| Prisma | Type-safe ORM, migrations, good DX |
+| MMKV | Fast, encrypted, cross-platform storage |
+| JWT | Stateless auth, mobile-friendly |
+
+---
+
+**Document Version**: 3.0
 **Last Updated**: December 2024
+**Next Review**: March 2025

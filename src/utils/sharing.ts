@@ -14,9 +14,12 @@ export const shareActivityViaEmail = async ({
   status = 'planned',
 }: ShareActivityOptions) => {
   try {
+    // Safely get activity name with fallback
+    const activityName = activity?.name || 'Activity';
+
     const subject = child
-      ? `Activity for ${child.name}: ${activity.name}`
-      : `Check out this activity: ${activity.name}`;
+      ? `Activity for ${child.name}: ${activityName}`
+      : `Check out this activity: ${activityName}`;
 
     let body = `Hi,\n\n`;
 
@@ -28,7 +31,7 @@ export const shareActivityViaEmail = async ({
 
     // Activity Name and Organization
     body += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    body += `🎯 ${activity.name.toUpperCase()}\n`;
+    body += `🎯 ${activityName.toUpperCase()}\n`;
     body += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     if (activity.organization) {
@@ -60,18 +63,22 @@ export const shareActivityViaEmail = async ({
     // Dates
     if (activity.dates) {
       body += `Dates: ${activity.dates}\n`;
-    } else if (activity.dateRange) {
-      const startDate = new Date(activity.dateRange.start).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-      const endDate = new Date(activity.dateRange.end).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-      body += `Dates: ${startDate} - ${endDate}\n`;
+    } else if (activity.dateRange?.start && activity.dateRange?.end) {
+      try {
+        const startDate = new Date(activity.dateRange.start).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+        const endDate = new Date(activity.dateRange.end).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+        body += `Dates: ${startDate} - ${endDate}\n`;
+      } catch {
+        // Skip dates if parsing fails
+      }
     }
 
     // Time
@@ -216,33 +223,45 @@ export const shareActivityViaEmail = async ({
     if (canOpen) {
       await Linking.openURL(mailto);
     } else {
-      Alert.alert('Error', 'Unable to open email client');
+      // On iOS simulator or devices without email client, show helpful message
+      Alert.alert(
+        'Email Not Available',
+        'No email client is configured on this device. Please set up an email account in Settings to share via email.',
+        [{ text: 'OK' }]
+      );
     }
   } catch (error) {
     console.error('Error sharing via email:', error);
-    Alert.alert('Error', 'Failed to share activity via email');
+    Alert.alert(
+      'Share Failed',
+      'Unable to share this activity via email. Please try again or check your email settings.',
+      [{ text: 'OK' }]
+    );
   }
 };
 
 export const formatActivityForSharing = (activity: Activity, child?: Child): string => {
-  let text = `${activity.name}\n`;
-  text += `By ${activity.organization}\n`;
-  
-  if (activity.ageRange) {
+  let text = `${activity?.name || 'Activity'}\n`;
+
+  if (activity?.organization) {
+    text += `By ${activity.organization}\n`;
+  }
+
+  if (activity?.ageRange?.min !== undefined && activity?.ageRange?.max !== undefined) {
     text += `Ages ${activity.ageRange.min}-${activity.ageRange.max}\n`;
   }
-  
-  if (activity.cost) {
+
+  if (activity?.cost !== undefined && activity.cost > 0) {
     text += `Cost: $${activity.cost}\n`;
   }
-  
-  if (activity.location?.address) {
+
+  if (activity?.location?.address) {
     text += `Location: ${activity.location.address}\n`;
   }
-  
-  if (child) {
+
+  if (child?.name) {
     text += `\nFor: ${child.name}`;
   }
-  
+
   return text;
 };
