@@ -41,11 +41,11 @@ Kids Activity Tracker is a full-stack application with React Native frontend, No
 ### Frontend - React Native
 
 #### Technology Stack
-- **Framework**: React Native 0.75.2
+- **Framework**: React Native 0.80
 - **Language**: TypeScript
-- **State Management**: React Context + Hooks
+- **State Management**: Redux Toolkit + MMKV persistence
 - **Navigation**: React Navigation
-- **UI Components**: Custom components + React Native Elements
+- **UI Components**: Custom Airbnb-style components
 - **Storage**: MMKV for persistent storage
 
 #### Key Libraries
@@ -81,7 +81,7 @@ App.tsx
 
 #### API Structure
 ```
-backend/src/
+server/src/
 ├── routes/
 │   ├── activities.ts      # Activity CRUD
 │   ├── auth.ts           # Authentication
@@ -89,11 +89,14 @@ backend/src/
 │   └── sharing.ts        # Activity sharing
 ├── services/
 │   ├── activityService.ts
-│   ├── scraperService.ts
+│   ├── sessionService.ts  # Session management
 │   └── notificationService.ts
 ├── middleware/
-│   ├── auth.ts           # JWT verification
-│   └── rateLimiter.ts    # Rate limiting
+│   ├── auth.ts           # JWT verification & rate limiting
+│   └── validateBody.ts   # Input validation
+├── utils/
+│   ├── tokenUtils.ts     # Token hashing
+│   └── filters.ts        # Query filters
 └── server.ts             # Express app
 ```
 
@@ -139,17 +142,28 @@ model Provider {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  children     Child[]
-  favorites    Favorite[]
+  id             String          @id @default(uuid())
+  email          String          @unique
+  passwordHash   String
+  children       Child[]
+  favorites      Favorite[]
+  sessions       Session[]
+  trustedDevices TrustedDevice[]
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  expiresAt        DateTime
+  lastAccessedAt   DateTime
 }
 
 model Child {
   id           String     @id @default(uuid())
   userId       String
   name         String
-  birthDate    DateTime
+  dateOfBirth  DateTime?
   interests    String[]
   activities   ChildActivity[]
 }
@@ -159,7 +173,7 @@ model Child {
 
 #### Architecture
 ```
-scrapers/
+server/scrapers/
 ├── base/
 │   └── BaseScraper.js       # Abstract base class
 ├── nvrcEnhancedParallelScraper.js
@@ -250,17 +264,19 @@ steps:
 
 ### Authentication & Authorization
 - JWT tokens for API authentication
-- Token refresh mechanism
-- Role-based access control (future)
+- Token refresh with hashed storage in database
+- Session management with Session/TrustedDevice tables
+- Automatic session cleanup (7-day expiry, max 5 per user)
 
 ### Data Protection
 - HTTPS for all communications
 - Environment variables for secrets
-- Cloud SQL private IP (planned)
+- Helmet security headers
 - Input validation and sanitization
 
 ### Rate Limiting
-- API rate limiting (100 requests/minute)
+- API rate limiting (100 requests/15 minutes)
+- Auth rate limiting (5 requests/15 minutes)
 - Scraper throttling (prevent blocking)
 
 ## Performance Optimization
@@ -298,9 +314,10 @@ steps:
 ## Scalability Considerations
 
 ### Current Capacity
-- Handles 2,900+ activities
+- Handles 1,000+ active activities
 - Supports concurrent users
 - Daily scraping without issues
+- 22 database tables
 
 ### Future Scaling
 - Horizontal scaling via Cloud Run
@@ -342,3 +359,8 @@ steps:
 4. **Search Service**: Elasticsearch for better search
 5. **Analytics Pipeline**: User behavior tracking
 6. **Multi-region**: For global availability
+
+---
+
+**Document Version**: 2.0
+**Last Updated**: December 2024

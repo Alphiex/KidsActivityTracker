@@ -81,22 +81,22 @@ KidsActivityTracker/
 │   ├── store/                   # Redux state management
 │   ├── types/                   # TypeScript definitions
 │   └── utils/                   # Helper functions
-├── backend/                      # Backend server
+├── server/                       # Backend server (Node.js/Express)
 │   ├── prisma/                  # Database schema & migrations
 │   ├── src/
-│   │   ├── api/                # REST API routes
+│   │   ├── routes/             # REST API routes
 │   │   ├── services/           # Business logic
-│   │   ├── scrapers/           # Web scraping modules
+│   │   ├── middleware/         # Auth, rate limiting, etc.
 │   │   └── utils/              # Utilities & filters
-│   ├── scripts/                # Backend maintenance scripts
-│   └── deploy/                 # Deployment configurations
+│   ├── scrapers/               # Web scraping modules
+│   └── generated/              # Prisma client
 ├── ios/                         # iOS native code & Xcode project
 ├── android/                     # Android native code
 ├── scripts/                     # Development & deployment scripts
 │   ├── development/            # run-ios-18-6.sh, etc.
-│   └── deployment/             # deploy-api.sh, etc.
+│   ├── deployment/             # deploy-api.sh, etc.
+│   └── database/               # Database scripts
 ├── docs/                        # Documentation
-│   └── planning/               # Feature planning documents
 ├── assets/                      # Static assets (icons, images)
 ├── CLAUDE.md                    # Development instructions
 ├── package.json                 # Dependencies
@@ -174,6 +174,6 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Version**: 2.1.0
+**Version**: 2.2.0
 **Last Updated**: December 2024
-**Maintained By**: Mike & Team
+**Maintained By**: Mike

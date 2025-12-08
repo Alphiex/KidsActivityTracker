@@ -6,23 +6,32 @@ Kids Activity Tracker uses PostgreSQL with Prisma ORM for database operations.
 
 - **Production**: Google Cloud SQL (us-central1)
 - **Instance**: `kids-activity-db-dev`
-- **Schema**: Managed via Prisma migrations
+- **IP Address**: 34.42.149.102
+- **Database**: `kidsactivity`
+- **Schema**: Managed via Prisma
 
-## Schema Overview
+## Connection
 
-### Core Models
+```bash
+# Production (Cloud SQL)
+DATABASE_URL="postgresql://postgres:PASSWORD@34.42.149.102:5432/kidsactivity"
 
+# Using psql
+PGPASSWORD='PASSWORD' psql -h 34.42.149.102 -U postgres -d kidsactivity
+```
+
+## Core Models
+
+### Activity
 ```prisma
 model Activity {
   id                String    @id @default(uuid())
   providerId        String
   externalId        String    // Course ID from provider
-  courseId          String?
   name              String
   category          String
   subcategory       String?
   description       String?
-  fullDescription   String?
   dateStart         DateTime?
   dateEnd           DateTime?
   registrationDate  DateTime?
@@ -35,72 +44,182 @@ model Activity {
   registrationUrl   String?
   registrationStatus String?
   instructor        String?
-  isActive          Boolean   @default(true)
+  isUpdated         Boolean   @default(false)
   lastSeenAt        DateTime  @default(now())
+  activityTypeId    String?
+  activitySubtypeId String?
 
   @@unique([providerId, externalId])
-  @@index([isActive, category])
+  @@index([activityTypeId])
+  @@index([locationId])
 }
+```
 
+### User & Authentication
+```prisma
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime   @default(now())
-  children     Child[]
-  favorites    Favorite[]
+  id                String          @id @default(uuid())
+  email             String          @unique
+  passwordHash      String
+  name              String
+  phoneNumber       String?
+  isVerified        Boolean         @default(false)
+  verificationToken String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  preferences       Json            @default("{}")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  children          Child[]
+  favorites         Favorite[]
+  sessions          Session[]
+  trustedDevices    TrustedDevice[]
 }
 
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  lastAccessedAt   DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+}
+
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  fingerprint String
+  name        String   @default("Unknown Device")
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+  @@index([expiresAt])
+}
+```
+
+### Child & Activity Management
+```prisma
 model Child {
-  id           String     @id @default(uuid())
-  userId       String
-  name         String
-  birthDate    DateTime
-  interests    String[]
-  activities   ChildActivity[]
-  user         User       @relation(...)
+  id              String     @id @default(uuid())
+  userId          String
+  name            String
+  dateOfBirth     DateTime?
+  gender          String?
+  avatarUrl       String?
+  interests       String[]
+  notes           String?
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  childActivities ChildActivity[]
 }
 
-model Provider {
-  id           String     @id @default(uuid())
-  name         String     @unique
-  code         String     @unique
-  website      String
-  isActive     Boolean    @default(true)
+model ChildActivity {
+  id               String    @id @default(uuid())
+  childId          String
+  activityId       String
+  status           String    // "interested", "registered", "completed"
+  scheduledDate    DateTime?
+  startTime        String?
+  endTime          String?
+  recurring        Boolean   @default(false)
+  recurrencePattern String?
+  notes            String?
+  rating           Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([childId, activityId])
+  @@index([childId, status])
+  @@index([scheduledDate])
+}
+```
+
+### Activity Types & Categories
+```prisma
+model ActivityType {
+  id           String            @id @default(uuid())
+  code         String            @unique
+  name         String
+  description  String?
+  iconName     String?
+  imageUrl     String?
+  displayOrder Int
+
+  subtypes     ActivitySubtype[]
   activities   Activity[]
+}
+
+model ActivitySubtype {
+  id             String       @id @default(uuid())
+  activityTypeId String
+  code           String
+  name           String
+  description    String?
+  imageUrl       String?
+  displayOrder   Int          @default(999)
+
+  activityType   ActivityType @relation(fields: [activityTypeId], references: [id], onDelete: Cascade)
+  activities     Activity[]
+
+  @@unique([activityTypeId, code])
+}
+```
+
+### Location
+```prisma
+model City {
+  id        String     @id @default(uuid())
+  name      String
+  province  String
+  country   String     @default("Canada")
+  locations Location[]
+
+  @@unique([name, province, country])
 }
 
 model Location {
-  id           String     @id @default(uuid())
-  name         String
-  address      String?
-  city         String?
-  latitude     Float?
-  longitude    Float?
-  activities   Activity[]
+  id          String     @id @default(uuid())
+  name        String
+  address     String?
+  cityId      String
+  postalCode  String?
+  latitude    Float?
+  longitude   Float?
+  facility    String?
+  fullAddress String?
+  mapUrl      String?
+
+  city        City       @relation(fields: [cityId], references: [id])
+  activities  Activity[]
+
+  @@unique([name, address, cityId])
 }
 ```
 
-## Common Operations
-
-### Database Connection
-
-```bash
-# Local
-DATABASE_URL="postgresql://localhost/kidsactivity"
-
-# Production (from Cloud SQL)
-DATABASE_URL="postgresql://postgres:PASSWORD@IP:5432/kidsactivity"
-```
-
-### Prisma Commands
+## Prisma Commands
 
 ```bash
 cd server
 
 # Generate client after schema changes
 npx prisma generate
+
+# Push schema to database (no migration files)
+npx prisma db push
 
 # Create and apply migration
 npx prisma migrate dev --name description
@@ -115,89 +234,77 @@ npx prisma studio
 npx prisma migrate reset
 ```
 
-### Activity Queries
+## Common Queries
 
+### Activity Search
 ```typescript
-// Get active activities by category
 const activities = await prisma.activity.findMany({
   where: {
-    isActive: true,
-    category: 'Aquatics',
+    isUpdated: true,
+    activityTypeId: typeId,
+    ageMin: { lte: childAge },
+    ageMax: { gte: childAge },
   },
   include: {
-    location: true,
-    provider: true,
+    location: { include: { city: true } },
+    activityType: true,
+    activitySubtype: true,
   },
   orderBy: { dateStart: 'asc' },
-  take: 20,
-});
-
-// Count activities by category
-const counts = await prisma.activity.groupBy({
-  by: ['category'],
-  where: { isActive: true },
-  _count: { id: true },
+  take: 50,
 });
 ```
 
-### User Queries
-
+### User Sessions
 ```typescript
-// Get user with children
-const user = await prisma.user.findUnique({
-  where: { email: 'user@example.com' },
-  include: {
-    children: {
-      include: {
-        activities: {
-          include: { activity: true }
-        }
-      }
-    },
-    favorites: {
-      include: { activity: true }
-    }
-  }
+// Get active sessions
+const sessions = await prisma.session.findMany({
+  where: {
+    userId,
+    expiresAt: { gt: new Date() }
+  },
+  orderBy: { lastAccessedAt: 'desc' }
+});
+
+// Clean expired sessions
+await prisma.session.deleteMany({
+  where: { expiresAt: { lt: new Date() } }
 });
 ```
 
-## Scripts
+### Child Activities
+```typescript
+const childActivities = await prisma.childActivity.findMany({
+  where: {
+    childId,
+    status: 'registered',
+    scheduledDate: { gte: new Date() }
+  },
+  include: {
+    activity: {
+      include: { location: true }
+    }
+  },
+  orderBy: { scheduledDate: 'asc' }
+});
+```
+
+## Database Scripts
 
 Located in `scripts/database/`:
 
 ```bash
-# Run migrations
-node scripts/database/run-migration.js
+# Seed Vancouver cities
+node scripts/database/seed-vancouver-cities.js
 
-# Seed database
-node scripts/database/seed-database.js
-
-# Check database health
-node scripts/database/check-database.js
-
-# Seed categories
-node scripts/database/seed-categories.js
-```
-
-## Indexes
-
-Key indexes for performance:
-
-```sql
--- Activity search
-CREATE INDEX idx_activity_active_category ON "Activity"("isActive", "category");
-CREATE INDEX idx_activity_dates ON "Activity"("dateStart", "dateEnd");
-CREATE INDEX idx_activity_location ON "Activity"("locationId", "isActive");
-
--- User lookups
-CREATE INDEX idx_user_email ON "User"("email");
-CREATE INDEX idx_child_user ON "Child"("userId");
+# Seed activity types
+node scripts/database/seed-activity-types.js
 ```
 
 ## Backup & Recovery
 
 ```bash
-# Create backup
+# Create Cloud SQL backup
 gcloud sql backups create --instance=kids-activity-db-dev
 
 # Manual dump
@@ -209,14 +316,48 @@ psql $DATABASE_URL < backup.sql
 
 ## Monitoring
 
-```bash
-# Connection count
+```sql
+-- Connection count
 SELECT count(*) FROM pg_stat_activity;
 
-# Table sizes
+-- Table sizes
 SELECT tablename, pg_size_pretty(pg_total_relation_size(tablename::text))
-FROM pg_tables WHERE schemaname = 'public';
+FROM pg_tables WHERE schemaname = 'public' ORDER BY pg_total_relation_size(tablename::text) DESC;
 
-# Active queries
+-- Active queries
 SELECT pid, query, state FROM pg_stat_activity WHERE state != 'idle';
+
+-- List all tables
+\dt
 ```
+
+## Tables Summary (22 tables)
+
+| Table | Description |
+|-------|-------------|
+| Activity | Activities from recreation providers |
+| ActivityHistory | Change tracking for activities |
+| ActivityPrerequisite | Prerequisites for activities |
+| ActivitySession | Individual session details |
+| ActivityShare | Sharing relationships between users |
+| ActivityShareProfile | Shared child profiles |
+| ActivitySubtype | Activity subcategories (e.g., Swimming Lessons) |
+| ActivityType | Activity categories (e.g., Aquatics) |
+| Child | User's children profiles |
+| ChildActivity | Activities assigned to children |
+| City | Cities/municipalities |
+| Favorite | User favorite activities |
+| Invitation | Sharing invitations |
+| Location | Facilities and venues |
+| Provider | Data sources (NVRC, etc.) |
+| ProviderMetrics | Scraper performance metrics |
+| ScrapeJob | Scraping job records |
+| ScraperHealthCheck | Scraper health monitoring |
+| ScraperRun | Scraper execution logs |
+| Session | User authentication sessions |
+| TrustedDevice | Trusted devices for users |
+| User | User accounts |
+
+---
+
+**Last Updated**: December 2024

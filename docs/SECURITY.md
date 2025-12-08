@@ -1,14 +1,34 @@
-# Kids Activity Tracker - Security Enhancement Plan
+# Kids Activity Tracker - Security Guide
 
-## Executive Summary
+## Overview
 
-This document outlines a comprehensive security enhancement plan for the Kids Activity Tracker application, covering both the React Native mobile app and the Node.js/Express backend API. The analysis identified several critical and high-priority security improvements that should be implemented to protect user data and ensure application integrity.
+This document outlines the security measures implemented in the Kids Activity Tracker application, covering both the React Native mobile app and the Node.js/Express backend API.
+
+## Implementation Status
+
+**Last security audit**: December 2024
+
+### Completed Security Fixes (December 2024)
+- Rate limiting re-enabled on all API endpoints (100 req/15min general, 5 req/15min auth)
+- Setup endpoint protected in production (disabled by default)
+- Security headers restored (Helmet middleware)
+- Session management implemented with database storage (Session/TrustedDevice tables)
+- Mock data fallbacks removed from production code
+- Debug logging removed from production
+- Input validation middleware applied to auth endpoints
+- CORS properly configured for production domains
+
+### Pending Security Improvements
+- Hardcoded MMKV encryption key (see item #1 below)
+- Development mode auth bypass cleanup (see item #2)
+- CSRF protection not yet applied to all routes (see item #7)
+- Certificate pinning not implemented (see item #9)
 
 ---
 
-## 🔴 CRITICAL PRIORITY - Immediate Action Required
+## 🔴 CRITICAL PRIORITY - Requires Attention
 
-### 1. **Hardcoded Encryption Key in Production**
+### 1. **Hardcoded Encryption Key**
 **Location**: `src/utils/secureStorage.ts:7`
 
 **Issue**: The MMKV encryption key is hardcoded as a plain string literal:
@@ -101,40 +121,20 @@ if (process.env.NODE_ENV === 'production' && __DEV__) {
 
 ---
 
-### 3. **Rate Limiting Completely Disabled**
-**Location**: `backend/backend/src/middleware/auth.ts:119-133`
+### 3. **Rate Limiting** ✅ IMPLEMENTED
+**Location**: `server/src/middleware/auth.ts`
 
-**Issue**: All rate limiting middleware replaced with no-op functions:
-```typescript
-const createNoOpLimiter = () => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    next();
-  };
-};
-```
+**Status**: Rate limiting has been re-enabled with the following configuration:
+- General API: 100 requests per 15 minutes
+- Authentication: 5 requests per 15 minutes
+- Password reset: 3 requests per hour
 
-**Risk**:
-- Brute force attacks on authentication endpoints
-- Denial of Service (DoS) attacks
-- API abuse and resource exhaustion
-- Account enumeration attacks
-- Password reset spam
-
-**Solution**: Re-enable rate limiting with proper configuration:
-
+**Current Implementation**:
 ```typescript
 import rateLimit from 'express-rate-limit';
-import RedisStore from 'rate-limit-redis';
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL);
 
 // General API rate limit
 export const apiLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rl:api:',
-  }),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
   message: 'Too many requests from this IP, please try again later.',
@@ -144,37 +144,17 @@ export const apiLimiter = rateLimit({
 
 // Auth endpoints - strict limits
 export const authLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rl:auth:',
-  }),
   windowMs: 15 * 60 * 1000,
   max: 5,
   skipSuccessfulRequests: true,
-  message: 'Too many authentication attempts, please try again later.',
-});
-
-// Password reset - very strict
-export const passwordResetLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rl:reset:',
-  }),
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3,
-  message: 'Too many password reset attempts, please try again later.',
 });
 ```
 
-**Implementation Priority**: 
-1. Enable basic in-memory rate limiting immediately
-2. Implement Redis-backed rate limiting within 1 week
-3. Add IP-based and user-based rate limiting
-4. Implement exponential backoff for repeated failures
+**Future Enhancement**: Consider Redis-backed rate limiting for multi-instance deployments.
 
 ---
 
-## 🟠 HIGH PRIORITY - Implement Within 2 Weeks
+## 🟠 HIGH PRIORITY - Implement When Needed
 
 ### 4. **Sensitive Data Logging**
 **Location**: Multiple files logging tokens and credentials
@@ -226,7 +206,7 @@ SecureLogger.log('Login attempt:', { email, password });
 ---
 
 ### 5. **JWT Secret Keys Using Default Values**
-**Location**: `backend/backend/.env.example:12-13`
+**Location**: `server/.env.example`
 
 **Issue**: Example JWT secrets are weak and may be used in production:
 ```
@@ -402,7 +382,7 @@ export const sanitizeInputs = (data: any): any => {
 ---
 
 ### 7. **CSRF Protection Not Implemented**
-**Location**: `backend/backend/src/middleware/auth.ts:178-199`
+**Location**: `server/src/middleware/auth.ts`
 
 **Issue**: CSRF middleware defined but not applied to routes
 
@@ -629,29 +609,27 @@ const authenticateWithBiometrics = async (): Promise<boolean> => {
 
 ## Implementation Roadmap
 
-### Week 1-2 (Critical)
+### Completed (December 2024)
+- [x] Re-enable rate limiting (in-memory)
+- [x] Add security headers with Helmet
+- [x] Implement session management with database storage
+- [x] Remove mock data from production
+- [x] Protect setup endpoint in production
+- [x] Remove debug logging from production
+
+### Next Priority
 - [ ] Replace hardcoded MMKV encryption key
-- [ ] Remove development auth bypass
-- [ ] Re-enable rate limiting with Redis
-- [ ] Audit and remove sensitive data logging
-
-### Week 3-4 (High Priority)
-- [ ] Implement proper JWT secret management
-- [ ] Add comprehensive input validation
+- [ ] Remove development auth bypass from builds
+- [ ] Implement proper JWT secret management with Cloud Secret Manager
+- [ ] Add comprehensive input validation to all endpoints
 - [ ] Implement CSRF protection
-- [ ] Add security headers with Helmet
 
-### Month 2 (Medium Priority)
-- [ ] Strengthen password requirements
-- [ ] Implement certificate pinning
-- [ ] Add token expiry validation
-- [ ] Implement E2EE for sensitive operations
-
-### Month 3+ (Low Priority)
-- [ ] Add security monitoring
-- [ ] Implement biometric authentication
-- [ ] Add data encryption at rest
-- [ ] Regular security audits
+### Future Enhancements
+- [ ] Redis-backed rate limiting for multi-instance
+- [ ] Certificate pinning for mobile app
+- [ ] Biometric authentication
+- [ ] Security monitoring and alerting
+- [ ] Data encryption at rest
 
 ---
 
@@ -696,6 +674,6 @@ const authenticateWithBiometrics = async (): Promise<boolean> => {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2025-09-26  
-**Next Review**: 2025-10-26
+**Document Version**: 2.0
+**Last Updated**: December 2024
+**Next Review**: March 2025
