@@ -11,9 +11,18 @@ interface SessionData {
   ipAddress?: string;
 }
 
+interface SessionInfo {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: Date;
+  lastAccessedAt: Date;
+}
+
 export class SessionService {
   private readonly SESSION_EXPIRY_DAYS = 7;
   private readonly MAX_SESSIONS_PER_USER = 5;
+  private readonly TRUSTED_DEVICE_EXPIRY_DAYS = 30;
 
   /**
    * Create a new session
@@ -23,33 +32,25 @@ export class SessionService {
 
     // Hash the refresh token for storage
     const hashedToken = tokenUtils.hashToken(refreshToken);
-    const sessionId = tokenUtils.generateSessionId();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + this.SESSION_EXPIRY_DAYS);
 
-    // Store session in database (you'll need to create a Session model)
-    // For now, we'll use a simple in-memory store or Redis
-    // In production, create a Session table in Prisma schema
-
-    // Example session storage structure:
-    const sessionData = {
-      sessionId,
-      userId,
-      refreshTokenHash: hashedToken,
-      userAgent,
-      ipAddress,
-      createdAt: new Date(),
-      expiresAt,
-      lastAccessedAt: new Date()
-    };
-
-    // TODO: Store sessionData in database or Redis
-    // await prisma.session.create({ data: sessionData });
+    // Store session in database
+    const session = await prisma.session.create({
+      data: {
+        userId,
+        refreshTokenHash: hashedToken,
+        userAgent,
+        ipAddress,
+        expiresAt,
+        lastAccessedAt: new Date()
+      }
+    });
 
     // Clean up old sessions for this user
     await this.cleanupUserSessions(userId);
 
-    return sessionId;
+    return session.id;
   }
 
   /**
@@ -58,19 +59,21 @@ export class SessionService {
   async validateRefreshToken(userId: string, refreshToken: string): Promise<boolean> {
     const hashedToken = tokenUtils.hashToken(refreshToken);
 
-    // TODO: Check if session exists in database
-    // const session = await prisma.session.findFirst({
-    //   where: {
-    //     userId,
-    //     refreshTokenHash: hashedToken,
-    //     expiresAt: { gt: new Date() }
-    //   }
-    // });
+    const session = await prisma.session.findFirst({
+      where: {
+        userId,
+        refreshTokenHash: hashedToken,
+        expiresAt: { gt: new Date() }
+      }
+    });
 
-    // return !!session;
+    if (session) {
+      // Update last accessed time
+      await this.updateSessionActivity(session.id);
+      return true;
+    }
 
-    // For now, return true (implement proper validation)
-    return true;
+    return false;
   }
 
   /**
@@ -79,96 +82,92 @@ export class SessionService {
   async revokeRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const hashedToken = tokenUtils.hashToken(refreshToken);
 
-    // TODO: Delete session from database
-    // await prisma.session.deleteMany({
-    //   where: {
-    //     userId,
-    //     refreshTokenHash: hashedToken
-    //   }
-    // });
+    await prisma.session.deleteMany({
+      where: {
+        userId,
+        refreshTokenHash: hashedToken
+      }
+    });
   }
 
   /**
    * Revoke all sessions for a user
    */
   async revokeAllUserSessions(userId: string): Promise<void> {
-    // TODO: Delete all sessions for user
-    // await prisma.session.deleteMany({
-    //   where: { userId }
-    // });
+    await prisma.session.deleteMany({
+      where: { userId }
+    });
   }
 
   /**
    * Get active sessions for a user
    */
-  async getUserSessions(userId: string): Promise<any[]> {
-    // TODO: Fetch user sessions from database
-    // const sessions = await prisma.session.findMany({
-    //   where: {
-    //     userId,
-    //     expiresAt: { gt: new Date() }
-    //   },
-    //   select: {
-    //     sessionId: true,
-    //     userAgent: true,
-    //     ipAddress: true,
-    //     createdAt: true,
-    //     lastAccessedAt: true
-    //   },
-    //   orderBy: { lastAccessedAt: 'desc' }
-    // });
+  async getUserSessions(userId: string): Promise<SessionInfo[]> {
+    const sessions = await prisma.session.findMany({
+      where: {
+        userId,
+        expiresAt: { gt: new Date() }
+      },
+      select: {
+        id: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        lastAccessedAt: true
+      },
+      orderBy: { lastAccessedAt: 'desc' }
+    });
 
-    // return sessions;
-
-    return [];
+    return sessions;
   }
 
   /**
    * Update session last accessed time
    */
   async updateSessionActivity(sessionId: string): Promise<void> {
-    // TODO: Update session in database
-    // await prisma.session.update({
-    //   where: { sessionId },
-    //   data: { lastAccessedAt: new Date() }
-    // });
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { lastAccessedAt: new Date() }
+    }).catch(() => {
+      // Session might have been deleted, ignore error
+    });
   }
 
   /**
    * Clean up expired sessions
    */
   async cleanupExpiredSessions(): Promise<number> {
-    // TODO: Delete expired sessions from database
-    // const result = await prisma.session.deleteMany({
-    //   where: {
-    //     expiresAt: { lt: new Date() }
-    //   }
-    // });
+    const result = await prisma.session.deleteMany({
+      where: {
+        expiresAt: { lt: new Date() }
+      }
+    });
 
-    // return result.count;
-
-    return 0;
+    return result.count;
   }
 
   /**
    * Clean up old sessions for a user (keep only the most recent ones)
    */
   private async cleanupUserSessions(userId: string): Promise<void> {
-    // TODO: Keep only the most recent sessions
-    // const sessions = await prisma.session.findMany({
-    //   where: { userId },
-    //   orderBy: { createdAt: 'desc' },
-    //   skip: this.MAX_SESSIONS_PER_USER
-    // });
+    // Get all sessions for user, ordered by creation date
+    const sessions = await prisma.session.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true }
+    });
 
-    // if (sessions.length > 0) {
-    //   const sessionIds = sessions.map(s => s.sessionId);
-    //   await prisma.session.deleteMany({
-    //     where: {
-    //       sessionId: { in: sessionIds }
-    //     }
-    //   });
-    // }
+    // If more than max allowed, delete the oldest ones
+    if (sessions.length > this.MAX_SESSIONS_PER_USER) {
+      const sessionsToDelete = sessions.slice(this.MAX_SESSIONS_PER_USER);
+      const sessionIds = sessionsToDelete.map(s => s.id);
+
+      await prisma.session.deleteMany({
+        where: {
+          id: { in: sessionIds }
+        }
+      });
+    }
   }
 
   /**
@@ -183,18 +182,15 @@ export class SessionService {
    * Check if device is trusted
    */
   async isDeviceTrusted(userId: string, deviceFingerprint: string): Promise<boolean> {
-    // TODO: Check if device fingerprint exists in trusted devices
-    // const trustedDevice = await prisma.trustedDevice.findFirst({
-    //   where: {
-    //     userId,
-    //     fingerprint: deviceFingerprint,
-    //     expiresAt: { gt: new Date() }
-    //   }
-    // });
+    const trustedDevice = await prisma.trustedDevice.findFirst({
+      where: {
+        userId,
+        fingerprint: deviceFingerprint,
+        expiresAt: { gt: new Date() }
+      }
+    });
 
-    // return !!trustedDevice;
-
-    return false;
+    return !!trustedDevice;
   }
 
   /**
@@ -202,17 +198,75 @@ export class SessionService {
    */
   async addTrustedDevice(userId: string, deviceFingerprint: string, name?: string): Promise<void> {
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // Trust device for 30 days
+    expiresAt.setDate(expiresAt.getDate() + this.TRUSTED_DEVICE_EXPIRY_DAYS);
 
-    // TODO: Add device to trusted devices
-    // await prisma.trustedDevice.create({
-    //   data: {
-    //     userId,
-    //     fingerprint: deviceFingerprint,
-    //     name: name || 'Unknown Device',
-    //     expiresAt
-    //   }
-    // });
+    await prisma.trustedDevice.upsert({
+      where: {
+        userId_fingerprint: {
+          userId,
+          fingerprint: deviceFingerprint
+        }
+      },
+      update: {
+        name: name || 'Unknown Device',
+        expiresAt
+      },
+      create: {
+        userId,
+        fingerprint: deviceFingerprint,
+        name: name || 'Unknown Device',
+        expiresAt
+      }
+    });
+  }
+
+  /**
+   * Remove trusted device
+   */
+  async removeTrustedDevice(userId: string, deviceFingerprint: string): Promise<void> {
+    await prisma.trustedDevice.deleteMany({
+      where: {
+        userId,
+        fingerprint: deviceFingerprint
+      }
+    });
+  }
+
+  /**
+   * Get all trusted devices for a user
+   */
+  async getTrustedDevices(userId: string): Promise<Array<{
+    id: string;
+    name: string;
+    createdAt: Date;
+    expiresAt: Date;
+  }>> {
+    return prisma.trustedDevice.findMany({
+      where: {
+        userId,
+        expiresAt: { gt: new Date() }
+      },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        expiresAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  /**
+   * Clean up expired trusted devices
+   */
+  async cleanupExpiredTrustedDevices(): Promise<number> {
+    const result = await prisma.trustedDevice.deleteMany({
+      where: {
+        expiresAt: { lt: new Date() }
+      }
+    });
+
+    return result.count;
   }
 }
 

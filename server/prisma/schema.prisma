@@ -423,8 +423,40 @@ model User {
   favorites           Favorite[]
   receivedInvitations Invitation[]    @relation("InvitationRecipient")
   sentInvitations     Invitation[]    @relation("InvitationSender")
+  sessions            Session[]
+  trustedDevices      TrustedDevice[]
 
   @@index([email])
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  lastAccessedAt   DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+}
+
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  fingerprint String
+  name        String   @default("Unknown Device")
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Category {
