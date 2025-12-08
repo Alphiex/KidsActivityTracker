@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Slider from '@react-native-community/slider';
 import { useTheme } from '../contexts/ThemeContext';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
@@ -229,7 +230,8 @@ const FiltersScreen = () => {
           : 'Anywhere';
       case 'budget':
         const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
-        return `$${priceRange.min} - $${priceRange.max}`;
+        const budgetIsUnlimited = priceRange.max >= 10000;
+        return budgetIsUnlimited ? 'No Limit' : `Up to $${priceRange.max}`;
       case 'schedule':
         const days = preferences?.daysOfWeek || [];
         return days.length === 7 || days.length === 0 ? 'Any day' : `${days.length} days`;
@@ -338,17 +340,139 @@ const FiltersScreen = () => {
 
   const renderAgeContent = () => {
     const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
-    
+
     return (
       <View style={styles.sectionContent}>
-        <Text style={styles.rangeLabel}>
-          Age Range: {ageRange.min} - {ageRange.max} years
-        </Text>
-        <View style={styles.rangeContainer}>
-          <Text style={styles.rangeValue}>Min: {ageRange.min}</Text>
-          <Text style={styles.rangeValue}>Max: {ageRange.max}</Text>
+        <View style={styles.ageRangeHeader}>
+          <Text style={styles.rangeLabel}>Age Range</Text>
+          <Text style={styles.ageRangeValue}>
+            {ageRange.min} - {ageRange.max} years
+          </Text>
         </View>
-        <Text style={styles.helperText}>Tap to adjust age range</Text>
+
+        {/* Age Range Visual */}
+        <View style={styles.ageRangeVisual}>
+          <View style={styles.ageRangeBar}>
+            <View
+              style={[
+                styles.ageRangeFill,
+                {
+                  left: `${(ageRange.min / 18) * 100}%`,
+                  right: `${((18 - ageRange.max) / 18) * 100}%`,
+                }
+              ]}
+            />
+          </View>
+          <View style={styles.ageRangeLabels}>
+            <Text style={styles.ageRangeLabelText}>0</Text>
+            <Text style={styles.ageRangeLabelText}>18</Text>
+          </View>
+        </View>
+
+        {/* Minimum Age Slider */}
+        <View style={styles.sliderSection}>
+          <View style={styles.sliderLabelRow}>
+            <Text style={styles.sliderLabel}>Minimum Age</Text>
+            <View style={styles.sliderValueBadge}>
+              <Text style={styles.sliderValueText}>{ageRange.min} yrs</Text>
+            </View>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={17}
+            step={1}
+            value={ageRange.min}
+            onValueChange={(value) => {
+              const newMin = Math.round(value);
+              if (newMin < ageRange.max) {
+                updateAgeRange(newMin, ageRange.max);
+              }
+            }}
+            minimumTrackTintColor="#FF385C"
+            maximumTrackTintColor="#E5E7EB"
+            thumbTintColor="#FF385C"
+          />
+        </View>
+
+        {/* Maximum Age Slider */}
+        <View style={styles.sliderSection}>
+          <View style={styles.sliderLabelRow}>
+            <Text style={styles.sliderLabel}>Maximum Age</Text>
+            <View style={styles.sliderValueBadge}>
+              <Text style={styles.sliderValueText}>{ageRange.max} yrs</Text>
+            </View>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={1}
+            maximumValue={18}
+            step={1}
+            value={ageRange.max}
+            onValueChange={(value) => {
+              const newMax = Math.round(value);
+              if (newMax > ageRange.min) {
+                updateAgeRange(ageRange.min, newMax);
+              }
+            }}
+            minimumTrackTintColor="#FF385C"
+            maximumTrackTintColor="#E5E7EB"
+            thumbTintColor="#FF385C"
+          />
+        </View>
+
+        {/* Age Group Quick Select */}
+        <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>Quick Select</Text>
+        <View style={styles.ageGroupQuickSelect}>
+          <TouchableOpacity
+            style={[styles.ageGroupChip, ageRange.min <= 3 && ageRange.max >= 1 && styles.ageGroupChipActive]}
+            onPress={() => updateAgeRange(1, 3)}
+          >
+            <Text style={[styles.ageGroupChipText, ageRange.min <= 3 && ageRange.max >= 1 && ageRange.min === 1 && ageRange.max === 3 && styles.ageGroupChipTextActive]}>
+              Toddler (1-3)
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ageGroupChip, ageRange.min === 3 && ageRange.max === 5 && styles.ageGroupChipActive]}
+            onPress={() => updateAgeRange(3, 5)}
+          >
+            <Text style={[styles.ageGroupChipText, ageRange.min === 3 && ageRange.max === 5 && styles.ageGroupChipTextActive]}>
+              Preschool (3-5)
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ageGroupChip, ageRange.min === 6 && ageRange.max === 10 && styles.ageGroupChipActive]}
+            onPress={() => updateAgeRange(6, 10)}
+          >
+            <Text style={[styles.ageGroupChipText, ageRange.min === 6 && ageRange.max === 10 && styles.ageGroupChipTextActive]}>
+              Elementary (6-10)
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ageGroupChip, ageRange.min === 11 && ageRange.max === 13 && styles.ageGroupChipActive]}
+            onPress={() => updateAgeRange(11, 13)}
+          >
+            <Text style={[styles.ageGroupChipText, ageRange.min === 11 && ageRange.max === 13 && styles.ageGroupChipTextActive]}>
+              Pre-teen (11-13)
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ageGroupChip, ageRange.min === 14 && ageRange.max === 18 && styles.ageGroupChipActive]}
+            onPress={() => updateAgeRange(14, 18)}
+          >
+            <Text style={[styles.ageGroupChipText, ageRange.min === 14 && ageRange.max === 18 && styles.ageGroupChipTextActive]}>
+              Teen (14-18)
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ageGroupChip, ageRange.min === 0 && ageRange.max === 18 && styles.ageGroupChipActive]}
+            onPress={() => updateAgeRange(0, 18)}
+          >
+            <Text style={[styles.ageGroupChipText, ageRange.min === 0 && ageRange.max === 18 && styles.ageGroupChipTextActive]}>
+              All Ages
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -407,17 +531,113 @@ const FiltersScreen = () => {
 
   const renderBudgetContent = () => {
     const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
-    
+    const isUnlimited = priceRange.max >= 10000;
+
+    const updateMaxCost = (max: number | null) => {
+      preferencesService.updatePreferences({
+        priceRange: { min: 0, max: max }
+      });
+      setPreferences(preferencesService.getPreferences());
+    };
+
+    const budgetPresets = [
+      { label: '$25', value: 25 },
+      { label: '$50', value: 50 },
+      { label: '$100', value: 100 },
+      { label: '$200', value: 200 },
+      { label: '$500', value: 500 },
+      { label: 'No Limit', value: 999999 },
+    ];
+
     return (
       <View style={styles.sectionContent}>
-        <Text style={styles.rangeLabel}>
-          Budget: ${priceRange.min} - ${priceRange.max}
-        </Text>
-        <View style={styles.rangeContainer}>
-          <Text style={styles.rangeValue}>Min: ${priceRange.min}</Text>
-          <Text style={styles.rangeValue}>Max: ${priceRange.max}</Text>
+        {/* Header with current value */}
+        <View style={styles.ageRangeHeader}>
+          <Text style={styles.rangeLabel}>Maximum Cost</Text>
+          <Text style={styles.ageRangeValue}>
+            {isUnlimited ? 'No Limit' : `Up to $${priceRange.max}`}
+          </Text>
         </View>
-        <Text style={styles.helperText}>Tap to adjust budget range</Text>
+
+        {/* Cost Range Visual */}
+        {!isUnlimited && (
+          <View style={styles.ageRangeVisual}>
+            <View style={styles.ageRangeBar}>
+              <View
+                style={[
+                  styles.ageRangeFill,
+                  {
+                    left: '0%',
+                    right: `${100 - Math.min((priceRange.max / 500) * 100, 100)}%`,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.ageRangeLabels}>
+              <Text style={styles.ageRangeLabelText}>$0</Text>
+              <Text style={styles.ageRangeLabelText}>$500+</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Max Cost Slider */}
+        {!isUnlimited && (
+          <View style={styles.sliderSection}>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={500}
+              step={25}
+              value={Math.min(priceRange.max || 0, 500)}
+              onValueChange={(value) => {
+                const newMax = Math.round(value);
+                updateMaxCost(newMax);
+              }}
+              minimumTrackTintColor="#FF385C"
+              maximumTrackTintColor="#E5E7EB"
+              thumbTintColor="#FF385C"
+            />
+          </View>
+        )}
+
+        {/* Quick Select Chips */}
+        <View style={styles.quickSelectSection}>
+          <Text style={styles.quickSelectLabel}>Quick Select</Text>
+          <View style={styles.quickSelectChips}>
+            {budgetPresets.map((preset) => {
+              const isPresetUnlimited = preset.value >= 10000;
+              const isActive = isPresetUnlimited
+                ? isUnlimited
+                : !isUnlimited && priceRange.max === preset.value;
+              return (
+                <TouchableOpacity
+                  key={preset.label}
+                  style={[
+                    styles.quickSelectChip,
+                    isActive && styles.quickSelectChipActive,
+                    isPresetUnlimited && styles.quickSelectChipUnlimited,
+                  ]}
+                  onPress={() => updateMaxCost(preset.value)}
+                >
+                  <Text style={[
+                    styles.quickSelectChipText,
+                    isActive && styles.quickSelectChipTextActive,
+                  ]}>
+                    {preset.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {isUnlimited && (
+          <View style={styles.unlimitedBanner}>
+            <Text style={styles.unlimitedText}>
+              No cost limit - showing all activities regardless of price
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -759,7 +979,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#222222',
-    marginBottom: 12,
   },
   rangeContainer: {
     flexDirection: 'row',
@@ -774,6 +993,98 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999999',
     fontStyle: 'italic',
+  },
+  // Age Range Slider Styles
+  ageRangeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ageRangeValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FF385C',
+  },
+  ageRangeVisual: {
+    marginBottom: 24,
+  },
+  ageRangeBar: {
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  ageRangeFill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#FF385C',
+    borderRadius: 4,
+  },
+  ageRangeLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  ageRangeLabelText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  sliderSection: {
+    marginBottom: 16,
+  },
+  sliderLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sliderLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  sliderValueBadge: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  sliderValueText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF385C',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  ageGroupQuickSelect: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  ageGroupChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  ageGroupChipActive: {
+    borderColor: '#FF385C',
+    backgroundColor: '#FEF2F2',
+  },
+  ageGroupChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  ageGroupChipTextActive: {
+    color: '#FF385C',
+    fontWeight: '600',
   },
   cityContainer: {
     marginBottom: 16,
@@ -955,6 +1266,58 @@ const styles = StyleSheet.create({
   globalPreferenceDescription: {
     fontSize: 13,
     color: '#717171',
+  },
+  quickSelectSection: {
+    marginTop: 20,
+  },
+  quickSelectLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  quickSelectChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickSelectChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickSelectChipActive: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FF385C',
+  },
+  quickSelectChipUnlimited: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+  },
+  quickSelectChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  quickSelectChipTextActive: {
+    color: '#FF385C',
+  },
+  unlimitedBanner: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  unlimitedText: {
+    fontSize: 14,
+    color: '#059669',
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 

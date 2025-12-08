@@ -740,6 +740,25 @@ class ActivityService {
     }
   }
 
+  async getCitiesWithCounts(includeEmpty: boolean = true): Promise<Array<{city: string; state: string; count: number}>> {
+    try {
+      const response = await this.api.get('/api/v1/cities', {
+        params: { includeEmpty: includeEmpty ? 'true' : 'false' }
+      });
+      if (response.data.success && response.data.data) {
+        return response.data.data.map((city: any) => ({
+          city: city.city,
+          state: city.province || 'BC',
+          count: city.activityCount || 0
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching cities with counts:', error);
+      return [];
+    }
+  }
+
   async getCityLocations(city: string): Promise<any[]> {
     try {
       const url = `/api/v1/cities/${encodeURIComponent(city)}/locations`;

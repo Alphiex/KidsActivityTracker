@@ -15,6 +15,7 @@ import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors } from '../theme';
 import { Activity } from '../types';
+import sharingService from '../services/sharingService';
 
 interface SharedActivity extends Activity {
   sharedBy?: string;
@@ -52,15 +53,34 @@ const SharedActivitiesScreen = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // TODO: Implement actual shared activities loading from backend
-      // For now, using mock data to demonstrate the UI
-      const mockSharedActivities: SharedActivity[] = [
-        // Add mock shared activities here if needed for testing
-      ];
+
+      // Load shared children with their activities from the sharing service
+      const sharedWithMe = await sharingService.getSharedWithMe();
+
+      // Transform shared children data into activities grouped by sharer
+      const sharedActivities: SharedActivity[] = [];
+
+      for (const sharedChild of sharedWithMe) {
+        // Get activities for this shared child (if available in the response)
+        const childActivities = (sharedChild as any).activities || [];
+
+        for (const activity of childActivities) {
+          sharedActivities.push({
+            ...activity,
+            sharedBy: sharedChild.sharedByName || sharedChild.sharedByEmail || 'Unknown',
+            sharedDate: sharedChild.sharedAt ? new Date(sharedChild.sharedAt) : undefined,
+            sharedNote: `Activities for ${sharedChild.childName}`,
+          });
+        }
+
+        // If no activities but we have a shared child, show it as a placeholder
+        if (childActivities.length === 0 && sharedChild.childName) {
+          // Could add a "no activities yet" placeholder per shared child
+        }
+      }
 
       // Group activities by who shared them
-      const groupedActivities = mockSharedActivities.reduce((acc, activity) => {
+      const groupedActivities = sharedActivities.reduce((acc, activity) => {
         const sharedBy = activity.sharedBy || 'Unknown';
         if (!acc[sharedBy]) {
           acc[sharedBy] = [];

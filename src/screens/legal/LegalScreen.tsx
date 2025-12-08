@@ -19,7 +19,7 @@ const ModernColors = {
   surface: '#F7F7F7',
 };
 
-type LegalScreenType = 'privacy' | 'terms';
+type LegalScreenType = 'privacy' | 'terms' | 'support';
 
 type RouteParams = {
   Legal: {
@@ -207,15 +207,82 @@ For questions about these Terms, please contact us at:
 Email: legal@kidsactivitytracker.com
 `;
 
+const SUPPORT_CONTENT = `
+Help & Support
+
+Thank you for using KidsActivityTracker! We're here to help you find the perfect activities for your children.
+
+FREQUENTLY ASKED QUESTIONS
+
+Q: How do I add a child to my account?
+A: Go to the Children tab and tap the "+" button. Enter your child's name and date of birth to get personalized activity recommendations.
+
+Q: How do I filter activities by age?
+A: Use the Filters feature to set age ranges. You can also go to Settings > Preferences > Age Groups to set your default preferences.
+
+Q: Can I share my children's activities with family members?
+A: Yes! Go to Settings > Sharing & Permissions to invite family members. They'll be able to view activities and schedules you've saved.
+
+Q: How do I save activities to my favorites?
+A: Tap the heart icon on any activity card to add it to your favorites. Access your saved activities from the Favorites tab.
+
+Q: How accurate is the activity information?
+A: We aggregate data from multiple providers and update it regularly. However, we recommend confirming details directly with activity providers before registering.
+
+Q: How do I change my notification settings?
+A: Go to Settings > Notifications to customize alerts for new activities, capacity warnings, and more.
+
+Q: How do I delete my account?
+A: Go to Profile > Delete Account. This will permanently remove all your data including children profiles, favorites, and preferences.
+
+Q: The app isn't showing activities in my area
+A: Make sure your location is set correctly in Settings > Preferences > Locations. We're continuously expanding our coverage.
+
+CONTACT US
+
+For additional help or to report issues:
+
+Email: support@kidsactivitytracker.com
+
+Response Time: We typically respond within 24-48 hours.
+
+REPORT A BUG
+
+Found something not working correctly? Help us improve by emailing:
+bugs@kidsactivitytracker.com
+
+Please include:
+- A description of the issue
+- Steps to reproduce
+- Your device type and iOS version
+- Screenshots if possible
+
+FEATURE REQUESTS
+
+Have ideas for improving KidsActivityTracker? We'd love to hear them!
+Send your suggestions to: feedback@kidsactivitytracker.com
+`;
+
 const LegalScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RouteParams, 'Legal'>>();
 
   const type = route.params?.type || 'privacy';
-  const isPrivacy = type === 'privacy';
 
-  const title = isPrivacy ? 'Privacy Policy' : 'Terms of Service';
-  const content = isPrivacy ? PRIVACY_POLICY_CONTENT : TERMS_OF_SERVICE_CONTENT;
+  const getContent = () => {
+    switch (type) {
+      case 'privacy':
+        return { title: 'Privacy Policy', content: PRIVACY_POLICY_CONTENT };
+      case 'terms':
+        return { title: 'Terms of Service', content: TERMS_OF_SERVICE_CONTENT };
+      case 'support':
+        return { title: 'Help & Support', content: SUPPORT_CONTENT };
+      default:
+        return { title: 'Privacy Policy', content: PRIVACY_POLICY_CONTENT };
+    }
+  };
+
+  const { title, content } = getContent();
 
   return (
     <SafeAreaView style={styles.container}>

@@ -139,6 +139,30 @@ const SharingManagementScreen = () => {
     );
   };
 
+  const handleCancelInvitation = async (invitation: SharingInvitation) => {
+    Alert.alert(
+      'Cancel Invitation',
+      `Are you sure you want to cancel this invitation to ${invitation.toEmail}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // For pending invitations, decline/remove them using the invitation ID
+              await sharingService.declineInvitation(invitation.id);
+              await loadData();
+              Alert.alert('Success', 'Invitation cancelled');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to cancel invitation');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const resetShareModal = () => {
     setShowShareModal(false);
     setSelectedChild(null);
@@ -175,9 +199,9 @@ const SharingManagementScreen = () => {
         {item.status === 'pending' && !isExpired && (
           <TouchableOpacity
             style={[styles.revokeButton, { borderColor: colors.error }]}
-            onPress={() => {/* TODO: Find and revoke the associated SharedChild */}}
+            onPress={() => handleCancelInvitation(item)}
           >
-            <Text style={[styles.revokeButtonText, { color: colors.error }]}>Revoke</Text>
+            <Text style={[styles.revokeButtonText, { color: colors.error }]}>Cancel</Text>
           </TouchableOpacity>
         )}
       </View>

@@ -17,6 +17,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import childrenService, { ChildActivity } from '../services/childrenService';
 import { Child } from '../store/slices/childrenSlice';
 import activityService from '../services/activityService';
+import FavoritesService from '../services/favoritesService';
 import { Activity } from '../types';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
@@ -57,10 +58,39 @@ const ChildDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<ActivityStatus>('all');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const favoritesService = FavoritesService.getInstance();
 
   useEffect(() => {
     loadChildAndActivities();
   }, [childId]);
+
+  // Load favorites when activities change
+  useEffect(() => {
+    const loadFavorites = () => {
+      const favoriteIds = new Set<string>();
+      activities.forEach(activity => {
+        if (favoritesService.isFavorite(activity.id)) {
+          favoriteIds.add(activity.id);
+        }
+      });
+      setFavorites(favoriteIds);
+    };
+    loadFavorites();
+  }, [activities]);
+
+  const handleToggleFavorite = (activity: ActivityWithChild) => {
+    favoritesService.toggleFavorite(activity as Activity);
+    setFavorites(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(activity.id)) {
+        newSet.delete(activity.id);
+      } else {
+        newSet.add(activity.id);
+      }
+      return newSet;
+    });
+  };
 
   const loadChildAndActivities = async () => {
     setLoading(true);
@@ -314,10 +344,17 @@ const ChildDetailScreen: React.FC = () => {
 
           {/* Favorite Button - Top Right */}
           <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={() => {/* TODO: Handle favorite */}}
+            style={[
+              styles.favoriteButton,
+              favorites.has(item.id) && styles.favoriteButtonActive
+            ]}
+            onPress={() => handleToggleFavorite(item)}
           >
-            <Icon name="heart-outline" size={24} color="#FFF" />
+            <Icon
+              name={favorites.has(item.id) ? 'heart' : 'heart-outline'}
+              size={24}
+              color={favorites.has(item.id) ? ModernColors.primary : '#FFF'}
+            />
           </TouchableOpacity>
 
           {/* Delete Button - Bottom Right */}
@@ -597,6 +634,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   deleteButtonOverlay: {
     position: 'absolute',

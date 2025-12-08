@@ -10,7 +10,9 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { OnboardingStackParamList } from '../navigation/OnboardingNavigator';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -47,11 +49,10 @@ const slides: OnboardingSlide[] = [
   },
 ];
 
-interface OnboardingScreenProps {
-  onComplete: () => void;
-}
+type NavigationProp = StackNavigationProp<OnboardingStackParamList, 'OnboardingIntro'>;
 
-const OnboardingScreenModern: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
+const OnboardingScreenModern: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -68,13 +69,9 @@ const OnboardingScreenModern: React.FC<OnboardingScreenProps> = ({ onComplete })
     handleComplete();
   };
 
-  const handleComplete = async () => {
-    try {
-      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-    } catch (error) {
-      console.log('Error saving onboarding status:', error);
-    }
-    onComplete();
+  const handleComplete = () => {
+    // Navigate to activity types selection
+    navigation.navigate('OnboardingActivityTypes');
   };
 
   const handleScroll = Animated.event(

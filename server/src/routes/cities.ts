@@ -21,8 +21,9 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     console.log('🏙️ [Cities] Fetching cities with counts...');
     const globalFilters = extractGlobalFilters(req.query);
-    console.log('🏙️ [Cities] Global filters:', globalFilters);
-    
+    const includeEmpty = req.query.includeEmpty === 'true';
+    console.log('🏙️ [Cities] Global filters:', globalFilters, 'Include empty:', includeEmpty);
+
     // Get cities with location and activity counts using normalized schema
     const cities = await prisma.city.findMany({
       select: {
@@ -35,11 +36,14 @@ router.get('/', async (req: Request, res: Response) => {
             locations: true
           }
         }
+      },
+      orderBy: {
+        name: 'asc'
       }
     });
-    
+
     console.log(`🏙️ [Cities] Found ${cities.length} cities in normalized schema`);
-    
+
     // Get activity counts per city with global filters
     const citiesWithActivityCounts = await Promise.all(
       cities.map(async (city) => {
@@ -50,7 +54,7 @@ router.get('/', async (req: Request, res: Response) => {
             }
           }, globalFilters)
         });
-        
+
         return {
           city: city.name,
           province: city.province,
@@ -59,12 +63,22 @@ router.get('/', async (req: Request, res: Response) => {
         } as CityData;
       })
     );
-    
-    // Filter out cities without names and sort by activity count
-    const validCities = citiesWithActivityCounts
-      .filter(c => c.city && c.activityCount > 0)
-      .sort((a, b) => b.activityCount - a.activityCount);
-    
+
+    // Filter out cities without names, and optionally filter by activity count
+    let validCities = citiesWithActivityCounts.filter(c => c.city);
+
+    if (!includeEmpty) {
+      validCities = validCities.filter(c => c.activityCount > 0);
+    }
+
+    // Sort by activity count (descending), then alphabetically
+    validCities.sort((a, b) => {
+      if (b.activityCount !== a.activityCount) {
+        return b.activityCount - a.activityCount;
+      }
+      return a.city.localeCompare(b.city);
+    });
+
     res.json({
       success: true,
       data: validCities,

@@ -26,7 +26,7 @@ import FilterScreen from '../screens/FilterScreen';
 import SiteAccountsScreen from '../screens/SiteAccountsScreen';
 import ActivityListScreen from '../screens/ActivityListScreen';
 import NewActivitiesScreen from '../screens/NewActivitiesScreen';
-import OnboardingScreenModern from '../screens/OnboardingScreenModern';
+import OnboardingNavigator from './OnboardingNavigator';
 import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import CityBrowseScreen from '../screens/CityBrowseScreen';
@@ -347,7 +347,7 @@ const RootNavigator = () => {
           {!isAuthenticated ? (
             <Stack.Screen name="Auth" component={AuthNavigator} />
           ) : !hasCompletedOnboarding ? (
-            <Stack.Screen name="Onboarding" component={OnboardingScreenModern} />
+            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
           ) : (
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} />

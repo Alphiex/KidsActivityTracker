@@ -10,7 +10,8 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -357,7 +358,7 @@ const ProfileScreenModern = () => {
             icon="help-circle-outline"
             title="Help Center"
             subtitle="Get help and find answers"
-            onPress={() => Alert.alert('Help Center', 'Coming soon!')}
+            onPress={() => Linking.openURL('mailto:support@kidsactivitytracker.com?subject=Help%20Request')}
           />
           <View style={styles.divider} />
           <ProfileItem

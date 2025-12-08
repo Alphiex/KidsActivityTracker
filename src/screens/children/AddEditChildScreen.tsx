@@ -140,12 +140,61 @@ const AddEditChildScreen: React.FC = () => {
     );
   };
 
-  const handlePickImage = () => {
-    // TODO: Implement image picker when dependency is installed
-    Alert.alert(
-      'Image Picker', 
-      'Image picker functionality will be available once react-native-image-picker is installed.'
-    );
+  const handlePickImage = async () => {
+    // Try to dynamically import image picker - this allows the app to work without the dependency
+    try {
+      const ImagePicker = require('react-native-image-picker');
+
+      Alert.alert(
+        'Choose Photo',
+        'Select a source for the profile picture',
+        [
+          {
+            text: 'Camera',
+            onPress: async () => {
+              const result = await ImagePicker.launchCamera({
+                mediaType: 'photo',
+                quality: 0.8,
+                maxWidth: 500,
+                maxHeight: 500,
+              });
+              if (result.assets?.[0]?.uri) {
+                setAvatarUri(result.assets[0].uri);
+              }
+            },
+          },
+          {
+            text: 'Photo Library',
+            onPress: async () => {
+              const result = await ImagePicker.launchImageLibrary({
+                mediaType: 'photo',
+                quality: 0.8,
+                maxWidth: 500,
+                maxHeight: 500,
+              });
+              if (result.assets?.[0]?.uri) {
+                setAvatarUri(result.assets[0].uri);
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (error) {
+      // Image picker not installed - show helpful message
+      Alert.alert(
+        'Feature Not Available',
+        'Photo upload requires additional setup. To enable this feature:\n\n' +
+        '1. Run: npm install react-native-image-picker\n' +
+        '2. Run: cd ios && pod install\n' +
+        '3. Rebuild the app\n\n' +
+        'For now, children will use a default avatar based on their name.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleSave = async () => {

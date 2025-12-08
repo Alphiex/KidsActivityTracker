@@ -273,7 +273,11 @@ const RegisterScreen: React.FC = () => {
               </View>
               <View style={styles.requirementRow}>
                 <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.requirementText}>One lowercase letter & number</Text>
+                <Text style={styles.requirementText}>One lowercase letter</Text>
+              </View>
+              <View style={styles.requirementRow}>
+                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.requirementText}>One number</Text>
               </View>
             </View>
 

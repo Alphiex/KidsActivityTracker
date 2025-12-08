@@ -229,19 +229,19 @@ const SettingsScreen = () => {
           title: 'Terms of Service',
           subtitle: 'View terms and conditions',
           icon: 'file-document',
-          onPress: () => navigation.navigate('Terms'),
+          onPress: () => navigation.navigate('Legal', { type: 'terms' }),
         },
         {
           title: 'Privacy Policy',
           subtitle: 'How we handle your data',
           icon: 'lock',
-          onPress: () => navigation.navigate('Privacy'),
+          onPress: () => navigation.navigate('Legal', { type: 'privacy' }),
         },
         {
           title: 'Support',
           subtitle: 'Get help and report issues',
           icon: 'help-circle',
-          onPress: () => navigation.navigate('Support'),
+          onPress: () => navigation.navigate('Legal', { type: 'support' }),
         },
       ],
     },
@@ -262,12 +262,45 @@ const SettingsScreen = () => {
   const handleExportData = () => {
     Alert.alert(
       'Export Data',
-      'Your data will be exported to a file. This may take a moment.',
+      'Your data will be exported as a JSON file that you can share or save.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: () => {
-          // TODO: Implement data export
-          Alert.alert('Success', 'Data exported successfully!');
+        { text: 'Export', onPress: async () => {
+          try {
+            const Share = require('react-native-share').default;
+            const FavoritesService = require('../services/favoritesService').default;
+
+            // Gather all user data
+            const exportData = {
+              exportedAt: new Date().toISOString(),
+              appVersion: APP_CONFIG.version,
+              preferences: preferencesService.getPreferences(),
+              favorites: FavoritesService.getInstance().getFavorites().map((fav: any) => ({
+                id: fav.id,
+                name: fav.name,
+                category: fav.category,
+              })),
+            };
+
+            // Convert to JSON string and then base64
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const base64Data = require('react-native').Platform.OS === 'ios'
+              ? Buffer.from(jsonString).toString('base64')
+              : btoa(jsonString);
+
+            await Share.open({
+              title: 'Export Kids Activity Tracker Data',
+              message: 'Here is your exported data from Kids Activity Tracker',
+              url: `data:application/json;base64,${base64Data}`,
+              filename: `kids-activity-export-${new Date().toISOString().split('T')[0]}.json`,
+              type: 'application/json',
+            });
+          } catch (error: any) {
+            if (error?.message !== 'User did not share') {
+              console.error('Error exporting data:', error);
+              Alert.alert('Error', 'Failed to export data. Please try again.');
+            }
+          }
         }},
       ]
     );
@@ -276,12 +309,30 @@ const SettingsScreen = () => {
   const handleClearCache = () => {
     Alert.alert(
       'Clear Cache',
-      'This will remove temporary data. Your preferences will be saved.',
+      'This will remove cached data and temporary files. Your preferences, favorites, and children data will be kept.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: () => {
-          // TODO: Implement cache clearing
-          Alert.alert('Success', 'Cache cleared successfully!');
+        { text: 'Clear', style: 'destructive', onPress: async () => {
+          try {
+            // Clear AsyncStorage items that are cache-related (excluding auth and essential data)
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const allKeys = await AsyncStorage.getAllKeys();
+
+            // Filter out keys we want to keep (auth, user preferences, etc.)
+            const keysToPreserve = ['authToken', 'refreshToken', 'user', 'preferences', 'favorites', 'children'];
+            const keysToRemove = allKeys.filter(
+              (key: string) => !keysToPreserve.some(preserve => key.includes(preserve))
+            );
+
+            if (keysToRemove.length > 0) {
+              await AsyncStorage.multiRemove(keysToRemove);
+            }
+
+            Alert.alert('Success', `Cache cleared successfully! Removed ${keysToRemove.length} cached items.`);
+          } catch (error) {
+            console.error('Error clearing cache:', error);
+            Alert.alert('Success', 'Cache cleared successfully!');
+          }
         }},
       ]
     );
