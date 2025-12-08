@@ -1,10 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MMKV } from 'react-native-mmkv';
+import DeviceInfo from 'react-native-device-info';
+import { secureError } from './secureLogger';
 
-// Use MMKV for secure storage (more secure than AsyncStorage)
+/**
+ * Generate a device-specific encryption key
+ * This is more secure than a hardcoded key as it varies per device
+ * Note: For highest security, use react-native-keychain to store a random key
+ */
+const generateEncryptionKey = (): string => {
+  // Combine multiple device identifiers to create a unique key
+  const deviceId = DeviceInfo.getDeviceId(); // e.g., "iPhone14,2"
+  const bundleId = DeviceInfo.getBundleId(); // e.g., "com.kidsactivitytracker"
+  const buildNumber = DeviceInfo.getBuildNumber();
+
+  // Create a composite key (not perfect but better than hardcoded)
+  const compositeKey = `${bundleId}-${deviceId}-${buildNumber}-v1`;
+  return compositeKey;
+};
+
+// Use MMKV for secure storage with device-specific encryption key
 const storage = new MMKV({
   id: 'secure-storage',
-  encryptionKey: 'kids-activity-tracker-secure-key' // In production, generate a proper key
+  encryptionKey: generateEncryptionKey(),
 });
 
 const STORAGE_KEYS = {
@@ -27,15 +45,15 @@ export const setTokens = async (tokens: AuthTokens): Promise<void> => {
   try {
     storage.set(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken);
     storage.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
-    
+
     // Handle missing expiry fields (temporary fix)
     const accessExpiry = tokens.accessTokenExpiry || (Date.now() / 1000 + 15 * 60); // 15 minutes
     const refreshExpiry = tokens.refreshTokenExpiry || (Date.now() / 1000 + 7 * 24 * 60 * 60); // 7 days
-    
+
     storage.set(STORAGE_KEYS.ACCESS_TOKEN_EXPIRY, accessExpiry.toString());
     storage.set(STORAGE_KEYS.REFRESH_TOKEN_EXPIRY, refreshExpiry.toString());
   } catch (error) {
-    console.error('Error storing tokens:', error);
+    secureError('Error storing tokens:', error);
     throw error;
   }
 };
@@ -58,7 +76,7 @@ export const getTokens = async (): Promise<AuthTokens | null> => {
       refreshTokenExpiry: parseInt(refreshTokenExpiry, 10),
     };
   } catch (error) {
-    console.error('Error retrieving tokens:', error);
+    secureError('Error retrieving tokens:', error);
     return null;
   }
 };
@@ -67,7 +85,7 @@ export const getAccessToken = async (): Promise<string | null> => {
   try {
     return storage.getString(STORAGE_KEYS.ACCESS_TOKEN) || null;
   } catch (error) {
-    console.error('Error retrieving access token:', error);
+    secureError('Error retrieving access token:', error);
     return null;
   }
 };
@@ -79,7 +97,7 @@ export const clearTokens = async (): Promise<void> => {
     storage.delete(STORAGE_KEYS.ACCESS_TOKEN_EXPIRY);
     storage.delete(STORAGE_KEYS.REFRESH_TOKEN_EXPIRY);
   } catch (error) {
-    console.error('Error clearing tokens:', error);
+    secureError('Error clearing tokens:', error);
     throw error;
   }
 };
@@ -89,7 +107,7 @@ export const setUserData = async (userData: any): Promise<void> => {
   try {
     storage.set(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
   } catch (error) {
-    console.error('Error storing user data:', error);
+    secureError('Error storing user data:', error);
     throw error;
   }
 };
@@ -99,7 +117,7 @@ export const getUserData = async (): Promise<any | null> => {
     const userDataString = storage.getString(STORAGE_KEYS.USER_DATA);
     return userDataString ? JSON.parse(userDataString) : null;
   } catch (error) {
-    console.error('Error retrieving user data:', error);
+    secureError('Error retrieving user data:', error);
     return null;
   }
 };
@@ -108,7 +126,7 @@ export const clearUserData = async (): Promise<void> => {
   try {
     storage.delete(STORAGE_KEYS.USER_DATA);
   } catch (error) {
-    console.error('Error clearing user data:', error);
+    secureError('Error clearing user data:', error);
     throw error;
   }
 };
@@ -119,7 +137,7 @@ export const clearAllAuthData = async (): Promise<void> => {
     await clearTokens();
     await clearUserData();
   } catch (error) {
-    console.error('Error clearing all auth data:', error);
+    secureError('Error clearing all auth data:', error);
     throw error;
   }
 };

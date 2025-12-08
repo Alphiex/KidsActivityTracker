@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-// import helmet from 'helmet'; // DISABLED: Breaking iOS app
+import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { PrismaClient } from '../generated/prisma';
@@ -36,9 +36,37 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Global middleware
-// Configure CORS for mobile app compatibility
+// Security headers (mobile-compatible configuration)
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for mobile API
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// Configure CORS - allow mobile apps (no origin header) and approved web origins
+const ALLOWED_WEB_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:8081',
+];
+
 app.use(cors({
-  origin: true, // Allow all origins for mobile app compatibility
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // Allow approved web origins
+    if (ALLOWED_WEB_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    // Reject unknown origins in production
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

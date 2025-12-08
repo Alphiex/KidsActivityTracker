@@ -27,6 +27,20 @@ export interface ActivityHistoryFilters {
   endDate?: Date;
   category?: string;
   minRating?: number;
+  // Pagination
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
 }
 
 export interface CalendarEvent {
@@ -162,9 +176,12 @@ export class ChildActivityService {
   }
 
   /**
-   * Get activity history for a child or all children
+   * Get activity history for a child or all children (with pagination)
    */
-  async getActivityHistory(userId: string, filters: ActivityHistoryFilters = {}): Promise<any[]> {
+  async getActivityHistory(
+    userId: string,
+    filters: ActivityHistoryFilters = {}
+  ): Promise<PaginatedResponse<any>> {
     // If specific child, verify ownership
     if (filters.childId) {
       const isOwner = await childrenService.verifyChildOwnership(filters.childId, userId);
@@ -172,6 +189,11 @@ export class ChildActivityService {
         throw new Error('Unauthorized: You do not own this child profile');
       }
     }
+
+    // Pagination defaults with bounds
+    const page = Math.max(1, filters.page || 1);
+    const limit = Math.min(100, Math.max(1, filters.limit || 20)); // Max 100 items per page
+    const skip = (page - 1) * limit;
 
     const whereClause: Prisma.ChildActivityWhereInput = {
       child: {
@@ -211,28 +233,45 @@ export class ChildActivityService {
       ];
     }
 
-    const activities = await prisma.childActivity.findMany({
-      where: whereClause,
-      include: {
-        child: true,
-        activity: {
-          include: {
-            location: true,
-            provider: true
+    // Get total count and data in parallel
+    const [total, activities] = await Promise.all([
+      prisma.childActivity.count({ where: whereClause }),
+      prisma.childActivity.findMany({
+        where: whereClause,
+        include: {
+          child: true,
+          activity: {
+            include: {
+              location: true,
+              provider: true
+            }
           }
-        }
-      },
-      orderBy: [
-        { completedAt: 'desc' },
-        { registeredAt: 'desc' },
-        { createdAt: 'desc' }
-      ]
-    });
+        },
+        orderBy: [
+          { completedAt: 'desc' },
+          { registeredAt: 'desc' },
+          { createdAt: 'desc' }
+        ],
+        skip,
+        take: limit
+      })
+    ]);
 
-    return activities.map(item => ({
-      ...item,
-      childAge: calculateAge(item.child.dateOfBirth)
-    }));
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: activities.map(item => ({
+        ...item,
+        childAge: calculateAge(item.child.dateOfBirth)
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages
+      }
+    };
   }
 
   /**
@@ -338,13 +377,12 @@ export class ChildActivityService {
     date: Date,
     childIds?: string[]
   ): Promise<CalendarEvent[]> {
-    // If specific children, verify ownership
+    // If specific children, verify ownership using batch query
     if (childIds && childIds.length > 0) {
-      for (const childId of childIds) {
-        const isOwner = await childrenService.verifyChildOwnership(childId, userId);
-        if (!isOwner) {
-          throw new Error(`Unauthorized: You do not own child profile ${childId}`);
-        }
+      const ownershipMap = await childrenService.verifyMultipleChildOwnership(childIds, userId);
+      const unauthorizedChildren = childIds.filter(id => !ownershipMap[id]);
+      if (unauthorizedChildren.length > 0) {
+        throw new Error(`Unauthorized: You do not own child profile(s) ${unauthorizedChildren.join(', ')}`);
       }
     }
 
@@ -409,16 +447,19 @@ export class ChildActivityService {
    * Get activity statistics for children
    */
   async getActivityStats(userId: string, childIds?: string[]): Promise<any> {
-    const children = childIds && childIds.length > 0
-      ? childIds
-      : (await childrenService.getChildrenByUserId(userId)).map(c => c.id);
+    let children: string[];
 
-    // Verify ownership of all children
-    for (const childId of children) {
-      const isOwner = await childrenService.verifyChildOwnership(childId, userId);
-      if (!isOwner) {
-        throw new Error(`Unauthorized: You do not own child profile ${childId}`);
+    if (childIds && childIds.length > 0) {
+      // Verify ownership of all provided children using batch query
+      const ownershipMap = await childrenService.verifyMultipleChildOwnership(childIds, userId);
+      const unauthorizedChildren = childIds.filter(id => !ownershipMap[id]);
+      if (unauthorizedChildren.length > 0) {
+        throw new Error(`Unauthorized: You do not own child profile(s) ${unauthorizedChildren.join(', ')}`);
       }
+      children = childIds;
+    } else {
+      // Get all children for this user (no verification needed - they're fetched by userId)
+      children = (await childrenService.getChildrenByUserId(userId)).map(c => c.id);
     }
 
     const stats = await prisma.childActivity.groupBy({

@@ -237,6 +237,10 @@ model ChildActivity {
   @@index([childId, status])
   @@index([scheduledDate])
   @@index([childId, scheduledDate])
+  @@index([status]) // For filtering by status in getActivityHistory
+  @@index([completedAt]) // For ordering in getActivityHistory
+  @@index([registeredAt]) // For ordering in getActivityHistory
+  @@index([rating]) // For filtering by rating
 }
 
 model Favorite {
@@ -268,6 +272,7 @@ model Invitation {
   sender          User      @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([recipientEmail])
+  @@index([recipientUserId]) // For looking up invitations by recipient user
   @@index([senderId])
   @@index([status, expiresAt])
   @@index([token])
@@ -427,6 +432,9 @@ model User {
   trustedDevices      TrustedDevice[]
 
   @@index([email])
+  @@index([verificationToken]) // For email verification lookups
+  @@index([resetToken]) // For password reset lookups
+  @@index([isVerified]) // For filtering verified users
 }
 
 model Session {

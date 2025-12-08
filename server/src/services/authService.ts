@@ -7,6 +7,26 @@ import { tokenUtils } from '../utils/tokenUtils';
 
 const prisma = new PrismaClient();
 
+// Validate JWT secrets - fail fast in production
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+const getAccessSecret = (): string => {
+  if (JWT_ACCESS_SECRET) return JWT_ACCESS_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_ACCESS_SECRET must be configured in production');
+  }
+  return 'dev-access-secret-not-for-production';
+};
+
+const getRefreshSecret = (): string => {
+  if (JWT_REFRESH_SECRET) return JWT_REFRESH_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_REFRESH_SECRET must be configured in production');
+  }
+  return 'dev-refresh-secret-not-for-production';
+};
+
 interface RegisterData {
   email: string;
   password: string;
@@ -148,7 +168,7 @@ export class AuthService {
       // Verify refresh token
       const decoded = jwt.verify(
         refreshToken,
-        process.env.JWT_REFRESH_SECRET || 'refresh-secret'
+        getRefreshSecret()
       ) as TokenPayload;
 
       if (decoded.type !== 'refresh') {
@@ -402,13 +422,13 @@ export class AuthService {
     
     const accessToken = jwt.sign(
       { userId, email, type: 'access' },
-      process.env.JWT_ACCESS_SECRET || 'access-secret',
+      getAccessSecret(),
       { expiresIn: this.ACCESS_TOKEN_EXPIRY }
     );
 
     const refreshToken = jwt.sign(
       { userId, email, type: 'refresh' },
-      process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+      getRefreshSecret(),
       { expiresIn: this.REFRESH_TOKEN_EXPIRY }
     );
 

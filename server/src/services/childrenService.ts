@@ -201,6 +201,57 @@ export class ChildrenService {
   }
 
   /**
+   * Batch verify ownership of multiple children (prevents N+1 queries)
+   * Returns object mapping childId to ownership status
+   */
+  async verifyMultipleChildOwnership(
+    childIds: string[],
+    userId: string
+  ): Promise<Record<string, boolean>> {
+    if (childIds.length === 0) {
+      return {};
+    }
+
+    // Single query to get all owned children
+    const ownedChildren = await prisma.child.findMany({
+      where: {
+        id: { in: childIds },
+        userId
+      },
+      select: { id: true }
+    });
+
+    const ownedSet = new Set(ownedChildren.map(c => c.id));
+
+    // Build result object
+    const result: Record<string, boolean> = {};
+    for (const childId of childIds) {
+      result[childId] = ownedSet.has(childId);
+    }
+
+    return result;
+  }
+
+  /**
+   * Batch verify ownership and return only valid (owned) child IDs
+   */
+  async filterOwnedChildIds(childIds: string[], userId: string): Promise<string[]> {
+    if (childIds.length === 0) {
+      return [];
+    }
+
+    const ownedChildren = await prisma.child.findMany({
+      where: {
+        id: { in: childIds },
+        userId
+      },
+      select: { id: true }
+    });
+
+    return ownedChildren.map(c => c.id);
+  }
+
+  /**
    * Get children by age range
    */
   async getChildrenByAgeRange(userId: string, minAge: number, maxAge: number): Promise<ChildWithAge[]> {

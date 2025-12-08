@@ -4,6 +4,21 @@ import { PrismaClient } from '../../generated/prisma';
 
 const prisma = new PrismaClient();
 
+// Validate JWT secrets are configured at startup
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+if (!JWT_ACCESS_SECRET || !JWT_REFRESH_SECRET) {
+  console.error('CRITICAL: JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be configured');
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
+// Use validated secrets or fallback only in development
+const getAccessSecret = () => JWT_ACCESS_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-access-secret-not-for-production' : '');
+const getRefreshSecret = () => JWT_REFRESH_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-refresh-secret-not-for-production' : '');
+
 // Extend Express Request type to include user
 declare global {
   namespace Express {
@@ -35,7 +50,7 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
     // Verify token
     const decoded = tokenUtils.verifyJWT(
       token,
-      process.env.JWT_ACCESS_SECRET || 'access-secret'
+      getAccessSecret()
     );
 
     // Check token type
@@ -91,7 +106,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     if (token) {
       const decoded = tokenUtils.verifyJWT(
         token,
-        process.env.JWT_ACCESS_SECRET || 'access-secret'
+        getAccessSecret()
       );
 
       if (decoded.type === 'access') {
