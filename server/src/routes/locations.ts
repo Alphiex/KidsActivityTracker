@@ -7,6 +7,84 @@ const prisma = new PrismaClient();
 
 /**
  * @swagger
+ * /api/v1/locations:
+ *   get:
+ *     summary: Get all locations/venues
+ *     description: |
+ *       Returns a list of all locations (venues) with their activity counts.
+ *       Used by FiltersScreen for location-based filtering.
+ *     tags: [Locations]
+ *     responses:
+ *       200:
+ *         description: List of all locations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 locations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       city:
+ *                         type: string
+ *                       _count:
+ *                         type: object
+ *                         properties:
+ *                           activities:
+ *                             type: integer
+ *       500:
+ *         description: Server error
+ */
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    // Get all locations with their city and activity counts
+    const locations = await prisma.location.findMany({
+      include: {
+        city: true,
+        _count: {
+          select: { activities: true }
+        }
+      },
+      orderBy: [
+        { city: { name: 'asc' } },
+        { name: 'asc' }
+      ]
+    });
+
+    // Format response
+    const formattedLocations = locations.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      city: loc.city?.name || 'Unknown',
+      address: loc.address,
+      fullAddress: loc.fullAddress,
+      _count: loc._count
+    }));
+
+    res.json({
+      success: true,
+      locations: formattedLocations
+    });
+  } catch (error: any) {
+    console.error('Error fetching locations:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch locations'
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/v1/locations/cities:
  *   get:
  *     summary: Get all cities with venue and activity counts
