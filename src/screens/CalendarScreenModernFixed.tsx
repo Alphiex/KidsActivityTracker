@@ -976,7 +976,12 @@ END:VEVENT
       if (!child.isVisible) return;
 
       child.activities
-        .filter((activity) => activity.scheduledDate === date)
+        .filter((activity) => {
+          // Use expandActivityDates to check if activity occurs on this date
+          // This handles Date objects, sessions, date ranges, etc.
+          const occurrenceDates = expandActivityDates(activity);
+          return occurrenceDates.includes(date);
+        })
         .forEach((activity) => {
           activities.push({
             ...activity,
@@ -2025,9 +2030,6 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 12,
-  },
-  headerActionButton: {
-    padding: 8,
   },
   dateNavigationContainer: {
     flexDirection: 'row',

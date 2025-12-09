@@ -143,6 +143,9 @@ export interface Filter {
     start: Date;
     end: Date;
   };
+  startDateAfter?: string; // ISO date string for date range start
+  startDateBefore?: string; // ISO date string for date range end
+  dateMatchMode?: 'partial' | 'full'; // 'partial' = overlap, 'full' = completely within range
   locationId?: string; // Single location ID for exact matching
   locations?: string[];
   maxCost?: number;

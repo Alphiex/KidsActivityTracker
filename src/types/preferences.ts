@@ -54,6 +54,14 @@ export interface UserPreferences {
   hideFullActivities: boolean;
   hideClosedOrFull: boolean; // Global filter to hide closed OR full activities
   maxBudgetFriendlyAmount: number;
+
+  // Date range filter preferences
+  dateFilter: 'any' | 'range'; // 'any' = no date filtering, 'range' = use date range
+  dateRange?: {
+    start: string; // ISO date string
+    end?: string;  // Optional end date (ISO string)
+  };
+  dateMatchMode: 'partial' | 'full'; // 'partial' = overlap, 'full' = completely within range
   
   // Onboarding
   hasCompletedOnboarding: boolean;

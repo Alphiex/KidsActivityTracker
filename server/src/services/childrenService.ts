@@ -517,10 +517,26 @@ export class ChildrenService {
       }
     };
 
+    // Build date filter that considers both scheduledDate AND activity's date range
+    // This ensures activities show up even if scheduledDate is not set
     if (startDate || endDate) {
-      where.scheduledDate = {};
-      if (startDate) where.scheduledDate.gte = startDate;
-      if (endDate) where.scheduledDate.lte = endDate;
+      where.OR = [
+        // Include if scheduledDate falls within range
+        {
+          scheduledDate: {
+            ...(startDate && { gte: startDate }),
+            ...(endDate && { lte: endDate })
+          }
+        },
+        // Include if scheduledDate is null but activity's dates overlap with range
+        {
+          scheduledDate: null,
+          activity: {
+            ...(startDate && { dateEnd: { gte: startDate } }),
+            ...(endDate && { dateStart: { lte: endDate } })
+          }
+        }
+      ];
     }
 
     return await prisma.childActivity.findMany({

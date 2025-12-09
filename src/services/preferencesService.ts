@@ -52,6 +52,9 @@ class PreferencesService {
       hideFullActivities: false, // Individual filter (not used when hideClosedOrFull is set)
       hideClosedOrFull: false, // Default to showing all activities (since old activities might be closed)
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
+      dateFilter: 'any', // 'any' = no date filtering, 'range' = use date range
+      dateRange: undefined, // { start: string, end?: string }
+      dateMatchMode: 'partial', // 'partial' = overlap, 'full' = completely within range
       hasCompletedOnboarding: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

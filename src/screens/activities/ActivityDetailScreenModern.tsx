@@ -1010,41 +1010,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: ModernSpacing.lg,
   },
-  locationTextContainer: {
-    flex: 1,
-    marginLeft: ModernSpacing.sm,
-  },
   locationLabel: {
     fontSize: ModernTypography.sizes.sm,
     color: ModernColors.textSecondary,
     marginBottom: 4,
-  },
-  locationName: {
-    fontSize: ModernTypography.sizes.base,
-    fontWeight: '600',
-    color: ModernColors.text,
-    marginBottom: 2,
-  },
-  locationAddress: {
-    fontSize: ModernTypography.sizes.sm,
-    color: ModernColors.textSecondary,
-  },
-  directionsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: ModernColors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: ModernSpacing.sm,
-  },
-  mapContainer: {
-    height: 200,
-    position: 'relative',
-  },
-  map: {
-    width: '100%',
-    height: '100%',
   },
   actionButtonsContainer: {
     marginBottom: ModernSpacing.xl,

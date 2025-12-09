@@ -26,6 +26,9 @@ class ActivityService {
       hideClosedOrFull: preferences.hideClosedOrFull,
       hideClosedActivities: preferences.hideClosedActivities,
       hideFullActivities: preferences.hideFullActivities,
+      dateFilter: preferences.dateFilter,
+      dateRange: preferences.dateRange,
+      dateMatchMode: preferences.dateMatchMode,
       preferencesLoaded: !!preferences
     });
 
@@ -33,6 +36,9 @@ class ActivityService {
       hideClosedOrFull: preferences.hideClosedOrFull,
       hideClosedActivities: preferences.hideClosedActivities,
       hideFullActivities: preferences.hideFullActivities,
+      dateFilter: preferences.dateFilter,
+      dateRange: preferences.dateRange,
+      dateMatchMode: preferences.dateMatchMode,
       preferencesLoaded: !!preferences
     });
 
@@ -49,6 +55,16 @@ class ActivityService {
     }
     if (preferences.hideFullActivities) {
       params.hideFullActivities = true;
+    }
+
+    // Apply date range filter from preferences (only if dateFilter is 'range')
+    if (preferences.dateFilter === 'range' && preferences.dateRange?.start) {
+      params.startDate = preferences.dateRange.start;
+      if (preferences.dateRange.end) {
+        params.endDate = preferences.dateRange.end;
+      }
+      // Always send dateMatchMode when date range is enabled
+      params.dateMatchMode = preferences.dateMatchMode || 'partial';
     }
 
     console.log('🔍 [ActivityService] Global filter params to send:', params);
@@ -276,6 +292,10 @@ class ActivityService {
       }
       if (filters.startDateBefore) {
         params.endDate = filters.startDateBefore; // Backend expects endDate
+      }
+      // Add dateMatchMode if specified - 'partial' = overlap, 'full' = completely within range
+      if (filters.dateMatchMode) {
+        params.dateMatchMode = filters.dateMatchMode;
       }
       
       // Add limit - use filter limit or default to 50

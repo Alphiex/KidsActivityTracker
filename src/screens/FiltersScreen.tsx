@@ -10,10 +10,13 @@ import {
   Switch,
   Alert,
   Animated,
+  Platform,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../contexts/ThemeContext';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
@@ -66,6 +69,12 @@ const FiltersScreen = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
+  // Date picker state
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [tempStartDate, setTempStartDate] = useState<Date>(new Date());
+  const [tempEndDate, setTempEndDate] = useState<Date | null>(null);
+
   const preferencesService = PreferencesService.getInstance();
   const activityService = ActivityService.getInstance();
 
@@ -81,9 +90,20 @@ const FiltersScreen = () => {
       console.log('📖 [FiltersScreen] Loaded preferences:', {
         hideClosedOrFull: userPrefs.hideClosedOrFull,
         hideClosedActivities: userPrefs.hideClosedActivities,
-        hideFullActivities: userPrefs.hideFullActivities
+        hideFullActivities: userPrefs.hideFullActivities,
+        dateFilter: userPrefs.dateFilter,
+        dateRange: userPrefs.dateRange,
+        dateMatchMode: userPrefs.dateMatchMode
       });
       setPreferences(userPrefs);
+
+      // Initialize date state from preferences
+      if (userPrefs.dateRange?.start) {
+        setTempStartDate(new Date(userPrefs.dateRange.start));
+      }
+      if (userPrefs.dateRange?.end) {
+        setTempEndDate(new Date(userPrefs.dateRange.end));
+      }
     } catch (error) {
       console.error('Error loading preferences:', error);
     } finally {
@@ -236,7 +256,22 @@ const FiltersScreen = () => {
         const days = preferences?.daysOfWeek || [];
         return days.length === 7 || days.length === 0 ? 'Any day' : `${days.length} days`;
       case 'dates':
-        return 'Flexible dates';
+        const dateFilter = preferences?.dateFilter || 'any';
+        if (dateFilter === 'any') {
+          return 'Any dates';
+        }
+        const dateRange = preferences?.dateRange;
+        if (dateRange?.start) {
+          const startDate = new Date(dateRange.start);
+          const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          if (dateRange.end) {
+            const endDate = new Date(dateRange.end);
+            const endStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return `${startStr} - ${endStr}`;
+          }
+          return `From ${startStr}`;
+        }
+        return 'Any dates';
       default:
         return '';
     }
@@ -726,36 +761,307 @@ const FiltersScreen = () => {
     );
   };
 
-  const renderDatesContent = () => (
-    <View style={styles.sectionContent}>
-      <Text style={styles.subSectionTitle}>Date Range Options</Text>
-      <Text style={styles.helperText}>
-        Choose how activities should match your preferred date range
-      </Text>
-      
-      <TouchableOpacity style={styles.dateOption}>
-        <View style={styles.dateOptionContent}>
-          <Text style={styles.dateOptionTitle}>Partially Overlap</Text>
-          <Text style={styles.dateOptionDescription}>
-            Show activities that at least partially overlap with your date range
-          </Text>
-        </View>
-        <View style={[styles.radio, styles.radioActive]}>
-          <View style={styles.radioInner} />
-        </View>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.dateOption}>
-        <View style={styles.dateOptionContent}>
-          <Text style={styles.dateOptionTitle}>Fully Between</Text>
-          <Text style={styles.dateOptionDescription}>
-            Show only activities that fall completely within your date range
-          </Text>
-        </View>
-        <View style={styles.radio} />
-      </TouchableOpacity>
-    </View>
-  );
+  const formatDateForDisplay = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const handleDateFilterChange = (filter: 'any' | 'range') => {
+    if (filter === 'any') {
+      updatePreferences({
+        dateFilter: 'any',
+        dateRange: undefined
+      });
+    } else {
+      // When enabling range, set start date to today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setTempStartDate(today);
+      setTempEndDate(null);
+      updatePreferences({
+        dateFilter: 'range',
+        dateRange: { start: today.toISOString() }
+      });
+    }
+  };
+
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false);
+    }
+    if (selectedDate) {
+      selectedDate.setHours(0, 0, 0, 0);
+      setTempStartDate(selectedDate);
+
+      // Update preferences
+      const newDateRange: { start: string; end?: string } = {
+        start: selectedDate.toISOString()
+      };
+      if (tempEndDate && tempEndDate >= selectedDate) {
+        newDateRange.end = tempEndDate.toISOString();
+      } else if (tempEndDate && tempEndDate < selectedDate) {
+        // If end date is before start, clear it
+        setTempEndDate(null);
+      }
+      updatePreferences({ dateRange: newDateRange });
+    }
+  };
+
+  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+    }
+    if (selectedDate) {
+      selectedDate.setHours(23, 59, 59, 999);
+      setTempEndDate(selectedDate);
+
+      // Update preferences
+      updatePreferences({
+        dateRange: {
+          start: tempStartDate.toISOString(),
+          end: selectedDate.toISOString()
+        }
+      });
+    }
+  };
+
+  const clearEndDate = () => {
+    setTempEndDate(null);
+    updatePreferences({
+      dateRange: {
+        start: tempStartDate.toISOString(),
+        end: undefined
+      }
+    });
+  };
+
+  const handleDateMatchModeChange = (mode: 'partial' | 'full') => {
+    updatePreferences({ dateMatchMode: mode });
+  };
+
+  const renderDatesContent = () => {
+    const currentDateFilter = preferences?.dateFilter || 'any';
+    const currentMatchMode = preferences?.dateMatchMode || 'partial';
+    const isRangeMode = currentDateFilter === 'range';
+
+    return (
+      <View style={styles.sectionContent}>
+        {/* Date Filter Type Selection */}
+        <Text style={styles.subSectionTitle}>Date Filter</Text>
+
+        <TouchableOpacity
+          style={[styles.dateOption, currentDateFilter === 'any' && styles.dateOptionSelected]}
+          onPress={() => handleDateFilterChange('any')}
+        >
+          <View style={styles.dateOptionContent}>
+            <Text style={styles.dateOptionTitle}>Any Dates</Text>
+            <Text style={styles.dateOptionDescription}>
+              Show all activities regardless of when they occur
+            </Text>
+          </View>
+          <View style={[styles.radio, currentDateFilter === 'any' && styles.radioActive]}>
+            {currentDateFilter === 'any' && <View style={styles.radioInner} />}
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.dateOption, currentDateFilter === 'range' && styles.dateOptionSelected]}
+          onPress={() => handleDateFilterChange('range')}
+        >
+          <View style={styles.dateOptionContent}>
+            <Text style={styles.dateOptionTitle}>Specific Date Range</Text>
+            <Text style={styles.dateOptionDescription}>
+              Filter activities by start and/or end date
+            </Text>
+          </View>
+          <View style={[styles.radio, currentDateFilter === 'range' && styles.radioActive]}>
+            {currentDateFilter === 'range' && <View style={styles.radioInner} />}
+          </View>
+        </TouchableOpacity>
+
+        {/* Date Range Selection (only shown when range mode is selected) */}
+        {isRangeMode && (
+          <>
+            <View style={styles.dateRangeDivider} />
+            <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>Select Dates</Text>
+
+            {/* Start Date */}
+            <View style={styles.datePickerRow}>
+              <Text style={styles.datePickerLabel}>Start Date</Text>
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowStartDatePicker(true)}
+              >
+                <Icon name="calendar" size={20} color="#FF385C" />
+                <Text style={styles.datePickerButtonText}>
+                  {formatDateForDisplay(tempStartDate)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* End Date (Optional) */}
+            <View style={styles.datePickerRow}>
+              <Text style={styles.datePickerLabel}>End Date (Optional)</Text>
+              {tempEndDate ? (
+                <View style={styles.datePickerWithClear}>
+                  <TouchableOpacity
+                    style={styles.datePickerButton}
+                    onPress={() => setShowEndDatePicker(true)}
+                  >
+                    <Icon name="calendar" size={20} color="#FF385C" />
+                    <Text style={styles.datePickerButtonText}>
+                      {formatDateForDisplay(tempEndDate)}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.clearDateButton}
+                    onPress={clearEndDate}
+                  >
+                    <Icon name="close-circle" size={24} color="#999" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.datePickerButton, styles.datePickerButtonEmpty]}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Icon name="calendar-plus" size={20} color="#999" />
+                  <Text style={[styles.datePickerButtonText, styles.datePickerButtonTextEmpty]}>
+                    Set End Date
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Match Mode */}
+            <View style={styles.dateRangeDivider} />
+            <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>Match Mode</Text>
+            <Text style={styles.helperText}>
+              Choose how activities should match your date range
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.dateOption, currentMatchMode === 'partial' && styles.dateOptionSelected]}
+              onPress={() => handleDateMatchModeChange('partial')}
+            >
+              <View style={styles.dateOptionContent}>
+                <Text style={styles.dateOptionTitle}>Partially Overlap</Text>
+                <Text style={styles.dateOptionDescription}>
+                  Show activities that at least partially overlap with your date range
+                </Text>
+              </View>
+              <View style={[styles.radio, currentMatchMode === 'partial' && styles.radioActive]}>
+                {currentMatchMode === 'partial' && <View style={styles.radioInner} />}
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dateOption, currentMatchMode === 'full' && styles.dateOptionSelected]}
+              onPress={() => handleDateMatchModeChange('full')}
+            >
+              <View style={styles.dateOptionContent}>
+                <Text style={styles.dateOptionTitle}>Fully Between</Text>
+                <Text style={styles.dateOptionDescription}>
+                  Show only activities that fall completely within your date range
+                </Text>
+              </View>
+              <View style={[styles.radio, currentMatchMode === 'full' && styles.radioActive]}>
+                {currentMatchMode === 'full' && <View style={styles.radioInner} />}
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* iOS Date Pickers (shown as modals) */}
+        {Platform.OS === 'ios' && showStartDatePicker && (
+          <Modal
+            transparent
+            animationType="slide"
+            visible={showStartDatePicker}
+            onRequestClose={() => setShowStartDatePicker(false)}
+          >
+            <View style={styles.datePickerModal}>
+              <View style={styles.datePickerModalContent}>
+                <View style={styles.datePickerModalHeader}>
+                  <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                    <Text style={styles.datePickerModalCancel}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerModalTitle}>Start Date</Text>
+                  <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                    <Text style={styles.datePickerModalDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={tempStartDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleStartDateChange}
+                  minimumDate={new Date()}
+                  style={styles.iosDatePicker}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {Platform.OS === 'ios' && showEndDatePicker && (
+          <Modal
+            transparent
+            animationType="slide"
+            visible={showEndDatePicker}
+            onRequestClose={() => setShowEndDatePicker(false)}
+          >
+            <View style={styles.datePickerModal}>
+              <View style={styles.datePickerModalContent}>
+                <View style={styles.datePickerModalHeader}>
+                  <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                    <Text style={styles.datePickerModalCancel}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerModalTitle}>End Date</Text>
+                  <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                    <Text style={styles.datePickerModalDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={tempEndDate || tempStartDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleEndDateChange}
+                  minimumDate={tempStartDate}
+                  style={styles.iosDatePicker}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* Android Date Pickers (shown inline) */}
+        {Platform.OS === 'android' && showStartDatePicker && (
+          <DateTimePicker
+            value={tempStartDate}
+            mode="date"
+            display="default"
+            onChange={handleStartDateChange}
+            minimumDate={new Date()}
+          />
+        )}
+
+        {Platform.OS === 'android' && showEndDatePicker && (
+          <DateTimePicker
+            value={tempEndDate || tempStartDate}
+            mode="date"
+            display="default"
+            onChange={handleEndDateChange}
+            minimumDate={tempStartDate}
+          />
+        )}
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -1318,6 +1624,97 @@ const styles = StyleSheet.create({
     color: '#059669',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  // Date picker styles
+  dateOptionSelected: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  dateRangeDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
+    marginHorizontal: -20,
+  },
+  datePickerRow: {
+    marginBottom: 16,
+  },
+  datePickerLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  datePickerButtonEmpty: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  datePickerButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FF385C',
+  },
+  datePickerButtonTextEmpty: {
+    color: '#9CA3AF',
+  },
+  datePickerWithClear: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  clearDateButton: {
+    padding: 4,
+  },
+  datePickerModal: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  datePickerModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34, // Account for home indicator
+  },
+  datePickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  datePickerModalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  datePickerModalCancel: {
+    fontSize: 17,
+    color: '#717171',
+  },
+  datePickerModalDone: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FF385C',
+  },
+  iosDatePicker: {
+    height: 200,
   },
 });
 

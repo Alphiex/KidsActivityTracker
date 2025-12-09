@@ -14,6 +14,7 @@ interface SearchParams {
   costMax?: number;
   startDate?: Date;
   endDate?: Date;
+  dateMatchMode?: 'partial' | 'full'; // 'partial' = overlap, 'full' = completely within range
   dayOfWeek?: string[];
   location?: string;
   locations?: string[]; // Support multiple locations
@@ -48,6 +49,7 @@ export class EnhancedActivityService {
       costMax,
       startDate,
       endDate,
+      dateMatchMode = 'partial',
       dayOfWeek,
       location,
       locations, // Support multiple locations
@@ -262,16 +264,70 @@ export class EnhancedActivityService {
     }
 
     // Date range filter
-    if (startDate) {
-      where.dateEnd = { gte: startDate };
-    }
-    if (endDate) {
-      where.dateStart = { lte: endDate };
+    // 'partial' (default): Activity overlaps with date range (dateEnd >= startDate AND dateStart <= endDate)
+    // 'full': Activity must be completely within date range (dateStart >= startDate AND dateEnd <= endDate)
+    if (startDate || endDate) {
+      console.log(`📅 [ActivityService] Date filter applied:`, {
+        startDate,
+        endDate,
+        dateMatchMode
+      });
+
+      if (dateMatchMode === 'full') {
+        // Full mode: Activity dates must be completely within the specified range
+        if (startDate) {
+          where.dateStart = { gte: startDate };
+        }
+        if (endDate) {
+          where.dateEnd = { lte: endDate };
+        }
+      } else {
+        // Partial mode (default): Activity just needs to overlap with the date range
+        if (startDate) {
+          where.dateEnd = { gte: startDate };
+        }
+        if (endDate) {
+          where.dateStart = { lte: endDate };
+        }
+      }
     }
 
-    // Day of week filter
+    // Day of week filter - filter through sessions table
+    // The dayOfWeek data is stored in ActivitySession, not Activity
+    // Frontend sends full names (Monday, Tuesday) but DB has abbreviated (Mon, Tue)
     if (dayOfWeek && dayOfWeek.length > 0) {
-      where.dayOfWeek = { hasSome: dayOfWeek };
+      // Map full day names to abbreviated format used in ActivitySession
+      const dayNameMap: Record<string, string> = {
+        'Monday': 'Mon',
+        'Tuesday': 'Tue',
+        'Wednesday': 'Wed',
+        'Thursday': 'Thu',
+        'Friday': 'Fri',
+        'Saturday': 'Sat',
+        'Sunday': 'Sun',
+        // Also handle abbreviated names if passed directly
+        'Mon': 'Mon',
+        'Tue': 'Tue',
+        'Wed': 'Wed',
+        'Thu': 'Thu',
+        'Fri': 'Fri',
+        'Sat': 'Sat',
+        'Sun': 'Sun',
+      };
+
+      const abbreviatedDays = dayOfWeek
+        .map(day => dayNameMap[day] || day)
+        .filter(day => day); // Remove any unmapped values
+
+      if (abbreviatedDays.length > 0) {
+        // Filter activities that have sessions on the specified days
+        where.sessions = {
+          some: {
+            dayOfWeek: { in: abbreviatedDays }
+          }
+        };
+        console.log(`📅 [ActivityService] Day of week filter: ${dayOfWeek.join(', ')} → ${abbreviatedDays.join(', ')}`);
+      }
     }
 
     // Location filter - use normalized location schema  

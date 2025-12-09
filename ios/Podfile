@@ -59,6 +59,23 @@ target 'KidsActivityTracker' do
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
 
+        # Remove duplicate -lc++ from OTHER_LDFLAGS
+        if config.build_settings['OTHER_LDFLAGS']
+          flags = config.build_settings['OTHER_LDFLAGS']
+          if flags.is_a?(Array)
+            # Remove duplicate -lc++ entries, keep only one
+            lc_count = flags.count { |f| f == '-lc++' }
+            if lc_count > 1
+              flags.delete('-lc++')
+              flags << '-lc++'
+            end
+            config.build_settings['OTHER_LDFLAGS'] = flags
+          end
+        end
+
+        # Suppress warnings from Pods
+        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES' if target.name.start_with?('RCT-Folly')
+
         if target.name == 'RCT-Folly'
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_NO_CONFIG=1'

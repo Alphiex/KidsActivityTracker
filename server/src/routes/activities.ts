@@ -36,6 +36,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       endDate,
       end_date,
       start_date_before,
+      // Date match mode - 'partial' = overlap, 'full' = completely within range
+      dateMatchMode,
       // Day of week - support both formats
       dayOfWeek,
       day_of_week,
@@ -93,12 +95,14 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       costMin: costMin ? parseFloat(costMin as string) : cost_min ? parseFloat(cost_min as string) : undefined,
       costMax: costMax ? parseFloat(costMax as string) : cost_max ? parseFloat(cost_max as string) : undefined,
       // Handle various date formats
-      startDate: startDate ? new Date(startDate as string) : 
+      startDate: startDate ? new Date(startDate as string) :
                  start_date ? new Date(start_date as string) :
                  start_date_after ? new Date(start_date_after as string) : undefined,
-      endDate: endDate ? new Date(endDate as string) : 
+      endDate: endDate ? new Date(endDate as string) :
                end_date ? new Date(end_date as string) :
                start_date_before ? new Date(start_date_before as string) : undefined,
+      // Date match mode - 'partial' (default) = overlap, 'full' = completely within range
+      dateMatchMode: ((dateMatchMode as string) || 'partial') as 'partial' | 'full',
       // Handle day of week variations
       dayOfWeek: dayOfWeek ? (Array.isArray(dayOfWeek) ? dayOfWeek : [dayOfWeek]) as string[] :
                  day_of_week ? (Array.isArray(day_of_week) ? day_of_week : [day_of_week]) as string[] :

@@ -48,17 +48,91 @@ Cloud Run Deployment
 
 ## Deployment Procedures
 
-### 1. Deploy Backend API
+### 1. Deploy Backend API (Recommended Method)
+
+**IMPORTANT**: Google Container Registry (gcr.io) is deprecated. Use Artifact Registry instead.
 
 ```bash
-# Navigate to backend
-cd backend
+# Navigate to server directory
+cd server
 
-# Build and deploy
-gcloud builds submit --config deploy/cloudbuild-api.yaml
+# Step 1: Build and push to Artifact Registry
+gcloud builds submit \
+  --tag us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest .
+
+# Step 2: Deploy to Cloud Run (preserves existing secrets)
+gcloud run deploy kids-activity-api \
+  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --timeout 300
 
 # Verify deployment
-curl https://kids-activity-api-205843686007.us-central1.run.app/health
+curl https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1
+
+# Check logs
+gcloud run services logs read kids-activity-api --region us-central1 --limit=30
+```
+
+#### If Container Fails to Start (Missing Secrets)
+
+The server requires JWT secrets. If you see "JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be configured" in logs:
+
+```bash
+# Deploy with secrets from Secret Manager
+gcloud run deploy kids-activity-api \
+  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --timeout 300 \
+  --update-secrets="JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest"
+```
+
+#### Common Deployment Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Container Registry is deprecated` | Using `gcr.io/` URLs | Switch to Artifact Registry URLs |
+| `Cannot update environment variable [X] to string literal` | Env var was set as secret reference | Don't override with `--set-env-vars`, use `--update-secrets` |
+| `JWT_ACCESS_SECRET must be configured` | Missing JWT secrets | Add `--update-secrets` flag |
+| `Container failed to start` | Check logs for specific error | Run `gcloud run services logs read` |
+
+### Quick Deploy Script
+
+Create `deploy-backend.sh` in the server directory:
+
+```bash
+#!/bin/bash
+set -e
+
+echo "Building and pushing to Artifact Registry..."
+gcloud builds submit \
+  --tag us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest .
+
+echo "Deploying to Cloud Run..."
+gcloud run deploy kids-activity-api \
+  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --timeout 300
+
+echo "Verifying deployment..."
+curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1" | head -100
+
+echo "Deployment complete!"
+```
+
+### Legacy Method (DO NOT USE)
+
+```bash
+# DO NOT USE - Container Registry is deprecated
+# gcloud builds submit --config deploy/cloudbuild-api.yaml
 
 # Check logs
 gcloud logging read "resource.type=cloud_run_revision \
@@ -121,12 +195,13 @@ cd android
 ### Required Environment Variables
 
 #### API Service
-```env
-NODE_ENV=production
-DATABASE_URL=postgresql://[user]:[password]@[host]/kidsactivity
-JWT_SECRET=[secret]
-PORT=3000
-```
+| Variable | Type | Description |
+|----------|------|-------------|
+| `NODE_ENV` | env var | Set to `production` |
+| `DATABASE_URL` | **secret** | PostgreSQL connection string |
+| `JWT_ACCESS_SECRET` | **secret** | JWT access token signing key |
+| `JWT_REFRESH_SECRET` | **secret** | JWT refresh token signing key |
+| `PORT` | env var | Default: 3000 (set by Cloud Run) |
 
 #### Scraper Service
 ```env
@@ -135,17 +210,55 @@ DATABASE_URL=postgresql://[user]:[password]@[host]/kidsactivity
 PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ```
 
-### Setting Environment Variables
+### Secrets in Google Secret Manager
+
+The following secrets are stored in Secret Manager (NOT as plain env vars):
+
 ```bash
-# For Cloud Run Service
+# List all secrets
+gcloud secrets list
+
+# Current secrets:
+# - database-url (DATABASE_URL)
+# - jwt-access-secret (JWT_ACCESS_SECRET)
+# - jwt-refresh-secret (JWT_REFRESH_SECRET)
+# - jwt-secret (legacy, may not be used)
+```
+
+### Setting Environment Variables vs Secrets
+
+**IMPORTANT**: Never mix secret references with string literals for the same variable.
+
+```bash
+# For plain environment variables
 gcloud run services update kids-activity-api \
-  --set-env-vars="NODE_ENV=production" \
+  --update-env-vars="NODE_ENV=production" \
   --region=us-central1
 
-# For Cloud Run Job
-gcloud run jobs update kids-activity-scraper-job \
-  --set-env-vars="NODE_ENV=production" \
+# For secrets (PREFERRED for sensitive data)
+gcloud run services update kids-activity-api \
+  --update-secrets="DATABASE_URL=database-url:latest" \
   --region=us-central1
+
+# Check current configuration
+gcloud run services describe kids-activity-api \
+  --region=us-central1 \
+  --format="yaml(spec.template.spec.containers[0].env)"
+```
+
+### Creating New Secrets
+
+```bash
+# Create a new secret
+echo -n "your-secret-value" | gcloud secrets create secret-name --data-file=-
+
+# Update existing secret
+echo -n "new-value" | gcloud secrets versions add secret-name --data-file=-
+
+# Grant Cloud Run access to secret
+gcloud secrets add-iam-policy-binding secret-name \
+  --member="serviceAccount:205843686007-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
 ```
 
 ## Cloud Build Configuration
