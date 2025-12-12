@@ -166,7 +166,7 @@ router.get('/cities', async (req: Request, res: Response) => {
         
         for (const location of city.locations) {
           const baseWhere: any = {
-            isUpdated: true,
+            isActive: true,
             locationId: location.id
           };
 
@@ -305,7 +305,7 @@ router.get('/:cityId/venues', async (req: Request, res: Response) => {
       venues.map(async (venue) => {
         // Build the exact same WHERE clause as in the activities endpoint
         const baseWhere: any = {
-          isUpdated: true,
+          isActive: true,
           locationId: venue.id
         };
 
@@ -550,7 +550,7 @@ router.get('/:venueId/activities', async (req: Request, res: Response) => {
 
     // Build base where clause
     const baseWhere: any = {
-      isUpdated: true,
+      isActive: true,
       locationId: venueId
     };
 

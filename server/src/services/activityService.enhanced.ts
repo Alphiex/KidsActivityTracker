@@ -83,10 +83,15 @@ export class EnhancedActivityService {
     const isActivityTypeSearch = !!(activityType || activitySubtype || categories);
 
     // Build where clause
-    const where: Prisma.ActivityWhereInput = {
-      // Use isUpdated instead of deprecated isActive field unless explicitly requested
-      isUpdated: includeInactive ? undefined : true
-    };
+    const where: Prisma.ActivityWhereInput = {};
+
+    // Activity status filter:
+    // - For normal app traffic, only return active activities.
+    // - For admin/debug use, allow including inactive records.
+    //
+    // NOTE: `isUpdated` is used by some scripts/migrations, but many scrapers only set `isActive`.
+    // Filtering on `isUpdated: true` will hide legitimately active/new activities.
+    where.isActive = includeInactive ? { in: [true, false] } : true;
 
     // Text search
     if (search) {
@@ -456,7 +461,7 @@ export class EnhancedActivityService {
     });
 
     // Return null if activity is inactive and we're not including inactive
-    if (!activity || (!includeInactive && !activity.isUpdated)) {
+    if (!activity || (!includeInactive && !activity.isActive)) {
       return null;
     }
 
@@ -501,7 +506,7 @@ export class EnhancedActivityService {
   async getActivitiesByCategory() {
     const categories = await this.prisma.activity.groupBy({
       by: ['category'],
-      where: { isUpdated: true },
+      where: { isActive: true },
       _count: { _all: true },
       orderBy: { _count: { category: 'desc' } }
     });
@@ -522,10 +527,10 @@ export class EnhancedActivityService {
   async getProviderStats(providerId: string) {
     const [activeCount, inactiveCount, lastRun] = await Promise.all([
       this.prisma.activity.count({
-        where: { providerId, isUpdated: true }
+        where: { providerId, isActive: true }
       }),
       this.prisma.activity.count({
-        where: { providerId, isUpdated: false }
+        where: { providerId, isActive: false }
       }),
       this.prisma.scraperRun.findFirst({
         where: { providerId },

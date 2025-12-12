@@ -97,7 +97,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (includeActivityCounts === 'true') {
       // Build activity filter for global filters
       const baseActivityWhere = {
-        isUpdated: true
+        isActive: true
       };
 
       const globalFilters = {
@@ -328,7 +328,7 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
 
     // Build base where clause
     const baseWhere: any = {
-      isUpdated: true,
+      isActive: true,
       categories: {
         some: {
           categoryId: id
