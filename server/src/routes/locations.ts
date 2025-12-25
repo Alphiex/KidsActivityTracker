@@ -47,24 +47,25 @@ const prisma = new PrismaClient();
 router.get('/', async (req: Request, res: Response) => {
   try {
     // Get all locations with their city and activity counts
+    // Note: Location.city is a string field, cityRecord is the relation to City model
     const locations = await prisma.location.findMany({
       include: {
-        city: true,
+        cityRecord: true,
         _count: {
           select: { activities: true }
         }
       },
       orderBy: [
-        { city: { name: 'asc' } },
+        { city: 'asc' },  // city is a string field, not a relation
         { name: 'asc' }
       ]
     });
 
-    // Format response
+    // Format response - use cityRecord relation if available, otherwise fall back to city string field
     const formattedLocations = locations.map(loc => ({
       id: loc.id,
       name: loc.name,
-      city: loc.city?.name || 'Unknown',
+      city: loc.cityRecord?.name || loc.city || 'Unknown',
       address: loc.address,
       fullAddress: loc.fullAddress,
       _count: loc._count
@@ -534,10 +535,11 @@ router.get('/:venueId/activities', async (req: Request, res: Response) => {
     });
 
     // Verify venue exists
+    // Note: Location.city is a string field, cityRecord is the relation to City model
     const venue = await prisma.location.findUnique({
       where: { id: venueId },
       include: {
-        city: true
+        cityRecord: true
       }
     });
 
@@ -667,7 +669,7 @@ router.get('/:venueId/activities', async (req: Request, res: Response) => {
           provider: true,
           location: {
             include: {
-              city: true
+              cityRecord: true  // Note: city is a string field, cityRecord is the relation
             }
           },
           activityType: true,

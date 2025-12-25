@@ -91,7 +91,10 @@ export class EnhancedActivityService {
     //
     // NOTE: `isUpdated` is used by some scripts/migrations, but many scrapers only set `isActive`.
     // Filtering on `isUpdated: true` will hide legitimately active/new activities.
-    where.isActive = includeInactive ? { in: [true, false] } : true;
+    if (!includeInactive) {
+      where.isActive = true;
+    }
+    // When includeInactive is true, we don't filter by isActive at all
 
     // Text search
     if (search) {
@@ -355,21 +358,19 @@ export class EnhancedActivityService {
         where.locationId = { in: locations };
       } else {
         // Filter by location names OR city names (since users might pass either)
-        where.location = {
-          OR: [
-            { name: { in: locations } }, // Direct location name match
-            { city: { name: { in: locations } } } // City name match
-          ]
-        };
+        // Note: Location.city is a string field, not a relation
+        where.OR = [
+          { location: { name: { in: locations } } }, // Direct location name match
+          { location: { city: { in: locations, mode: 'insensitive' } } } // City name match (city is a string field)
+        ];
       }
     } else if (isLocationBasedSearch && location) {
       // Single location by name (backward compatibility) - check both location and city names
-      where.location = {
-        OR: [
-          { name: { contains: location, mode: 'insensitive' } },
-          { city: { name: { contains: location, mode: 'insensitive' } } }
-        ]
-      };
+      // Note: Location.city is a string field, not a relation
+      where.OR = [
+        { location: { name: { contains: location, mode: 'insensitive' } } },
+        { location: { city: { contains: location, mode: 'insensitive' } } }
+      ];
     }
 
     // Provider filter
@@ -403,7 +404,7 @@ export class EnhancedActivityService {
           provider: true,
           location: {
             include: {
-              city: true // Include city data for complete location info
+              cityRecord: true // Include city data for complete location info
             }
           },
           activityType: true,

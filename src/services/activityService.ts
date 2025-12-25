@@ -724,7 +724,7 @@ class ActivityService {
     }
   }
 
-  async getActivityTypesWithCounts(includeFilters: boolean = true): Promise<Array<{ code: string; name: string; activityCount: number }>> {
+  async getActivityTypesWithCounts(includeFilters: boolean = true): Promise<Array<{ code: string; name: string; iconName?: string; activityCount: number }>> {
     try {
       // Always apply global filters unless explicitly disabled
       const params = includeFilters !== false ? this.getGlobalFilterParams() : {};
@@ -978,6 +978,30 @@ class ActivityService {
         'Multi-Sport',
         'Life Skills & Leadership',
         'Early Development'
+      ];
+    }
+  }
+
+  /**
+   * Get age groups for filtering
+   */
+  async getAgeGroups(): Promise<Array<{ code: string; label: string; minAge: number; maxAge: number }>> {
+    try {
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.AGE_GROUPS);
+
+      if (response.data && response.data.success) {
+        return response.data.data || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching age groups:', error);
+      // Return default age groups if API fails
+      return [
+        { code: 'baby', label: 'Baby (0-2)', minAge: 0, maxAge: 2 },
+        { code: 'toddler', label: 'Toddler (2-4)', minAge: 2, maxAge: 4 },
+        { code: 'preschool', label: 'Preschool (4-6)', minAge: 4, maxAge: 6 },
+        { code: 'school-age', label: 'School Age (6-12)', minAge: 6, maxAge: 12 },
+        { code: 'teen', label: 'Teen (12-18)', minAge: 12, maxAge: 18 },
       ];
     }
   }

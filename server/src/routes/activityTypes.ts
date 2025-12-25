@@ -51,6 +51,7 @@ router.get('/', async (req: Request, res: Response) => {
           id: type.id,
           code: type.code,
           name: type.name,
+          iconName: type.iconName || 'tag',
           displayOrder: type.displayOrder,
           activityCount: activeCount,
           subtypes: subtypesWithCounts

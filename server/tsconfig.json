@@ -17,6 +17,7 @@
     "noUnusedParameters": false,
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
+    "noEmitOnError": false,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

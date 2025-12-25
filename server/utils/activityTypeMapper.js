@@ -39,9 +39,21 @@ async function mapActivityType(activity) {
   const searchText = `${activity.name} ${activity.subcategory || ''} ${activity.category || ''}`.toLowerCase();
   
   // Mapping rules based on activity patterns
+  // IMPORTANT: Order matters - more specific patterns should come first
   const mappingRules = [
+    // Early Development - Check FIRST before other categories to catch toddler/parent programs
+    { pattern: /toddler|tiny tot|parent.*tot|tot.*parent|learn.*play|play.*learn|early years|parent participation|preschool|baby.*me|me.*baby|kindergym|wiggle|reading|writing|bookworm|story.*time|storytime|literacy/i, typeId: typeCache['early-development'],
+      subtypeRules: [
+        { pattern: /play/i, subtypeCode: 'play-based-learning' },
+        { pattern: /parent|tot|me/i, subtypeCode: 'parent-child' },
+        { pattern: /social/i, subtypeCode: 'social-skills' },
+        { pattern: /motor|movement/i, subtypeCode: 'motor-skills' },
+        { pattern: /reading|writing|bookworm|story|literacy/i, subtypeCode: 'play-based-learning' }
+      ]
+    },
+
     // Swimming & Aquatics
-    { pattern: /swim|aquatic|water safety|lifeguard/i, typeId: typeCache['swimming-aquatics'], 
+    { pattern: /swim|aquatic|water safety|lifeguard/i, typeId: typeCache['swimming-aquatics'],
       subtypeRules: [
         { pattern: /parent|tot|baby/i, subtypeCode: 'parent-child' },
         { pattern: /lesson|learn/i, subtypeCode: 'swimming-lessons' },
@@ -75,7 +87,7 @@ async function mapActivityType(activity) {
     },
     
     // Martial Arts
-    { pattern: /martial|karate|taekwondo|judo|kung fu|aikido|jiu-jitsu|boxing|kickbox|self defense/i, typeId: typeCache['martial-arts'],
+    { pattern: /martial|karate|taekwondo|judo|kung fu|aikido|jiu-jitsu|boxing|kickbox|self defense|capoeira|kendo|fencing|wrestling/i, typeId: typeCache['martial-arts'],
       subtypeRules: [
         { pattern: /karate/i, subtypeCode: 'karate' },
         { pattern: /taekwondo|tae kwon do/i, subtypeCode: 'taekwondo' },
@@ -167,13 +179,15 @@ async function mapActivityType(activity) {
     },
     
     // STEM & Education
-    { pattern: /science|stem|coding|robot|engineering|math|computer|technology/i, typeId: typeCache['stem-education'],
+    { pattern: /science|stem|coding|robot|engineering|math|computer|technology|chess|scientist|lego|minecraft|build/i, typeId: typeCache['stem-education'],
       subtypeRules: [
-        { pattern: /science/i, subtypeCode: 'science' },
+        { pattern: /science|scientist/i, subtypeCode: 'science' },
         { pattern: /coding|programming/i, subtypeCode: 'coding' },
         { pattern: /robot/i, subtypeCode: 'robotics' },
         { pattern: /engineering/i, subtypeCode: 'engineering' },
-        { pattern: /math/i, subtypeCode: 'mathematics' }
+        { pattern: /math/i, subtypeCode: 'mathematics' },
+        { pattern: /chess/i, subtypeCode: 'other' },
+        { pattern: /lego|minecraft|build/i, subtypeCode: 'engineering' }
       ]
     },
     
@@ -213,6 +227,32 @@ async function mapActivityType(activity) {
         { pattern: /leadership/i, subtypeCode: 'leadership' },
         { pattern: /babysit/i, subtypeCode: 'babysitting' },
         { pattern: /first aid|cpr/i, subtypeCode: 'first-aid' }
+      ]
+    },
+
+    // Culinary Arts
+    { pattern: /cook|culinary|baking|kitchen|chef|cupcake|food|recipe/i, typeId: typeCache['culinary-arts'],
+      subtypeRules: [
+        { pattern: /baking|cupcake|cake|cookie/i, subtypeCode: 'baking' },
+        { pattern: /cook/i, subtypeCode: 'cooking' }
+      ]
+    },
+
+    // Language & Culture
+    { pattern: /language|mandarin|chinese|french|spanish|german|japanese|korean|english conversation|esl|culture|heritage/i, typeId: typeCache['language-culture'],
+      subtypeRules: [
+        { pattern: /mandarin|chinese/i, subtypeCode: 'mandarin' },
+        { pattern: /french/i, subtypeCode: 'french' },
+        { pattern: /spanish/i, subtypeCode: 'spanish' }
+      ]
+    },
+
+    // Individual Sports
+    { pattern: /golf|archery|fencing|track|running|triathlon|marathon/i, typeId: typeCache['individual-sports'],
+      subtypeRules: [
+        { pattern: /golf/i, subtypeCode: 'golf' },
+        { pattern: /archery/i, subtypeCode: 'archery' },
+        { pattern: /track|running/i, subtypeCode: 'track-and-field' }
       ]
     }
   ];

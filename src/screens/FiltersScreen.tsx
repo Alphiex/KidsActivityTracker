@@ -49,6 +49,13 @@ interface City {
   expanded: boolean;
 }
 
+interface AgeGroup {
+  code: string;
+  label: string;
+  minAge: number;
+  maxAge: number;
+}
+
 const FiltersScreen = () => {
   const navigation = useNavigation();
   const { colors, isDark } = useTheme();
@@ -67,6 +74,7 @@ const FiltersScreen = () => {
 
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [cities, setCities] = useState<City[]>([]);
+  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   // Date picker state
@@ -82,6 +90,7 @@ const FiltersScreen = () => {
     loadPreferences();
     loadActivityTypes();
     loadLocations();
+    loadAgeGroups();
   }, []);
 
   const loadPreferences = async () => {
@@ -126,8 +135,15 @@ const FiltersScreen = () => {
 
   const loadLocations = async () => {
     try {
+      console.log('📍 [FiltersScreen] Loading locations...');
       const locations = await activityService.getLocations();
-      
+      console.log('📍 [FiltersScreen] Received locations:', locations?.length || 0);
+
+      if (!locations || locations.length === 0) {
+        console.warn('📍 [FiltersScreen] No locations returned from API');
+        return;
+      }
+
       // Group locations by city
       const cityMap = new Map<string, Location[]>();
       locations.forEach((location: any) => {
@@ -149,9 +165,19 @@ const FiltersScreen = () => {
         expanded: false,
       }));
 
+      console.log('📍 [FiltersScreen] Grouped into cities:', cityList.length);
       setCities(cityList);
     } catch (error) {
       console.error('Error loading locations:', error);
+    }
+  };
+
+  const loadAgeGroups = async () => {
+    try {
+      const ageGroupsData = await activityService.getAgeGroups();
+      setAgeGroups(ageGroupsData);
+    } catch (error) {
+      console.error('Error loading age groups:', error);
     }
   };
 
@@ -459,46 +485,23 @@ const FiltersScreen = () => {
         {/* Age Group Quick Select */}
         <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>Quick Select</Text>
         <View style={styles.ageGroupQuickSelect}>
-          <TouchableOpacity
-            style={[styles.ageGroupChip, ageRange.min <= 3 && ageRange.max >= 1 && styles.ageGroupChipActive]}
-            onPress={() => updateAgeRange(1, 3)}
-          >
-            <Text style={[styles.ageGroupChipText, ageRange.min <= 3 && ageRange.max >= 1 && ageRange.min === 1 && ageRange.max === 3 && styles.ageGroupChipTextActive]}>
-              Toddler (1-3)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ageGroupChip, ageRange.min === 3 && ageRange.max === 5 && styles.ageGroupChipActive]}
-            onPress={() => updateAgeRange(3, 5)}
-          >
-            <Text style={[styles.ageGroupChipText, ageRange.min === 3 && ageRange.max === 5 && styles.ageGroupChipTextActive]}>
-              Preschool (3-5)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ageGroupChip, ageRange.min === 6 && ageRange.max === 10 && styles.ageGroupChipActive]}
-            onPress={() => updateAgeRange(6, 10)}
-          >
-            <Text style={[styles.ageGroupChipText, ageRange.min === 6 && ageRange.max === 10 && styles.ageGroupChipTextActive]}>
-              Elementary (6-10)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ageGroupChip, ageRange.min === 11 && ageRange.max === 13 && styles.ageGroupChipActive]}
-            onPress={() => updateAgeRange(11, 13)}
-          >
-            <Text style={[styles.ageGroupChipText, ageRange.min === 11 && ageRange.max === 13 && styles.ageGroupChipTextActive]}>
-              Pre-teen (11-13)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ageGroupChip, ageRange.min === 14 && ageRange.max === 18 && styles.ageGroupChipActive]}
-            onPress={() => updateAgeRange(14, 18)}
-          >
-            <Text style={[styles.ageGroupChipText, ageRange.min === 14 && ageRange.max === 18 && styles.ageGroupChipTextActive]}>
-              Teen (14-18)
-            </Text>
-          </TouchableOpacity>
+          {ageGroups.map((group) => (
+            <TouchableOpacity
+              key={group.code}
+              style={[
+                styles.ageGroupChip,
+                ageRange.min === group.minAge && ageRange.max === group.maxAge && styles.ageGroupChipActive
+              ]}
+              onPress={() => updateAgeRange(group.minAge, group.maxAge)}
+            >
+              <Text style={[
+                styles.ageGroupChipText,
+                ageRange.min === group.minAge && ageRange.max === group.maxAge && styles.ageGroupChipTextActive
+              ]}>
+                {group.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
           <TouchableOpacity
             style={[styles.ageGroupChip, ageRange.min === 0 && ageRange.max === 18 && styles.ageGroupChipActive]}
             onPress={() => updateAgeRange(0, 18)}
@@ -514,6 +517,11 @@ const FiltersScreen = () => {
 
   const renderLocationsContent = () => (
     <View style={styles.sectionContent}>
+      {cities.length === 0 && (
+        <Text style={{ color: '#717171', padding: 16, textAlign: 'center' }}>
+          Loading locations...
+        </Text>
+      )}
       {cities.map((city) => (
         <View key={city.name} style={styles.cityContainer}>
           <TouchableOpacity

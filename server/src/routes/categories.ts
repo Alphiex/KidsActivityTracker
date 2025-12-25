@@ -5,13 +5,67 @@ import { buildActivityWhereClause } from '../utils/activityFilters';
 const router = Router();
 const prisma = new PrismaClient();
 
+// Define the age-based categories with their metadata
+const AGE_CATEGORIES = [
+  {
+    id: 'early-years-parent',
+    name: 'Early Years: Parent Participation',
+    description: 'Activities for children 0-5 years that require parent participation',
+    ageMin: 0,
+    ageMax: 5,
+    requiresParent: true,
+    displayOrder: 1,
+    categoryValues: ['Early Years: Parent Participation', 'Parent & Tot', 'Parent Participation']
+  },
+  {
+    id: 'early-years-independent',
+    name: 'Early Years: On My Own',
+    description: 'Activities for children 3-5 years without parent participation',
+    ageMin: 3,
+    ageMax: 5,
+    requiresParent: false,
+    displayOrder: 2,
+    categoryValues: ['Early Years: On My Own', 'Preschool', 'Early Years']
+  },
+  {
+    id: 'school-age',
+    name: 'School Age',
+    description: 'Activities for elementary/middle school age children (5-13 years)',
+    ageMin: 5,
+    ageMax: 13,
+    requiresParent: false,
+    displayOrder: 3,
+    categoryValues: ['School Age', 'Kids', 'Children']
+  },
+  {
+    id: 'youth',
+    name: 'Youth',
+    description: 'Activities for teenagers (13-18 years)',
+    ageMin: 13,
+    ageMax: 18,
+    requiresParent: false,
+    displayOrder: 4,
+    categoryValues: ['Youth', 'Teen', 'Teens']
+  },
+  {
+    id: 'all-ages',
+    name: 'All Ages & Family',
+    description: 'Activities suitable for all ages or family participation',
+    ageMin: 0,
+    ageMax: 99,
+    requiresParent: false,
+    displayOrder: 5,
+    categoryValues: ['All Ages & Family', 'Family', 'All Ages']
+  }
+];
+
 /**
  * @swagger
  * /api/v1/categories:
  *   get:
  *     summary: Get all age-based categories with activity counts
  *     description: |
- *       Returns all 5 age-based categories (Early Years: Parent Participation, Early Years: On My Own, 
+ *       Returns all 5 age-based categories (Early Years: Parent Participation, Early Years: On My Own,
  *       School Age, Youth, All Ages & Family) with activity counts.
  *       Used by: DashboardScreen "Browse by Category" section, AllCategoriesScreen.
  *       Navigation flow: Dashboard → Categories → Category Detail → Activities
@@ -41,41 +95,10 @@ const prisma = new PrismaClient();
  *     responses:
  *       200:
  *         description: List of age-based categories with counts
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 categories:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Category'
- *             example:
- *               success: true
- *               categories:
- *                 - id: "uuid-1"
- *                   name: "Early Years: Parent Participation"
- *                   description: "Activities for children 0-5 years that require parent participation"
- *                   ageMin: 0
- *                   ageMax: 5
- *                   requiresParent: true
- *                   activityCount: 45
- *                 - id: "uuid-2"
- *                   name: "School Age"
- *                   description: "Activities for elementary/middle school age children (5-13 years)"
- *                   ageMin: 5
- *                   ageMax: 13
- *                   requiresParent: false
- *                   activityCount: 234
- *       500:
- *         description: Server error
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { 
+    const {
       hideClosedActivities = 'false',
       hideFullActivities = 'false',
       includeActivityCounts = 'true'
@@ -87,42 +110,44 @@ router.get('/', async (req: Request, res: Response) => {
       includeActivityCounts
     });
 
-    // Get all categories ordered by display order
-    const categories = await prisma.category.findMany({
-      orderBy: { displayOrder: 'asc' }
-    });
-
-    let categoriesWithCounts = categories;
+    let categoriesWithCounts = AGE_CATEGORIES.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      description: cat.description,
+      ageMin: cat.ageMin,
+      ageMax: cat.ageMax,
+      requiresParent: cat.requiresParent,
+      displayOrder: cat.displayOrder,
+      activityCount: 0
+    }));
 
     if (includeActivityCounts === 'true') {
-      // Build activity filter for global filters
-      const baseActivityWhere = {
-        isActive: true
-      };
-
       const globalFilters = {
         hideClosedActivities: hideClosedActivities === 'true',
         hideFullActivities: hideFullActivities === 'true'
       };
 
-      const activityWhereClause = buildActivityWhereClause(baseActivityWhere, globalFilters);
-
-      // Get activity counts for each category
+      // Get activity counts for each category based on the category string field
       categoriesWithCounts = await Promise.all(
-        categories.map(async (category) => {
+        AGE_CATEGORIES.map(async (cat) => {
+          const baseWhere = {
+            isActive: true,
+            category: { in: cat.categoryValues }
+          };
+          const activityWhereClause = buildActivityWhereClause(baseWhere, globalFilters);
+
           const count = await prisma.activity.count({
-            where: {
-              ...activityWhereClause,
-              categories: {
-                some: {
-                  categoryId: category.id
-                }
-              }
-            }
+            where: activityWhereClause
           });
 
           return {
-            ...category,
+            id: cat.id,
+            name: cat.name,
+            description: cat.description,
+            ageMin: cat.ageMin,
+            ageMax: cat.ageMax,
+            requiresParent: cat.requiresParent,
+            displayOrder: cat.displayOrder,
             activityCount: count
           };
         })
@@ -133,7 +158,7 @@ router.get('/', async (req: Request, res: Response) => {
       categoriesCount: categoriesWithCounts.length,
       firstCategory: categoriesWithCounts[0] ? {
         name: categoriesWithCounts[0].name,
-        count: (categoriesWithCounts[0] as any).activityCount
+        count: categoriesWithCounts[0].activityCount
       } : null
     });
 
@@ -155,134 +180,6 @@ router.get('/', async (req: Request, res: Response) => {
  * /api/v1/categories/{id}/activities:
  *   get:
  *     summary: Get activities for a specific age-based category
- *     description: |
- *       Returns paginated activities that belong to a specific age-based category.
- *       Used by: CategoryDetailScreen for displaying activities in a category.
- *       Navigation flow: Dashboard → Categories → Category Detail (this endpoint) → Activity Detail
- *       Supports extensive filtering, sorting, and search within the category.
- *     tags: [Categories]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Category UUID
- *       - in: query
- *         name: limit
- *         schema:
- *           type: string
- *           default: '50'
- *         description: Number of activities to return
- *       - in: query
- *         name: offset
- *         schema:
- *           type: string
- *           default: '0'
- *         description: Number of activities to skip for pagination
- *       - in: query
- *         name: sortBy
- *         schema:
- *           type: string
- *           enum: [dateStart, name, cost, registrationDate]
- *           default: 'dateStart'
- *         description: Field to sort by
- *       - in: query
- *         name: sortOrder
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *           default: 'asc'
- *         description: Sort direction
- *       - in: query
- *         name: hideClosedActivities
- *         schema:
- *           type: string
- *           enum: ['true', 'false']
- *           default: 'false'
- *         description: Filter out closed activities
- *       - in: query
- *         name: hideFullActivities
- *         schema:
- *           type: string
- *           enum: ['true', 'false']
- *           default: 'false'
- *         description: Filter out full activities
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search in activity name and description
- *       - in: query
- *         name: ageMin
- *         schema:
- *           type: string
- *         description: Minimum age requirement
- *       - in: query
- *         name: ageMax
- *         schema:
- *           type: string
- *         description: Maximum age requirement
- *       - in: query
- *         name: costMin
- *         schema:
- *           type: string
- *         description: Minimum cost filter
- *       - in: query
- *         name: costMax
- *         schema:
- *           type: string
- *         description: Maximum cost filter
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Filter activities starting after this date
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Filter activities ending before this date
- *       - in: query
- *         name: dayOfWeek
- *         schema:
- *           type: array
- *           items:
- *             type: string
- *         description: Filter by days of the week
- *       - in: query
- *         name: locations
- *         schema:
- *           type: array
- *           items:
- *             type: string
- *         description: Filter by location IDs or names
- *     responses:
- *       200:
- *         description: Paginated activities in category
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 category:
- *                   $ref: '#/components/schemas/Category'
- *                 activities:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Activity'
- *                 pagination:
- *                   $ref: '#/components/schemas/PaginationResponse'
- *       404:
- *         description: Category not found
- *       500:
- *         description: Server error
  */
 router.get('/:id/activities', async (req: Request, res: Response) => {
   try {
@@ -294,7 +191,6 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
       sortOrder = 'asc',
       hideClosedActivities = 'false',
       hideFullActivities = 'false',
-      // Additional filter parameters
       search,
       ageMin,
       ageMax,
@@ -314,10 +210,8 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
       hideFullActivities
     });
 
-    // Verify category exists
-    const category = await prisma.category.findUnique({
-      where: { id }
-    });
+    // Find the category by id
+    const category = AGE_CATEGORIES.find(cat => cat.id === id);
 
     if (!category) {
       return res.status(404).json({
@@ -326,14 +220,10 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
       });
     }
 
-    // Build base where clause
+    // Build base where clause using category string values
     const baseWhere: any = {
       isActive: true,
-      categories: {
-        some: {
-          categoryId: id
-        }
-      }
+      category: { in: category.categoryValues }
     };
 
     // Add search filter
@@ -395,14 +285,14 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
     if (locations) {
       const locationList = Array.isArray(locations) ? locations as string[] : (locations as string).split(',').map(l => l.trim());
       const isLocationId = locationList[0] && typeof locationList[0] === 'string' && locationList[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-      
+
       if (isLocationId) {
         baseWhere.locationId = { in: locationList };
       } else {
         baseWhere.location = {
           OR: [
             { name: { in: locationList } },
-            { city: { name: { in: locationList } } }
+            { city: { in: locationList } }
           ]
         };
       }
@@ -424,7 +314,7 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
           provider: true,
           location: {
             include: {
-              city: true
+              cityRecord: true
             }
           },
           activityType: true,
@@ -448,7 +338,15 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      category,
+      category: {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        ageMin: category.ageMin,
+        ageMax: category.ageMax,
+        requiresParent: category.requiresParent,
+        displayOrder: category.displayOrder
+      },
       activities,
       pagination: {
         total,

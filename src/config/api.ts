@@ -57,6 +57,7 @@ const API_CONFIG = {
     LOCATIONS: '/api/v1/locations',
     CATEGORIES: '/api/v1/categories',
     ACTIVITY_TYPES: '/api/v1/activity-types',
+    AGE_GROUPS: '/api/v1/reference/age-groups',
     
     // Legacy endpoints (for backward compatibility)
     SCRAPE_NVRC: '/api/scrape/nvrc',

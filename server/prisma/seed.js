@@ -111,34 +111,34 @@ async function main() {
   // Create Activity Types
   console.log('🏷️ Creating activity types...');
   const activityTypes = [
-    { code: 'swimming-aquatics', name: 'Swimming & Aquatics', displayOrder: 1 },
-    { code: 'team-sports', name: 'Team Sports', displayOrder: 2 },
-    { code: 'individual-sports', name: 'Individual Sports', displayOrder: 3 },
-    { code: 'racquet-sports', name: 'Racquet Sports', displayOrder: 4 },
-    { code: 'martial-arts', name: 'Martial Arts', displayOrder: 5 },
-    { code: 'dance', name: 'Dance', displayOrder: 6 },
-    { code: 'visual-arts', name: 'Visual Arts', displayOrder: 7 },
-    { code: 'music', name: 'Music', displayOrder: 8 },
-    { code: 'performing-arts', name: 'Performing Arts', displayOrder: 9 },
-    { code: 'skating-wheels', name: 'Skating & Wheels', displayOrder: 10 },
-    { code: 'gymnastics-movement', name: 'Gymnastics & Movement', displayOrder: 11 },
-    { code: 'camps', name: 'Camps', displayOrder: 12 },
-    { code: 'stem-education', name: 'STEM & Education', displayOrder: 13 },
-    { code: 'fitness-wellness', name: 'Fitness & Wellness', displayOrder: 14 },
-    { code: 'outdoor-adventure', name: 'Outdoor & Adventure', displayOrder: 15 },
-    { code: 'culinary-arts', name: 'Culinary Arts', displayOrder: 16 },
-    { code: 'language-culture', name: 'Language & Culture', displayOrder: 17 },
-    { code: 'special-needs-programs', name: 'Special Needs Programs', displayOrder: 18 },
-    { code: 'multi-sport', name: 'Multi-Sport', displayOrder: 19 },
-    { code: 'life-skills-leadership', name: 'Life Skills & Leadership', displayOrder: 20 },
-    { code: 'early-development', name: 'Early Development', displayOrder: 21 },
-    { code: 'other-activity', name: 'Other Activity', displayOrder: 22 }
+    { code: 'swimming-aquatics', name: 'Swimming & Aquatics', iconName: 'swim', displayOrder: 1 },
+    { code: 'team-sports', name: 'Team Sports', iconName: 'basketball', displayOrder: 2 },
+    { code: 'individual-sports', name: 'Individual Sports', iconName: 'run', displayOrder: 3 },
+    { code: 'racquet-sports', name: 'Racquet Sports', iconName: 'tennis', displayOrder: 4 },
+    { code: 'martial-arts', name: 'Martial Arts', iconName: 'karate', displayOrder: 5 },
+    { code: 'dance', name: 'Dance', iconName: 'dance-ballroom', displayOrder: 6 },
+    { code: 'visual-arts', name: 'Visual Arts', iconName: 'palette', displayOrder: 7 },
+    { code: 'music', name: 'Music', iconName: 'music', displayOrder: 8 },
+    { code: 'performing-arts', name: 'Performing Arts', iconName: 'drama-masks', displayOrder: 9 },
+    { code: 'skating-wheels', name: 'Skating & Wheels', iconName: 'skate', displayOrder: 10 },
+    { code: 'gymnastics-movement', name: 'Gymnastics & Movement', iconName: 'gymnastics', displayOrder: 11 },
+    { code: 'camps', name: 'Camps', iconName: 'tent', displayOrder: 12 },
+    { code: 'stem-education', name: 'STEM & Education', iconName: 'flask', displayOrder: 13 },
+    { code: 'fitness-wellness', name: 'Fitness & Wellness', iconName: 'dumbbell', displayOrder: 14 },
+    { code: 'outdoor-adventure', name: 'Outdoor & Adventure', iconName: 'tree', displayOrder: 15 },
+    { code: 'culinary-arts', name: 'Culinary Arts', iconName: 'chef-hat', displayOrder: 16 },
+    { code: 'language-culture', name: 'Language & Culture', iconName: 'translate', displayOrder: 17 },
+    { code: 'special-needs-programs', name: 'Special Needs Programs', iconName: 'heart', displayOrder: 18 },
+    { code: 'multi-sport', name: 'Multi-Sport', iconName: 'soccer', displayOrder: 19 },
+    { code: 'life-skills-leadership', name: 'Life Skills & Leadership', iconName: 'account-group', displayOrder: 20 },
+    { code: 'early-development', name: 'Early Development', iconName: 'baby-face-outline', displayOrder: 21 },
+    { code: 'other-activity', name: 'Other Activity', iconName: 'tag', displayOrder: 22 }
   ];
 
   for (const activityType of activityTypes) {
     const created = await prisma.activityType.upsert({
       where: { code: activityType.code },
-      update: { name: activityType.name, displayOrder: activityType.displayOrder },
+      update: { name: activityType.name, iconName: activityType.iconName, displayOrder: activityType.displayOrder },
       create: activityType
     });
     console.log(`✅ Created activity type: ${created.name}`);
@@ -235,6 +235,25 @@ async function main() {
       create: subtype
     });
     console.log(`✅ Created activity subtype: ${created.name}`);
+  }
+
+  // Create Age Groups
+  console.log('👶 Creating age groups...');
+  const ageGroups = [
+    { code: 'baby', label: 'Baby (0-2)', minAge: 0, maxAge: 2, displayOrder: 1 },
+    { code: 'toddler', label: 'Toddler (2-4)', minAge: 2, maxAge: 4, displayOrder: 2 },
+    { code: 'preschool', label: 'Preschool (4-6)', minAge: 4, maxAge: 6, displayOrder: 3 },
+    { code: 'school-age', label: 'School Age (6-12)', minAge: 6, maxAge: 12, displayOrder: 4 },
+    { code: 'teen', label: 'Teen (12-18)', minAge: 12, maxAge: 18, displayOrder: 5 },
+  ];
+
+  for (const ageGroup of ageGroups) {
+    const created = await prisma.ageGroup.upsert({
+      where: { code: ageGroup.code },
+      update: { label: ageGroup.label, minAge: ageGroup.minAge, maxAge: ageGroup.maxAge, displayOrder: ageGroup.displayOrder },
+      create: ageGroup
+    });
+    console.log(`✅ Created age group: ${created.label}`);
   }
 
   console.log('🎉 Seed completed successfully!');

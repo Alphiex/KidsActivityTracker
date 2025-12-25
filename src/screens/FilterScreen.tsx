@@ -18,13 +18,12 @@ import { formatPrice } from '../utils/formatters';
 
 type Props = StackScreenProps<RootStackParamList, 'Filter'>;
 
-const AGE_GROUPS = [
-  { label: 'Baby (0-2)', min: 0, max: 2 },
-  { label: 'Toddler (2-4)', min: 2, max: 4 },
-  { label: 'Preschool (4-6)', min: 4, max: 6 },
-  { label: 'School Age (6-12)', min: 6, max: 12 },
-  { label: 'Teen (12-18)', min: 12, max: 18 },
-];
+interface AgeGroup {
+  code: string;
+  label: string;
+  minAge: number;
+  maxAge: number;
+}
 
 export default function FilterScreen({ navigation, route }: Props) {
   const currentFilter = route.params?.currentFilter || {};
@@ -41,6 +40,7 @@ export default function FilterScreen({ navigation, route }: Props) {
   
   const [categories, setCategories] = useState<string[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
 
   useEffect(() => {
     loadFilterData();
@@ -49,13 +49,15 @@ export default function FilterScreen({ navigation, route }: Props) {
   const loadFilterData = async () => {
     try {
       const activityService = ActivityService.getInstance();
-      const [categoriesData, locationsData] = await Promise.all([
+      const [categoriesData, locationsData, ageGroupsData] = await Promise.all([
         activityService.getCategories(),
         activityService.getLocations(),
+        activityService.getAgeGroups(),
       ]);
-      
+
       setCategories(categoriesData);
       setLocations(locationsData);
+      setAgeGroups(ageGroupsData);
     } catch (error) {
       console.error('Error loading filter data:', error);
     }
@@ -96,8 +98,8 @@ export default function FilterScreen({ navigation, route }: Props) {
     );
   };
 
-  const selectAgeGroup = (group: typeof AGE_GROUPS[0]) => {
-    setAgeRange({ min: group.min, max: group.max });
+  const selectAgeGroup = (group: AgeGroup) => {
+    setAgeRange({ min: group.minAge, max: group.maxAge });
   };
 
   return (
@@ -105,19 +107,19 @@ export default function FilterScreen({ navigation, route }: Props) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Age Range</Text>
         <View style={styles.ageGroupButtons}>
-          {AGE_GROUPS.map((group) => (
+          {ageGroups.map((group) => (
             <TouchableOpacity
-              key={group.label}
+              key={group.code}
               style={[
                 styles.ageGroupButton,
-                ageRange.min === group.min && ageRange.max === group.max && styles.ageGroupButtonActive,
+                ageRange.min === group.minAge && ageRange.max === group.maxAge && styles.ageGroupButtonActive,
               ]}
               onPress={() => selectAgeGroup(group)}
             >
               <Text
                 style={[
                   styles.ageGroupButtonText,
-                  ageRange.min === group.min && ageRange.max === group.max && styles.ageGroupButtonTextActive,
+                  ageRange.min === group.minAge && ageRange.max === group.maxAge && styles.ageGroupButtonTextActive,
                 ]}
               >
                 {group.label}

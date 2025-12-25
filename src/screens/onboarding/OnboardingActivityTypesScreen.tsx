@@ -18,27 +18,6 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const getActivityTypeIcon = (typeName: string) => {
-  const iconMap: { [key: string]: string } = {
-    'Team Sports': 'basketball',
-    'Individual Sports': 'run',
-    'Swimming & Aquatics': 'swim',
-    'Dance': 'dance-ballroom',
-    'Music': 'music',
-    'Arts & Crafts': 'palette',
-    'Martial Arts': 'karate',
-    'Educational': 'school',
-    'Camps': 'tent',
-    'Science & Technology': 'flask',
-    'Theatre & Drama': 'drama-masks',
-    'Outdoor Activities': 'tree',
-    'Fitness & Gym': 'dumbbell',
-    'Special Needs': 'heart',
-    'Parent & Child': 'account-child',
-  };
-  return iconMap[typeName] || 'tag';
-};
-
 type NavigationProp = StackNavigationProp<OnboardingStackParamList, 'OnboardingActivityTypes'>;
 
 const OnboardingActivityTypesScreen: React.FC = () => {
@@ -46,7 +25,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
   const preferencesService = PreferencesService.getInstance();
   const activityService = ActivityService.getInstance();
 
-  const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count?: number }>>([]);
+  const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; iconName?: string; count?: number }>>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -122,7 +101,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
               >
                 <View style={[styles.iconContainer, isSelected && styles.iconContainerSelected]}>
                   <Icon
-                    name={getActivityTypeIcon(type.name)}
+                    name={type.iconName || 'tag'}
                     size={24}
                     color={isSelected ? '#FFFFFF' : '#FF385C'}
                   />

@@ -118,40 +118,38 @@ router.get('/activity-types/:typeCode', async (req: Request, res: Response) => {
  * @desc    Get all age-based categories with counts
  * @access  Public
  */
-// TODO: Implement categories once Category model is added to schema
-// router.get('/categories', async (req: Request, res: Response) => {
-//   try {
-//     const categories = await prisma.category.findMany({
-//       orderBy: { displayOrder: 'asc' },
-//       include: {
-//         _count: {
-//           select: { activities: true }
-//         }
-//       }
-//     });
-//
-//     const categoriesWithCounts = categories.map(cat => ({
-//       code: cat.code,
-//       name: cat.name,
-//       description: cat.description,
-//       ageMin: cat.ageMin,
-//       ageMax: cat.ageMax,
-//       activityCount: cat._count.activities,
-//       displayOrder: cat.displayOrder
-//     }));
-//
-//     res.json({
-//       success: true,
-//       data: categoriesWithCounts,
-//       total: categoriesWithCounts.length
-//     });
-//   } catch (error: any) {
-//     console.error('Error fetching categories:', error);
-//     res.status(500).json({
-//       success: false,
-//       error: 'Failed to fetch categories'
-//     });
-//   }
-// });
+/**
+ * @route   GET /api/v1/reference/age-groups
+ * @desc    Get all age groups for filtering
+ * @access  Public
+ */
+router.get('/age-groups', async (req: Request, res: Response) => {
+  try {
+    const ageGroups = await (prisma as any).ageGroup.findMany({
+      where: { isActive: true },
+      orderBy: { displayOrder: 'asc' }
+    });
+
+    const formattedGroups = ageGroups.map((group: { code: string; label: string; minAge: number; maxAge: number; displayOrder: number }) => ({
+      code: group.code,
+      label: group.label,
+      minAge: group.minAge,
+      maxAge: group.maxAge,
+      displayOrder: group.displayOrder
+    }));
+
+    res.json({
+      success: true,
+      data: formattedGroups,
+      total: formattedGroups.length
+    });
+  } catch (error: any) {
+    console.error('Error fetching age groups:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch age groups'
+    });
+  }
+});
 
 export default router;

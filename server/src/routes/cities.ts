@@ -117,14 +117,12 @@ router.get('/:city/locations', async (req: Request, res: Response) => {
     const locations = await prisma.location.findMany({
       where: {
         city: {
-          name: {
-            equals: decodedCity,
-            mode: 'insensitive'
-          }
+          equals: decodedCity,
+          mode: 'insensitive'
         }
       },
       include: {
-        city: true, // Include city data
+        cityRecord: true,
         _count: {
           select: {
             activities: {
@@ -137,13 +135,13 @@ router.get('/:city/locations', async (req: Request, res: Response) => {
         name: 'asc'
       }
     });
-    
+
     const formattedLocations = locations.map(loc => ({
       id: loc.id,
       name: loc.name,
       address: loc.address,
-      city: loc.city?.name || 'Unknown',
-      province: loc.city?.province || 'Unknown',
+      city: loc.cityRecord?.name || loc.city || 'Unknown',
+      province: loc.cityRecord?.province || loc.province || 'Unknown',
       postalCode: loc.postalCode,
       facility: loc.facility,
       latitude: loc.latitude,
@@ -200,41 +198,27 @@ router.get('/:city/activities', async (req: Request, res: Response) => {
       },
       isActive: true
     };
-    
+
     if (activityType) {
       // Find the activity type by code
       const activityTypeRecord = await prisma.activityType.findUnique({
         where: { code: activityType as string }
       });
-      
+
       if (activityTypeRecord) {
         where.activityTypeId = activityTypeRecord.id;
       }
     }
-    
-    // TODO: Implement age category filtering once Category model is added
-    // if (ageCategory) {
-    //   const category = await prisma.category.findUnique({
-    //     where: { code: ageCategory as string }
-    //   });
-    //   
-    //   if (category) {
-    //     where.categories = {
-    //       some: { categoryId: category.id }
-    //     };
-    //   }
-    // }
-    
-    // TODO: Implement parent requirement filtering once field is added
-    // if (requiresParent !== undefined) {
-    //   where.requiresParent = requiresParent === 'true';
-    // }
-    
+
+    // Extract and apply global filters
+    const globalFilters = extractGlobalFilters(req.query);
+    const finalWhere = buildActivityWhereClause(where, globalFilters);
+
     const skip = (pageNum - 1) * limitNum;
-    
+
     const [activities, total] = await Promise.all([
       prisma.activity.findMany({
-        where,
+        where: finalWhere,
         skip,
         take: limitNum,
         include: {
@@ -247,7 +231,7 @@ router.get('/:city/activities', async (req: Request, res: Response) => {
         },
         orderBy: { dateStart: 'asc' }
       }),
-      prisma.activity.count({ where })
+      prisma.activity.count({ where: finalWhere })
     ]);
     
     res.json({
