@@ -543,7 +543,28 @@ export class ChildrenService {
       where,
       include: {
         activity: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            category: true,
+            subcategory: true,
+            schedule: true,
+            dates: true,
+            dateStart: true,
+            dateEnd: true,
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+            ageMin: true,
+            ageMax: true,
+            cost: true,
+            spotsAvailable: true,
+            totalSpots: true,
+            locationName: true,
+            registrationUrl: true,
+            registrationStatus: true,
+            rawData: true, // Include rawData for session dates
             location: true,
             sessions: true, // Include sessions for recurring activities
             activityType: true, // Include activity type for image display

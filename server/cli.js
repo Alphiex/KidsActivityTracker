@@ -22,8 +22,8 @@ const commands = {
   // SCRAPER OPERATIONS
   async scrape() {
     console.log('Running NVRC scraper...');
-    const scraper = require('./scrapers/nvrcEnhancedParallelScraper');
-    const instance = new scraper.NVRCEnhancedParallelScraper();
+    const NVRCScraper = require('./scrapers/providers/NVRCScraper');
+    const instance = new NVRCScraper();
     await instance.scrape();
   },
 
