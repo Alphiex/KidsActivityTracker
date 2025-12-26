@@ -1,28 +1,43 @@
 # Troubleshooting Guide
 
-## iOS Development Issues
+Common issues and solutions for Kids Activity Tracker development.
 
-### iOS 18.4 Network Errors
-**Problem**: Network requests fail with "Network Error" on iOS 18.4 simulator.
+## iOS Development
+
+### Network Errors on iOS 18.4
+
+**Problem**: API requests fail with "Network Error" on iOS 18.4 simulator.
 
 **Solution**: Use iOS 18.6 simulator instead.
+
 ```bash
+# Use the run script (recommended)
 ./scripts/ios/run-simulator.sh
+
 # Or specify UDID directly
 npx react-native run-ios --udid="A8661E75-FE3E-483F-8F13-AC87110E8EE2"
 ```
 
+**Available iOS 18.6 Simulators**:
+| Device | UDID |
+|--------|------|
+| iPhone 16 Pro | A8661E75-FE3E-483F-8F13-AC87110E8EE2 |
+| iPhone 16 Pro Max | 9F3BA117-5391-4064-9FAF-8A7CA82CE93C |
+| iPhone 16 | 6558E69E-75D4-4088-B42B-DBD7F5FDFAFA |
+
 ### Pod Install Failures
+
 ```bash
 cd ios
 rm -rf Pods Podfile.lock
 pod cache clean --all
-pod install
+pod install --repo-update
 ```
 
 ### Metro Bundler Issues
+
 ```bash
-# Clear all caches
+# Full cache clear
 watchman watch-del-all
 rm -rf node_modules
 npm install
@@ -34,11 +49,8 @@ npx react-native start --reset-cache
 
 **"Could not compute dependency graph"**
 ```bash
-# Kill Xcode processes
 pkill -9 Xcode
 pkill -9 xcodebuild
-
-# Clear DerivedData
 rm -rf ~/Library/Developer/Xcode/DerivedData/*
 ```
 
@@ -48,159 +60,286 @@ pkill -9 xcodebuild
 rm -rf ~/Library/Developer/Xcode/DerivedData/*
 ```
 
-### Hermes dSYM Warning
-For App Store builds, the Podfile includes settings to generate Hermes debug symbols. For archive builds:
+**Build fails after React Native upgrade**
 ```bash
-ARCHIVE_BUILD=1 pod install
+cd ios
+rm -rf Pods Podfile.lock build
+pod deintegrate
+pod setup
+pod install
+cd ..
+npx react-native run-ios
 ```
 
-## API Issues
-
-### No Activities Showing
-
-1. Check database:
-```bash
-psql $DATABASE_URL -c "SELECT isActive, COUNT(*) FROM Activity GROUP BY isActive;"
-```
-
-2. Run scraper manually:
-```bash
-gcloud run jobs execute kids-activity-scraper-job --region=us-central1
-```
-
-3. Verify API health:
-```bash
-curl https://kids-activity-api-205843686007.us-central1.run.app/health
-```
-
-### API Returns 500 Error
-
-Check logs:
-```bash
-gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=kids-activity-api \
-  AND severity>=ERROR" --limit=20
-```
-
-Common causes:
-- Database connection timeout
-- Missing environment variables
-- Memory limit exceeded
-
-### Rate Limiting
-
-Default limits:
-- General API: 100 requests/minute
-- Auth endpoints: 5 attempts/15 minutes
-- Search: 30 requests/minute
-
-## Database Issues
-
-### Connection Errors
+### Simulator Won't Start
 
 ```bash
-# Verify PostgreSQL is running
-pg_ctl status
-
-# Check connection
-gcloud sql connect kids-activity-db-dev --user=postgres
+# Reset simulator
+xcrun simctl shutdown all
+xcrun simctl erase all
 ```
 
-### Missing Prisma Module
+## Backend Issues
 
+### Database Connection Errors
+
+**"Connection refused"**
+1. Verify PostgreSQL is running: `pg_isready`
+2. Check connection string in `.env`
+3. Verify IP allowlist for Cloud SQL
+
+**"Authentication failed"**
+1. Verify password in connection string
+2. Check user permissions in database
+
+### Prisma Errors
+
+**"Schema drift detected"**
 ```bash
 cd server
-npm install
+npx prisma migrate dev
+```
+
+**"Cannot find module '@prisma/client'"**
+```bash
+cd server
 npx prisma generate
 ```
 
-### Migration Failures
-
+**"Migration failed"**
 ```bash
-# Check migration status
+# View status
 npx prisma migrate status
 
-# Force reset (development only!)
+# Reset (development only!)
 npx prisma migrate reset
 ```
 
+### API Errors
+
+**401 Unauthorized**
+- Token expired - refresh tokens
+- Token missing - check auth header
+- Token invalid - re-login
+
+**429 Too Many Requests**
+- Rate limited - wait 15 minutes
+- Reduce request frequency
+
+**500 Internal Server Error**
+- Check server logs
+- Verify database connection
+- Check environment variables
+
 ## Scraper Issues
-
-### Scraper Not Running
-
-```bash
-# Check last execution
-gcloud run jobs executions list \
-  --job=kids-activity-scraper-job \
-  --region=us-central1 --limit=1
-
-# View logs
-gcloud logging read "resource.type=cloud_run_job \
-  AND resource.labels.job_name=kids-activity-scraper-job" --limit=50
-```
 
 ### Scraper Timeout
 
-Increase timeout:
+**Symptoms**: Job fails after 30 minutes
+
+**Solutions**:
+1. Check target website availability
+2. Increase timeout in provider config
+3. Reduce concurrent requests
+4. Check for website changes
+
+### Missing Activities
+
+**Symptoms**: Fewer activities than expected
+
+**Solutions**:
+1. Verify entry points in config
+2. Check if website structure changed
+3. Review scraper logs for errors
+4. Test locally with debug mode
+
 ```bash
-gcloud run jobs update kids-activity-scraper-job \
-  --timeout=3600 --region=us-central1
+DEBUG=scraper:* node scrapers/scraperJob.js --provider=vancouver
 ```
 
-### Browser/Memory Issues
+### Rate Limiting (429 from target site)
 
-Increase memory:
+**Solutions**:
+1. Reduce `requestsPerMinute` in config
+2. Increase delay between requests
+3. Reduce `concurrentRequests`
+
+## TypeScript Issues
+
+### Type Errors After Schema Change
+
 ```bash
-gcloud run jobs update kids-activity-scraper-job \
-  --memory=4Gi --region=us-central1
+cd server
+npx prisma generate
 ```
 
-## Build Issues
-
-### TypeScript Errors
+### Module Not Found
 
 ```bash
+# Reinstall dependencies
+rm -rf node_modules
+npm install
+
+# Verify tsconfig paths
 npm run typecheck
 ```
 
-### Lint Errors
+### Type Mismatches
 
-```bash
-npm run lint
-npm run lint -- --fix
+1. Check import paths
+2. Verify interface definitions
+3. Update type definitions if schema changed
+
+## Redux/State Issues
+
+### State Not Persisting
+
+1. Check MMKV storage initialization
+2. Verify persist configuration
+3. Check for storage errors in logs
+
+### Stale Data
+
+```typescript
+// Force refresh
+dispatch(activitiesSlice.actions.clearCache());
+await dispatch(fetchActivities());
 ```
 
-### Bundle Errors
+## Network/API Issues
+
+### CORS Errors
+
+**Browser development only**:
+1. Verify origin in server CORS config
+2. Check request headers
+3. Ensure credentials mode matches
+
+### Request Timeout
+
+1. Check network connectivity
+2. Verify API is running
+3. Check for rate limiting
+4. Increase timeout in axios config
+
+### SSL/Certificate Errors
+
+**Development**:
+- Use HTTP for local development
+- Configure proxy for HTTPS
+
+**Production**:
+- Verify SSL certificate is valid
+- Check certificate chain
+
+## Build/Deploy Issues
+
+### Cloud Build Failures
 
 ```bash
-npx react-native start --reset-cache
+# View build logs
+gcloud builds list --limit 5
+gcloud builds log BUILD_ID
 ```
 
-## Common Error Messages
+**Common causes**:
+- Missing dependencies in package.json
+- TypeScript compilation errors
+- Dockerfile issues
 
-| Error | Solution |
-|-------|----------|
-| "No bundle URL present" | Restart Metro: `npm start --reset-cache` |
-| "Cannot find module 'prisma'" | Run `npx prisma generate` in server/ |
-| "Module not found" | Delete node_modules, reinstall |
-| "Port already in use" | Kill process: `lsof -i :3000` then `kill -9 PID` |
-| "Network request failed" | Check API URL and network connectivity |
+### Cloud Run Deployment Failures
 
-## Health Checks
-
-### Quick System Check
 ```bash
-# API health
-curl https://kids-activity-api-205843686007.us-central1.run.app/health
+# Check service status
+gcloud run services describe kids-activity-api --region us-central1
 
-# Activity count
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM Activity WHERE isActive = true;"
-
-# Scraper status
-gcloud run jobs executions list --job=kids-activity-scraper-job --limit=1
+# View error logs
+gcloud run services logs read kids-activity-api \
+  --region us-central1 \
+  --filter "severity>=ERROR"
 ```
 
-### Expected Values
-- Active activities: ~2,900
-- API response time: < 200ms
-- Scraper success rate: > 95%
+### App Store Submission Rejected
+
+**Privacy manifest missing**:
+- Update `ios/PrivacyInfo.xcprivacy`
+- Include required API declarations
+
+**Missing screenshots**:
+- Provide all required device sizes
+- Follow App Store guidelines
+
+## Debug Commands
+
+### Check System Status
+
+```bash
+# iOS simulator list
+xcrun simctl list devices
+
+# Metro bundler status
+lsof -i :8081
+
+# Backend server status
+lsof -i :3000
+
+# PostgreSQL status
+pg_isready
+```
+
+### View Logs
+
+```bash
+# Metro bundler logs (in terminal running Metro)
+
+# Backend logs (in terminal running server)
+
+# Cloud Run logs
+gcloud run services logs read kids-activity-api \
+  --region us-central1 \
+  --limit 100
+
+# Xcode build logs
+# Open Xcode > View > Navigators > Reports
+```
+
+### Clear All Caches
+
+```bash
+# React Native caches
+watchman watch-del-all
+rm -rf node_modules
+rm -rf $TMPDIR/react-*
+rm -rf $TMPDIR/metro-*
+rm -rf $TMPDIR/haste-*
+
+# iOS caches
+rm -rf ios/Pods
+rm -rf ios/Podfile.lock
+rm -rf ios/build
+rm -rf ~/Library/Developer/Xcode/DerivedData
+
+# npm cache
+npm cache clean --force
+
+# Reinstall
+npm install
+cd ios && pod install && cd ..
+```
+
+## Getting Help
+
+1. Check this troubleshooting guide
+2. Search existing GitHub issues
+3. Review recent commits for breaking changes
+4. Check Cloud Run logs for backend issues
+5. Create a new issue with:
+   - Error message
+   - Steps to reproduce
+   - Environment details
+   - Relevant logs
+
+---
+
+**Document Version**: 4.0
+**Last Updated**: December 2024

@@ -518,7 +518,7 @@ export class ChildrenService {
     };
 
     // Build date filter that considers both scheduledDate AND activity's date range
-    // This ensures activities show up even if scheduledDate is not set
+    // This ensures activities show up if ANY of their dates fall within the requested range
     if (startDate || endDate) {
       where.OR = [
         // Include if scheduledDate falls within range
@@ -528,12 +528,14 @@ export class ChildrenService {
             ...(endDate && { lte: endDate })
           }
         },
-        // Include if scheduledDate is null but activity's dates overlap with range
+        // Include if activity's date range overlaps with the requested range
+        // (regardless of scheduledDate - activity might be registered early but runs later)
         {
-          scheduledDate: null,
           activity: {
-            ...(startDate && { dateEnd: { gte: startDate } }),
-            ...(endDate && { dateStart: { lte: endDate } })
+            AND: [
+              ...(startDate ? [{ dateEnd: { gte: startDate } }] : []),
+              ...(endDate ? [{ dateStart: { lte: endDate } }] : [])
+            ]
           }
         }
       ];

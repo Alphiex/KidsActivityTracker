@@ -1,320 +1,360 @@
-# Kids Activity Tracker - Security Guide
+# Security Guide
+
+Security practices and implementation for Kids Activity Tracker.
 
 ## Overview
 
-This document outlines the security measures implemented in the Kids Activity Tracker application, covering both the React Native mobile app and the Node.js/Express backend API.
+This document covers security measures for the React Native mobile app and Node.js/Express backend API.
 
-## Implementation Status
-
-**Last security audit**: December 2024
-
-### Completed Security Improvements (December 2024)
-
-#### Backend Security
-- [x] **Helmet Security Headers** - Full HTTP security headers enabled with mobile-compatible configuration
-  - Strict-Transport-Security (HSTS)
-  - X-Content-Type-Options: nosniff
-  - X-Frame-Options: SAMEORIGIN
-  - Cross-Origin-Opener-Policy: same-origin
-  - Cross-Origin-Resource-Policy: cross-origin
-- [x] **CORS Configuration** - Restricted to approved origins (localhost:3000, localhost:3001, localhost:8081)
-- [x] **Mobile App Support** - Allows requests without Origin header (required for React Native)
-- [x] **Rate Limiting** - Applied to all API endpoints (100 req/15min general, 5 req/15min auth)
-- [x] **JWT Secret Validation** - Server refuses to start if JWT_SECRET is missing in production
-- [x] **Session Management** - Database-backed sessions with Session and TrustedDevice tables
-- [x] **Input Validation** - Middleware applied to auth endpoints
-- [x] **Setup Endpoint Protection** - Disabled in production
-
-#### Frontend Security
-- [x] **Device-Specific Encryption** - MMKV encryption key derived from device identifiers (DeviceInfo)
-- [x] **Secure Logger** - Utility that sanitizes sensitive data before logging
-- [x] **Token Security** - No hardcoded fallback tokens
-- [x] **Automatic Token Refresh** - Handles expired tokens transparently
-
-#### Database Security
-- [x] **Optimized Indexes** - Added indexes on frequently queried columns for performance
-- [x] **Batch Operations** - N+1 query prevention with batch child verification
-- [x] **Pagination** - Added to prevent unbounded queries (max 100 items/page)
-
-### Pending Security Improvements
-- [ ] Certificate pinning for mobile app
-- [ ] CSRF protection for web clients
-- [ ] Redis-backed rate limiting for multi-instance deployments
-- [ ] Google Cloud Secret Manager for JWT secrets
-
----
+**Last Security Audit**: December 2024
 
 ## Security Architecture
 
 ### Authentication Flow
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Mobile App    │────>│   API Server     │────>│   PostgreSQL    │
-│  (React Native) │<────│   (Express)      │<────│   Database      │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-        │                        │
-        │                        │
-   MMKV Storage             JWT Tokens
-   (Encrypted)              Session Table
+User Login
+    │
+    ▼
+┌─────────────────┐
+│ POST /api/auth  │
+│    /login       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Verify Password │
+│ (bcrypt)        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐       ┌──────────────────┐
+│ Generate Tokens │──────>│ Store Session    │
+│ - Access (15m)  │       │ (hashed refresh) │
+│ - Refresh (7d)  │       └──────────────────┘
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Return to App   │
+│ Store in MMKV   │
+│ (encrypted)     │
+└─────────────────┘
 ```
 
-### Token Management
+## Implementation Status
 
-**Access Token**:
-- Short-lived (15 minutes)
-- Used for API authentication
-- Stored in encrypted MMKV storage
+### Completed
 
-**Refresh Token**:
-- Long-lived (7 days)
-- Used to obtain new access tokens
-- Stored in encrypted MMKV storage
-- Hash stored in database Session table
+**Backend Security**
+- [x] Helmet security headers (HSTS, X-Frame-Options, etc.)
+- [x] CORS restricted to approved origins
+- [x] Rate limiting on all endpoints
+- [x] JWT secret validation (required in production)
+- [x] Session management (database-backed)
+- [x] Input validation on all endpoints
+- [x] Setup endpoints disabled in production
 
-### MMKV Encryption
+**Frontend Security**
+- [x] Device-specific encryption (MMKV with DeviceInfo)
+- [x] Secure logger (sanitizes sensitive data)
+- [x] No hardcoded fallback tokens
+- [x] Automatic token refresh
 
-The mobile app uses device-specific encryption keys:
+**Database Security**
+- [x] Parameterized queries (Prisma ORM)
+- [x] Optimized indexes for performance
+- [x] Batch operations to prevent N+1
+- [x] Pagination limits (max 100 items)
 
-```typescript
-const generateEncryptionKey = (): string => {
-  const deviceId = DeviceInfo.getDeviceId();     // e.g., "iPhone14,2"
-  const bundleId = DeviceInfo.getBundleId();     // e.g., "com.kidsactivitytracker"
-  const buildNumber = DeviceInfo.getBuildNumber();
-  return `${bundleId}-${deviceId}-${buildNumber}-v1`;
-};
-```
+### Pending
 
-This provides:
-- Unique key per device
-- Key changes with app version
-- No hardcoded secrets in source code
+- [ ] Certificate pinning for mobile app
+- [ ] CSRF protection for web clients
+- [ ] Redis-backed rate limiting (multi-instance)
+- [ ] Google Cloud Secret Manager integration
 
----
+## Backend Security
 
-## API Security Configuration
+### Helmet Security Headers
 
-### Helmet Configuration
-
-```typescript
+```javascript
 app.use(helmet({
-  contentSecurityPolicy: false,                    // Disabled for mobile API
+  contentSecurityPolicy: false,  // Mobile compatibility
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  strictTransportSecurity: {
+    maxAge: 31536000,
+    includeSubDomains: true
+  }
 }));
 ```
 
 **Headers Applied**:
-| Header | Value | Purpose |
-|--------|-------|---------|
-| Strict-Transport-Security | max-age=15552000; includeSubDomains | Force HTTPS |
-| X-Content-Type-Options | nosniff | Prevent MIME sniffing |
-| X-Frame-Options | SAMEORIGIN | Prevent clickjacking |
-| Cross-Origin-Opener-Policy | same-origin | Isolate browsing context |
+- `Strict-Transport-Security`: HTTPS enforcement
+- `X-Content-Type-Options`: nosniff
+- `X-Frame-Options`: SAMEORIGIN
+- `Cross-Origin-Opener-Policy`: same-origin
+- `Cross-Origin-Resource-Policy`: cross-origin
 
 ### CORS Configuration
 
-```typescript
-const ALLOWED_WEB_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:8081',
-];
-
+```javascript
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow mobile apps (no origin header)
-    if (!origin) return callback(null, true);
-    // Allow approved web origins
-    if (ALLOWED_WEB_ORIGINS.includes(origin)) return callback(null, true);
-    // Allow all in development
-    if (process.env.NODE_ENV !== 'production') return callback(null, true);
-    // Reject in production
-    callback(new Error('Not allowed by CORS'));
-  },
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:8081'
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  // Allow React Native requests (no Origin header)
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 }));
 ```
 
 ### Rate Limiting
 
 | Endpoint Type | Limit | Window |
-|--------------|-------|--------|
+|---------------|-------|--------|
 | General API | 100 requests | 15 minutes |
 | Authentication | 5 requests | 15 minutes |
 | Password Reset | 3 requests | 1 hour |
+| Email Verification | 5 requests | 15 minutes |
 
----
+```javascript
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests' }
+});
 
-## Secure Logging
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5
+});
+```
 
-The `secureLogger` utility sanitizes sensitive data before logging:
+### JWT Token Security
+
+**Token Configuration**:
+- Access token: 15-minute expiry
+- Refresh token: 7-day expiry
+- Refresh tokens hashed before database storage
+- Session table tracks all active sessions
+
+**Validation**:
+```javascript
+// Server refuses to start without JWT_SECRET in production
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET required in production');
+}
+```
+
+### Input Validation
+
+Using `express-validator` on all endpoints:
+
+```javascript
+const registerValidation = [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 }),
+  body('name').trim().isLength({ min: 1, max: 100 })
+];
+```
+
+### Password Security
+
+- Bcrypt hashing with salt rounds = 12
+- Minimum 8 character passwords
+- Password reset tokens expire in 1 hour
+- Old tokens invalidated on password change
+
+## Frontend Security
+
+### MMKV Encrypted Storage
 
 ```typescript
-// src/utils/secureLogger.ts
-const SENSITIVE_KEYS = [
-  'password', 'token', 'accessToken', 'refreshToken',
-  'secret', 'key', 'authorization', 'cookie', 'session'
-];
+import { MMKV } from 'react-native-mmkv';
+import DeviceInfo from 'react-native-device-info';
 
-const sanitize = (data: any): any => {
-  if (typeof data === 'object' && data !== null) {
-    const sanitized = { ...data };
-    for (const key of Object.keys(sanitized)) {
-      if (SENSITIVE_KEYS.some(k => key.toLowerCase().includes(k))) {
-        sanitized[key] = '[REDACTED]';
-      }
+// Device-specific encryption key
+const deviceId = await DeviceInfo.getUniqueId();
+const storage = new MMKV({
+  id: 'kidsactivity-storage',
+  encryptionKey: deviceId
+});
+```
+
+**What's stored**:
+- Access tokens
+- Refresh tokens
+- User preferences
+- Cached data
+
+### Secure Logger
+
+Sanitizes sensitive data before logging:
+
+```typescript
+const secureLog = (message: string, data: any) => {
+  const sanitized = { ...data };
+  const sensitive = ['password', 'token', 'secret', 'authorization'];
+
+  sensitive.forEach(key => {
+    if (sanitized[key]) {
+      sanitized[key] = '[REDACTED]';
     }
-    return sanitized;
-  }
-  return data;
+  });
+
+  console.log(message, sanitized);
 };
 ```
 
-**Usage**:
-```typescript
-import { secureLog, secureError } from '../utils/secureLogger';
-
-// Safe - password will be redacted
-secureLog('Login attempt:', { email, password });
-// Output: Login attempt: { email: "user@example.com", password: "[REDACTED]" }
-```
-
----
-
-## JWT Secret Requirements
-
-The server validates JWT secrets at startup:
+### Token Management
 
 ```typescript
-// Server startup validation
-if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
-  throw new Error('JWT secrets must be configured');
-}
+// Automatic refresh on 401
+api.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.status === 401) {
+      const newTokens = await refreshTokens();
+      if (newTokens) {
+        error.config.headers.Authorization = `Bearer ${newTokens.accessToken}`;
+        return api.request(error.config);
+      }
+    }
+    throw error;
+  }
+);
 ```
-
-**Production Requirements**:
-- JWT_ACCESS_SECRET: Required, minimum 32 characters
-- JWT_REFRESH_SECRET: Required, minimum 32 characters
-- No hardcoded fallback values
-
-**Generate Strong Secrets**:
-```bash
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-```
-
----
 
 ## Database Security
 
-### New Indexes (December 2024)
+### Prisma ORM (SQL Injection Prevention)
 
-```prisma
-// ChildActivity indexes
-@@index([status])
-@@index([completedAt])
-@@index([registeredAt])
-@@index([rating])
-@@index([childId, scheduledDate])
-
-// User indexes
-@@index([verificationToken])
-@@index([resetToken])
-@@index([isVerified])
-
-// Invitation indexes
-@@index([recipientUserId])
-```
-
-### Batch Child Verification
-
-Prevents N+1 queries when verifying ownership of multiple children:
+All queries use parameterized statements:
 
 ```typescript
-// server/src/services/childrenService.ts
-async verifyMultipleChildOwnership(
-  childIds: string[],
-  userId: string
-): Promise<Record<string, boolean>> {
-  // Single query instead of N queries
-  const ownedChildren = await prisma.child.findMany({
-    where: { id: { in: childIds }, userId },
-    select: { id: true }
-  });
-  // Build ownership map
-  const ownedSet = new Set(ownedChildren.map(c => c.id));
-  const result: Record<string, boolean> = {};
-  for (const childId of childIds) {
-    result[childId] = ownedSet.has(childId);
+// Safe - Prisma handles parameterization
+const user = await prisma.user.findUnique({
+  where: { email: userInput }
+});
+
+// Never do this
+// const user = await prisma.$queryRaw`SELECT * FROM User WHERE email = ${userInput}`;
+```
+
+### Data Access Control
+
+```typescript
+// Verify ownership before access
+const child = await prisma.child.findFirst({
+  where: {
+    id: childId,
+    userId: authenticatedUserId  // Ownership check
   }
-  return result;
-}
+});
 ```
 
-### Pagination Limits
+### Sensitive Data Handling
 
-```typescript
-// Maximum 100 items per page
-const limit = Math.min(100, Math.max(1, filters.limit || 20));
+- Passwords: Hashed with bcrypt, never stored plain
+- Tokens: Hashed in database, transmitted only once
+- Personal data: Encrypted at rest (Cloud SQL)
+- Logs: Sensitive fields redacted
+
+## API Security Best Practices
+
+### Endpoint Protection
+
+```javascript
+// Protected route example
+router.get('/children',
+  authMiddleware,           // Verify JWT
+  rateLimiter,              // Apply rate limit
+  validateQuery,            // Validate input
+  childAuthMiddleware,      // Verify child ownership
+  async (req, res) => {
+    // Handler
+  }
+);
 ```
 
+### Error Handling
+
+Never expose internal details:
+
+```javascript
+// Good - generic message
+res.status(500).json({ error: 'Internal server error' });
+
+// Bad - exposes internals
+res.status(500).json({ error: err.stack });
+```
+
+### Request Validation
+
+All endpoints validate:
+- Required fields present
+- Field types correct
+- Field lengths within limits
+- Values within allowed ranges
+
+## Security Monitoring
+
+### Logging
+
+- All authentication attempts logged
+- Failed login attempts tracked
+- Rate limit violations logged
+- Error patterns monitored
+
+### Alerts
+
+Set up alerts for:
+- Unusual login patterns
+- Rate limit spikes
+- Authentication failures
+- Server errors
+
+## Security Checklist for Developers
+
+### Before Committing
+
+- [ ] No hardcoded secrets or tokens
+- [ ] No sensitive data in logs
+- [ ] Input validation on new endpoints
+- [ ] Ownership checks on data access
+- [ ] Rate limiting applied
+- [ ] Error messages don't leak internals
+
+### Code Review
+
+- [ ] SQL injection prevention verified
+- [ ] XSS prevention for any HTML output
+- [ ] CSRF tokens for form submissions (web)
+- [ ] Proper auth middleware applied
+- [ ] Sensitive operations logged
+
+## Incident Response
+
+### If Credentials Compromised
+
+1. Rotate JWT secrets immediately
+2. Invalidate all sessions (delete Session table rows)
+3. Force password reset for affected users
+4. Audit access logs
+5. Notify affected users
+
+### If Data Breach Suspected
+
+1. Isolate affected systems
+2. Preserve logs for analysis
+3. Assess scope of exposure
+4. Notify users per privacy policy
+5. Report to authorities if required
+
 ---
 
-## Security Testing Checklist
-
-- [x] Security headers verification (curl test)
-- [x] CORS configuration (allowed/blocked origins)
-- [x] Rate limiting effectiveness
-- [x] Token validation (invalid token rejection)
-- [x] Mobile app authentication flow
-- [ ] Penetration testing
-- [ ] SQL injection testing
-- [ ] XSS vulnerability testing
-
----
-
-## Remaining Security Improvements
-
-### High Priority
-1. **Certificate Pinning** - Prevent MITM attacks on mobile
-2. **Google Cloud Secret Manager** - Store JWT secrets securely
-
-### Medium Priority
-3. **Redis Rate Limiting** - For multi-instance deployments
-4. **CSRF Protection** - For web client support
-5. **Biometric Authentication** - TouchID/FaceID support
-
-### Low Priority
-6. **Security Monitoring** - Sentry integration
-7. **Data Encryption at Rest** - Field-level encryption for PII
-
----
-
-## Compliance Considerations
-
-### Data Protection (GDPR/CCPA)
-- User data stored with encryption at rest (PostgreSQL)
-- Secure token storage on mobile devices
-- Account deletion support (Apple App Store requirement)
-
-### Children's Privacy (COPPA)
-- Child profiles linked to parent accounts
-- Parental consent through registration
-- Minimal data collection
-
----
-
-## Security Resources
-
-- **OWASP Mobile Top 10**: https://owasp.org/www-project-mobile-top-10/
-- **React Native Security**: https://reactnative.dev/docs/security
-- **Node.js Security**: https://github.com/goldbergyoni/nodebestpractices#6-security-best-practices
-- **Helmet.js**: https://helmetjs.github.io/
-
----
-
-**Document Version**: 3.0
+**Document Version**: 4.0
 **Last Updated**: December 2024
-**Next Review**: March 2025

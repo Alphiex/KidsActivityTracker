@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,9 +20,10 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../contexts/ThemeContext';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
-import { UserPreferences } from '../types/preferences';
+import { UserPreferences, HierarchicalProvince } from '../types/preferences';
 import { API_CONFIG } from '../config/api';
 import TopTabNavigation from '../components/TopTabNavigation';
+import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
 
 interface ExpandableSection {
   id: string;
@@ -76,6 +77,11 @@ const FiltersScreen = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+
+  // Hierarchical location state
+  const [hierarchyData, setHierarchyData] = useState<HierarchicalProvince[]>([]);
+  const [selectedLocationIds, setSelectedLocationIds] = useState<Set<string>>(new Set());
+  const [locationsLoading, setLocationsLoading] = useState(true);
 
   // Date picker state
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -135,18 +141,62 @@ const FiltersScreen = () => {
 
   const loadLocations = async () => {
     try {
-      console.log('📍 [FiltersScreen] Loading locations...');
-      const locations = await activityService.getLocations();
-      console.log('📍 [FiltersScreen] Received locations:', locations?.length || 0);
+      setLocationsLoading(true);
+      console.log('📍 [FiltersScreen] Loading locations and cities...');
 
-      if (!locations || locations.length === 0) {
+      // Fetch both cities (with province) and locations in parallel
+      const [citiesData, locationsData] = await Promise.all([
+        activityService.getCities(),
+        activityService.getLocations(),
+      ]);
+
+      console.log('📍 [FiltersScreen] Received cities:', citiesData?.length || 0);
+      console.log('📍 [FiltersScreen] Received locations:', locationsData?.length || 0);
+
+      if (!locationsData || locationsData.length === 0) {
         console.warn('📍 [FiltersScreen] No locations returned from API');
+        setLocationsLoading(false);
         return;
       }
 
-      // Group locations by city
+      // Build hierarchical structure (Province -> City -> Location)
+      const hierarchy = buildHierarchyFromAPI(citiesData || [], locationsData);
+      console.log('📍 [FiltersScreen] Built hierarchy with provinces:', hierarchy.length);
+      setHierarchyData(hierarchy);
+
+      // Initialize selectedLocationIds from preferences
+      const userPrefs = preferencesService.getPreferences();
+      if (userPrefs.locationIds && userPrefs.locationIds.length > 0) {
+        setSelectedLocationIds(new Set(userPrefs.locationIds));
+      } else if (userPrefs.locations && userPrefs.locations.length > 0) {
+        // Migration: convert old location names to IDs
+        const locationNameToId = new Map<string, string>();
+        locationsData.forEach((loc: any) => {
+          locationNameToId.set(loc.name.toLowerCase(), loc.id);
+        });
+
+        const migratedIds: string[] = [];
+        userPrefs.locations.forEach((name: string) => {
+          const id = locationNameToId.get(name.toLowerCase());
+          if (id) {
+            migratedIds.push(id);
+          }
+        });
+
+        if (migratedIds.length > 0) {
+          console.log('📍 [FiltersScreen] Migrated', migratedIds.length, 'locations to IDs');
+          setSelectedLocationIds(new Set(migratedIds));
+          // Save migrated IDs
+          preferencesService.updatePreferences({
+            locationIds: migratedIds,
+            locations: [], // Clear old format
+          });
+        }
+      }
+
+      // Also update legacy cities state for backward compatibility
       const cityMap = new Map<string, Location[]>();
-      locations.forEach((location: any) => {
+      locationsData.forEach((location: any) => {
         const cityName = location.city || location.name.split(',')[0] || 'Other';
         if (!cityMap.has(cityName)) {
           cityMap.set(cityName, []);
@@ -165,10 +215,11 @@ const FiltersScreen = () => {
         expanded: false,
       }));
 
-      console.log('📍 [FiltersScreen] Grouped into cities:', cityList.length);
       setCities(cityList);
     } catch (error) {
       console.error('Error loading locations:', error);
+    } finally {
+      setLocationsLoading(false);
     }
   };
 
@@ -221,12 +272,21 @@ const FiltersScreen = () => {
   };
 
   const toggleCity = (cityName: string) => {
-    setCities(prev => prev.map(city => 
-      city.name === cityName 
+    setCities(prev => prev.map(city =>
+      city.name === cityName
         ? { ...city, expanded: !city.expanded }
         : city
     ));
   };
+
+  // Handler for hierarchical location selection
+  const handleLocationSelectionChange = useCallback((newSelection: Set<string>) => {
+    setSelectedLocationIds(newSelection);
+    // Persist to preferences
+    const locationIdsArray = Array.from(newSelection);
+    preferencesService.updatePreferences({ locationIds: locationIdsArray });
+    setPreferences(preferencesService.getPreferences());
+  }, []);
 
   const updateAgeRange = (min: number, max: number) => {
     updatePreferences({ 
@@ -270,9 +330,10 @@ const FiltersScreen = () => {
         const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
         return `${ageRange.min} - ${ageRange.max} years`;
       case 'locations':
-        const locations = preferences?.locations || [];
-        return locations.length > 0
-          ? `${locations.length} selected`
+        // Use hierarchical selection count
+        const locationCount = selectedLocationIds.size;
+        return locationCount > 0
+          ? `${locationCount} selected`
           : 'Anywhere';
       case 'budget':
         const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
@@ -516,59 +577,14 @@ const FiltersScreen = () => {
   };
 
   const renderLocationsContent = () => (
-    <View style={styles.sectionContent}>
-      {cities.length === 0 && (
-        <Text style={{ color: '#717171', padding: 16, textAlign: 'center' }}>
-          Loading locations...
-        </Text>
-      )}
-      {cities.map((city) => (
-        <View key={city.name} style={styles.cityContainer}>
-          <TouchableOpacity
-            style={styles.cityHeader}
-            onPress={() => toggleCity(city.name)}
-          >
-            <Text style={styles.cityName}>{city.name}</Text>
-            <View style={styles.cityHeaderRight}>
-              <Text style={styles.locationCount}>{city.locations.length} locations</Text>
-              <Icon
-                name={city.expanded ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color="#717171"
-              />
-            </View>
-          </TouchableOpacity>
-          
-          {city.expanded && (
-            <View style={styles.locationsContainer}>
-              {city.locations.map((location) => (
-                <TouchableOpacity
-                  key={location.id}
-                  style={styles.locationItem}
-                  onPress={() => toggleLocation(location.name)}
-                >
-                  <View style={[
-                    styles.checkbox,
-                    preferences?.locations?.includes(location.name) && styles.checkboxActive,
-                  ]}>
-                    {preferences?.locations?.includes(location.name) && (
-                      <Icon name="check" size={16} color="#FFFFFF" />
-                    )}
-                  </View>
-                  <View style={styles.locationInfo}>
-                    <Text style={styles.locationName}>{location.name}</Text>
-                    {location.activities && location.activities > 0 && (
-                      <Text style={styles.locationActivities}>
-                        {location.activities} activities
-                      </Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      ))}
+    <View style={[styles.sectionContent, { maxHeight: 400 }]}>
+      <HierarchicalSelect
+        hierarchy={hierarchyData}
+        selectedLocationIds={selectedLocationIds}
+        onSelectionChange={handleLocationSelectionChange}
+        loading={locationsLoading}
+        searchPlaceholder="Search provinces, cities, locations..."
+      />
     </View>
   );
 

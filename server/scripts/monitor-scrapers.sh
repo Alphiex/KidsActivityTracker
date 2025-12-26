@@ -7,27 +7,31 @@ echo "$(date)"
 echo "=========================================="
 echo ""
 
-echo "=== EDMONTON (Task: bb94796) ==="
-if [ -f /tmp/claude/-Users-mike/tasks/bb94796.output ]; then
-  # Show last 15 lines
-  tail -15 /tmp/claude/-Users-mike/tasks/bb94796.output
+echo "=== EDMONTON (Task: bb2e2b7) ==="
+if [ -f /tmp/claude/-Users-mike/tasks/bb2e2b7.output ]; then
+  # Show last 20 lines
+  tail -20 /tmp/claude/-Users-mike/tasks/bb2e2b7.output
   echo ""
-  # Activity count
-  EDMONTON_COUNT=$(grep -o 'Total: [0-9]* activities' /tmp/claude/-Users-mike/tasks/bb94796.output | tail -1)
-  echo "Latest: $EDMONTON_COUNT"
+  # Progress and activity count
+  EDMONTON_PROGRESS=$(grep -o 'Progress: [0-9]*/[0-9]* ([0-9]*%)' /tmp/claude/-Users-mike/tasks/bb2e2b7.output | tail -1)
+  EDMONTON_COUNT=$(grep -o 'Total.*activities' /tmp/claude/-Users-mike/tasks/bb2e2b7.output | tail -1)
+  echo "Latest Progress: $EDMONTON_PROGRESS"
+  echo "Latest Total: $EDMONTON_COUNT"
 else
   echo "Not started yet"
 fi
 
 echo ""
-echo "=== CALGARY (Task: bf50185) ==="
-if [ -f /tmp/claude/-Users-mike/tasks/bf50185.output ]; then
-  # Show last 15 lines
-  tail -15 /tmp/claude/-Users-mike/tasks/bf50185.output
+echo "=== CALGARY (Task: b9e3941) ==="
+if [ -f /tmp/claude/-Users-mike/tasks/b9e3941.output ]; then
+  # Show last 20 lines
+  tail -20 /tmp/claude/-Users-mike/tasks/b9e3941.output
   echo ""
-  # Activity count
-  CALGARY_COUNT=$(grep -o 'Total: [0-9]* activities' /tmp/claude/-Users-mike/tasks/bf50185.output | tail -1)
-  echo "Latest: $CALGARY_COUNT"
+  # Progress and activity count
+  CALGARY_PROGRESS=$(grep -o 'Progress: [0-9]*/[0-9]* ([0-9]*%)' /tmp/claude/-Users-mike/tasks/b9e3941.output | tail -1)
+  CALGARY_COUNT=$(grep -o 'Total.*activities' /tmp/claude/-Users-mike/tasks/b9e3941.output | tail -1)
+  echo "Latest Progress: $CALGARY_PROGRESS"
+  echo "Latest Total: $CALGARY_COUNT"
 else
   echo "Not started yet"
 fi

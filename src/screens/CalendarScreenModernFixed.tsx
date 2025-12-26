@@ -39,7 +39,11 @@ import ViewShot from 'react-native-view-shot';
 import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { detectRescheduleConflicts, suggestAlternativeTimes, TimeSlot } from '../utils/conflictDetection';
+import { parseTimeString, sortByTime } from '../utils/calendarUtils';
 import ConflictWarning from '../components/ConflictWarning';
+import ChildColorLegend from '../components/calendar/ChildColorLegend';
+import calendarExportService from '../services/calendarExportService';
+import AddEventModal, { CustomEvent } from '../components/calendar/AddEventModal';
 
 type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
@@ -114,6 +118,10 @@ const CalendarScreenModernFixed = () => {
   const [rescheduleConflicts, setRescheduleConflicts] = useState<any[]>([]);
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [alternativeTimes, setAlternativeTimes] = useState<TimeSlot[]>([]);
+
+  // Add Event modal state
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
+  const [addEventDate, setAddEventDate] = useState<string | undefined>(undefined);
 
   // Load children and their activities
   useEffect(() => {
@@ -204,12 +212,19 @@ const CalendarScreenModernFixed = () => {
       }
 
       // Process children with activities
-      const processedChildren = myChildren.map((child, index) => ({
-        ...child,
-        color: CHILD_COLORS[index % CHILD_COLORS.length],
-        isVisible: true,
-        activities: enhancedActivities.filter(a => a.childId === child.id),
-      }));
+      console.log('[CalendarScreen] myChildren:', myChildren.map(c => ({ id: c.id, name: c.name })));
+      console.log('[CalendarScreen] enhancedActivities childIds:', enhancedActivities.map(a => a.childId));
+
+      const processedChildren = myChildren.map((child, index) => {
+        const childActivities = enhancedActivities.filter(a => a.childId === child.id);
+        console.log(`[CalendarScreen] Child ${child.name} (${child.id}) has ${childActivities.length} activities`);
+        return {
+          ...child,
+          color: CHILD_COLORS[index % CHILD_COLORS.length],
+          isVisible: true,
+          activities: childActivities,
+        };
+      });
 
       setChildrenWithActivities(processedChildren);
 
@@ -431,6 +446,48 @@ const CalendarScreenModernFixed = () => {
             }
           }
         }
+        // Check if activity has top-level dayOfWeek array (from Activity model)
+        else if ((activity.activity as any)?.dayOfWeek && Array.isArray((activity.activity as any).dayOfWeek)) {
+          const dayMap: { [key: string]: number } = {
+            'sunday': 0, 'sun': 0,
+            'monday': 1, 'mon': 1,
+            'tuesday': 2, 'tue': 2, 'tues': 2,
+            'wednesday': 3, 'wed': 3,
+            'thursday': 4, 'thu': 4, 'thur': 4, 'thurs': 4,
+            'friday': 5, 'fri': 5,
+            'saturday': 6, 'sat': 6,
+          };
+
+          const dayOfWeekArray = (activity.activity as any).dayOfWeek;
+          const targetDays = dayOfWeekArray
+            .map((day: string) => dayMap[day.toLowerCase()])
+            .filter((d: number | undefined): d is number => d !== undefined);
+
+          if (targetDays.length > 0) {
+            let currentDate = startDate;
+            while (currentDate <= endDate) {
+              if (targetDays.includes(currentDate.getDay())) {
+                dates.push(format(currentDate, 'yyyy-MM-dd'));
+              }
+              currentDate = addDays(currentDate, 1);
+            }
+          } else {
+            // If no valid days found, add all dates in range (activity occurs every day)
+            let currentDate = startDate;
+            while (currentDate <= endDate) {
+              dates.push(format(currentDate, 'yyyy-MM-dd'));
+              currentDate = addDays(currentDate, 1);
+            }
+          }
+        }
+        // If no dayOfWeek info at all, add all dates in range
+        else if (dates.length === 0) {
+          let currentDate = startDate;
+          while (currentDate <= endDate) {
+            dates.push(format(currentDate, 'yyyy-MM-dd'));
+            currentDate = addDays(currentDate, 1);
+          }
+        }
       }
     }
 
@@ -579,8 +636,60 @@ const CalendarScreenModernFixed = () => {
   };
 
   const handleFabPress = () => {
-    setQuickAddDate(selectedDate);
-    setShowQuickAddModal(true);
+    Alert.alert(
+      'Add to Calendar',
+      'What would you like to add?',
+      [
+        {
+          text: 'Search Activities',
+          onPress: () => {
+            setQuickAddDate(selectedDate);
+            setShowQuickAddModal(true);
+          },
+        },
+        {
+          text: 'Create Custom Event',
+          onPress: () => {
+            setAddEventDate(selectedDate);
+            setShowAddEventModal(true);
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleSaveCustomEvent = async (event: CustomEvent) => {
+    try {
+      // Create a custom activity via the API
+      const response = await childrenService.addActivityToChild(
+        event.childId,
+        'custom-' + Date.now(), // Temporary activity ID for custom events
+        {
+          scheduledDate: format(event.date, 'yyyy-MM-dd'),
+          startTime: format(event.startTime, 'h:mm a').toLowerCase(),
+          endTime: format(event.endTime, 'h:mm a').toLowerCase(),
+          notes: event.description,
+          recurring: event.recurring !== 'none',
+          recurrencePattern: event.recurring !== 'none' ? event.recurring : undefined,
+          recurrenceEnd: event.recurrenceEndDate,
+          customEventData: {
+            title: event.title,
+            location: event.location,
+            isCustom: true,
+          },
+        }
+      );
+
+      Alert.alert('Success', 'Event added to calendar');
+      loadData(); // Refresh calendar
+    } catch (error) {
+      console.error('[Calendar] Failed to save custom event:', error);
+      throw error;
+    }
   };
 
   // Bulk operations handlers (Feature 7)
@@ -836,17 +945,46 @@ const CalendarScreenModernFixed = () => {
   };
 
   const exportToCalendar = async () => {
+    const allChildren = [...childrenWithActivities, ...sharedChildren];
+    const activitiesToExport = allChildren
+      .filter(c => c.isVisible)
+      .flatMap(child =>
+        child.activities.map(a => ({
+          id: a.activityId,
+          childActivityId: a.id,
+          name: a.activity.name,
+          description: a.activity.description,
+          location: a.activity.location,
+          scheduledDate: a.scheduledDate,
+          dateStart: (a.activity as any).dateStart,
+          dateEnd: (a.activity as any).dateEnd,
+          startTime: a.startTime || (a.activity as any).startTime,
+          endTime: a.endTime || (a.activity as any).endTime,
+          dayOfWeek: (a.activity as any).dayOfWeek,
+          childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
+        }))
+      );
+
+    if (activitiesToExport.length === 0) {
+      Alert.alert('No Activities', 'There are no visible activities to export.');
+      return;
+    }
+
     Alert.alert(
       'Export Calendar',
-      'Choose your calendar app',
+      `Export ${activitiesToExport.length} activities to:`,
       [
         {
-          text: 'iOS Calendar',
-          onPress: () => exportToIOSCalendar(),
+          text: 'Native Calendar',
+          onPress: () => exportToNativeCalendar(activitiesToExport),
+        },
+        {
+          text: 'Share as ICS',
+          onPress: () => shareAsICS(activitiesToExport),
         },
         {
           text: 'Google Calendar',
-          onPress: () => exportToGoogleCalendar(),
+          onPress: () => exportToGoogleCalendar(activitiesToExport),
         },
         {
           text: 'Cancel',
@@ -856,57 +994,63 @@ const CalendarScreenModernFixed = () => {
     );
   };
 
-  const exportToIOSCalendar = async () => {
-    // Create ICS file content
-    const activities = [...childrenWithActivities, ...sharedChildren]
-      .filter(c => c.isVisible)
-      .flatMap(c => c.activities);
+  const exportToNativeCalendar = async (activities: any[]) => {
+    try {
+      const hasPermission = await calendarExportService.requestCalendarPermission();
+      if (!hasPermission) {
+        Alert.alert(
+          'Permission Required',
+          'Please grant calendar access in Settings to export activities.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
 
-    let icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Kids Activity Tracker//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-`;
+      const result = await calendarExportService.exportActivitiesToCalendar(activities);
 
-    activities.forEach((activity) => {
-      const startDate = activity.scheduledDate ? parseISO(activity.scheduledDate) : new Date();
-      const startTime = activity.startTime || '09:00';
-      const endTime = activity.endTime || '10:00';
-
-      icsContent += `BEGIN:VEVENT
-SUMMARY:${activity.activity.name}
-DTSTART:${format(startDate, 'yyyyMMdd')}T${startTime.replace(':', '')}00
-DTEND:${format(startDate, 'yyyyMMdd')}T${endTime.replace(':', '')}00
-DESCRIPTION:${activity.activity.description || ''}
-LOCATION:${activity.activity.location || ''}
-END:VEVENT
-`;
-    });
-
-    icsContent += 'END:VCALENDAR';
-
-    // For iOS, we could save this to a file and open it
-    // This would require file system permissions and linking
-    Alert.alert('Export Complete', 'Calendar events prepared for export');
+      Alert.alert(
+        'Export Complete',
+        `Successfully exported ${result.success} activities.${result.failed > 0 ? ` (${result.failed} failed)` : ''}`
+      );
+    } catch (error) {
+      console.error('[Calendar] Export failed:', error);
+      Alert.alert('Export Failed', 'Unable to export activities to calendar.');
+    }
   };
 
-  const exportToGoogleCalendar = () => {
-    const activities = [...childrenWithActivities, ...sharedChildren]
-      .filter(c => c.isVisible)
-      .flatMap(c => c.activities);
+  const shareAsICS = async (activities: any[]) => {
+    try {
+      const success = await calendarExportService.shareICSContent(
+        activities,
+        `kids-activities-${format(new Date(), 'yyyy-MM-dd')}.ics`
+      );
 
-    if (activities.length > 0) {
-      const firstActivity = activities[0];
-      const startDate = firstActivity.scheduledDate || format(new Date(), 'yyyy-MM-dd');
-      const text = encodeURIComponent(firstActivity.activity.name);
-      const details = encodeURIComponent(firstActivity.activity.description || '');
-      const location = encodeURIComponent(firstActivity.activity.location || '');
-
-      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}&location=${location}&dates=${startDate.replace(/-/g, '')}/${startDate.replace(/-/g, '')}`;
-
-      Linking.openURL(url);
+      if (!success) {
+        Alert.alert('Share Failed', 'Unable to share calendar file.');
+      }
+    } catch (error) {
+      console.error('[Calendar] Share failed:', error);
+      Alert.alert('Share Failed', 'Unable to share calendar file.');
     }
+  };
+
+  const exportToGoogleCalendar = (activities: any[]) => {
+    if (activities.length === 0) return;
+
+    const firstActivity = activities[0];
+    const dateStr = firstActivity.scheduledDate || firstActivity.dateStart || format(new Date(), 'yyyy-MM-dd');
+    const startDate = typeof dateStr === 'string' ? dateStr.substring(0, 10).replace(/-/g, '') : format(dateStr, 'yyyyMMdd');
+
+    const text = encodeURIComponent(firstActivity.name);
+    const details = encodeURIComponent(firstActivity.description || '');
+    const locationStr = typeof firstActivity.location === 'string'
+      ? firstActivity.location
+      : (firstActivity.location?.name || firstActivity.location?.fullAddress || '');
+    const location = encodeURIComponent(locationStr);
+
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}&location=${location}&dates=${startDate}/${startDate}`;
+
+    Linking.openURL(url);
   };
 
   // Removed - Filter and Export buttons moved to Children legend row
@@ -999,26 +1143,37 @@ END:VEVENT
   };
 
   const renderChildrenLegend = () => {
-    const visibleChildren = [...childrenWithActivities, ...sharedChildren].filter(c => c.isVisible);
+    const allChildren = [...childrenWithActivities, ...sharedChildren];
 
-    if (visibleChildren.length === 0) {
+    if (allChildren.length === 0) {
       return null;
     }
+
+    // Prepare legend items with activity counts
+    const legendItems = allChildren.map(child => ({
+      id: child.id,
+      name: child.name,
+      color: child.color,
+      isVisible: child.isVisible,
+      isShared: child.isShared,
+      sharedBy: child.sharedBy,
+      activityCount: child.activities.length,
+    }));
+
+    const handleToggle = (childId: string, isShared: boolean) => {
+      toggleChildVisibility(childId, isShared);
+    };
 
     return (
       <View style={styles.legendContainer}>
         <View style={styles.legendLeftSection}>
           <Text style={styles.legendTitle}>Children</Text>
-          <View style={styles.legendItems}>
-            {visibleChildren.map((child) => (
-              <View key={child.id} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: child.color }]} />
-                <Text style={styles.legendText} numberOfLines={1}>
-                  {child.isShared ? `${child.name} (${child.sharedBy})` : child.name}
-                </Text>
-              </View>
-            ))}
-          </View>
+          <ChildColorLegend
+            children={legendItems}
+            onToggleChild={handleToggle}
+            showActivityCount={true}
+            horizontal={true}
+          />
         </View>
         <View style={styles.legendRightActions}>
           <TouchableOpacity
@@ -1079,11 +1234,11 @@ END:VEVENT
                   {activity.startTime} - {activity.endTime}
                 </Text>
               </View>
-              {activity.activity.location && (
+              {(activity.activity.locationName || activity.activity.location?.name) && (
                 <View style={styles.activityListDetailRow}>
                   <Icon name="map-marker" size={16} color={ModernColors.textSecondary} />
                   <Text style={styles.activityListDetailText}>
-                    {activity.activity.location}
+                    {activity.activity.locationName || activity.activity.location?.name}
                   </Text>
                 </View>
               )}
@@ -1177,10 +1332,9 @@ END:VEVENT
                 startTimeStr = matchingSession?.startTime;
               }
 
-              // Parse hour from time string (e.g., "9:30 am" -> 9)
-              const startHour = startTimeStr
-                ? parseInt(startTimeStr.replace(/[^\d]/g, '').substring(0, 2))
-                : 0;
+              // Parse hour from time string using proper AM/PM handling
+              const parsedTime = parseTimeString(startTimeStr);
+              const startHour = parsedTime ? parsedTime.hours : 0;
 
               if (!weekActivities[dateKey][startHour]) {
                 weekActivities[dateKey][startHour] = [];
@@ -1358,9 +1512,9 @@ END:VEVENT
                   startTimeStr = matchingSession?.startTime;
                 }
 
-                const startHour = startTimeStr
-                  ? parseInt(startTimeStr.replace(/[^\d]/g, '').substring(0, 2))
-                  : 0;
+                // Parse hour from time string using proper AM/PM handling
+                const parsedTime = parseTimeString(startTimeStr);
+                const startHour = parsedTime ? parsedTime.hours : 0;
 
                 return startHour === hour;
               });
@@ -1504,7 +1658,7 @@ END:VEVENT
               const startTime = activity.startTime || '00:00';
               const endTime = activity.endTime || '00:00';
               const childColor = activity.childColor || ModernColors.primary;
-              const location = activity.activity?.location;
+              const locationName = activity.activity?.locationName || activity.activity?.location?.name || '';
 
               return (
                 <TouchableOpacity
@@ -1521,10 +1675,10 @@ END:VEVENT
                       <Text style={styles.agendaItemTime}>
                         {startTime} - {endTime}
                       </Text>
-                      {location && (
+                      {locationName && (
                         <>
                           <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
-                          <Text style={styles.agendaItemLocation}>{location}</Text>
+                          <Text style={styles.agendaItemLocation}>{locationName}</Text>
                         </>
                       )}
                     </View>
@@ -1574,18 +1728,20 @@ END:VEVENT
                 </Text>
               </View>
 
-              <View style={styles.activityDetailRow}>
-                <Icon name="clock-outline" size={20} color={ModernColors.textSecondary} />
-                <Text style={styles.activityDetailText}>
-                  {selectedActivity.startTime} - {selectedActivity.endTime}
-                </Text>
-              </View>
+              {(selectedActivity.startTime || selectedActivity.endTime) && (
+                <View style={styles.activityDetailRow}>
+                  <Icon name="clock-outline" size={20} color={ModernColors.textSecondary} />
+                  <Text style={styles.activityDetailText}>
+                    {selectedActivity.startTime || 'N/A'} - {selectedActivity.endTime || 'N/A'}
+                  </Text>
+                </View>
+              )}
 
-              {selectedActivity.activity.location && (
+              {(selectedActivity.activity?.locationName || selectedActivity.activity?.location?.name) && (
                 <View style={styles.activityDetailRow}>
                   <Icon name="map-marker" size={20} color={ModernColors.textSecondary} />
                   <Text style={styles.activityDetailText}>
-                    {selectedActivity.activity.location}
+                    {selectedActivity.activity?.locationName || selectedActivity.activity?.location?.name}
                   </Text>
                 </View>
               )}
@@ -1982,6 +2138,19 @@ END:VEVENT
         }}
         onCancel={() => setShowConflictWarning(false)}
         onSelectAlternative={handleSelectAlternativeTime}
+      />
+
+      {/* Add Event Modal */}
+      <AddEventModal
+        visible={showAddEventModal}
+        onClose={() => setShowAddEventModal(false)}
+        onSave={handleSaveCustomEvent}
+        children={childrenWithActivities.map((c, i) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color || CHILD_COLORS[i % CHILD_COLORS.length],
+        }))}
+        initialDate={addEventDate}
       />
 
       {/* Floating Action Button */}

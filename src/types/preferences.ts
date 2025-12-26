@@ -1,10 +1,42 @@
+// Hierarchical location filter types
+export interface HierarchicalLocation {
+  id: string;
+  name: string;
+  city: string;
+  province: string;
+  address?: string;
+  fullAddress?: string;
+  activityCount: number;
+}
+
+export interface HierarchicalCity {
+  name: string;
+  province: string;
+  locations: HierarchicalLocation[];
+  locationCount: number;
+  activityCount: number;
+  expanded: boolean;
+}
+
+export interface HierarchicalProvince {
+  name: string;
+  cities: HierarchicalCity[];
+  cityCount: number;
+  locationCount: number;
+  activityCount: number;
+  expanded: boolean;
+}
+
+export type CheckboxState = 'unchecked' | 'checked' | 'indeterminate';
+
 export interface UserPreferences {
   // Basic preferences
   id: string;
   name?: string;
-  
+
   // Location preferences
-  locations: string[];
+  locations: string[]; // DEPRECATED - kept for migration (location names)
+  locationIds: string[]; // NEW - primary storage (location UUIDs)
   maxDistance?: number; // in km
   
   // Age preferences

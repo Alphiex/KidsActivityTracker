@@ -1,22 +1,18 @@
 # Deployment Guide
 
+Deployment procedures for Kids Activity Tracker on Google Cloud Platform.
+
 ## Overview
 
-Kids Activity Tracker is deployed on Google Cloud Platform using serverless infrastructure for scalability as we expand from North Vancouver to all of British Columbia.
+| | |
+|---|---|
+| **Project ID** | `kids-activity-tracker-2024` |
+| **Region** | `us-central1` |
+| **API URL** | `https://kids-activity-api-205843686007.us-central1.run.app` |
+| **Database** | Cloud SQL `kids-activity-db-dev` |
+| **Scraper** | Cloud Run Job `kids-activity-scraper-job` |
 
-## Production Environment
-
-### Google Cloud Project
-- **Project ID**: `kids-activity-tracker-2024`
-- **Region**: `us-central1`
-- **DO NOT USE**: officepools project (deprecated)
-
-### Live Services
-- **API**: https://kids-activity-api-205843686007.us-central1.run.app
-- **Database**: Cloud SQL `kids-activity-db-dev`
-- **Scraper**: Cloud Run Job `kids-activity-scraper-job`
-
-## Deployment Architecture
+## Architecture
 
 ```
 GitHub Repository
@@ -27,501 +23,278 @@ Cloud Build (CI/CD)
        │
        ├── Build Docker Image
        ├── Run Tests
-       ├── Push to Container Registry
+       ├── Push to Artifact Registry
        ▼
 Cloud Run Deployment
        │
-       ├── API Service
-       ├── Scraper Job
+       ├── API Service (auto-scaling)
+       ├── Scraper Job (scheduled)
        └── Database Migrations
 ```
 
 ## Pre-Deployment Checklist
 
-### Before ANY Deployment
-- [ ] Verify correct GCP project: `gcloud config get-value project`
+- [ ] Verify GCP project: `gcloud config get-value project`
 - [ ] Run tests locally: `npm test`
-- [ ] Check environment variables are set
-- [ ] Review changes in git
-- [ ] Backup database if schema changes
-- [ ] Ensure no test files in deployment
+- [ ] Run lint: `npm run lint`
+- [ ] Run typecheck: `npm run typecheck`
+- [ ] Check environment variables
+- [ ] Review git changes
+- [ ] Backup database (if schema changes)
 
-## Deployment Procedures
+## API Deployment
 
-### 1. Deploy Backend API (Recommended Method)
-
-**IMPORTANT**: Google Container Registry (gcr.io) is deprecated. Use Artifact Registry instead.
+### Using Deploy Script
 
 ```bash
-# Navigate to server directory
+./scripts/deployment/deploy-api.sh
+```
+
+### Manual Deployment
+
+```bash
+# 1. Build and push Docker image
+gcloud builds submit --tag us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api
+
+# 2. Deploy to Cloud Run
+gcloud run deploy kids-activity-api \
+  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api \
+  --region us-central1 \
+  --memory 2Gi \
+  --allow-unauthenticated \
+  --set-env-vars "NODE_ENV=production"
+```
+
+### Environment Variables
+
+Set in Cloud Run console or via CLI:
+
+```bash
+gcloud run services update kids-activity-api \
+  --region us-central1 \
+  --set-env-vars "DATABASE_URL=postgresql://..." \
+  --set-env-vars "JWT_SECRET=..." \
+  --set-env-vars "JWT_REFRESH_SECRET=..."
+```
+
+## Database Deployment
+
+### Run Migrations
+
+```bash
 cd server
 
-# Step 1: Build and push to Artifact Registry
-gcloud builds submit \
-  --tag us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest .
+# Development
+npx prisma migrate dev
 
-# Step 2: Deploy to Cloud Run (preserves existing secrets)
-gcloud run deploy kids-activity-api \
-  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest \
-  --region us-central1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --timeout 300
-
-# Verify deployment
-curl https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1
-
-# Check logs
-gcloud run services logs read kids-activity-api --region us-central1 --limit=30
+# Production
+npx prisma migrate deploy
 ```
 
-#### If Container Fails to Start (Missing Secrets)
-
-The server requires JWT secrets. If you see "JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be configured" in logs:
+### Direct Database Access
 
 ```bash
-# Deploy with secrets from Secret Manager
-gcloud run deploy kids-activity-api \
-  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest \
-  --region us-central1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --timeout 300 \
-  --update-secrets="JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest"
+PGPASSWORD='PASSWORD' psql -h 34.42.149.102 -U postgres -d kidsactivity
 ```
 
-#### Common Deployment Errors
+### Schema Changes
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `Container Registry is deprecated` | Using `gcr.io/` URLs | Switch to Artifact Registry URLs |
-| `Cannot update environment variable [X] to string literal` | Env var was set as secret reference | Don't override with `--set-env-vars`, use `--update-secrets` |
-| `JWT_ACCESS_SECRET must be configured` | Missing JWT secrets | Add `--update-secrets` flag |
-| `Container failed to start` | Check logs for specific error | Run `gcloud run services logs read` |
+1. Update `prisma/schema.prisma`
+2. Create migration: `npx prisma migrate dev --name description`
+3. Test locally
+4. Deploy: `npx prisma migrate deploy`
 
-### Quick Deploy Script
+## Scraper Deployment
 
-Create `deploy-backend.sh` in the server directory:
-
-```bash
-#!/bin/bash
-set -e
-
-echo "Building and pushing to Artifact Registry..."
-gcloud builds submit \
-  --tag us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest .
-
-echo "Deploying to Cloud Run..."
-gcloud run deploy kids-activity-api \
-  --image us-central1-docker.pkg.dev/kids-activity-tracker-2024/cloud-run-source-deploy/kids-activity-api:latest \
-  --region us-central1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --timeout 300
-
-echo "Verifying deployment..."
-curl -s "https://kids-activity-api-205843686007.us-central1.run.app/api/v1/activities?limit=1" | head -100
-
-echo "Deployment complete!"
-```
-
-### Legacy Method (DO NOT USE)
-
-```bash
-# DO NOT USE - Container Registry is deprecated
-# gcloud builds submit --config deploy/cloudbuild-api.yaml
-
-# Check logs
-gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=kids-activity-api" \
-  --limit=50
-```
-
-### 2. Deploy NVRC Scraper
+### Update Scraper Job
 
 ```bash
 # Build scraper image
-cd backend
-gcloud builds submit --config deploy/cloudbuild-scraper-enhanced.yaml
+gcloud builds submit --tag gcr.io/kids-activity-tracker-2024/scraper-enhanced:latest ./server/scrapers
 
-# Update Cloud Run job
+# Update job
 gcloud run jobs update kids-activity-scraper-job \
-  --image=gcr.io/kids-activity-tracker-2024/scraper-enhanced:latest \
-  --region=us-central1
+  --region us-central1 \
+  --image gcr.io/kids-activity-tracker-2024/scraper-enhanced:latest \
+  --memory 2Gi \
+  --task-timeout 1800
+```
 
-# Test scraper manually
+### Manual Execution
+
+```bash
+# Run scraper
 gcloud run jobs execute kids-activity-scraper-job --region=us-central1
 
-# Check execution status
+# Check status
 gcloud run jobs executions list \
+  --job=kids-activity-scraper-job \
+  --region=us-central1
+
+# View logs
+gcloud run jobs executions logs \
   --job=kids-activity-scraper-job \
   --region=us-central1
 ```
 
-### 3. Database Migrations
+## iOS App Deployment
+
+### TestFlight Deployment
 
 ```bash
-# Generate migration locally
-cd backend
-npx prisma migrate dev --name migration_name
-
-# Deploy to production
-npx prisma migrate deploy
-
-# Or use Cloud Run job
-gcloud run jobs execute run-migrations --region=us-central1
+./scripts/ios/deploy-testflight.sh
 ```
 
-### 4. Mobile App Deployment
-
-#### iOS (TestFlight)
-```bash
-cd ios
-fastlane beta  # Requires Apple Developer account setup
-```
-
-#### Android (Play Store)
-```bash
-cd android
-./gradlew bundleRelease
-# Upload AAB to Play Console
-```
-
-## Environment Configuration
-
-### Required Environment Variables
-
-#### API Service
-| Variable | Type | Description |
-|----------|------|-------------|
-| `NODE_ENV` | env var | Set to `production` |
-| `DATABASE_URL` | **secret** | PostgreSQL connection string |
-| `JWT_ACCESS_SECRET` | **secret** | JWT access token signing key |
-| `JWT_REFRESH_SECRET` | **secret** | JWT refresh token signing key |
-| `PORT` | env var | Default: 3000 (set by Cloud Run) |
-
-#### Scraper Service
-```env
-NODE_ENV=production
-DATABASE_URL=postgresql://[user]:[password]@[host]/kidsactivity
-PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-```
-
-### Secrets in Google Secret Manager
-
-The following secrets are stored in Secret Manager (NOT as plain env vars):
+### App Store Build
 
 ```bash
-# List all secrets
-gcloud secrets list
+# 1. Build archive
+./scripts/ios/build-archive.sh
 
-# Current secrets:
-# - database-url (DATABASE_URL)
-# - jwt-access-secret (JWT_ACCESS_SECRET)
-# - jwt-refresh-secret (JWT_REFRESH_SECRET)
-# - jwt-secret (legacy, may not be used)
+# 2. Upload via Xcode Organizer or Transporter app
 ```
 
-### Setting Environment Variables vs Secrets
+### Version Management
 
-**IMPORTANT**: Never mix secret references with string literals for the same variable.
+Update in `ios/KidsActivityTracker/Info.plist`:
+- `CFBundleShortVersionString` - Version (1.2.0)
+- `CFBundleVersion` - Build number (42)
+
+## Monitoring
+
+### Health Check
 
 ```bash
-# For plain environment variables
-gcloud run services update kids-activity-api \
-  --update-env-vars="NODE_ENV=production" \
-  --region=us-central1
-
-# For secrets (PREFERRED for sensitive data)
-gcloud run services update kids-activity-api \
-  --update-secrets="DATABASE_URL=database-url:latest" \
-  --region=us-central1
-
-# Check current configuration
-gcloud run services describe kids-activity-api \
-  --region=us-central1 \
-  --format="yaml(spec.template.spec.containers[0].env)"
+curl https://kids-activity-api-205843686007.us-central1.run.app/health
 ```
 
-### Creating New Secrets
+### View Logs
 
-```bash
-# Create a new secret
-echo -n "your-secret-value" | gcloud secrets create secret-name --data-file=-
-
-# Update existing secret
-echo -n "new-value" | gcloud secrets versions add secret-name --data-file=-
-
-# Grant Cloud Run access to secret
-gcloud secrets add-iam-policy-binding secret-name \
-  --member="serviceAccount:205843686007-compute@developer.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-```
-
-## Cloud Build Configuration
-
-### API Deployment (cloudbuild-api.yaml)
-```yaml
-steps:
-  # Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-f', 'deploy/Dockerfile.api', '-t', 'gcr.io/$PROJECT_ID/kids-activity-api', '.']
-  
-  # Push to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/kids-activity-api']
-  
-  # Deploy to Cloud Run
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - 'run'
-      - 'deploy'
-      - 'kids-activity-api'
-      - '--image=gcr.io/$PROJECT_ID/kids-activity-api'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-
-images:
-  - 'gcr.io/$PROJECT_ID/kids-activity-api'
-```
-
-### Scraper Deployment (cloudbuild-scraper-enhanced.yaml)
-```yaml
-steps:
-  # Build with Puppeteer support
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-f', 'deploy/Dockerfile.scraper', '-t', 'gcr.io/$PROJECT_ID/scraper-enhanced', '.']
-  
-  # Push image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/scraper-enhanced']
-
-images:
-  - 'gcr.io/$PROJECT_ID/scraper-enhanced'
-```
-
-## Infrastructure as Code
-
-### Cloud Scheduler Setup
-```bash
-# Create scraper schedule (daily at 6 AM UTC)
-gcloud scheduler jobs create http kids-activity-scraper-schedule \
-  --location=us-central1 \
-  --schedule="0 6 * * *" \
-  --time-zone="UTC" \
-  --uri="https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/kids-activity-tracker-2024/jobs/kids-activity-scraper-job:run" \
-  --http-method=POST \
-  --oauth-service-account-email=[SERVICE_ACCOUNT_EMAIL]
-```
-
-### Cloud SQL Setup
-```bash
-# Create instance
-gcloud sql instances create kids-activity-db-prod \
-  --database-version=POSTGRES_15 \
-  --tier=db-f1-micro \
-  --region=us-central1
-
-# Create database
-gcloud sql databases create kidsactivity \
-  --instance=kids-activity-db-prod
-
-# Set password
-gcloud sql users set-password postgres \
-  --instance=kids-activity-db-prod \
-  --password=[PASSWORD]
-```
-
-## Monitoring & Logging
-
-### View Service Logs
 ```bash
 # API logs
-gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=kids-activity-api \
-  AND severity>=ERROR" \
-  --limit=50 \
-  --format=json
+gcloud run services logs read kids-activity-api \
+  --region us-central1 \
+  --limit 100
 
 # Scraper logs
-gcloud logging read "resource.type=cloud_run_job \
-  AND resource.labels.job_name=kids-activity-scraper-job" \
-  --limit=50
+gcloud run jobs executions logs \
+  --job kids-activity-scraper-job \
+  --region us-central1
 ```
 
-### Monitor Service Health
-```bash
-# Check API status
-gcloud run services describe kids-activity-api \
-  --region=us-central1 \
-  --format="value(status.url)"
+### Cloud Run Dashboard
 
-# Check recent deployments
-gcloud run revisions list \
-  --service=kids-activity-api \
-  --region=us-central1
-```
+View in Google Cloud Console:
+- Cloud Run > Services > kids-activity-api
+- Metrics: Request count, latency, errors
+- Revisions: Traffic splitting, rollbacks
 
 ## Rollback Procedures
 
-### Rollback API Service
+### API Rollback
+
 ```bash
 # List revisions
-gcloud run revisions list \
-  --service=kids-activity-api \
-  --region=us-central1
+gcloud run revisions list --service kids-activity-api --region us-central1
 
 # Rollback to previous revision
 gcloud run services update-traffic kids-activity-api \
-  --to-revisions=[PREVIOUS_REVISION]=100 \
-  --region=us-central1
+  --region us-central1 \
+  --to-revisions PREVIOUS_REVISION=100
 ```
 
-### Rollback Database Migration
+### Database Rollback
+
 ```bash
 # View migration history
 npx prisma migrate status
 
-# Create down migration
-npx prisma migrate dev --create-only
+# Rollback (manual SQL required for production)
+# Always backup before schema changes
+```
 
-# Apply rollback
-npx prisma migrate deploy
+## Secrets Management
+
+### Current Setup
+
+Environment variables set directly in Cloud Run.
+
+### Recommended: Secret Manager
+
+```bash
+# Create secret
+gcloud secrets create jwt-secret --data-file=./jwt-secret.txt
+
+# Grant access
+gcloud secrets add-iam-policy-binding jwt-secret \
+  --member serviceAccount:SERVICE_ACCOUNT \
+  --role roles/secretmanager.secretAccessor
+
+# Use in Cloud Run
+gcloud run services update kids-activity-api \
+  --set-secrets "JWT_SECRET=jwt-secret:latest"
 ```
 
 ## Scaling Configuration
 
-### API Service Scaling
-```bash
-# Update scaling limits
-gcloud run services update kids-activity-api \
-  --min-instances=1 \
-  --max-instances=100 \
-  --region=us-central1
+### Current Settings
 
-# Set memory and CPU
-gcloud run services update kids-activity-api \
-  --memory=1Gi \
-  --cpu=1 \
-  --region=us-central1
-```
+| Service | Min Instances | Max Instances | Memory |
+|---------|--------------|---------------|--------|
+| API | 0 | 100 | 2GB |
+| Scraper | 1 (per job) | 1 | 2GB |
 
-### Database Scaling (for BC expansion)
+### Adjust Scaling
+
 ```bash
-# Upgrade tier when needed
-gcloud sql instances patch kids-activity-db-prod \
-  --tier=db-n1-standard-1
+gcloud run services update kids-activity-api \
+  --region us-central1 \
+  --min-instances 1 \
+  --max-instances 50 \
+  --memory 2Gi \
+  --cpu 2
 ```
 
 ## Cost Optimization
 
-### Current Setup (North Vancouver)
-- Cloud Run: ~$5/month (low traffic)
-- Cloud SQL: ~$10/month (micro instance)
-- Storage: ~$1/month
+| Strategy | Implementation |
+|----------|----------------|
+| Auto-scaling to zero | Min instances = 0 |
+| Right-sized memory | 2GB based on usage |
+| Efficient queries | Database indexes |
+| Request caching | Future: Redis layer |
 
-### Scaling for BC (Projected)
-- Cloud Run: ~$50/month (auto-scaling)
-- Cloud SQL: ~$100/month (standard instance)
-- Storage: ~$10/month
+## Troubleshooting Deployments
 
-### Cost Controls
+### Build Failures
+
 ```bash
-# Set billing alerts
-gcloud billing budgets create \
-  --billing-account=[BILLING_ACCOUNT] \
-  --display-name="Monthly Budget" \
-  --budget-amount=200 \
-  --threshold-rule=percent=50 \
-  --threshold-rule=percent=90
+# View build logs
+gcloud builds list --limit 5
+gcloud builds log BUILD_ID
 ```
 
-## Security Best Practices
+### Deployment Failures
 
-1. **Never commit secrets** - Use Secret Manager
-2. **Least privilege** - Minimal IAM permissions
-3. **Private IPs** - Use VPC connector (future)
-4. **SSL only** - Enforced by Cloud Run
-5. **Rate limiting** - Implemented in API
-
-## Troubleshooting
-
-### Common Issues
-
-#### API Returns 500 Error
 ```bash
-# Check logs for errors
-gcloud logging read "resource.type=cloud_run_revision \
-  AND severity>=ERROR" --limit=10
+# Check service status
+gcloud run services describe kids-activity-api --region us-central1
 
-# Verify database connection
-gcloud sql instances describe kids-activity-db-prod
+# View recent errors
+gcloud run services logs read kids-activity-api \
+  --region us-central1 \
+  --limit 50 \
+  --filter "severity>=ERROR"
 ```
 
-#### Scraper Timeout
-```bash
-# Increase timeout
-gcloud run jobs update kids-activity-scraper-job \
-  --timeout=3600 \
-  --region=us-central1
-```
+### Database Connection Issues
 
-#### Out of Memory
-```bash
-# Increase memory allocation
-gcloud run services update kids-activity-api \
-  --memory=2Gi \
-  --region=us-central1
-```
+1. Verify Cloud SQL instance is running
+2. Check IP allowlist includes Cloud Run
+3. Verify connection string format
+4. Test with `psql` directly
 
-## Deployment Schedule
+---
 
-### Regular Deployments
-- **API Updates**: As needed, with testing
-- **Scraper Updates**: Weekly maintenance window
-- **Database Migrations**: Scheduled maintenance
-
-### Emergency Hotfixes
-1. Test fix locally
-2. Deploy to staging (if available)
-3. Quick production deployment
-4. Monitor closely for 30 minutes
-
-## Expansion Readiness (BC-wide)
-
-### Infrastructure Preparation
-- [ ] Upgrade Cloud SQL tier
-- [ ] Implement caching layer
-- [ ] Add CDN for static content
-- [ ] Set up multi-region failover
-- [ ] Implement queue for scraping jobs
-
-### Monitoring Enhancements
-- [ ] Set up Stackdriver dashboards
-- [ ] Configure alerting policies
-- [ ] Implement SLO monitoring
-- [ ] Add custom metrics
-
-## Contact & Support
-
-### Escalation Path
-1. Check logs and monitoring
-2. Review recent deployments
-3. Check GCP status page
-4. Contact team lead
-
-### Key Commands Reference
-```bash
-# Quick health check
-curl https://kids-activity-api-205843686007.us-central1.run.app/health
-
-# Force scraper run
-gcloud run jobs execute kids-activity-scraper-job --region=us-central1
-
-# View current configuration
-gcloud run services describe kids-activity-api --region=us-central1
-```
+**Document Version**: 4.0
+**Last Updated**: December 2024

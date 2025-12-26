@@ -26,6 +26,7 @@ import TopTabNavigation from '../components/TopTabNavigation';
 const DashboardScreenModern = () => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
+  const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
   const [budgetFriendlyActivities, setBudgetFriendlyActivities] = useState<Activity[]>([]);
   const [newActivities, setNewActivities] = useState<Activity[]>([]);
@@ -37,10 +38,21 @@ const DashboardScreenModern = () => {
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Shuffle array using Fisher-Yates algorithm for randomization
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // Reload dashboard data when screen comes into focus (e.g., returning from Filters)
   useFocusEffect(
     useCallback(() => {
-      // Reload the three sections that use preferences
+      // Reload the sections that use preferences (includes randomization)
+      loadSponsoredActivities();
       loadRecommendedActivities();
       loadBudgetFriendlyActivities();
       loadNewActivities();
@@ -90,19 +102,20 @@ const DashboardScreenModern = () => {
     try {
       setLoading(true);
       console.log('Starting to load dashboard data...');
-      
+
       // Load all data in parallel
       const results = await Promise.allSettled([
+        loadSponsoredActivities(),
         loadRecommendedActivities(),
         loadBudgetFriendlyActivities(),
         loadNewActivities(),
         loadActivityTypes(),
         loadAgeGroups(),
       ]);
-      
+
       // Log results of each promise
       results.forEach((result, index) => {
-        const names = ['Recommended', 'Budget', 'New', 'ActivityTypes', 'AgeGroups'];
+        const names = ['Sponsored', 'Recommended', 'Budget', 'New', 'ActivityTypes', 'AgeGroups'];
         if (result.status === 'rejected') {
           console.error(`Failed to load ${names[index]}:`, result.reason);
         } else {
@@ -113,6 +126,18 @@ const DashboardScreenModern = () => {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSponsoredActivities = async () => {
+    try {
+      console.log('[Dashboard] Loading sponsored activities...');
+      const sponsors = await activityService.getSponsoredActivities(3);
+      console.log(`[Dashboard] Found ${sponsors.length} sponsored activities`);
+      setSponsoredActivities(sponsors);
+    } catch (error) {
+      console.error('Error loading sponsored activities:', error);
+      setSponsoredActivities([]);
     }
   };
 
@@ -167,8 +192,9 @@ const DashboardScreenModern = () => {
         firstItem: response?.items?.[0]?.name
       });
       if (response?.items && Array.isArray(response.items)) {
-        setRecommendedActivities(response.items);
-        console.log('Set recommended activities:', response.items.length);
+        // Shuffle results for variety on each load
+        setRecommendedActivities(shuffleArray(response.items));
+        console.log('Set recommended activities (shuffled):', response.items.length);
       }
     } catch (error) {
       console.error('Error loading recommended activities:', error);
@@ -223,8 +249,9 @@ const DashboardScreenModern = () => {
         firstItem: response?.items?.[0]?.name
       });
       if (response?.items && Array.isArray(response.items)) {
-        setBudgetFriendlyActivities(response.items);
-        console.log('Set budget friendly activities:', response.items.length);
+        // Shuffle results for variety on each load
+        setBudgetFriendlyActivities(shuffleArray(response.items));
+        console.log('Set budget friendly activities (shuffled):', response.items.length);
       }
     } catch (error) {
       console.error('Error loading budget activities:', error);
@@ -285,8 +312,9 @@ const DashboardScreenModern = () => {
         firstItem: response?.items?.[0]?.name
       });
       if (response?.items && Array.isArray(response.items)) {
-        setNewActivities(response.items);
-        console.log('Set new activities:', response.items.length);
+        // Shuffle results for variety on each load
+        setNewActivities(shuffleArray(response.items));
+        console.log('Set new activities (shuffled):', response.items.length);
       }
     } catch (error) {
       console.error('Error loading new activities:', error);
@@ -696,7 +724,7 @@ const DashboardScreenModern = () => {
       </View>
 
       {/* Scrollable Content */}
-      <Animated.ScrollView 
+      <Animated.ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -707,6 +735,94 @@ const DashboardScreenModern = () => {
         )}
         scrollEventThrottle={16}
       >
+
+        {/* Featured Partners / Sponsor Section - only shown when sponsors exist */}
+        {sponsoredActivities.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <Text style={styles.sectionTitle}>Featured Partners</Text>
+                <View style={styles.sponsoredBadge}>
+                  <Text style={styles.sponsoredBadgeText}>Sponsored</Text>
+                </View>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {sponsoredActivities.map((activity) => {
+                // Get tier color for badge
+                const getTierColor = (tier?: string) => {
+                  switch (tier?.toLowerCase()) {
+                    case 'gold': return '#FFD700';
+                    case 'silver': return '#C0C0C0';
+                    case 'bronze': return '#CD7F32';
+                    default: return '#CD7F32';
+                  }
+                };
+
+                // Get image based on activityType or category
+                const activityTypeName = activity.activityType?.name || activity.category || 'general';
+                const subcategory = activity.activitySubtype?.name || activity.subcategory;
+                const imageKey = getActivityImageKey(activityTypeName, subcategory);
+                const imageSource = getActivityImageByKey(imageKey);
+                const isFavorite = favoriteIds.has(activity.id);
+                const price = activity.cost || 0;
+
+                return (
+                  <TouchableOpacity
+                    key={activity.id}
+                    style={styles.card}
+                    onPress={() => handleNavigate('ActivityDetail', { activity })}
+                  >
+                    <View style={styles.cardImageContainer}>
+                      <Image source={imageSource} style={styles.cardImage} />
+
+                      {/* Tier badge */}
+                      {activity.sponsorTier && (
+                        <View style={[styles.tierBadge, { backgroundColor: getTierColor(activity.sponsorTier) }]}>
+                          <Icon name="star" size={10} color="#FFF" />
+                          <Text style={styles.tierBadgeText}>{activity.sponsorTier.toUpperCase()}</Text>
+                        </View>
+                      )}
+
+                      {/* Heart icon for favorites */}
+                      <TouchableOpacity
+                        style={styles.favoriteButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(activity);
+                        }}
+                      >
+                        <Icon
+                          name={isFavorite ? "heart" : "heart-outline"}
+                          size={20}
+                          color={isFavorite ? "#FF385C" : "#FFF"}
+                        />
+                      </TouchableOpacity>
+
+                      {/* Price overlay */}
+                      {price > 0 && (
+                        <View style={styles.priceOverlay}>
+                          <Text style={styles.priceText}>${formatPrice(price)}</Text>
+                          <Text style={styles.perChildText}>per child</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>{activity.name}</Text>
+                      <View style={styles.cardLocationRow}>
+                        <Icon name="map-marker" size={12} color="#717171" />
+                        <Text style={styles.cardSubtitle} numberOfLines={1}>
+                          {typeof activity.location === 'string' ? activity.location : activity.location?.name || activity.locationName || 'Location TBD'}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Recommended Activities Section */}
         <View style={styles.section}>
@@ -1138,6 +1254,37 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 12,
     color: '#717171',
+  },
+  // Sponsor section styles
+  sponsoredBadge: {
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginLeft: 10,
+  },
+  sponsoredBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  tierBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  tierBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+    marginLeft: 4,
+    letterSpacing: 0.5,
   },
 });
 

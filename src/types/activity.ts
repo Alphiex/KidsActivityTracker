@@ -49,6 +49,9 @@ export interface Activity {
   endDate?: string;
   startTime?: string;
   endTime?: string;
+  dayOfWeek?: string[]; // Array of day names like ["Monday", "Wednesday"]
+  dateStart?: string | Date; // From server Activity model
+  dateEnd?: string | Date;   // From server Activity model
   registrationEndDate?: string;
   registrationEndTime?: string;
   costIncludesTax?: boolean;
@@ -77,6 +80,12 @@ export interface Activity {
   isRecommended?: boolean;
   popularityCount?: number;
   createdAt?: Date | string;
+
+  // Sponsor fields
+  isSponsor?: boolean;
+  sponsorTier?: 'gold' | 'silver' | 'bronze';
+  sponsorStartDate?: Date | string;
+  sponsorEndDate?: Date | string;
 }
 
 export interface Location {

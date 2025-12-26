@@ -18,6 +18,50 @@ class REGPROGScraper extends BaseScraper {
     super(config);
     this.platformName = 'REGPROG';
     this.extension = null;
+    this.CONCURRENCY = 5; // Number of parallel course type requests
+  }
+
+  /**
+   * Run tasks in batches with proper page allocation
+   * Each batch of N tasks runs concurrently, each with its own page
+   */
+  async runInBatches(items, pagePool, processItem) {
+    const results = [];
+    const batchSize = pagePool.length;
+
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      const batchPromises = batch.map((item, idx) => {
+        const page = pagePool[idx];
+        return processItem(page, item).then(
+          result => ({ success: true, result }),
+          error => ({ success: false, error })
+        );
+      });
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+
+      // Progress update every 5 batches (25 course types)
+      if ((i / batchSize + 1) % 5 === 0) {
+        const processed = Math.min(i + batchSize, items.length);
+        const pct = (processed / items.length * 100).toFixed(0);
+        this.logProgress(`    Progress: ${processed}/${items.length} (${pct}%)`);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Create a new browser page with standard settings
+   */
+  async createPage(browser) {
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1920, height: 1080 });
+    page.setDefaultTimeout(60000);
+    page.setDefaultNavigationTimeout(60000);
+    return page;
   }
 
   /**
@@ -63,6 +107,7 @@ class REGPROGScraper extends BaseScraper {
   /**
    * Extract activities from Calgary
    * Iterates through each month AND course type to bypass pagination limits
+   * Uses parallel processing for course types to improve speed
    */
   async extractActivities() {
     const allActivities = [];
@@ -75,24 +120,21 @@ class REGPROGScraper extends BaseScraper {
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
 
-      const page = await browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      await page.setViewport({ width: 1920, height: 1080 });
-
-      page.setDefaultTimeout(60000);
-      page.setDefaultNavigationTimeout(60000);
+      // Create page pool for parallel processing
+      const pagePool = [];
+      for (let i = 0; i < this.CONCURRENCY; i++) {
+        pagePool.push(await this.createPage(browser));
+      }
+      this.logProgress(`Created ${this.CONCURRENCY} parallel browser pages`);
 
       const coursesUrl = `${this.config.baseUrl}/public/category/courses`;
       const months = ['January', 'February', 'March', 'April', 'May', 'June',
                       'July', 'August', 'September', 'October', 'November', 'December'];
 
-      // Get all available course types
-      const courseTypes = await this.getCourseTypes(page, coursesUrl);
-      this.logProgress(`Found ${courseTypes.length} course types`);
+      // Get all available course types (using first page from pool)
+      const courseTypes = await this.getCourseTypes(pagePool[0], coursesUrl);
+      this.logProgress(`Found ${courseTypes.length} course types (using ${this.CONCURRENCY} parallel workers)`);
       this.logProgress(`Scraping Calgary courses by month and course type...`);
-
-      // High-activity months that typically hit pagination limits (optimize by focusing here)
-      const highActivityMonths = ['January', 'February', 'March', 'April'];
 
       const startTime = Date.now();
       let totalProcessed = 0;
@@ -103,44 +145,41 @@ class REGPROGScraper extends BaseScraper {
         const monthStart = Date.now();
 
         try {
-          // First try without course type filter
+          // First try without course type filter (using first page from pool)
           const { activities: monthActivities, hitLimit } = await this.extractActivitiesForMonthWithLimit(
-            page, coursesUrl, month, null
+            pagePool[0], coursesUrl, month, null
           );
           allActivities.push(...monthActivities);
           totalProcessed += monthActivities.length;
 
-          // Only split by course type for high-activity months that hit the limit
-          if (hitLimit && courseTypes.length > 0 && highActivityMonths.includes(month)) {
-            this.logProgress(`  ${month} hit limit, splitting by ${courseTypes.length} course types...`);
+          // Split by course type for any month that hits the pagination limit
+          if (hitLimit && courseTypes.length > 0) {
+            this.logProgress(`  ${month} hit limit, splitting by ${courseTypes.length} course types (${this.CONCURRENCY}x parallel)...`);
+
+            // Run course types in batches with proper page allocation
+            const results = await this.runInBatches(
+              courseTypes,
+              pagePool,
+              async (page, courseType) => {
+                return this.extractActivitiesForMonthWithLimit(
+                  page, coursesUrl, month, courseType
+                );
+              }
+            );
 
             let courseTypeCount = 0;
             let courseTypeActivities = 0;
 
-            for (let j = 0; j < courseTypes.length; j++) {
-              const courseType = courseTypes[j];
-              try {
-                const { activities: typeActivities } = await this.extractActivitiesForMonthWithLimit(
-                  page, coursesUrl, month, courseType
-                );
-                allActivities.push(...typeActivities);
-                courseTypeActivities += typeActivities.length;
+            for (const result of results) {
+              if (result.success && result.result.activities) {
+                allActivities.push(...result.result.activities);
+                courseTypeActivities += result.result.activities.length;
                 courseTypeCount++;
-
-                // Progress update every 20 course types
-                if ((j + 1) % 20 === 0) {
-                  const pct = ((j + 1) / courseTypes.length * 100).toFixed(0);
-                  this.logProgress(`    Progress: ${j + 1}/${courseTypes.length} types (${pct}%), +${courseTypeActivities} activities`);
-                }
-              } catch (e) {
-                // Skip errors for individual course types
               }
             }
 
             totalProcessed += courseTypeActivities;
             this.logProgress(`  ${month} course types done: +${courseTypeActivities} activities from ${courseTypeCount} types`);
-          } else if (hitLimit) {
-            this.logProgress(`  ${month} hit limit but skipping course type split (low-activity month)`);
           }
 
           // Elapsed time and estimate
@@ -151,6 +190,11 @@ class REGPROGScraper extends BaseScraper {
         } catch (e) {
           this.logProgress(`  ${month}: Error - ${e.message}`);
         }
+      }
+
+      // Close all pages
+      for (const page of pagePool) {
+        await page.close();
       }
 
       // Deduplicate
@@ -206,11 +250,19 @@ class REGPROGScraper extends BaseScraper {
     const PAGE_LIMIT = 25; // Calgary's pagination limit
 
     await page.goto(coursesUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 60000
+      waitUntil: 'domcontentloaded',
+      timeout: 30000
     });
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for page to fully load
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Wait for the form to be available
+    try {
+      await page.waitForSelector('#searchForm', { timeout: 10000 });
+    } catch (e) {
+      return { activities: [], hitLimit: false };
+    }
 
     // Select the month and optionally course type, then search
     const searchSubmitted = await page.evaluate((targetMonth, targetCourseType) => {
@@ -256,7 +308,7 @@ class REGPROGScraper extends BaseScraper {
 
     await new Promise(resolve => setTimeout(resolve, 5000));
     try {
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 });
     } catch (e) {
       // May already have navigated
     }
@@ -366,6 +418,8 @@ class REGPROGScraper extends BaseScraper {
 
           // Get course ID from .d-id .badge-value
           const courseId = card.querySelector('.d-id .badge-value')?.textContent?.trim();
+          // Skip cards without course IDs (like the search form card)
+          if (!courseId) return;
 
           // Get price from .d-price .badge-value
           const priceText = card.querySelector('.d-price .badge-value')?.textContent?.trim();

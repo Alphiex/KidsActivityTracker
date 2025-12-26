@@ -21,6 +21,7 @@ import referenceRoutes from './routes/reference';
 import citiesRoutes from './routes/cities';
 import categoriesRoutes from './routes/categories';
 import locationsRoutes from './routes/locations';
+import sponsorsRoutes from './routes/sponsors';
 
 // Import middleware
 import { apiLimiter, verifyToken, optionalAuth } from './middleware/auth';
@@ -135,6 +136,9 @@ app.use('/api/v1/categories', categoriesRoutes);
 
 // Locations routes (v1 API)
 app.use('/api/v1/locations', locationsRoutes);
+
+// Sponsors routes (v1 API)
+app.use('/api/v1/sponsors', sponsorsRoutes);
 
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {

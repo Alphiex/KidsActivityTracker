@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const ScraperFactory = require('../scrapers/base/ScraperFactory');
-const { PrismaClient } = require('../generated/prisma');
+const ScraperFactory = require('../../scrapers/base/ScraperFactory');
+const { PrismaClient } = require('../../generated/prisma');
 
 async function run() {
   console.log('='.repeat(60));
@@ -9,7 +9,7 @@ async function run() {
   console.log('='.repeat(60));
 
   const prisma = new PrismaClient();
-  const config = require('../scrapers/configs/providers/calgary.json');
+  const config = require('../../scrapers/configs/providers/calgary.json');
   const scraper = ScraperFactory.createScraper(config);
   scraper.prisma = prisma;
 

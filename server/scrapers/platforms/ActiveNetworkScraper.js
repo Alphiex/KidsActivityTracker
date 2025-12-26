@@ -481,12 +481,43 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       function extractLocation(element, text) {
+        // Helper to clean and validate location string
+        function cleanLocation(loc) {
+          if (!loc) return null;
+          loc = loc.trim();
+          // Reject if contains garbage patterns
+          const garbagePatterns = [
+            /View sub-activities/i,
+            /Expand the view/i,
+            /see individual dates/i,
+            /\d{1,2}:\d{2}\s*(AM|PM)/i,  // Contains time
+            /January|February|March|April|May|June|July|August|September|October|November|December/i,
+            /^\s*empty\s*$/i,
+            /^es and times/i,
+            /^ion\s/i,
+            /^ional\s/i,
+            /^rol\s/i
+          ];
+          for (const pattern of garbagePatterns) {
+            if (pattern.test(loc)) return null;
+          }
+          // Must be reasonable length
+          if (loc.length < 3 || loc.length > 100) return null;
+          return loc;
+        }
+
         const locationEl = element.querySelector('[class*="location"], [class*="facility"], [class*="venue"]');
-        if (locationEl) return locationEl.textContent.trim();
+        if (locationEl) {
+          const cleaned = cleanLocation(locationEl.textContent);
+          if (cleaned) return cleaned;
+        }
         const locationKeywords = ['Centre', 'Center', 'Park', 'Arena', 'Pool', 'Field', 'Gym', 'Community', 'Recreation'];
         for (const keyword of locationKeywords) {
           const match = text.match(new RegExp(`([^\\n/]*${keyword}[^\\n/]*)`, 'i'));
-          if (match) return match[1].trim();
+          if (match) {
+            const cleaned = cleanLocation(match[1]);
+            if (cleaned) return cleaned;
+          }
         }
         return null;
       }
@@ -868,10 +899,36 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       function extractLocation(element, text) {
+        // Helper to clean and validate location string
+        function cleanLocation(loc) {
+          if (!loc) return null;
+          loc = loc.trim();
+          // Reject if contains garbage patterns
+          const garbagePatterns = [
+            /View sub-activities/i,
+            /Expand the view/i,
+            /see individual dates/i,
+            /\d{1,2}:\d{2}\s*(AM|PM)/i,  // Contains time
+            /January|February|March|April|May|June|July|August|September|October|November|December/i,
+            /^\s*empty\s*$/i,
+            /^es and times/i,
+            /^ion\s/i,
+            /^ional\s/i,
+            /^rol\s/i
+          ];
+          for (const pattern of garbagePatterns) {
+            if (pattern.test(loc)) return null;
+          }
+          // Must be reasonable length
+          if (loc.length < 3 || loc.length > 100) return null;
+          return loc;
+        }
+
         // Look for location in specific element first
         const locationEl = element.querySelector('[class*="location"], [class*="facility"], [class*="venue"]');
         if (locationEl) {
-          return locationEl.textContent.trim();
+          const cleaned = cleanLocation(locationEl.textContent);
+          if (cleaned) return cleaned;
         }
 
         // Look for location patterns in text
@@ -879,7 +936,8 @@ class ActiveNetworkScraper extends BaseScraper {
         for (const keyword of locationKeywords) {
           const match = text.match(new RegExp(`([^\\n/]*${keyword}[^\\n/]*)`, 'i'));
           if (match) {
-            return match[1].trim();
+            const cleaned = cleanLocation(match[1]);
+            if (cleaned) return cleaned;
           }
         }
         return null;

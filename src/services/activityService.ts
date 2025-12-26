@@ -1006,6 +1006,113 @@ class ActivityService {
     }
   }
 
+  /**
+   * Get sponsored activities matching user filter preferences
+   * Returns activities ordered by tier (Gold > Silver > Bronze) with randomization within each tier
+   */
+  async getSponsoredActivities(limit: number = 3): Promise<Activity[]> {
+    try {
+      const isConnected = await this.checkConnectivity();
+      if (!isConnected) {
+        console.log('[SponsorService] No network connection');
+        return [];
+      }
+
+      // Get user preferences for filtering
+      const PreferencesService = require('./preferencesService').default;
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+
+      const params: any = { limit };
+
+      // Apply age filter from preferences
+      if (preferences.ageRange) {
+        params.ageMin = preferences.ageRange.min;
+        params.ageMax = preferences.ageRange.max;
+      }
+
+      // Apply cost filter
+      if (preferences.maxCost !== undefined) {
+        params.costMax = preferences.maxCost;
+      }
+
+      // Apply activity type preferences
+      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
+        // Use the first activity type if multiple (backend handles one at a time)
+        params.activityType = preferences.preferredActivityTypes[0];
+      }
+
+      // Apply location preferences
+      if (preferences.preferredLocations && preferences.preferredLocations.length > 0) {
+        params.locations = preferences.preferredLocations.join(',');
+      }
+
+      // Apply date range filter
+      if (preferences.dateFilter === 'range' && preferences.dateRange?.start) {
+        params.startDate = preferences.dateRange.start;
+        if (preferences.dateRange.end) {
+          params.endDate = preferences.dateRange.end;
+        }
+      }
+
+      console.log('[SponsorService] Fetching sponsored activities with params:', params);
+
+      const response = await this.api.get('/api/v1/sponsors', { params });
+
+      if (response.data && response.data.success && response.data.data) {
+        console.log(`[SponsorService] Found ${response.data.data.length} sponsored activities`);
+
+        // Transform activities to match app format
+        return response.data.data.map((activity: any) => ({
+          ...activity,
+          dateRange: activity.dateStart && activity.dateEnd ? {
+            start: new Date(activity.dateStart),
+            end: new Date(activity.dateEnd),
+          } : null,
+          ageRange: {
+            min: activity.ageMin || 0,
+            max: activity.ageMax || 18
+          },
+          scrapedAt: new Date(activity.updatedAt || activity.createdAt || Date.now()),
+          provider: activity.provider?.name || 'Unknown',
+          isFavorite: activity._count?.favorites > 0 || false,
+          cost: activity.cost || 0,
+          location: activity.location?.name || activity.locationName || 'Unknown',
+          locationAddress: activity.location?.fullAddress || activity.fullAddress || null,
+          locationCity: activity.location?.cityRecord?.name || null,
+          // Include sponsor fields
+          isSponsor: activity.isSponsor,
+          sponsorTier: activity.sponsorTier,
+          // Include all enhanced fields
+          registrationStatus: activity.registrationStatus,
+          registrationButtonText: activity.registrationButtonText,
+          detailUrl: activity.detailUrl,
+          fullDescription: activity.fullDescription,
+          instructor: activity.instructor,
+          prerequisites: activity.prerequisites,
+          whatToBring: activity.whatToBring,
+          fullAddress: activity.fullAddress,
+          latitude: activity.latitude,
+          longitude: activity.longitude,
+          directRegistrationUrl: activity.directRegistrationUrl,
+          contactInfo: activity.contactInfo,
+          totalSpots: activity.totalSpots,
+          hasMultipleSessions: activity.hasMultipleSessions,
+          sessionCount: activity.sessionCount,
+          sessions: activity.sessions,
+          hasPrerequisites: activity.hasPrerequisites
+        }));
+      }
+
+      console.log('[SponsorService] No sponsored activities found');
+      return [];
+    } catch (error: any) {
+      console.error('[SponsorService] Error fetching sponsored activities:', error);
+      // Return empty array on error to allow app to function
+      return [];
+    }
+  }
+
 }
 
 export default ActivityService;

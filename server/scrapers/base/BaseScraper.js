@@ -123,7 +123,7 @@ class BaseScraper {
             const location = await this.findOrCreateLocation({
               name: activity.locationName,
               city: activity.city || this.config?.city,
-              province: activity.province || 'BC',
+              province: activity.province || this.config?.province || 'BC',
               address: activity.address,
               fullAddress: activity.fullAddress,
               latitude: activity.latitude,
@@ -352,7 +352,7 @@ class BaseScraper {
 
     // Determine city name from location data or config
     const cityName = locationData.city || this.config?.city || 'Unknown';
-    const province = locationData.province || 'BC';
+    const province = locationData.province || this.config?.province || 'BC';
 
     // Find or create the city
     const city = await this.findOrCreateCity(cityName, province);

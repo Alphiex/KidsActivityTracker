@@ -26,7 +26,8 @@ class PreferencesService {
   private getDefaultPreferences(): UserPreferences {
     return {
       id: `user_${Date.now()}`,
-      locations: [],
+      locations: [], // DEPRECATED - use locationIds
+      locationIds: [], // Primary storage for location UUIDs
       ageRanges: [{ min: 0, max: 18 }],
       priceRange: { min: 0, max: 1000 },
       daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],

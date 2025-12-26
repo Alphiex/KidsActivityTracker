@@ -61,6 +61,13 @@ model Activity {
   sessionCount           Int                    @default(0)
   hasPrerequisites       Boolean                @default(false)
   isUpdated              Boolean?               @default(false)
+
+  // Sponsor fields (admin-only)
+  isSponsor              Boolean                @default(false)
+  sponsorTier            String?                // 'gold', 'silver', 'bronze'
+  sponsorStartDate       DateTime?
+  sponsorEndDate         DateTime?
+
   activitySubtype        ActivitySubtype?       @relation(fields: [activitySubtypeId], references: [id])
   activityType           ActivityType?          @relation(fields: [activityTypeId], references: [id])
   location               Location?              @relation(fields: [locationId], references: [id])
@@ -82,6 +89,8 @@ model Activity {
   @@index([providerId])
   @@index([registrationStatus])
   @@index([latitude, longitude])
+  @@index([isSponsor, sponsorTier])
+  @@index([isSponsor, sponsorEndDate])
 }
 
 model ActivityHistory {
