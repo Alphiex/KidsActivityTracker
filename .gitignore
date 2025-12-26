@@ -91,6 +91,7 @@ screenshot-*
 # NO scraped data
 nvrc_*
 scrape*
+!server/scrapers/
 *scraper_output*
 *_results_*
 

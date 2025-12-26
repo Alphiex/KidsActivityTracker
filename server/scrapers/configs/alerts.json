@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "recipients": ["ops@example.com"],
+  "thresholds": {
+    "activityCountChangePercent": 20,
+    "minFieldCoverage": 90
+  },
+  "digestSchedule": "0 8 * * *",
+  "digestTimezone": "America/Toronto",
+  "smtp": {
+    "useEnvConfig": true
+  }
+}

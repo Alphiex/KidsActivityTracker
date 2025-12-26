@@ -405,7 +405,16 @@ model ScraperRun {
   errorMessage          String?
   logs                  Json?
 
+  // Field coverage metrics
+  fieldCoverage         Json?     // { name: 100, externalId: 98, ... }
+  avgFieldCoverage      Float?    // Overall average (e.g., 94.5)
+
+  // Alert tracking
+  alertSent             Boolean   @default(false)
+  alertReason           String?   // "activity_count_change" | "coverage_drop" | null
+
   @@index([providerId, startedAt])
+  @@index([alertSent, startedAt])
 }
 
 model User {

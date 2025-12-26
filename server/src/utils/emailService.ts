@@ -621,6 +621,146 @@ export class EmailService {
       return false;
     }
   }
+
+  /**
+   * Send scraper health digest email
+   */
+  async sendScraperDigest(options: {
+    to: string[];
+    alerts: Array<{
+      providerName: string;
+      providerCode: string;
+      alertReason: string;
+      currentCount: number;
+      previousCount: number | null;
+      currentCoverage: number | null;
+      previousCoverage: number | null;
+      fieldCoverage: Record<string, number> | null;
+      timestamp: Date;
+    }>;
+    date?: Date;
+  }): Promise<void> {
+    const digestDate = options.date || new Date();
+    const dateStr = digestDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Build alert rows HTML
+    let alertRowsHtml = '';
+    options.alerts.forEach((alert, index) => {
+      const isCountAlert = alert.alertReason.includes('activity_count');
+      const isCoverageAlert = alert.alertReason.includes('coverage');
+
+      let alertDetails = '';
+      if (isCountAlert && alert.previousCount !== null) {
+        const changePercent = ((alert.currentCount - alert.previousCount) / alert.previousCount * 100).toFixed(1);
+        const changeSign = Number(changePercent) >= 0 ? '+' : '';
+        alertDetails = `
+          <strong>Activity Count Change</strong><br>
+          Previous: ${alert.previousCount} activities → Current: ${alert.currentCount} activities<br>
+          Change: ${changeSign}${changePercent}% (threshold: ±20%)
+        `;
+      }
+
+      if (isCoverageAlert) {
+        // Find fields below 90%
+        const lowFields: string[] = [];
+        if (alert.fieldCoverage) {
+          Object.entries(alert.fieldCoverage).forEach(([field, pct]) => {
+            if (field !== 'average' && typeof pct === 'number' && pct < 90) {
+              lowFields.push(`${field} (${pct}%)`);
+            }
+          });
+        }
+        const fieldsStr = lowFields.length > 0 ? lowFields.join(', ') : 'N/A';
+        alertDetails += (alertDetails ? '<br><br>' : '') + `
+          <strong>Field Coverage Drop</strong><br>
+          Previous: ${alert.previousCoverage?.toFixed(0) || 'N/A'}% → Current: ${alert.currentCoverage?.toFixed(0)}%<br>
+          Fields affected: ${fieldsStr}
+        `;
+      }
+
+      alertRowsHtml += `
+        <tr style="border-bottom: 1px solid #e0e0e0;">
+          <td style="padding: 15px; vertical-align: top;">
+            <strong>${index + 1}. ${alert.providerName}</strong><br>
+            <span style="color: #666; font-size: 12px;">${alert.providerCode}</span>
+          </td>
+          <td style="padding: 15px; vertical-align: top;">
+            ${alertDetails}
+          </td>
+          <td style="padding: 15px; vertical-align: top; color: #666; font-size: 12px;">
+            ${alert.timestamp.toLocaleString()}
+          </td>
+        </tr>
+      `;
+    });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #FF5722; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f4f4f4; }
+          .alert-table { width: 100%; border-collapse: collapse; background-color: white; margin: 20px 0; }
+          .alert-table th { background-color: #f5f5f5; padding: 12px; text-align: left; border-bottom: 2px solid #e0e0e0; }
+          .summary-box { background-color: #fff3e0; border: 1px solid #ffcc80; padding: 15px; margin: 15px 0; border-radius: 5px; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 Scraper Health Digest</h1>
+            <p>${dateStr}</p>
+          </div>
+          <div class="content">
+            <div class="summary-box">
+              <strong>⚠️ ${options.alerts.length} provider(s) require attention</strong>
+            </div>
+
+            <table class="alert-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Provider</th>
+                  <th style="width: 50%;">Issue Details</th>
+                  <th style="width: 25%;">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${alertRowsHtml}
+              </tbody>
+            </table>
+
+            <p><strong>Action Required:</strong> Please investigate the affected scrapers or source websites.</p>
+
+            <p style="font-size: 12px; color: #666; margin-top: 30px;">
+              Thresholds: Activity count change > ±20%, Field coverage < 90%
+            </p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message from Kids Activity Tracker scraper monitoring.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Send to each recipient
+    for (const recipient of options.to) {
+      await this.sendEmail({
+        to: recipient,
+        subject: `📊 Scraper Health Digest - ${dateStr} (${options.alerts.length} issue${options.alerts.length !== 1 ? 's' : ''})`,
+        html
+      });
+    }
+  }
 }
 
 export const emailService = new EmailService();
