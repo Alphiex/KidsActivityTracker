@@ -34,6 +34,9 @@ interface ActivityCardProps {
   onFavoritePress?: () => void;
   // Variant support for different card styles
   variant?: 'default' | 'compact';
+  // Subscription limit checking for favorites
+  canAddFavorite?: boolean;
+  onFavoriteLimitReached?: () => void;
 }
 
 const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -42,6 +45,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   isFavorite: externalIsFavorite,
   onFavoritePress,
   variant = 'default',
+  canAddFavorite = true,
+  onFavoriteLimitReached,
 }) => {
   const favoritesService = FavoritesService.getInstance();
   // Use external state if provided, otherwise manage internally
@@ -282,16 +287,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        <OptimizedActivityImage 
+        <OptimizedActivityImage
           source={getActivityImageByKey(getActivityImageKey(
             activity.category || (
-              Array.isArray(activity.activityType) 
-                ? activity.activityType[0] 
-                : activity.activityType?.name
-            ) || '', 
+              Array.isArray(activity.activityType)
+                ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+                : (activity.activityType as any)?.name
+            ) || '',
             activity.subcategory
-          ))} 
-          style={styles.image} 
+          ))}
+          style={styles.image}
           resizeMode="cover"
           containerStyle={styles.imageContainer}
         />
@@ -309,6 +314,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           onPress={() => {
             console.log('Toggling favorite for activity:', activity.id, activity.name);
             console.log('Current favorite status:', isFavorite);
+
+            // If trying to add (not remove), check subscription limit
+            if (!isFavorite && !canAddFavorite) {
+              console.log('Favorite limit reached, showing upgrade prompt');
+              if (onFavoriteLimitReached) {
+                onFavoriteLimitReached();
+              }
+              return;
+            }
+
             if (onFavoritePress) {
               // Use external handler if provided
               onFavoritePress();
@@ -454,17 +469,17 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               <View style={styles.fullBadge}>
                 <Text style={styles.fullText}>FULL</Text>
               </View>
-            ) : activity.spotsAvailable <= 3 ? (
-              <View style={[styles.limitedBadge, { backgroundColor: getCapacityColor(activity.spotsAvailable) + '20' }]}>
-                <Icon name="alert-circle" size={14} color={getCapacityColor(activity.spotsAvailable)} />
-                <Text style={[styles.limitedText, { color: getCapacityColor(activity.spotsAvailable) }]}>
+            ) : (activity.spotsAvailable ?? 0) <= 3 && activity.spotsAvailable !== undefined ? (
+              <View style={[styles.limitedBadge, { backgroundColor: getCapacityColor(activity.spotsAvailable ?? 0) + '20' }]}>
+                <Icon name="alert-circle" size={14} color={getCapacityColor(activity.spotsAvailable ?? 0)} />
+                <Text style={[styles.limitedText, { color: getCapacityColor(activity.spotsAvailable ?? 0) }]}>
                   Only {activity.spotsAvailable} {activity.spotsAvailable === 1 ? 'spot' : 'spots'} left!
                 </Text>
                 {hasCapacityAlert && (
-                  <Icon name="bell-ring" size={14} color={getCapacityColor(activity.spotsAvailable)} style={{ marginLeft: 4 }} />
+                  <Icon name="bell-ring" size={14} color={getCapacityColor(activity.spotsAvailable ?? 0)} style={{ marginLeft: 4 }} />
                 )}
               </View>
-            ) : activity.spotsAvailable <= 5 ? (
+            ) : (activity.spotsAvailable ?? 0) <= 5 && activity.spotsAvailable !== undefined ? (
               <View style={styles.limitedBadge}>
                 <Icon name="alert-circle" size={14} color={Colors.warning} />
                 <Text style={styles.limitedText}>
@@ -483,10 +498,10 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
           <View style={styles.activityIcons}>
             {consolidateActivityTypes(
-              Array.isArray(activity.activityType) 
-                ? activity.activityType 
-                : activity.activityType?.name 
-                  ? [activity.activityType.name] 
+              Array.isArray(activity.activityType)
+                ? activity.activityType.map((t: any) => typeof t === 'string' ? t : t?.name).filter(Boolean)
+                : (activity.activityType as any)?.name
+                  ? [(activity.activityType as any).name]
                   : []
             ).slice(0, 3).map((type) => (
               <View 

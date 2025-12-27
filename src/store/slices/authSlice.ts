@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authService } from '../../services/authService';
 import * as SecureStore from '../../utils/secureStorage';
+import { fetchSubscription, clearSubscription } from './subscriptionSlice';
+import { revenueCatService } from '../../services/revenueCatService';
 
 interface User {
   id: string;
@@ -8,7 +10,8 @@ interface User {
   name: string;
   phoneNumber?: string;
   location?: string;
-  isVerified: boolean;
+  isVerified?: boolean;
+  emailVerified?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,36 +44,55 @@ const initialState: AuthState = {
 // Async thunks
 export const login = createAsyncThunk(
   'auth/login',
-  async ({ email, password }: { email: string; password: string }) => {
+  async ({ email, password }: { email: string; password: string }, { dispatch }) => {
     const response = await authService.login({ email, password });
-    
+
     // Store tokens and user data securely
     await SecureStore.setTokens(response.tokens);
     await SecureStore.setUserData(response.user);
-    
+
+    // Initialize RevenueCat and fetch subscription after login
+    try {
+      await revenueCatService.login(response.user.id);
+      dispatch(fetchSubscription());
+    } catch (error) {
+      console.log('[Auth] RevenueCat login/subscription fetch failed:', error);
+    }
+
     return response;
   }
 );
 
 export const register = createAsyncThunk(
   'auth/register',
-  async ({ 
-    email, 
-    password, 
-    name, 
-    phoneNumber 
-  }: { 
-    email: string; 
-    password: string; 
-    name: string; 
-    phoneNumber?: string;
-  }) => {
+  async (
+    {
+      email,
+      password,
+      name,
+      phoneNumber,
+    }: {
+      email: string;
+      password: string;
+      name: string;
+      phoneNumber?: string;
+    },
+    { dispatch }
+  ) => {
     const response = await authService.register({ email, password, name, phoneNumber });
-    
+
     // Store tokens and user data securely
     await SecureStore.setTokens(response.tokens);
     await SecureStore.setUserData(response.user);
-    
+
+    // Initialize RevenueCat and fetch subscription after registration
+    try {
+      await revenueCatService.login(response.user.id);
+      dispatch(fetchSubscription());
+    } catch (error) {
+      console.log('[Auth] RevenueCat login/subscription fetch failed:', error);
+    }
+
     return response;
   }
 );
@@ -96,9 +118,17 @@ export const refreshToken = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   'auth/logout',
-  async () => {
+  async (_, { dispatch }) => {
     await authService.logout();
     await SecureStore.clearAllAuthData(); // Clear ALL auth data, not just tokens
+
+    // Clear subscription state and logout from RevenueCat
+    dispatch(clearSubscription());
+    try {
+      await revenueCatService.logout();
+    } catch (error) {
+      console.log('[Auth] RevenueCat logout failed:', error);
+    }
   }
 );
 
@@ -185,7 +215,7 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
+        state.user = { ...action.payload.user, isVerified: action.payload.user.isVerified ?? action.payload.user.emailVerified ?? false };
         state.tokens = action.payload.tokens;
         state.isAuthenticated = true;
         state.error = null;
@@ -204,7 +234,7 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
+        state.user = { ...action.payload.user, isVerified: action.payload.user.isVerified ?? action.payload.user.emailVerified ?? false };
         state.tokens = action.payload.tokens;
         state.isAuthenticated = true;
         state.error = null;

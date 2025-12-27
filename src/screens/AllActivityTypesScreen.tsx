@@ -20,7 +20,7 @@ import { getActivityImageByKey } from '../assets/images';
 type NavigationProp = StackNavigationProp<any>;
 
 interface ActivityType {
-  id: string;
+  id?: string;
   code: string;
   name: string;
   activityCount: number;

@@ -105,7 +105,9 @@ const childrenSlice = createSlice({
       })
       .addCase(addChild.fulfilled, (state, action) => {
         state.loading = false;
-        state.children.push(action.payload);
+        if (action.payload) {
+          state.children.push(action.payload);
+        }
       })
       .addCase(addChild.rejected, (state, action) => {
         state.loading = false;

@@ -44,6 +44,8 @@ import ConflictWarning from '../components/ConflictWarning';
 import ChildColorLegend from '../components/calendar/ChildColorLegend';
 import calendarExportService from '../services/calendarExportService';
 import AddEventModal, { CustomEvent } from '../components/calendar/AddEventModal';
+import useSubscription from '../hooks/useSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
@@ -70,15 +72,28 @@ interface ChildWithActivities {
   activities: ChildActivity[];
 }
 
-interface ExtendedChildActivity extends ChildActivity {
+interface ExtendedChildActivity {
+  id: string;
+  childId: string;
+  activityId: string;
+  status: 'planned' | 'in_progress' | 'completed';
+  addedAt?: Date;
+  scheduledDate?: Date;
+  startTime?: string;
+  endTime?: string;
+  notes?: string;
+  recurring?: boolean;
+  recurrencePattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+  recurrenceEnd?: Date;
   childName?: string;
   childColor?: string;
-  activity: {
+  activity?: {
     id: string;
     name: string;
     description?: string;
-    location?: string;
+    location?: string | { name: string; address?: string; [key: string]: any };
     category?: string;
+    [key: string]: any;
   };
 }
 
@@ -87,6 +102,15 @@ const CalendarScreenModernFixed = () => {
   const dispatch = useAppDispatch();
   const { children: myChildren } = useAppSelector((state) => state.children);
   const { user } = useAppSelector((state) => state.auth);
+
+  // Subscription state for calendar export
+  const {
+    checkAndShowUpgrade,
+    showUpgradeModal,
+    upgradeFeature,
+    hideUpgradeModal,
+    hasCalendarExport,
+  } = useSubscription();
 
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -136,12 +160,7 @@ const CalendarScreenModernFixed = () => {
     return unsubscribe;
   }, [navigation]);
 
-  // Update marked dates when selected date or children visibility changes
-  useEffect(() => {
-    if (childrenWithActivities.length > 0 || sharedChildren.length > 0) {
-      generateMarkedDates([...childrenWithActivities, ...sharedChildren]);
-    }
-  }, [selectedDate, childrenWithActivities, sharedChildren, generateMarkedDates]);
+  // Note: useEffect for updating marked dates is defined after generateMarkedDates function
 
   // Prevent re-renders when switching to agenda view
   useEffect(() => {
@@ -162,7 +181,7 @@ const CalendarScreenModernFixed = () => {
       }
 
       // Fetch shared children (with error handling for 404)
-      let shared = [];
+      let shared: any[] = [];
       try {
         shared = await childrenService.getSharedChildren();
       } catch (error: any) {
@@ -177,7 +196,7 @@ const CalendarScreenModernFixed = () => {
       const endDate = endOfMonth(addMonths(new Date(), 2));
 
       // Fetch scheduled activities for all children with full activity details
-      let scheduledActivities = [];
+      let scheduledActivities: any[] = [];
       if (myChildren && myChildren.length > 0) {
         const childIds = myChildren.map(c => c.id);
         try {
@@ -381,20 +400,21 @@ const CalendarScreenModernFixed = () => {
     }
     // Otherwise, if activity has dateRange, expand based on schedule
     else if (activity.activity?.dateRange || (activity.activity as any)?.dateStart) {
-      let startDate, endDate;
+      let startDate: Date | undefined, endDate: Date | undefined;
+      const activityData = activity.activity;
 
       // Handle both dateRange and dateStart/dateEnd formats
-      if (activity.activity.dateRange) {
-        startDate = parseISO(activity.activity.dateRange.start as any);
-        endDate = parseISO(activity.activity.dateRange.end as any);
-      } else if ((activity.activity as any).dateStart && (activity.activity as any).dateEnd) {
-        startDate = parseISO((activity.activity as any).dateStart);
-        endDate = parseISO((activity.activity as any).dateEnd);
+      if (activityData?.dateRange) {
+        startDate = parseISO(activityData.dateRange.start as any);
+        endDate = parseISO(activityData.dateRange.end as any);
+      } else if ((activityData as any)?.dateStart && (activityData as any)?.dateEnd) {
+        startDate = parseISO((activityData as any).dateStart);
+        endDate = parseISO((activityData as any).dateEnd);
       }
 
       if (startDate && endDate) {
         // If activity has sessions with dayOfWeek, use those
-        if (activity.activity?.sessions && activity.activity.sessions.length > 0) {
+        if (activityData?.sessions && activityData.sessions.length > 0) {
           const dayMap: { [key: string]: number } = {
             'sunday': 0, 'sun': 0,
             'monday': 1, 'mon': 1,
@@ -405,9 +425,9 @@ const CalendarScreenModernFixed = () => {
             'saturday': 6, 'sat': 6,
           };
 
-          const targetDays = activity.activity.sessions
-            .map(s => s.dayOfWeek ? dayMap[s.dayOfWeek.toLowerCase()] : undefined)
-            .filter((d): d is number => d !== undefined);
+          const targetDays = (activityData?.sessions || [])
+            .map((s: any) => s.dayOfWeek ? dayMap[s.dayOfWeek.toLowerCase()] : undefined)
+            .filter((d: number | undefined): d is number => d !== undefined);
 
           if (targetDays.length > 0) {
             let currentDate = startDate;
@@ -535,6 +555,13 @@ const CalendarScreenModernFixed = () => {
     console.log('[generateMarkedDates] Setting markedDates with', Object.keys(dates).length, 'total dates');
     setMarkedDates(dates);
   }, [selectedDate]);
+
+  // Update marked dates when selected date or children visibility changes
+  useEffect(() => {
+    if (childrenWithActivities.length > 0 || sharedChildren.length > 0) {
+      generateMarkedDates([...childrenWithActivities, ...sharedChildren]);
+    }
+  }, [selectedDate, childrenWithActivities, sharedChildren, generateMarkedDates]);
 
   // Create a stable key for agenda items to prevent infinite loop
   const agendaKey = useMemo(() => {
@@ -665,23 +692,17 @@ const CalendarScreenModernFixed = () => {
   const handleSaveCustomEvent = async (event: CustomEvent) => {
     try {
       // Create a custom activity via the API
+      const scheduledDate = new Date(format(event.date, 'yyyy-MM-dd'));
+      const startTimeStr = format(event.startTime, 'h:mm a').toLowerCase();
+      const endTimeStr = format(event.endTime, 'h:mm a').toLowerCase();
+
       const response = await childrenService.addActivityToChild(
         event.childId,
         'custom-' + Date.now(), // Temporary activity ID for custom events
-        {
-          scheduledDate: format(event.date, 'yyyy-MM-dd'),
-          startTime: format(event.startTime, 'h:mm a').toLowerCase(),
-          endTime: format(event.endTime, 'h:mm a').toLowerCase(),
-          notes: event.description,
-          recurring: event.recurring !== 'none',
-          recurrencePattern: event.recurring !== 'none' ? event.recurring : undefined,
-          recurrenceEnd: event.recurrenceEndDate,
-          customEventData: {
-            title: event.title,
-            location: event.location,
-            isCustom: true,
-          },
-        }
+        'planned',
+        scheduledDate,
+        startTimeStr,
+        endTimeStr
       );
 
       Alert.alert('Success', 'Event added to calendar');
@@ -726,8 +747,16 @@ const CalendarScreenModernFixed = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              const allChildren = [...childrenWithActivities, ...sharedChildren];
               for (const activityId of selectedActivities) {
-                await childrenService.removeActivityFromChild(activityId);
+                // Find the child and activity details
+                for (const child of allChildren) {
+                  const activity = child.activities.find(a => a.id === activityId);
+                  if (activity) {
+                    await childrenService.removeActivityFromChild(child.id, activity.id);
+                    break;
+                  }
+                }
               }
               setSelectionMode(false);
               setSelectedActivities(new Set());
@@ -945,22 +974,30 @@ const CalendarScreenModernFixed = () => {
   };
 
   const exportToCalendar = async () => {
+    // Check subscription for calendar export feature
+    if (!hasCalendarExport) {
+      checkAndShowUpgrade('calendar');
+      return;
+    }
+
     const allChildren = [...childrenWithActivities, ...sharedChildren];
     const activitiesToExport = allChildren
       .filter(c => c.isVisible)
       .flatMap(child =>
-        child.activities.map(a => ({
+        child.activities
+          .filter(a => a.activity)
+          .map(a => ({
           id: a.activityId,
           childActivityId: a.id,
-          name: a.activity.name,
-          description: a.activity.description,
-          location: a.activity.location,
+          name: a.activity!.name,
+          description: a.activity!.description,
+          location: a.activity!.location,
           scheduledDate: a.scheduledDate,
-          dateStart: (a.activity as any).dateStart,
-          dateEnd: (a.activity as any).dateEnd,
-          startTime: a.startTime || (a.activity as any).startTime,
-          endTime: a.endTime || (a.activity as any).endTime,
-          dayOfWeek: (a.activity as any).dayOfWeek,
+          dateStart: (a.activity as any)?.dateStart,
+          dateEnd: (a.activity as any)?.dateEnd,
+          startTime: a.startTime || (a.activity as any)?.startTime,
+          endTime: a.endTime || (a.activity as any)?.endTime,
+          dayOfWeek: (a.activity as any)?.dayOfWeek,
           childName: child.isShared ? `${child.name} (${child.sharedBy})` : child.name,
         }))
       );
@@ -1217,10 +1254,10 @@ const CalendarScreenModernFixed = () => {
               styles.activityListItem,
               { borderLeftColor: activity.childColor, borderLeftWidth: 4 }
             ]}
-            onPress={() => handleActivityPress(activity)}
+            onPress={() => handleActivityPress(activity as any)}
           >
             <View style={styles.activityListHeader}>
-              <Text style={styles.activityListName}>{activity.activity.name}</Text>
+              <Text style={styles.activityListName}>{activity.activity?.name || 'Unknown Activity'}</Text>
               <View style={[styles.activityListChildBadge, { backgroundColor: activity.childColor + '20' }]}>
                 <Text style={[styles.activityListChildName, { color: activity.childColor }]}>
                   {activity.childName}
@@ -1234,11 +1271,11 @@ const CalendarScreenModernFixed = () => {
                   {activity.startTime} - {activity.endTime}
                 </Text>
               </View>
-              {(activity.activity.locationName || activity.activity.location?.name) && (
+              {(activity.activity?.locationName || (typeof activity.activity?.location === 'object' ? activity.activity?.location?.name : activity.activity?.location)) && (
                 <View style={styles.activityListDetailRow}>
                   <Icon name="map-marker" size={16} color={ModernColors.textSecondary} />
                   <Text style={styles.activityListDetailText}>
-                    {activity.activity.locationName || activity.activity.location?.name}
+                    {activity.activity?.locationName || (typeof activity.activity?.location === 'object' ? activity.activity?.location?.name : activity.activity?.location)}
                   </Text>
                 </View>
               )}
@@ -1419,7 +1456,7 @@ const CalendarScreenModernFixed = () => {
 
                           // If not on childActivity, try to get from sessions
                           if (!startTimeStr && activity.activity?.sessions) {
-                            const matchingSession = activity.activity.sessions.find(s =>
+                            const matchingSession = activity.activity.sessions.find((s: any) =>
                               s.dayOfWeek && s.dayOfWeek.toLowerCase() === format(day, 'EEEE').toLowerCase()
                             );
                             startTimeStr = matchingSession?.startTime;
@@ -1439,13 +1476,13 @@ const CalendarScreenModernFixed = () => {
                                 styles.weekActivityBlock,
                                 { backgroundColor: activity.childColor + '20', borderLeftColor: activity.childColor }
                               ]}
-                              onPress={() => handleActivityPress(activity)}
-                              onLongPress={() => handleActivityLongPressForReschedule(activity)}
+                              onPress={() => handleActivityPress(activity as any)}
+                              onLongPress={() => handleActivityLongPressForReschedule(activity as any)}
                               delayLongPress={400}
                             >
                               <View style={styles.weekActivityBlockHeader}>
                                 <Text style={styles.weekActivityBlockName} numberOfLines={1}>
-                                  {activity.activity.name}
+                                  {activity.activity?.name || 'Unknown'}
                                 </Text>
                                 <Icon name="drag" size={12} color={ModernColors.textMuted} />
                               </View>
@@ -1544,9 +1581,9 @@ const CalendarScreenModernFixed = () => {
                           : startTimeStr || 'All day';
 
                         // Get location name
-                        const locationName = typeof activity.activity.location === 'string'
-                          ? activity.activity.location
-                          : activity.activity.location?.name || '';
+                        const locationName = typeof activity.activity?.location === 'string'
+                          ? activity.activity?.location
+                          : (activity.activity?.location as any)?.name || '';
 
                         return (
                           <TouchableOpacity
@@ -1555,12 +1592,12 @@ const CalendarScreenModernFixed = () => {
                               styles.dayActivity,
                               { backgroundColor: activity.childColor + '15' },
                             ]}
-                            onPress={() => handleActivityPress(activity)}
+                            onPress={() => handleActivityPress(activity as any)}
                           >
                             <View style={[styles.dayActivityIndicator, { backgroundColor: activity.childColor }]} />
                             <View style={styles.dayActivityContent}>
                               <Text style={styles.dayActivityName}>
-                                {activity.activity.name}
+                                {activity.activity?.name || 'Unknown'}
                               </Text>
                               <Text style={styles.dayActivityChild}>
                                 {activity.childName}
@@ -1618,7 +1655,7 @@ const CalendarScreenModernFixed = () => {
         if (!child.isVisible) return;
 
         child.activities
-          .filter((activity) => activity.scheduledDate === date)
+          .filter((activity) => activity.scheduledDate && format(activity.scheduledDate, 'yyyy-MM-dd') === date)
           .forEach((activity) => {
             dayActivities.push({
               ...activity,
@@ -1713,10 +1750,10 @@ const CalendarScreenModernFixed = () => {
 
           {selectedActivity && (
             <View style={styles.modalBody}>
-              <Text style={styles.activityName}>{selectedActivity.activity.name}</Text>
-              {selectedActivity.activity.description && (
+              <Text style={styles.activityName}>{selectedActivity.activity?.name || 'Unknown Activity'}</Text>
+              {selectedActivity.activity?.description && (
                 <Text style={styles.activityDescription}>
-                  {selectedActivity.activity.description}
+                  {selectedActivity.activity?.description}
                 </Text>
               )}
 
@@ -1724,7 +1761,7 @@ const CalendarScreenModernFixed = () => {
                 <Icon name="calendar" size={20} color={ModernColors.textSecondary} />
                 <Text style={styles.activityDetailText}>
                   {selectedActivity.scheduledDate &&
-                    format(parseISO(selectedActivity.scheduledDate), 'MMMM d, yyyy')}
+                    format(selectedActivity.scheduledDate, 'MMMM d, yyyy')}
                 </Text>
               </View>
 
@@ -1737,11 +1774,11 @@ const CalendarScreenModernFixed = () => {
                 </View>
               )}
 
-              {(selectedActivity.activity?.locationName || selectedActivity.activity?.location?.name) && (
+              {(selectedActivity.activity?.locationName || (typeof selectedActivity.activity?.location === 'object' ? selectedActivity.activity?.location?.name : selectedActivity.activity?.location)) && (
                 <View style={styles.activityDetailRow}>
                   <Icon name="map-marker" size={20} color={ModernColors.textSecondary} />
                   <Text style={styles.activityDetailText}>
-                    {selectedActivity.activity?.locationName || selectedActivity.activity?.location?.name}
+                    {selectedActivity.activity?.locationName || (typeof selectedActivity.activity?.location === 'object' ? (selectedActivity.activity?.location as any)?.name : selectedActivity.activity?.location)}
                   </Text>
                 </View>
               )}
@@ -2151,6 +2188,13 @@ const CalendarScreenModernFixed = () => {
           color: c.color || CHILD_COLORS[i % CHILD_COLORS.length],
         }))}
         initialDate={addEventDate}
+      />
+
+      {/* Upgrade Modal for Calendar Export */}
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        feature={upgradeFeature || 'calendar'}
+        onClose={hideUpgradeModal}
       />
 
       {/* Floating Action Button */}

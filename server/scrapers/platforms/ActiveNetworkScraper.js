@@ -241,7 +241,7 @@ class ActiveNetworkScraper extends BaseScraper {
    */
   async extractCategoryActivities(browser, category) {
     const page = await browser.newPage();
-    const activities = [];
+    let activities = [];
 
     try {
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
@@ -258,50 +258,26 @@ class ActiveNetworkScraper extends BaseScraper {
         this.logProgress(`  Warning: No activity cards found for ${category.name}`);
       }
 
+      // Check total results from page
+      const totalResults = await page.evaluate(() => {
+        const text = document.body.innerText;
+        const match = text.match(/Found\s*(\d+)\s*matching/i) || text.match(/(\d+)\s*results?/i);
+        return match ? parseInt(match[1]) : null;
+      });
+
       // Get the maximum activities to load from config (no default limit)
       const maxActivities = this.config.scraperConfig.maxActivities || Infinity;
 
-      // Keep track of pages
-      let pageNum = 1;
-      const maxPages = 200; // Safety limit to prevent infinite loops
-      const seenExternalIds = new Set();
+      // First try scroll-based extraction
+      const scrollActivities = await this.scrollAndExtractBatched(page, category, maxActivities);
+      activities.push(...scrollActivities);
 
-      while (pageNum <= maxPages && activities.length < maxActivities) {
-        // Scroll to load all activities AND extract in batches (prevents timeout on large DOMs)
-        const extractedActivities = await this.scrollAndExtractBatched(page, category, maxActivities);
+      this.logProgress(`  Scroll extraction: ${activities.length} activities`);
 
-        // Deduplicate by externalId
-        let newActivities = 0;
-        for (const activity of extractedActivities) {
-          const key = activity.externalId || activity.name;
-          if (!seenExternalIds.has(key)) {
-            seenExternalIds.add(key);
-            activities.push(activity);
-            newActivities++;
-          }
-        }
-
-        this.logProgress(`  Page ${pageNum}: extracted ${newActivities} new activities (total: ${activities.length})`);
-
-        // Try to navigate to next page
-        const hasNextPage = await this.navigateToNextPage(page);
-        if (!hasNextPage) {
-          this.logProgress(`  No more pages after page ${pageNum}`);
-          break;
-        }
-
-        pageNum++;
-
-        // Wait for new page content to load
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        // Wait for activity cards on new page
-        try {
-          await page.waitForSelector('.card.activity-card, .activity-card', { timeout: 15000 });
-        } catch (e) {
-          this.logProgress(`  Warning: No activity cards on page ${pageNum}`);
-          break;
-        }
+      // If we got significantly fewer than expected, use API-based pagination
+      if (totalResults && activities.length < totalResults * 0.5) {
+        this.logProgress(`  Using API pagination (scroll got ${activities.length}/${totalResults})`);
+        activities = await this.extractActivitiesViaAPI(page, category, maxActivities);
       }
 
       this.logProgress(`  Extracted ${activities.length} total activities from ${category.name}`);
@@ -311,6 +287,153 @@ class ActiveNetworkScraper extends BaseScraper {
     }
 
     return activities;
+  }
+
+  /**
+   * Extract activities using direct API calls with pagination
+   * This is a fallback when infinite scroll doesn't work properly
+   * @param {Object} page - Puppeteer page (already loaded with session)
+   * @param {Object} category - Category information
+   * @param {Number} maxActivities - Maximum activities to fetch
+   * @returns {Promise<Array>} Extracted activities
+   */
+  async extractActivitiesViaAPI(page, category, maxActivities) {
+    const activities = [];
+    const { searchParams, ageFilter } = this.config.scraperConfig;
+    const maxAge = ageFilter?.maxAge || 18;
+
+    let pageNum = 1;
+    const maxPages = Math.ceil(maxActivities / 20) || 500;
+    const seenIds = new Set();
+
+    while (pageNum <= maxPages) {
+      const pageInfo = JSON.stringify({
+        order_by: 'Date range',
+        page_number: pageNum,
+        total_records_per_page: 20
+      });
+
+      const result = await page.evaluate(async (pageInfo, maxAge, searchParams) => {
+        try {
+          const response = await fetch(window.location.pathname.replace('/activity/search', '/rest/activities/list') + '?locale=en-US', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'page_info': pageInfo
+            },
+            body: JSON.stringify({
+              activity_search_pattern: {
+                skills: [],
+                time_after_str: '',
+                days_of_week: searchParams?.days_of_week || '0000000',
+                activity_select_param: searchParams?.activity_select_param || 2,
+                center_ids: [],
+                time_before_str: '',
+                open_spots: null,
+                activity_id: null,
+                activity_category_ids: [],
+                date_before: '',
+                min_age: null,
+                date_after: '',
+                activity_type_ids: [],
+                site_ids: [],
+                for_map: false,
+                geographic_area_ids: [],
+                season_ids: [],
+                activity_department_ids: [],
+                activity_other_category_ids: [],
+                child_season_ids: [],
+                activity_keyword: '',
+                instructor_ids: [],
+                max_age: maxAge,
+                custom_price_from: '',
+                custom_price_to: ''
+              },
+              activity_transfer_pattern: {}
+            })
+          });
+
+          const data = await response.json();
+          return { success: true, items: data.body?.activity_items || [] };
+        } catch (e) {
+          return { success: false, error: e.message };
+        }
+      }, pageInfo, maxAge, searchParams);
+
+      if (!result.success || result.items.length === 0) {
+        break;
+      }
+
+      // Add unique activities
+      for (const item of result.items) {
+        if (!seenIds.has(item.id)) {
+          seenIds.add(item.id);
+          activities.push(this.convertAPIItemToActivity(item, category));
+        }
+      }
+
+      if (pageNum % 20 === 0) {
+        this.logProgress(`    API pagination: ${activities.length} activities (page ${pageNum})`);
+      }
+
+      if (activities.length >= maxActivities) {
+        break;
+      }
+
+      pageNum++;
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+    }
+
+    return activities;
+  }
+
+  /**
+   * Convert API response item to activity format
+   * @param {Object} item - API response item
+   * @param {Object} category - Category information
+   * @returns {Object} Activity object
+   */
+  convertAPIItemToActivity(item, category) {
+    return {
+      name: item.name,
+      externalId: String(item.id || item.number),
+      category: category.name,
+      cost: this.parseAPICost(item.fee),
+      registrationUrl: item.detail_url,
+      schedule: item.time_range,
+      startTime: this.parseAPITime(item.time_range_landing_page, 'start'),
+      endTime: this.parseAPITime(item.time_range_landing_page, 'end'),
+      dayOfWeek: item.days_of_week?.split(',').map(d => d.trim()) || [],
+      dateStartStr: item.date_range_start,
+      dateEndStr: item.date_range_end,
+      dates: item.date_range,
+      locationName: item.location,
+      ageMin: item.age_min_year || null,
+      ageMax: item.age_max_year || null,
+      ageRange: item.age_description,
+      spotsAvailable: parseInt(item.openings) || null,
+      availability: parseInt(item.openings) > 0 ? 'Open' : 'Full',
+      registrationStatus: item.total_open > 0 ? 'Open' : 'Full'
+    };
+  }
+
+  /**
+   * Parse cost from API fee field
+   */
+  parseAPICost(fee) {
+    if (!fee) return null;
+    const match = String(fee).match(/\$?([0-9,]+(?:\.\d{2})?)/);
+    return match ? parseFloat(match[1].replace(',', '')) : null;
+  }
+
+  /**
+   * Parse time from API time range (e.g., "9:30 AM - 11:30 AM")
+   */
+  parseAPITime(timeRange, type) {
+    if (!timeRange) return null;
+    const parts = timeRange.split('-').map(p => p.trim());
+    return type === 'start' ? parts[0] : parts[1];
   }
 
   /**

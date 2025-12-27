@@ -287,9 +287,7 @@ const SearchResultsScreen = () => {
                 activity={item}
                 onPress={() => handleActivityPress(item)}
                 isFavorite={favoriteIds.has(item.id)}
-                onToggleFavorite={() => toggleFavorite(item)}
-                showPrice={true}
-                showLocation={true}
+                onFavoritePress={() => toggleFavorite(item)}
               />
             </View>
           )}

@@ -201,19 +201,20 @@ function extractAgeRange(item: Record<string, unknown>): { min: number; max: num
 function extractDateRange(item: Record<string, unknown>): { start: Date; end: Date } | null {
   // Check dateRange object
   if (isValidObject(item.dateRange)) {
-    const start = safeParseDate(item.dateRange.start);
-    const end = safeParseDate(item.dateRange.end);
+    const dateRange = item.dateRange as Record<string, unknown>;
+    const start = safeParseDate(dateRange.start as string | number | Date | null | undefined);
+    const end = safeParseDate(dateRange.end as string | number | Date | null | undefined);
     if (start && end) return { start, end };
   }
 
   // Check dateStart/dateEnd fields
-  const dateStart = safeParseDate(item.dateStart);
-  const dateEnd = safeParseDate(item.dateEnd);
+  const dateStart = safeParseDate(item.dateStart as string | number | Date | null | undefined);
+  const dateEnd = safeParseDate(item.dateEnd as string | number | Date | null | undefined);
   if (dateStart && dateEnd) return { start: dateStart, end: dateEnd };
 
   // Check startDate/endDate fields
-  const startDate = safeParseDate(item.startDate);
-  const endDate = safeParseDate(item.endDate);
+  const startDate = safeParseDate(item.startDate as string | number | Date | null | undefined);
+  const endDate = safeParseDate(item.endDate as string | number | Date | null | undefined);
   if (startDate && endDate) return { start: startDate, end: endDate };
 
   return null;

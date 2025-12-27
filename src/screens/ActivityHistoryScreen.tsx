@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.text.primary,
     marginTop: 20,
   },
   emptySubtext: {

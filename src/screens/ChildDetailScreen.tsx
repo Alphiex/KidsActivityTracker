@@ -251,8 +251,8 @@ const ChildDetailScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             const childActivity = activities.find(a => a.id === activityId)?.childActivity;
-            if (childActivity) {
-              await childrenService.removeActivityFromChild(childActivity.id);
+            if (childActivity && childId) {
+              await childrenService.removeActivityFromChild(childId, childActivity.id);
               await loadActivities();
             }
           },

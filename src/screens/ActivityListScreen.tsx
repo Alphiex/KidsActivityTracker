@@ -117,16 +117,16 @@ const ActivityListScreen = () => {
                                 preferences.timePreferences;
         
         if (hasGlobalFilters) {
-          const unfilteredParams: any = {
+          let unfilteredParams: any = {
             limit: 1,  // We only need the count
             offset: 0
           };
-          
+
           // Only include category/type filters, not global preference filters
           if (category !== 'All' && category !== 'Budget Friendly') {
             unfilteredParams.activityType = category;
           }
-          
+
           // Include route-specific filters (like Budget Friendly maxCost)
           if (filters) {
             unfilteredParams = { ...unfilteredParams, ...filters };
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: Colors.text,
+    color: Colors.text.primary,
     fontWeight: '600',
     marginTop: 20,
   },

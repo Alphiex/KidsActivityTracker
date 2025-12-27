@@ -16,19 +16,21 @@ import { combineReducers } from 'redux';
 import authReducer from './slices/authSlice';
 import childrenReducer from './slices/childrenSlice';
 import childActivitiesReducer from './slices/childActivitiesSlice';
+import subscriptionReducer from './slices/subscriptionSlice';
 
 // Persist configuration
 const persistConfig = {
   key: 'root',
   version: 1,
   storage: AsyncStorage,
-  whitelist: ['auth', 'children'], // Persist auth and children state
+  whitelist: ['auth', 'children', 'subscription'], // Persist auth, children, and subscription state
 };
 
 const rootReducer = combineReducers({
   auth: authReducer,
   children: childrenReducer,
   childActivities: childActivitiesReducer,
+  subscription: subscriptionReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

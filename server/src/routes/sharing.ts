@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { verifyToken, logActivity } from '../middleware/auth';
 import { sharingService } from '../services/sharingService';
+import { subscriptionService } from '../services/subscriptionService';
 import { body, param, validationResult } from 'express-validator';
 
 const router = Router();
@@ -54,6 +55,18 @@ router.post(
   logActivity('configure_sharing'),
   async (req: Request, res: Response) => {
     try {
+      // Check subscription limit for sharing
+      const limitCheck = await subscriptionService.canShareWithUser(req.user!.id);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          success: false,
+          error: 'SUBSCRIPTION_LIMIT_REACHED',
+          message: `You have reached your limit of ${limitCheck.limit} shared ${limitCheck.limit === 1 ? 'user' : 'users'}. Upgrade to Premium to share with more family members.`,
+          limit: limitCheck.limit,
+          current: limitCheck.current
+        });
+      }
+
       const share = await sharingService.configureSharing(req.user!.id, {
         sharedWithUserId: req.body.sharedWithUserId,
         permissionLevel: req.body.permissionLevel,

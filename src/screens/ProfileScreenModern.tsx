@@ -23,6 +23,8 @@ import * as SecureStore from '../utils/secureStorage';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 import { authService } from '../services/authService';
+import useSubscription from '../hooks/useSubscription';
+
 // Optional import for DeviceInfo - may not be available in all environments
 let DeviceInfo: any;
 try {
@@ -47,6 +49,17 @@ const ProfileScreenModern = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+
+  // Subscription state
+  const {
+    tier,
+    isPremium,
+    isTrialing,
+    limits,
+    usage,
+    openPaywall,
+  } = useSubscription();
+
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -325,6 +338,110 @@ const ProfileScreenModern = () => {
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
+          </View>
+        </ProfileSection>
+
+        {/* Subscription Section */}
+        <ProfileSection title="Subscription">
+          <View style={styles.subscriptionCard}>
+            <View style={styles.subscriptionHeader}>
+              <View style={styles.subscriptionInfo}>
+                <View style={styles.subscriptionTitleRow}>
+                  <Text style={styles.subscriptionPlan}>
+                    {isPremium ? 'Family Pro' : 'Discovery'}
+                  </Text>
+                  {isPremium && (
+                    <View style={styles.proBadge}>
+                      <Icon name="crown" size={12} color="#FFFFFF" />
+                      <Text style={styles.proBadgeText}>PRO</Text>
+                    </View>
+                  )}
+                  {isTrialing && (
+                    <View style={styles.trialBadge}>
+                      <Text style={styles.trialBadgeText}>TRIAL</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.subscriptionDescription}>
+                  {isPremium
+                    ? 'Unlimited access to all features'
+                    : 'Upgrade to unlock premium features'}
+                </Text>
+              </View>
+              {!isPremium && (
+                <TouchableOpacity
+                  style={styles.upgradeButton}
+                  onPress={openPaywall}
+                >
+                  <Text style={styles.upgradeButtonText}>Upgrade</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Usage Stats */}
+            {!isPremium && usage && (
+              <View style={styles.usageContainer}>
+                <View style={styles.usageItem}>
+                  <View style={styles.usageIconContainer}>
+                    <Icon name="account-child" size={18} color={ModernColors.primary} />
+                  </View>
+                  <View style={styles.usageInfo}>
+                    <Text style={styles.usageLabel}>Children</Text>
+                    <Text style={styles.usageValue}>
+                      {usage.childrenCount} / {limits.maxChildren}
+                    </Text>
+                  </View>
+                  <View style={styles.usageBarContainer}>
+                    <View
+                      style={[
+                        styles.usageBar,
+                        { width: `${Math.min((usage.childrenCount / limits.maxChildren) * 100, 100)}%` }
+                      ]}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.usageItem}>
+                  <View style={styles.usageIconContainer}>
+                    <Icon name="heart" size={18} color={ModernColors.primary} />
+                  </View>
+                  <View style={styles.usageInfo}>
+                    <Text style={styles.usageLabel}>Favorites</Text>
+                    <Text style={styles.usageValue}>
+                      {usage.favoritesCount} / {limits.maxFavorites}
+                    </Text>
+                  </View>
+                  <View style={styles.usageBarContainer}>
+                    <View
+                      style={[
+                        styles.usageBar,
+                        { width: `${Math.min((usage.favoritesCount / limits.maxFavorites) * 100, 100)}%` }
+                      ]}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.usageItem}>
+                  <View style={styles.usageIconContainer}>
+                    <Icon name="share-variant" size={18} color={ModernColors.primary} />
+                  </View>
+                  <View style={styles.usageInfo}>
+                    <Text style={styles.usageLabel}>Sharing</Text>
+                    <Text style={styles.usageValue}>
+                      {usage.sharedUsersCount} / {limits.maxSharedUsers}
+                    </Text>
+                  </View>
+                  <View style={styles.usageBarContainer}>
+                    <View
+                      style={[
+                        styles.usageBar,
+                        { width: `${Math.min((usage.sharedUsersCount / limits.maxSharedUsers) * 100, 100)}%` }
+                      ]}
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
         </ProfileSection>
 
@@ -746,6 +863,114 @@ const styles = StyleSheet.create({
     color: ModernColors.textLight,
     textAlign: 'center',
     marginBottom: 32,
+  },
+  // Subscription styles
+  subscriptionCard: {
+    padding: 20,
+    backgroundColor: ModernColors.background,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  subscriptionInfo: {
+    flex: 1,
+  },
+  subscriptionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  subscriptionPlan: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: ModernColors.text,
+  },
+  subscriptionDescription: {
+    fontSize: 14,
+    color: ModernColors.textLight,
+  },
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ModernColors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  proBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  trialBadge: {
+    backgroundColor: ModernColors.success,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  trialBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  upgradeButton: {
+    backgroundColor: ModernColors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  upgradeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  usageContainer: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+    gap: 16,
+  },
+  usageItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  usageIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFF0F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  usageInfo: {
+    flex: 1,
+  },
+  usageLabel: {
+    fontSize: 14,
+    color: ModernColors.textLight,
+  },
+  usageValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.text,
+  },
+  usageBarContainer: {
+    width: 80,
+    height: 6,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  usageBar: {
+    height: '100%',
+    backgroundColor: ModernColors.primary,
+    borderRadius: 3,
   },
   modalContainer: {
     flex: 1,

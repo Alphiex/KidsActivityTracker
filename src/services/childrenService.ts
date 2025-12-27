@@ -309,15 +309,15 @@ class ChildrenService {
         id: safeString(ca.id, `${childId}-${activityId}-${Date.now()}`),
         childId: safeString(ca.childId, childId),
         activityId: safeString(ca.activityId, activityId),
-        status: ca.status || status,
-        addedAt: safeParseDate(ca.createdAt) || new Date(),
-        startedAt: safeParseDate(ca.registeredAt) || undefined,
-        completedAt: safeParseDate(ca.completedAt) || undefined,
-        scheduledDate: safeParseDate(ca.scheduledDate) || scheduledDate,
-        startTime: ca.startTime ?? startTime,
-        endTime: ca.endTime ?? endTime,
-        notes: ca.notes,
-        activity: ca.activity, // Include full activity object from API
+        status: (ca.status as ChildActivity['status']) || status,
+        addedAt: safeParseDate(ca.createdAt as string | Date | null) || new Date(),
+        startedAt: safeParseDate(ca.registeredAt as string | Date | null) || undefined,
+        completedAt: safeParseDate(ca.completedAt as string | Date | null) || undefined,
+        scheduledDate: safeParseDate(ca.scheduledDate as string | Date | null) || scheduledDate,
+        startTime: (ca.startTime as string | undefined) ?? startTime,
+        endTime: (ca.endTime as string | undefined) ?? endTime,
+        notes: ca.notes as string | undefined,
+        activity: ca.activity as Activity | undefined, // Include full activity object from API
       };
 
       // Update local cache
@@ -490,7 +490,7 @@ class ChildrenService {
   // Sharing Methods
   async shareChildWithUser(childId: string, email: string, permission: 'view' | 'full'): Promise<void> {
     try {
-      const response = await apiClient.post('/api/children/share', {
+      const response = await apiClient.post<any>('/api/children/share', {
         childId,
         email,
         permission,
@@ -504,7 +504,7 @@ class ChildrenService {
 
   async getSharedUsers(childId: string): Promise<any[]> {
     try {
-      const response = await apiClient.get(`/api/children/${childId}/shared`);
+      const response = await apiClient.get<any>(`/api/children/${childId}/shared`);
       return response.data;
     } catch (error) {
       console.error('Error fetching shared users:', error);
@@ -515,7 +515,7 @@ class ChildrenService {
 
   async revokeChildAccess(childId: string, userId: string): Promise<void> {
     try {
-      const response = await apiClient.delete(`/api/children/${childId}/shared/${userId}`);
+      const response = await apiClient.delete<any>(`/api/children/${childId}/shared/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error revoking access:', error);
@@ -601,7 +601,7 @@ class ChildrenService {
 
   async getSharedChildren(): Promise<SharedChild[]> {
     try {
-      const response = await apiClient.get('/api/children/shared-with-me');
+      const response = await apiClient.get<any>('/api/children/shared-with-me');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching shared children:', error);

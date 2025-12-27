@@ -156,7 +156,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
           }
         });
         const favoriteActivities = await Promise.all(activityPromises);
-        const validActivities = favoriteActivities.filter(a => a !== null);
+        const validActivities = favoriteActivities.filter((a): a is Activity => a !== null);
 
         setActivities(validActivities);
         setTotalCount(validActivities.length);

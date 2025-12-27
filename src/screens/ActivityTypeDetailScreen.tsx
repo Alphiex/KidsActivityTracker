@@ -88,16 +88,16 @@ const ActivityTypeDetailScreen = () => {
       const currentType = types.find(t => t.name === typeName || t.code === typeCode);
       console.log('ActivityTypeDetail: Found matching type:', currentType ? 'Yes' : 'No');
       
-      if (currentType && currentType.subtypes) {
+      if (currentType && (currentType as any).subtypes) {
         // Use the subtypes from the API which already have counts
-        const subtypesWithCounts = currentType.subtypes
-          .filter(s => s.activityCount > 0)
-          .map(subtype => ({
+        const subtypesWithCounts = (currentType as any).subtypes
+          .filter((s: any) => s.activityCount > 0)
+          .map((subtype: any) => ({
             code: subtype.code,
             name: subtype.name,
             activityCount: subtype.activityCount
           }))
-          .sort((a, b) => b.activityCount - a.activityCount);
+          .sort((a: any, b: any) => b.activityCount - a.activityCount);
         
         setSubtypes(subtypesWithCounts);
         setTotalCount(currentType.activityCount || 0);
@@ -110,13 +110,13 @@ const ActivityTypeDetailScreen = () => {
         
         if (typeInfo && typeInfo.subtypes) {
           const subtypesWithCounts = typeInfo.subtypes
-            .filter(s => s && s.count > 0 && s.name)
-            .map(subtype => ({
+            .filter((s: any) => s && s.count > 0 && s.name)
+            .map((subtype: any) => ({
               code: subtype.code || (subtype.name ? subtype.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''),
               name: subtype.name || '',
               activityCount: subtype.count || 0
             }))
-            .sort((a, b) => b.activityCount - a.activityCount);
+            .sort((a: any, b: any) => b.activityCount - a.activityCount);
           
           setSubtypes(subtypesWithCounts);
           setTotalCount(typeInfo.totalCount || 0);
@@ -235,7 +235,7 @@ const ActivityTypeDetailScreen = () => {
       }
     } catch (err: any) {
       console.error('ActivityTypeDetail: Error loading activities:', err);
-      console.error('ActivityTypeDetail: Filters used:', JSON.stringify(filters, null, 2));
+      console.error('ActivityTypeDetail: Type:', typeName, 'Subtype:', selectedSubtype);
       setError(err.message || 'Failed to load activities. Please try again.');
     } finally {
       setRefreshing(false);

@@ -12,8 +12,8 @@ export const checkScreenRegistration = (navigation: any) => {
     if ('routeNames' in state) {
       console.log('Available route names:', state.routeNames);
     }
-  } catch (e) {
-    console.log('Could not get state:', e.message);
+  } catch (e: any) {
+    console.log('Could not get state:', e?.message);
   }
 
   // Method 2: Try to check if screen exists using canGoBack
@@ -25,8 +25,8 @@ export const checkScreenRegistration = (navigation: any) => {
       // Try to get route config
       const action = CommonActions.navigate({ name });
       console.log(`- ${name}: Action created successfully`);
-    } catch (e) {
-      console.log(`- ${name}: Failed to create action -`, e.message);
+    } catch (e: any) {
+      console.log(`- ${name}: Failed to create action -`, e?.message);
     }
   });
 
@@ -49,8 +49,8 @@ export const checkScreenRegistration = (navigation: any) => {
         console.log('No more parent navigators');
         break;
       }
-    } catch (e) {
-      console.log('Error checking parent:', e.message);
+    } catch (e: any) {
+      console.log('Error checking parent:', e?.message);
       break;
     }
   }

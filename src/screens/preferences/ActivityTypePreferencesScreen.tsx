@@ -42,7 +42,7 @@ const ActivityTypePreferencesScreen = () => {
   const activityService = ActivityService.getInstance();
   const currentPreferences = preferencesService.getPreferences();
   
-  const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count?: number }>>([]);
+  const [activityTypes, setActivityTypes] = useState<Array<{ code: string; name: string; count?: number; activityCount?: number }>>([]);
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(
     currentPreferences.preferredActivityTypes || []
   );

@@ -1,5 +1,5 @@
 // Direct image mapping by key
-export const activityImageMap = {
+export const activityImageMap: { [key: string]: any } = {
   // Swimming & Aquatics
   swimming: require('./activities/swimming.jpg'),
   water_safety: require('./activities/water_safety.jpg'),

@@ -58,8 +58,13 @@ class ActivityTypeService {
       const subtypeMap = new Map<string, number>();
       activities.forEach(activity => {
         if (activity.activitySubtype) {
-          const count = subtypeMap.get(activity.activitySubtype) || 0;
-          subtypeMap.set(activity.activitySubtype, count + 1);
+          const subtypeName = typeof activity.activitySubtype === 'string'
+            ? activity.activitySubtype
+            : (activity.activitySubtype as any).name || '';
+          if (subtypeName) {
+            const count = subtypeMap.get(subtypeName) || 0;
+            subtypeMap.set(subtypeName, count + 1);
+          }
         }
       });
 

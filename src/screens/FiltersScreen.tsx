@@ -24,6 +24,9 @@ import { UserPreferences, HierarchicalProvince } from '../types/preferences';
 import { API_CONFIG } from '../config/api';
 import TopTabNavigation from '../components/TopTabNavigation';
 import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
+import useSubscription from '../hooks/useSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
+import { LockedFeature } from '../components/PremiumBadge';
 
 interface ExpandableSection {
   id: string;
@@ -60,6 +63,16 @@ interface AgeGroup {
 const FiltersScreen = () => {
   const navigation = useNavigation();
   const { colors, isDark } = useTheme();
+
+  // Subscription state for advanced filters
+  const {
+    checkAndShowUpgrade,
+    showUpgradeModal,
+    upgradeFeature,
+    hideUpgradeModal,
+    hasAdvancedFilters,
+  } = useSubscription();
+
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -589,10 +602,23 @@ const FiltersScreen = () => {
   );
 
   const renderBudgetContent = () => {
+    // Gate budget filter for free users
+    if (!hasAdvancedFilters) {
+      return (
+        <View style={styles.sectionContent}>
+          <LockedFeature
+            label="Budget Filter"
+            description="Filter activities by price range to find options that fit your budget"
+            onPress={() => checkAndShowUpgrade('filters')}
+          />
+        </View>
+      );
+    }
+
     const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
     const isUnlimited = priceRange.max >= 10000;
 
-    const updateMaxCost = (max: number | null) => {
+    const updateMaxCost = (max: number) => {
       preferencesService.updatePreferences({
         priceRange: { min: 0, max: max }
       });
@@ -734,11 +760,12 @@ const FiltersScreen = () => {
             <Text style={styles.timeLabel}>Morning (6AM - 12PM)</Text>
             <Switch
               value={preferences?.timePreferences?.morning || false}
-              onValueChange={(value) => 
+              onValueChange={(value) =>
                 updatePreferences({
                   timePreferences: {
-                    ...preferences?.timePreferences,
                     morning: value,
+                    afternoon: preferences?.timePreferences?.afternoon ?? false,
+                    evening: preferences?.timePreferences?.evening ?? false,
                   }
                 })
               }
@@ -751,11 +778,12 @@ const FiltersScreen = () => {
             <Text style={styles.timeLabel}>Afternoon (12PM - 5PM)</Text>
             <Switch
               value={preferences?.timePreferences?.afternoon || false}
-              onValueChange={(value) => 
+              onValueChange={(value) =>
                 updatePreferences({
                   timePreferences: {
-                    ...preferences?.timePreferences,
+                    morning: preferences?.timePreferences?.morning ?? false,
                     afternoon: value,
+                    evening: preferences?.timePreferences?.evening ?? false,
                   }
                 })
               }
@@ -768,10 +796,11 @@ const FiltersScreen = () => {
             <Text style={styles.timeLabel}>Evening (5PM - 9PM)</Text>
             <Switch
               value={preferences?.timePreferences?.evening || false}
-              onValueChange={(value) => 
+              onValueChange={(value) =>
                 updatePreferences({
                   timePreferences: {
-                    ...preferences?.timePreferences,
+                    morning: preferences?.timePreferences?.morning ?? false,
+                    afternoon: preferences?.timePreferences?.afternoon ?? false,
                     evening: value,
                   }
                 })
@@ -1118,17 +1147,31 @@ const FiltersScreen = () => {
         <View style={styles.globalPreferenceContent}>
           <Icon name="eye-off-outline" size={24} color="#222222" style={styles.globalPreferenceIcon} />
           <View style={styles.globalPreferenceText}>
-            <Text style={styles.globalPreferenceTitle}>Hide Closed or Full Activities</Text>
+            <View style={styles.globalPreferenceTitleRow}>
+              <Text style={styles.globalPreferenceTitle}>Hide Closed or Full Activities</Text>
+              {!hasAdvancedFilters && (
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.globalPreferenceDescription}>
               Only show activities that are open for registration
             </Text>
           </View>
         </View>
         <Switch
-          value={preferences?.hideClosedOrFull ?? true}
-          onValueChange={(value) => updatePreferences({ hideClosedOrFull: value })}
+          value={hasAdvancedFilters ? (preferences?.hideClosedOrFull ?? true) : false}
+          onValueChange={(value) => {
+            if (!hasAdvancedFilters) {
+              checkAndShowUpgrade('filters');
+              return;
+            }
+            updatePreferences({ hideClosedOrFull: value });
+          }}
           trackColor={{ false: '#EEEEEE', true: '#FF385C' }}
-          thumbColor={preferences?.hideClosedOrFull ? '#FFFFFF' : '#CCCCCC'}
+          thumbColor={hasAdvancedFilters && preferences?.hideClosedOrFull ? '#FFFFFF' : '#CCCCCC'}
+          disabled={!hasAdvancedFilters}
         />
       </View>
 
@@ -1149,6 +1192,13 @@ const FiltersScreen = () => {
         
         <View style={styles.bottomPadding} />
       </Animated.ScrollView>
+
+      {/* Upgrade Modal */}
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        feature={upgradeFeature || 'filters'}
+        onClose={hideUpgradeModal}
+      />
     </SafeAreaView>
   );
 };
@@ -1587,11 +1637,27 @@ const styles = StyleSheet.create({
   globalPreferenceText: {
     flex: 1,
   },
+  globalPreferenceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
   globalPreferenceTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#222222',
-    marginBottom: 2,
+  },
+  proBadge: {
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   globalPreferenceDescription: {
     fontSize: 13,

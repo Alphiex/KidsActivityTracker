@@ -86,7 +86,7 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
         }),
       ]);
       setChildren(myChildrenData);
-      setSharedChildren(sharedChildrenData);
+      setSharedChildren(sharedChildrenData as any);
     } catch (error) {
       console.error('Error loading children:', error);
       // Don't alert or block the UI, just show empty state

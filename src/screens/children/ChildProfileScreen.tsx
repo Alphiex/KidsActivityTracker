@@ -21,7 +21,7 @@ import {
   selectChildrenLoading,
 } from '../../store/slices/childrenSlice';
 import { ChildAvatar } from '../../components/children';
-import { ActivityCard } from '../../components/ActivityCard';
+import ActivityCard from '../../components/ActivityCard';
 import childrenService from '../../services/childrenService';
 import { Activity } from '../../types';
 

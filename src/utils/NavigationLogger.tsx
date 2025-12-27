@@ -3,7 +3,7 @@ import { useNavigationState, useRoute } from '@react-navigation/native';
 
 export const NavigationLogger: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigationState = useNavigationState(state => state);
-  const route = useRoute();
+  const route = useRoute<any>();
   const previousState = useRef<any>();
 
   useEffect(() => {

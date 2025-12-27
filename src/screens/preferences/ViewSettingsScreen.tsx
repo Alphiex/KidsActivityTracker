@@ -38,12 +38,12 @@ const ViewSettingsScreen = () => {
   const { colors } = useTheme();
   const preferencesService = PreferencesService.getInstance();
   const currentPreferences = preferencesService.getPreferences();
-  const [selectedViewType, setSelectedViewType] = useState(currentPreferences.viewType);
+  const [selectedViewType, setSelectedViewType] = useState<string>(currentPreferences.viewType);
 
   const handleSave = () => {
     preferencesService.updatePreferences({
       ...currentPreferences,
-      viewType: selectedViewType,
+      viewType: selectedViewType as 'card' | 'list' | 'compact',
     });
     navigation.goBack();
   };

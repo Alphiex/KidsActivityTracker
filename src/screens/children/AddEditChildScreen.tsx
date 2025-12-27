@@ -251,9 +251,9 @@ const AddEditChildScreen: React.FC = () => {
         }
       } else {
         const result = await dispatch(addChild(childData)).unwrap();
-        
+
         // Upload avatar for new child
-        if (avatarUri && avatarUri.startsWith('file://')) {
+        if (result && avatarUri && avatarUri.startsWith('file://')) {
           setUploadingAvatar(true);
           try {
             const avatarResult = await childrenService.uploadAvatar(result.id, avatarUri);

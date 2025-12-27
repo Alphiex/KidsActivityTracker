@@ -17,7 +17,7 @@ import { Activity } from '../types';
 import { safeToISOString } from '../utils/safeAccessors';
 
 const RecommendationsScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
   

@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: Colors.text,
+    color: Colors.text.primary,
     marginTop: 20,
     marginBottom: 8,
   },

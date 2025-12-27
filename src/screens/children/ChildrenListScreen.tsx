@@ -20,6 +20,8 @@ import {
 } from '../../store/slices/childrenSlice';
 import { ChildCard } from '../../components/children';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import useSubscription from '../../hooks/useSubscription';
+import UpgradePromptModal from '../../components/UpgradePromptModal';
 
 type ChildrenStackParamList = {
   ChildrenList: undefined;
@@ -36,6 +38,15 @@ const ChildrenListScreen: React.FC = () => {
   const loading = useAppSelector(selectChildrenLoading);
   const error = useAppSelector(selectChildrenError);
 
+  const {
+    checkAndShowUpgrade,
+    showUpgradeModal,
+    upgradeFeature,
+    hideUpgradeModal,
+    limits,
+    childrenRemaining,
+  } = useSubscription();
+
   const [refreshing, setRefreshing] = React.useState(false);
 
   useEffect(() => {
@@ -49,7 +60,10 @@ const ChildrenListScreen: React.FC = () => {
   };
 
   const handleAddChild = () => {
-    navigation.navigate('AddEditChild', {});
+    // Check subscription limit before allowing add
+    if (checkAndShowUpgrade('children')) {
+      navigation.navigate('AddEditChild', {});
+    }
   };
 
   const handleChildPress = (childId: string) => {
@@ -92,7 +106,14 @@ const ChildrenListScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Children</Text>
+        <View>
+          <Text style={styles.headerTitle}>My Children</Text>
+          {limits.maxChildren < 99 && (
+            <Text style={styles.headerSubtitle}>
+              {children.length} of {limits.maxChildren} profiles
+            </Text>
+          )}
+        </View>
         <TouchableOpacity onPress={handleAddChild} style={styles.headerButton}>
           <Icon name="add" size={28} color="#2196F3" />
         </TouchableOpacity>
@@ -121,6 +142,15 @@ const ChildrenListScreen: React.FC = () => {
           />
         }
       />
+
+      {/* Upgrade Modal */}
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        feature={upgradeFeature || 'children'}
+        onClose={hideUpgradeModal}
+        currentCount={children.length}
+        limit={limits.maxChildren}
+      />
     </SafeAreaView>
   );
 };
@@ -144,6 +174,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#333',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
   },
   headerButton: {
     padding: 8,

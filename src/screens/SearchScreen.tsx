@@ -443,7 +443,7 @@ const SearchScreen = () => {
                       onValueChange={setStartTime}
                       minimumTrackTintColor="#FF385C"
                       maximumTrackTintColor="#DDDDDD"
-                      thumbStyle={{ backgroundColor: '#FF385C' }}
+                      
                     />
                     
                     <Text style={styles.sliderLabel}>End Time</Text>
@@ -456,7 +456,7 @@ const SearchScreen = () => {
                       onValueChange={setEndTime}
                       minimumTrackTintColor="#FF385C"
                       maximumTrackTintColor="#DDDDDD"
-                      thumbStyle={{ backgroundColor: '#FF385C' }}
+                      
                     />
                   </View>
                 )}
@@ -486,7 +486,7 @@ const SearchScreen = () => {
                   onValueChange={setMinCost}
                   minimumTrackTintColor="#FF385C"
                   maximumTrackTintColor="#DDDDDD"
-                  thumbStyle={{ backgroundColor: '#FF385C' }}
+                  
                 />
                 
                 <Text style={styles.sliderLabel}>Maximum Cost</Text>
@@ -501,7 +501,7 @@ const SearchScreen = () => {
                     disabled={isUnlimitedCost}
                     minimumTrackTintColor="#FF385C"
                     maximumTrackTintColor="#DDDDDD"
-                    thumbStyle={{ backgroundColor: '#FF385C' }}
+                    
                   />
                   <TouchableOpacity
                     style={[styles.unlimitedButton, isUnlimitedCost && styles.unlimitedButtonSelected]}
@@ -565,7 +565,7 @@ const SearchScreen = () => {
                   onValueChange={setMinAge}
                   minimumTrackTintColor="#FF385C"
                   maximumTrackTintColor="#DDDDDD"
-                  thumbStyle={{ backgroundColor: '#FF385C' }}
+                  
                 />
                 
                 <Text style={styles.sliderLabel}>Maximum Age</Text>
@@ -578,7 +578,7 @@ const SearchScreen = () => {
                   onValueChange={setMaxAge}
                   minimumTrackTintColor="#FF385C"
                   maximumTrackTintColor="#DDDDDD"
-                  thumbStyle={{ backgroundColor: '#FF385C' }}
+                  
                 />
               </View>
             )}

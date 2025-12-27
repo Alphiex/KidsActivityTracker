@@ -41,12 +41,16 @@ export const Colors = {
   // Semantic colors
   background: '#F8F9FA',
   surface: '#FFFFFF',
+  border: '#DEE2E6',
   text: {
     primary: '#212529',
     secondary: '#6C757D',
     disabled: '#ADB5BD',
     inverse: '#FFFFFF',
   },
+  // Convenience text color aliases
+  textSecondary: '#6C757D',
+  textDisabled: '#ADB5BD',
   
   // Activity type colors
   activities: {
@@ -57,7 +61,7 @@ export const Colors = {
     swimming: '#00BCD4',
     education: '#8BC34A',
     general: '#607D8B',
-    
+
     // Consolidated activity types (capitalized)
     'Swimming': '#00BCD4',
     'Music': '#9C27B0',
@@ -67,7 +71,7 @@ export const Colors = {
     'Dance': '#EC407A',
     'Martial Arts': '#F44336',
     'Camps': '#4A90E2',
-  },
+  } as { [key: string]: string },
   
   // Gradient colors
   gradients: {

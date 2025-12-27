@@ -139,8 +139,12 @@ export const shareActivityViaEmail = async ({
     // Required Extras
     if (activity.requiredExtras && activity.requiredExtras.length > 0) {
       body += `Additional Required Items:\n`;
-      activity.requiredExtras.forEach(extra => {
-        body += `  • ${extra.name}: ${extra.cost}\n`;
+      activity.requiredExtras.forEach((extra: any) => {
+        if (typeof extra === 'string') {
+          body += `  • ${extra}\n`;
+        } else {
+          body += `  • ${extra.name}: ${extra.cost}\n`;
+        }
       });
     }
 
@@ -255,8 +259,11 @@ export const formatActivityForSharing = (activity: Activity, child?: Child): str
     text += `Cost: $${activity.cost}\n`;
   }
 
-  if (activity?.location?.address) {
-    text += `Location: ${activity.location.address}\n`;
+  if (activity?.location) {
+    const addr = typeof activity.location === 'string' ? activity.location : activity.location.address;
+    if (addr) {
+      text += `Location: ${addr}\n`;
+    }
   }
 
   if (child?.name) {

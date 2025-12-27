@@ -9,6 +9,7 @@ import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '../store';
 import { loadStoredAuth } from '../store/slices/authSlice';
+import { fetchSubscription } from '../store/slices/subscriptionSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 
 // Import screens
@@ -45,6 +46,7 @@ import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
 import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
 import LegalScreen from '../screens/legal/LegalScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -66,7 +68,6 @@ const HomeStack = () => (
     screenOptions={{
       headerShown: false,
       presentation: 'card',
-      animationEnabled: true,
     }}
   >
     <Stack.Screen name="Dashboard" component={DashboardScreen} />
@@ -280,8 +281,14 @@ const RootNavigator = () => {
     console.log('Initializing app...');
     try {
       // Check authentication status (will auto-login in dev mode)
-      await dispatch(loadStoredAuth());
-      
+      const authResult = await dispatch(loadStoredAuth());
+
+      // If user is authenticated, fetch their subscription
+      if (authResult.payload) {
+        console.log('User authenticated, fetching subscription...');
+        dispatch(fetchSubscription());
+      }
+
       // Check onboarding status
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
@@ -352,6 +359,11 @@ const RootNavigator = () => {
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} />
               <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
+              <Stack.Screen
+                name="Paywall"
+                component={PaywallScreen}
+                options={{ presentation: 'modal' }}
+              />
             </>
           )}
         </Stack.Navigator>

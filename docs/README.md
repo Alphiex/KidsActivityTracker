@@ -25,6 +25,7 @@ Kids Activity Tracker helps parents find and organize activities for their child
 - **Child Profiles** - Track multiple children with interests and activity history
 - **Family Sharing** - Share activity plans with co-parents and caregivers
 - **Real-time Updates** - Daily automated scraping keeps activity data fresh
+- **Freemium Model** - Free tier with limits, premium subscription for power users
 
 ## Technology Stack
 
@@ -34,6 +35,7 @@ Kids Activity Tracker helps parents find and organize activities for their child
 | Backend | Node.js 20, Express, TypeScript, Prisma ORM |
 | Database | PostgreSQL 15, Cloud SQL |
 | Scraping | Puppeteer, Cheerio |
+| Payments | RevenueCat (iOS/Android subscriptions) |
 | Infrastructure | Google Cloud Platform (Cloud Run, Cloud SQL) |
 
 ## Quick Start
@@ -62,6 +64,8 @@ cd server && npm run dev
 | [Frontend](FRONTEND.md) | React Native app guide |
 | [Deployment](DEPLOYMENT.md) | Cloud deployment procedures |
 | [Security](SECURITY.md) | Security practices |
+| [Subscriptions](SUBSCRIPTIONS.md) | Subscription system, purchase flow, auditing |
+| [Subscription Setup](SUBSCRIPTION_SETUP.md) | RevenueCat & App Store/Play Store configuration |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and solutions |
 
 ## Project Structure

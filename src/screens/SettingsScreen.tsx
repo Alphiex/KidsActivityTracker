@@ -17,7 +17,7 @@ import { formatPrice } from '../utils/formatters';
 import { APP_CONFIG } from '../config/app';
 
 const SettingsScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const preferencesService = PreferencesService.getInstance();
   const [preferences, setPreferences] = useState(preferencesService.getPreferences());
   const { colors, mode, setMode, isDark } = useTheme();
@@ -28,6 +28,113 @@ const SettingsScreen = () => {
       setPreferences(preferencesService.getPreferences());
     }, [])
   );
+
+  // Define handlers before they're used in settingsSections
+  const updateNotificationSetting = (key: string, value: boolean) => {
+    const updatedPreferences = {
+      ...preferences,
+      notifications: {
+        ...preferences.notifications,
+        [key]: value,
+      },
+    };
+    setPreferences(updatedPreferences);
+    preferencesService.updatePreferences(updatedPreferences);
+  };
+
+  const handleExportData = () => {
+    Alert.alert(
+      'Export Data',
+      'Your data will be exported as a JSON file that you can share or save.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Export', onPress: async () => {
+          try {
+            const Share = require('react-native-share').default;
+            const FavoritesService = require('../services/favoritesService').default;
+
+            // Gather all user data
+            const exportData = {
+              exportedAt: new Date().toISOString(),
+              appVersion: APP_CONFIG.version,
+              preferences: preferencesService.getPreferences(),
+              favorites: FavoritesService.getInstance().getFavorites().map((fav: any) => ({
+                id: fav.id,
+                name: fav.name,
+                category: fav.category,
+              })),
+            };
+
+            // Convert to JSON string and then base64
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const base64Data = require('react-native').Platform.OS === 'ios'
+              ? Buffer.from(jsonString).toString('base64')
+              : btoa(jsonString);
+
+            await Share.open({
+              title: 'Export Kids Activity Tracker Data',
+              message: 'Here is your exported data from Kids Activity Tracker',
+              url: `data:application/json;base64,${base64Data}`,
+              filename: `kids-activity-export-${new Date().toISOString().split('T')[0]}.json`,
+              type: 'application/json',
+            });
+          } catch (error: any) {
+            if (error?.message !== 'User did not share') {
+              console.error('Error exporting data:', error);
+              Alert.alert('Error', 'Failed to export data. Please try again.');
+            }
+          }
+        }},
+      ]
+    );
+  };
+
+  const handleClearCache = () => {
+    Alert.alert(
+      'Clear Cache',
+      'This will remove cached data and temporary files. Your preferences, favorites, and children data will be kept.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear', style: 'destructive', onPress: async () => {
+          try {
+            // Clear AsyncStorage items that are cache-related (excluding auth and essential data)
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const allKeys = await AsyncStorage.getAllKeys();
+
+            // Filter out keys we want to keep (auth, user preferences, etc.)
+            const keysToPreserve = ['authToken', 'refreshToken', 'user', 'preferences', 'favorites', 'children'];
+            const keysToRemove = allKeys.filter(
+              (key: string) => !keysToPreserve.some(preserve => key.includes(preserve))
+            );
+
+            if (keysToRemove.length > 0) {
+              await AsyncStorage.multiRemove(keysToRemove);
+            }
+
+            Alert.alert('Success', `Cache cleared successfully! Removed ${keysToRemove.length} cached items.`);
+          } catch (error) {
+            console.error('Error clearing cache:', error);
+            Alert.alert('Success', 'Cache cleared successfully!');
+          }
+        }},
+      ]
+    );
+  };
+
+  const handleResetPreferences = () => {
+    Alert.alert(
+      'Reset Preferences',
+      'This will restore all settings to their defaults. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Reset', style: 'destructive', onPress: () => {
+          preferencesService.resetPreferences();
+          setPreferences(preferencesService.getPreferences());
+          Alert.alert('Success', 'Preferences reset to defaults!');
+        }},
+      ]
+    );
+  };
 
   const settingsSections = [
     {
@@ -229,129 +336,23 @@ const SettingsScreen = () => {
           title: 'Terms of Service',
           subtitle: 'View terms and conditions',
           icon: 'file-document',
-          onPress: () => navigation.navigate('Legal', { type: 'terms' }),
+          onPress: () => (navigation as any).navigate('Legal', { type: 'terms' }),
         },
         {
           title: 'Privacy Policy',
           subtitle: 'How we handle your data',
           icon: 'lock',
-          onPress: () => navigation.navigate('Legal', { type: 'privacy' }),
+          onPress: () => (navigation as any).navigate('Legal', { type: 'privacy' }),
         },
         {
           title: 'Support',
           subtitle: 'Get help and report issues',
           icon: 'help-circle',
-          onPress: () => navigation.navigate('Legal', { type: 'support' }),
+          onPress: () => (navigation as any).navigate('Legal', { type: 'support' }),
         },
       ],
     },
   ];
-
-  const updateNotificationSetting = (key: string, value: boolean) => {
-    const updatedPreferences = {
-      ...preferences,
-      notifications: {
-        ...preferences.notifications,
-        [key]: value,
-      },
-    };
-    setPreferences(updatedPreferences);
-    preferencesService.updatePreferences(updatedPreferences);
-  };
-
-  const handleExportData = () => {
-    Alert.alert(
-      'Export Data',
-      'Your data will be exported as a JSON file that you can share or save.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: async () => {
-          try {
-            const Share = require('react-native-share').default;
-            const FavoritesService = require('../services/favoritesService').default;
-
-            // Gather all user data
-            const exportData = {
-              exportedAt: new Date().toISOString(),
-              appVersion: APP_CONFIG.version,
-              preferences: preferencesService.getPreferences(),
-              favorites: FavoritesService.getInstance().getFavorites().map((fav: any) => ({
-                id: fav.id,
-                name: fav.name,
-                category: fav.category,
-              })),
-            };
-
-            // Convert to JSON string and then base64
-            const jsonString = JSON.stringify(exportData, null, 2);
-            const base64Data = require('react-native').Platform.OS === 'ios'
-              ? Buffer.from(jsonString).toString('base64')
-              : btoa(jsonString);
-
-            await Share.open({
-              title: 'Export Kids Activity Tracker Data',
-              message: 'Here is your exported data from Kids Activity Tracker',
-              url: `data:application/json;base64,${base64Data}`,
-              filename: `kids-activity-export-${new Date().toISOString().split('T')[0]}.json`,
-              type: 'application/json',
-            });
-          } catch (error: any) {
-            if (error?.message !== 'User did not share') {
-              console.error('Error exporting data:', error);
-              Alert.alert('Error', 'Failed to export data. Please try again.');
-            }
-          }
-        }},
-      ]
-    );
-  };
-
-  const handleClearCache = () => {
-    Alert.alert(
-      'Clear Cache',
-      'This will remove cached data and temporary files. Your preferences, favorites, and children data will be kept.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: async () => {
-          try {
-            // Clear AsyncStorage items that are cache-related (excluding auth and essential data)
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-            const allKeys = await AsyncStorage.getAllKeys();
-
-            // Filter out keys we want to keep (auth, user preferences, etc.)
-            const keysToPreserve = ['authToken', 'refreshToken', 'user', 'preferences', 'favorites', 'children'];
-            const keysToRemove = allKeys.filter(
-              (key: string) => !keysToPreserve.some(preserve => key.includes(preserve))
-            );
-
-            if (keysToRemove.length > 0) {
-              await AsyncStorage.multiRemove(keysToRemove);
-            }
-
-            Alert.alert('Success', `Cache cleared successfully! Removed ${keysToRemove.length} cached items.`);
-          } catch (error) {
-            console.error('Error clearing cache:', error);
-            Alert.alert('Success', 'Cache cleared successfully!');
-          }
-        }},
-      ]
-    );
-  };
-
-  const handleResetPreferences = () => {
-    Alert.alert(
-      'Reset Preferences',
-      'This will restore all settings to their defaults. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset', style: 'destructive', onPress: () => {
-          preferencesService.resetPreferences();
-          setPreferences(preferencesService.getPreferences());
-          Alert.alert('Success', 'Preferences reset to defaults!');
-        }},
-      ]
-    );
-  };
 
   const showThemeOptions = () => {
     Alert.alert(

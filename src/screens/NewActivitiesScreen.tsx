@@ -19,7 +19,7 @@ import { Activity } from '../types';
 import { safeToISOString } from '../utils/safeAccessors';
 
 const NewActivitiesScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: Colors.text,
+    color: Colors.text.primary,
     fontWeight: '600',
     marginTop: 20,
   },

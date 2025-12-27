@@ -52,7 +52,7 @@ const ActivityDetailScreenModern = () => {
   const mapRef = React.useRef<MapView>(null);
   const { user } = useAppSelector((state) => state.auth);
 
-  const serializedActivity = route.params?.activity;
+  const serializedActivity = (route.params as any)?.activity;
 
   if (!serializedActivity) {
     return (
@@ -199,7 +199,7 @@ const ActivityDetailScreenModern = () => {
         ios: `${scheme}${label}@${latLng}`,
         android: `${scheme}${latLng}(${label})`
       });
-      Linking.openURL(url);
+      if (url) Linking.openURL(url);
     } else {
       const address = getFullAddress(activity);
       const encodedAddress = encodeURIComponent(address);
@@ -207,7 +207,7 @@ const ActivityDetailScreenModern = () => {
         ios: `maps:0,0?q=${encodedAddress}`,
         android: `geo:0,0?q=${encodedAddress}`
       });
-      Linking.openURL(url);
+      if (url) Linking.openURL(url);
     }
   };
 
@@ -222,13 +222,14 @@ const ActivityDetailScreenModern = () => {
   const getDayOfWeek = () => {
     // First check if schedule field contains day information
     if (activity.schedule) {
-      const schedule = activity.schedule.toLowerCase();
+      const scheduleStr = typeof activity.schedule === 'string' ? activity.schedule : '';
+      const schedule = scheduleStr.toLowerCase();
       const dayPattern = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)/gi;
       const matches = schedule.match(dayPattern);
 
       if (matches && matches.length > 0) {
         // Remove duplicates and convert to full day names
-        const uniqueDays = [...new Set(matches.map(day => {
+        const uniqueDays = [...new Set(matches.map((day: string) => {
           const dayLower = day.toLowerCase();
           // Map abbreviations to full names
           const dayMap: {[key: string]: string} = {
@@ -638,7 +639,7 @@ const ActivityDetailScreenModern = () => {
                   <View style={styles.sessionHeader}>
                     <Icon name="calendar-clock" size={18} color={ModernColors.primary} />
                     <Text style={styles.sessionNumber}>
-                      {activity.sessions.length > 1 ? `Session ${session.sessionNumber || index + 1}` : 'Date & Time'}
+                      {activity.sessions!.length > 1 ? `Session ${session.sessionNumber || index + 1}` : 'Date & Time'}
                     </Text>
                   </View>
                   {(session.date || session.dayOfWeek) && (
@@ -691,10 +692,10 @@ const ActivityDetailScreenModern = () => {
               {activity.requiredExtras && activity.requiredExtras.length > 0 && (
                 <View style={styles.requirementSection}>
                   <Text style={styles.requirementTitle}>Required Extras</Text>
-                  {activity.requiredExtras.map((extra, index) => (
+                  {activity.requiredExtras.map((extra: any, index: number) => (
                     <View key={index} style={styles.extraItem}>
-                      <Text style={styles.extraName}>{extra.name}</Text>
-                      <Text style={styles.extraCost}>{extra.cost}</Text>
+                      <Text style={styles.extraName}>{typeof extra === 'string' ? extra : extra.name}</Text>
+                      <Text style={styles.extraCost}>{typeof extra === 'string' ? '' : extra.cost}</Text>
                     </View>
                   ))}
                 </View>
@@ -762,7 +763,7 @@ const ActivityDetailScreenModern = () => {
             {activity.detailUrl && (
               <TouchableOpacity
                 style={styles.linkButton}
-                onPress={() => Linking.openURL(activity.detailUrl)}
+                onPress={() => activity.detailUrl && Linking.openURL(activity.detailUrl)}
               >
                 <Icon name="web" size={18} color={ModernColors.primary} />
                 <Text style={styles.linkButtonText}>View on Website</Text>
@@ -776,7 +777,8 @@ const ActivityDetailScreenModern = () => {
       {/* Modals */}
       {showRegisterModal && (
         <RegisterChildModal
-          activity={activity}
+          activityId={activity.id}
+          activityName={activity.name}
           visible={showRegisterModal}
           onClose={() => setShowRegisterModal(false)}
         />

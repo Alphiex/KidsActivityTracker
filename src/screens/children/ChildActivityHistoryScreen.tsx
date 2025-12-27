@@ -26,7 +26,7 @@ type FilterStatus = ActivityStatus | 'all';
 
 const ChildActivityHistoryScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const loading = useAppSelector(selectChildActivitiesLoading);
   

@@ -15,6 +15,7 @@ Kids Activity Tracker helps parents find, track, and manage recreational activit
 - **Activity Sharing**: Share children profiles with co-parents and family members
 - **Real-time Status**: Live availability tracking and registration status
 - **Modern UI**: Airbnb-style design with card views and smooth animations
+- **Freemium Model**: Free tier with limits, premium subscription for unlimited access
 
 ### Technology Stack
 
@@ -27,6 +28,7 @@ Kids Activity Tracker helps parents find, track, and manage recreational activit
 | **Scraping** | Puppeteer for automated data collection |
 | **State** | Redux Toolkit + MMKV (encrypted persistence) |
 | **Auth** | JWT (access + refresh tokens) |
+| **Payments** | RevenueCat (iOS/Android subscriptions) |
 
 ---
 
@@ -184,6 +186,46 @@ See [docs/SECURITY.md](docs/SECURITY.md) for complete security documentation.
 
 ---
 
+## Subscriptions & Monetization
+
+The app uses a freemium model with RevenueCat for payment processing.
+
+### Tier Structure
+
+| Feature | Free | Premium ($5.99/mo) |
+|---------|------|-------------------|
+| Child profiles | 2 | Unlimited |
+| Favorites | 10 | Unlimited |
+| Family sharing | 1 person | Unlimited |
+| Filters | Basic | Advanced |
+| Calendar | View only | Export to calendar |
+| Alerts | Weekly digest | Instant notifications |
+| Saved searches | None | 10 presets |
+
+### Key Components
+
+- **RevenueCat Integration**: Handles iOS App Store and Google Play purchases
+- **Feature Gating**: Limits enforced on both client and server
+- **Webhook Handling**: Real-time subscription status updates
+- **A/B Testing**: Paywall optimization experiments
+- **Analytics**: Conversion funnel tracking
+
+### Purchase Flow
+
+1. User hits a limit (e.g., tries to add 3rd child)
+2. Upgrade prompt modal shown with contextual messaging
+3. User taps "Upgrade" → navigates to Paywall screen
+4. RevenueCat presents native purchase UI
+5. On success: webhook updates backend, app refreshes subscription state
+6. Limits removed, user continues with premium features
+
+### Documentation
+
+- [SUBSCRIPTIONS.md](docs/SUBSCRIPTIONS.md) - Complete subscription system documentation
+- [SUBSCRIPTION_SETUP.md](docs/SUBSCRIPTION_SETUP.md) - App Store/Play Store setup guide
+
+---
+
 ## Common Issues & Solutions
 
 ### No Activities Showing
@@ -215,6 +257,8 @@ cd ios && pod install && cd ..
 | [DATABASE.md](docs/DATABASE.md) | Database schema (24 tables) |
 | [FEATURES.md](docs/FEATURES.md) | Feature guide and navigation |
 | [SECURITY.md](docs/SECURITY.md) | Security implementation details |
+| [SUBSCRIPTIONS.md](docs/SUBSCRIPTIONS.md) | Subscription system, purchase flow, auditing |
+| [SUBSCRIPTION_SETUP.md](docs/SUBSCRIPTION_SETUP.md) | RevenueCat & store configuration guide |
 
 ---
 

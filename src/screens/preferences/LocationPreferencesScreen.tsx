@@ -85,16 +85,16 @@ const LocationPreferencesScreen = () => {
   const toggleCity = (city: string) => {
     const cityLocations = sections.find(s => s.title === city)?.data || [];
     const cityLocationIds = cityLocations.map((loc: Location) => loc.id);
-    const allSelected = cityLocationIds.every(id => selectedLocations.includes(id));
+    const allSelected = cityLocationIds.every((id: string) => selectedLocations.includes(id));
 
     if (allSelected) {
       // Deselect all locations in this city
-      setSelectedLocations(prev => prev.filter(id => !cityLocationIds.includes(id)));
+      setSelectedLocations(prev => prev.filter((id: string) => !cityLocationIds.includes(id)));
     } else {
       // Select all locations in this city
       setSelectedLocations(prev => {
         const newSelection = [...prev];
-        cityLocationIds.forEach(id => {
+        cityLocationIds.forEach((id: string) => {
           if (!newSelection.includes(id)) {
             newSelection.push(id);
           }
@@ -145,7 +145,7 @@ const LocationPreferencesScreen = () => {
   const renderSectionHeader = ({ section }: any) => {
     const cityLocations = section.data;
     const cityLocationIds = cityLocations.map((loc: Location) => loc.id);
-    const selectedCount = cityLocationIds.filter(id => selectedLocations.includes(id)).length;
+    const selectedCount = cityLocationIds.filter((id: string) => selectedLocations.includes(id)).length;
     const allSelected = selectedCount === cityLocationIds.length && cityLocationIds.length > 0;
 
     return (

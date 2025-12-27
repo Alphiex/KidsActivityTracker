@@ -23,7 +23,7 @@ interface Category {
 }
 
 const AllCategoriesScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { colors } = useTheme();
   
   const [categories, setCategories] = useState<Category[]>([]);

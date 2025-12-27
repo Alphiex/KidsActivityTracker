@@ -22,9 +22,11 @@ import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
 import TopTabNavigation from '../components/TopTabNavigation';
+import useFavoriteSubscription from '../hooks/useFavoriteSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 const DashboardScreenModern = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
@@ -37,6 +39,16 @@ const DashboardScreenModern = () => {
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Subscription-aware favorites
+  const {
+    canAddFavorite,
+    onFavoriteLimitReached,
+    showUpgradeModal,
+    hideUpgradeModal,
+    favoritesCount,
+    favoritesLimit,
+  } = useFavoriteSubscription();
 
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -90,6 +102,11 @@ const DashboardScreenModern = () => {
           return newSet;
         });
       } else {
+        // Check subscription limit before adding
+        if (!canAddFavorite) {
+          onFavoriteLimitReached();
+          return;
+        }
         favoritesService.addFavorite(activity);
         setFavoriteIds(prev => new Set([...prev, activity.id]));
       }
@@ -329,35 +346,36 @@ const DashboardScreenModern = () => {
       const result = await response.json();
       
       if (result.success && result.data && Array.isArray(result.data)) {
-        let allTypes = result.data;
+        type ActivityTypeData = { code: string; name: string; iconName?: string; activityCount: number };
+        let allTypes: ActivityTypeData[] = result.data;
         console.log('Found', allTypes.length, 'activity types in database');
-        
+
         // Get user preferences to show preferred types first
         const preferencesService = PreferencesService.getInstance();
         const preferences = preferencesService.getPreferences();
         const preferredTypes = preferences.preferredActivityTypes || [];
-        
+
         console.log('User preferred activity types:', preferredTypes);
-        
-        let selectedTypes = [];
-        
+
+        let selectedTypes: ActivityTypeData[] = [];
+
         // First, add user's preferred activity types
         if (preferredTypes.length > 0) {
-          const preferred = allTypes.filter(type => 
-            preferredTypes.some(pref => 
-              pref.toLowerCase() === type.name.toLowerCase() || 
+          const preferred = allTypes.filter((type: ActivityTypeData) =>
+            preferredTypes.some((pref: string) =>
+              pref.toLowerCase() === type.name.toLowerCase() ||
               pref.toLowerCase() === type.code.toLowerCase()
             )
           );
           selectedTypes = [...preferred];
           console.log('Added', preferred.length, 'preferred types');
         }
-        
+
         // If we have less than 6, add more types by activity count (most popular first)
         if (selectedTypes.length < 6) {
           const remaining = allTypes
-            .filter(type => !selectedTypes.some(selected => selected.id === type.id))
-            .sort((a, b) => (b.activityCount || 0) - (a.activityCount || 0));
+            .filter((type: ActivityTypeData) => !selectedTypes.some((selected: ActivityTypeData) => selected.code === type.code))
+            .sort((a: ActivityTypeData, b: ActivityTypeData) => (b.activityCount || 0) - (a.activityCount || 0));
           
           const needed = 6 - selectedTypes.length;
           selectedTypes = [...selectedTypes, ...remaining.slice(0, needed)];
@@ -446,7 +464,9 @@ const DashboardScreenModern = () => {
 
   const renderActivityCard = (activity: Activity) => {
     // Get image based on activityType or category
-    const activityTypeName = activity.activityType?.name || activity.category || 'general';
+    const activityTypeName = Array.isArray(activity.activityType)
+      ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+      : (activity.activityType as any)?.name || activity.category || 'general';
     const subcategory = activity.activitySubtype?.name || activity.subcategory;
     const imageKey = getActivityImageKey(activityTypeName, subcategory);
     const imageSource = getActivityImageByKey(imageKey);
@@ -688,13 +708,13 @@ const DashboardScreenModern = () => {
           
           {/* Spots remaining */}
           {spotsText && (
-            <View style={[styles.spotsContainer, activity.spotsAvailable <= 5 ? styles.spotsUrgent : styles.spotsNormal]}>
-              <Icon 
-                name={activity.spotsAvailable === 0 ? "close-circle" : "information"} 
-                size={12} 
-                color={activity.spotsAvailable <= 5 ? "#D93025" : "#717171"} 
+            <View style={[styles.spotsContainer, (activity.spotsAvailable ?? 0) <= 5 ? styles.spotsUrgent : styles.spotsNormal]}>
+              <Icon
+                name={(activity.spotsAvailable ?? 0) === 0 ? "close-circle" : "information"}
+                size={12}
+                color={(activity.spotsAvailable ?? 0) <= 5 ? "#D93025" : "#717171"}
               />
-              <Text style={[styles.spotsText, activity.spotsAvailable <= 5 ? styles.spotsTextUrgent : styles.spotsTextNormal]}>
+              <Text style={[styles.spotsText, (activity.spotsAvailable ?? 0) <= 5 ? styles.spotsTextUrgent : styles.spotsTextNormal]}>
                 {spotsText}
               </Text>
             </View>
@@ -760,7 +780,9 @@ const DashboardScreenModern = () => {
                 };
 
                 // Get image based on activityType or category
-                const activityTypeName = activity.activityType?.name || activity.category || 'general';
+                const activityTypeName = Array.isArray(activity.activityType)
+                  ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+                  : (activity.activityType as any)?.name || activity.category || 'general';
                 const subcategory = activity.activitySubtype?.name || activity.subcategory;
                 const imageKey = getActivityImageKey(activityTypeName, subcategory);
                 const imageSource = getActivityImageByKey(imageKey);
@@ -988,7 +1010,15 @@ const DashboardScreenModern = () => {
         {/* Bottom spacing */}
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
-      
+
+      {/* Upgrade Modal for favorites limit */}
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        feature="favorites"
+        onClose={hideUpgradeModal}
+        currentCount={favoritesCount}
+        limit={favoritesLimit}
+      />
     </SafeAreaView>
   );
 };

@@ -1,9 +1,17 @@
+// API response format for activity type (object with name)
+export interface ActivityTypeInfo {
+  id?: string;
+  code?: string;
+  name: string;
+  iconName?: string;
+}
+
 export interface Activity {
   id: string;
   name: string;
   provider: string;
   description: string;
-  activityType: ActivityType[];
+  activityType: ActivityType[] | ActivityTypeInfo | ActivityTypeInfo[];
   ageRange: {
     min: number;
     max: number;
@@ -21,7 +29,11 @@ export interface Activity {
   imageUrl?: string;
   scrapedAt: Date;
   isFavorite?: boolean;
-  
+
+  // Time fields (can be at activity level or in sessions)
+  startTime?: string;
+  endTime?: string;
+
   // Enhanced fields from detailed scraping
   registrationStatus?: string;
   registrationButtonText?: string;
@@ -40,7 +52,47 @@ export interface Activity {
   dates?: string;
   category?: string;
   subcategory?: string;
-  
+
+  // Additional metadata
+  updatedAt?: Date;
+  costIncludesTax?: boolean;
+  requiredExtras?: Array<{ name: string; cost: string }> | string[];
+  facility?: string;
+  organization?: string;
+  sourceUrl?: string;
+  address?: string;
+  city?: string;
+
+  // Subtype support
+  activitySubtype?: ActivityTypeInfo;
+
+  // Date fields (alternative to dateRange)
+  startDate?: Date | string;
+  endDate?: Date | string;
+  dateStart?: Date | string;
+  dateEnd?: Date | string;
+
+  // Age fields (alternative to ageRange)
+  ageMin?: number;
+  ageMax?: number;
+
+  // Price field (alternative to cost)
+  price?: number;
+
+  // Status flags
+  isNew?: boolean;
+  isActive?: boolean;
+
+  // Created timestamp
+  createdAt?: Date | string;
+
+  // Sponsorship support
+  sponsorTier?: string;
+  isSponsored?: boolean;
+
+  // Alias for spotsAvailable (used by some components)
+  spotsLeft?: number;
+
   // Support for multiple sessions
   hasMultipleSessions?: boolean;
   sessionCount?: number;
@@ -58,9 +110,11 @@ export interface ActivitySession {
   id?: string;
   sessionNumber?: number;
   date?: string;
+  dayOfWeek?: string;
   startTime?: string;
   endTime?: string;
   location?: string;
+  subLocation?: string;
   instructor?: string;
   notes?: string;
 }
@@ -77,6 +131,7 @@ export interface ActivityPrerequisite {
 export interface Location {
   name: string;
   address: string;
+  city?: string;
   latitude?: number;
   longitude?: number;
 }
@@ -134,7 +189,10 @@ export interface SiteAccount {
 }
 
 export interface Filter {
-  activityTypes?: ActivityType[];
+  activityTypes?: ActivityType[] | string[];
+  activityType?: string;
+  activitySubtype?: string;
+  category?: string;
   ageRange?: {
     min: number;
     max: number;
@@ -156,6 +214,11 @@ export interface Filter {
   hideClosedActivities?: boolean;
   hideFullActivities?: boolean;
   limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: string;
+  createdAfter?: string;
+  updatedAfter?: string;
 }
 
 export interface ScraperConfig {

@@ -151,7 +151,7 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
 
   const removeActivity = async (childActivityId: string, childId: string) => {
     try {
-      await childrenService.removeActivityFromChild(childActivityId);
+      await childrenService.removeActivityFromChild(childId, childActivityId);
       setAssignedChildren(prev => ({
         ...prev,
         [childId]: null,

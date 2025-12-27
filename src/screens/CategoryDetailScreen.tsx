@@ -40,7 +40,7 @@ interface Activity {
 
 const CategoryDetailScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const params = route.params as { categoryId?: string; categoryName?: string } | undefined;
   const categoryId = params?.categoryId ?? '';

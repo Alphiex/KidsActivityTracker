@@ -1,4 +1,9 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
+
+// Extend axios config with custom metadata
+interface CustomAxiosConfig extends InternalAxiosRequestConfig {
+  metadata?: { startTime: Date; requestId: number };
+}
 
 class DiagnosticInterceptor {
   private static requestId = 0;
@@ -31,7 +36,7 @@ class DiagnosticInterceptor {
         }
 
         // Attach request ID for tracking
-        config.metadata = { startTime: new Date(), requestId: id };
+        (config as CustomAxiosConfig).metadata = { startTime: new Date(), requestId: id };
 
         return config;
       },
@@ -44,8 +49,8 @@ class DiagnosticInterceptor {
     // Response interceptor
     axios.interceptors.response.use(
       (response) => {
-        const id = response.config.metadata?.requestId || 'unknown';
-        const startTime = response.config.metadata?.startTime;
+        const id = (response.config as CustomAxiosConfig).metadata?.requestId || 'unknown';
+        const startTime = (response.config as CustomAxiosConfig).metadata?.startTime;
         const duration = startTime ? new Date().getTime() - startTime.getTime() : 0;
 
         console.log(`\n${'='.repeat(80)}`);

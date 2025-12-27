@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.text.primary,
     marginLeft: 8,
     flex: 1,
   },
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.text.primary,
     marginTop: 20,
   },
   emptySubtext: {

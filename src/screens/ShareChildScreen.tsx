@@ -14,6 +14,8 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import childrenService from '../services/childrenService';
+import useSubscription from '../hooks/useSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 // Airbnb-style colors
 const ModernColors = {
@@ -45,6 +47,16 @@ const ShareChildScreen: React.FC = () => {
   const params = route.params as { childId?: string; childName?: string } | undefined;
   const childId = params?.childId ?? '';
   const childName = params?.childName ?? 'Child';
+
+  // Subscription limit checking
+  const {
+    checkAndShowUpgrade,
+    showUpgradeModal,
+    upgradeFeature,
+    hideUpgradeModal,
+    limits,
+    sharesRemaining,
+  } = useSubscription();
 
   const [sharedUsers, setSharedUsers] = useState<SharedUser[]>([]);
 
@@ -101,6 +113,13 @@ const ShareChildScreen: React.FC = () => {
       Alert.alert('Error', 'Failed to send invitation. Please try again.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleOpenShareModal = () => {
+    // Check subscription limit before allowing share
+    if (checkAndShowUpgrade('sharing')) {
+      setShowAddModal(true);
     }
   };
 
@@ -185,7 +204,14 @@ const ShareChildScreen: React.FC = () => {
 
           {/* Shared Users */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Shared With</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Shared With</Text>
+              {limits.maxSharedUsers < 99 && (
+                <Text style={styles.limitText}>
+                  {sharedUsers.length} of {limits.maxSharedUsers}
+                </Text>
+              )}
+            </View>
             {sharedUsers.length === 0 ? (
               <View style={styles.emptyState}>
                 <Icon name="account-group-outline" size={48} color={ModernColors.borderLight} />
@@ -202,7 +228,7 @@ const ShareChildScreen: React.FC = () => {
           {/* Add Button */}
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => setShowAddModal(true)}
+            onPress={handleOpenShareModal}
             activeOpacity={0.8}
           >
             <Icon name="plus" size={20} color={ModernColors.background} />
@@ -308,6 +334,15 @@ const ShareChildScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Upgrade Modal */}
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        feature={upgradeFeature || 'sharing'}
+        onClose={hideUpgradeModal}
+        currentCount={sharedUsers.length}
+        limit={limits.maxSharedUsers}
+      />
     </SafeAreaView>
   );
 };
@@ -360,11 +395,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: ModernColors.text,
-    marginBottom: 15,
+  },
+  limitText: {
+    fontSize: 13,
+    color: ModernColors.textLight,
   },
   emptyState: {
     alignItems: 'center',

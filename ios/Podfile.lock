@@ -13,6 +13,8 @@ PODS:
   - MMKV (2.2.4):
     - MMKVCore (~> 2.2.4)
   - MMKVCore (2.2.4)
+  - PurchasesHybridCommon (17.25.0):
+    - RevenueCat (= 5.51.1)
   - RCT-Folly (2024.11.18.00):
     - boost
     - DoubleConversion
@@ -2250,6 +2252,7 @@ PODS:
     - React-perflogger (= 0.80.2)
     - React-utils (= 0.80.2)
     - SocketRocket
+  - RevenueCat (5.51.1)
   - RNCalendarEvents (2.2.0):
     - React
   - RNCAsyncStorage (2.2.0):
@@ -2293,6 +2296,9 @@ PODS:
     - React-Core
     - RNNotifee/NotifeeCore (= 9.1.8)
   - RNNotifee/NotifeeCore (9.1.8):
+    - React-Core
+  - RNPurchases (9.6.12):
+    - PurchasesHybridCommon (= 17.25.0)
     - React-Core
   - RNReanimated (3.19.0):
     - boost
@@ -2624,6 +2630,7 @@ DEPENDENCIES:
   - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - "RNNotifee (from `../node_modules/@notifee/react-native`)"
+  - RNPurchases (from `../node_modules/react-native-purchases`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNShare (from `../node_modules/react-native-share`)
@@ -2636,6 +2643,8 @@ SPEC REPOS:
   trunk:
     - MMKV
     - MMKVCore
+    - PurchasesHybridCommon
+    - RevenueCat
     - SocketRocket
 
 EXTERNAL SOURCES:
@@ -2812,6 +2821,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNNotifee:
     :path: "../node_modules/@notifee/react-native"
+  RNPurchases:
+    :path: "../node_modules/react-native-purchases"
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -2836,6 +2847,7 @@ SPEC CHECKSUMS:
   hermes-engine: bbc1152da7d2d40f9e59c28acc6576fcf5d28e2a
   MMKV: 1a8e7dbce7f9cad02c52e1b1091d07bd843aefaf
   MMKVCore: f2dd4c9befea04277a55e84e7812f930537993df
+  PurchasesHybridCommon: 6a79a873ab52f777bfa36e9516f3fcd84d3b3428
   RCT-Folly: 846fda9475e61ec7bcbf8a3fe81edfcaeb090669
   RCTDeprecation: 300c5eb91114d4339b0bb39505d0f4824d7299b7
   RCTRequired: e0446b01093475b7082fbeee5d1ef4ad1fe20ac4
@@ -2907,6 +2919,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 8df342c127fd0c1e30e8b9f71ff814c22414a7c0
   ReactCodegen: 439c427ccc115d71d16cc84256e5fbdc7fcef57a
   ReactCommon: 592ef441605638b95e533653259254b4bd35ff4f
+  RevenueCat: eab035bbab271faccfef5c36eaff2a1ffef14dc0
   RNCalendarEvents: f90f73666b6bcbb3cc8a491ffbb5e48c0db3de37
   RNCAsyncStorage: b44e8a4e798c3e1f56bffccd0f591f674fb9198f
   RNCPicker: da0f1c9411208c1ca52bc98383db54a06e0a3862
@@ -2914,6 +2927,7 @@ SPEC CHECKSUMS:
   RNDeviceInfo: bcce8752b5043a623fe3c26789679b473f705d3c
   RNGestureHandler: 27d6ec365f5093dd3377d453678bfcde0ad4ba4e
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
+  RNPurchases: cc3333cede6c0f040545a95c38ae627d0174c058
   RNReanimated: 708af0d5ab84731574825d11a6c5abee580aa621
   RNScreens: 64b35b601916a7a61339a7cd6bd5db4ab218a1be
   RNShare: 01ab07267a231f3501f1fc4fa8eef6e7e2aecc1d
