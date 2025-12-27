@@ -213,9 +213,9 @@ const ChildActivityHistoryScreen = () => {
           <View style={styles.detailRow}>
             <Icon name="location-on" size={16} color="#666" />
             <Text style={styles.detailText}>
-              {typeof activity.location === 'string' 
-                ? activity.location 
-                : activity.location?.name || 'Location TBD'}
+              {typeof activity.location === 'string'
+                ? activity.location
+                : (activity.location as any)?.name || 'Location TBD'}
             </Text>
           </View>
           {item.rating && (

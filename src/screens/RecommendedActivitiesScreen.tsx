@@ -253,7 +253,7 @@ const RecommendedActivitiesScreen = () => {
       <View style={styles.centerContainer}>
         <Icon name="error-outline" size={60} color={Colors.error} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadRecommendedActivities}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => loadRecommendedActivities()}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>

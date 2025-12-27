@@ -40,10 +40,10 @@ interface LocationGroup {
 
 const LocationBrowseScreen = () => {
   const navigation = useNavigation<any>();
-  const route = useRoute();
+  const route = useRoute<any>();
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
-  
+
   // Get city filter from navigation params
   const cityFilter = route.params?.city as string | undefined;
   

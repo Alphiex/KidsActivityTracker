@@ -95,7 +95,7 @@ const HomeStack = () => (
 const SearchStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="SearchMain" component={SearchScreen} />
-    <Stack.Screen name="Filter" component={FilterScreen} />
+    <Stack.Screen name="Filter" component={FilterScreen as any} />
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />

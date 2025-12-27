@@ -257,6 +257,67 @@ Search activities with filters.
 
 Get activity details.
 
+---
+
+## Sponsors Endpoints
+
+### GET /api/v1/sponsors
+
+Get sponsored activities matching user filters. Returns activities ordered by tier (Gold > Silver > Bronze) with randomization within each tier for fair exposure.
+
+**Access**: Public (optional auth for personalization)
+
+**Query Parameters**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ageMin` | number | Minimum age filter |
+| `ageMax` | number | Maximum age filter |
+| `costMin` | number | Minimum cost filter |
+| `costMax` | number | Maximum cost filter |
+| `activityType` | string | Activity type code or UUID |
+| `activitySubtype` | string | Activity subtype code or UUID |
+| `categories` | string | Comma-separated activity types |
+| `startDate` | string | Activities starting after (ISO date) |
+| `endDate` | string | Activities ending before (ISO date) |
+| `dayOfWeek` | string[] | Days (Monday, Tuesday, etc.) |
+| `locations` | string[] | City names or location IDs |
+| `limit` | number | Max results (default: 3) |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "Elite Swimming Academy",
+      "category": "Aquatics",
+      "isSponsor": true,
+      "sponsorTier": "gold",
+      "sponsorStartDate": "2024-01-01T00:00:00Z",
+      "sponsorEndDate": "2024-12-31T23:59:59Z",
+      "dateStart": "2024-01-15T00:00:00Z",
+      "ageMin": 5,
+      "ageMax": 12,
+      "cost": 150.00,
+      "location": {
+        "name": "Aquatic Centre",
+        "city": "Vancouver"
+      },
+      "provider": {
+        "name": "Vancouver Parks"
+      }
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "limit": 3
+  }
+}
+```
+
+---
+
 **Response** `200 OK`
 ```json
 {

@@ -37,7 +37,7 @@ type RouteParams = {
 };
 
 const UnifiedResultsScreenTest: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'UnifiedResults'>>();
 
   const type = route?.params?.type || 'budget';

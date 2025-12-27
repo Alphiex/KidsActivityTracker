@@ -142,7 +142,7 @@ const CategoryDetailScreen = () => {
 
   const renderActivity = ({ item }: { item: Activity }) => (
     <ActivityCard
-      activity={item}
+      activity={item as any}
       onPress={() => navigation.navigate('ActivityDetail', { activityId: item.id })}
     />
   );

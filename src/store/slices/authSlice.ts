@@ -215,7 +215,7 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = { ...action.payload.user, isVerified: action.payload.user.isVerified ?? action.payload.user.emailVerified ?? false };
+        state.user = { ...action.payload.user, isVerified: (action.payload.user as any).isVerified ?? action.payload.user.emailVerified ?? false };
         state.tokens = action.payload.tokens;
         state.isAuthenticated = true;
         state.error = null;
@@ -234,7 +234,7 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = { ...action.payload.user, isVerified: action.payload.user.isVerified ?? action.payload.user.emailVerified ?? false };
+        state.user = { ...action.payload.user, isVerified: (action.payload.user as any).isVerified ?? action.payload.user.emailVerified ?? false };
         state.tokens = action.payload.tokens;
         state.isAuthenticated = true;
         state.error = null;

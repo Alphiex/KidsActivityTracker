@@ -103,12 +103,18 @@ Primary activity records from recreation providers.
 | locationId | UUID? | FK to Location |
 | isActive | Boolean | Currently available |
 | lastSeenAt | DateTime? | Last scrape time |
+| isSponsor | Boolean | Sponsored activity flag |
+| sponsorTier | String? | Tier: gold, silver, bronze |
+| sponsorStartDate | DateTime? | Sponsorship start date |
+| sponsorEndDate | DateTime? | Sponsorship end date |
 
 **Indexes**:
 - `(providerId, externalId)` - Unique deduplication
 - `(activityTypeId, activitySubtypeId)` - Type filtering
 - `(isActive, category)` - Status + category
 - `(locationId)` - Location queries
+- `(isSponsor, sponsorTier)` - Sponsor tier queries
+- `(isSponsor, sponsorEndDate)` - Sponsor expiration queries
 
 #### ActivitySession
 Multi-session activity schedule details.

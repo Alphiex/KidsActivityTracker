@@ -38,12 +38,15 @@ export interface UserPreferences {
   locations: string[]; // DEPRECATED - kept for migration (location names)
   locationIds: string[]; // NEW - primary storage (location UUIDs)
   maxDistance?: number; // in km
+  preferredLocation?: string; // For onboarding
   
   // Age preferences
   ageRanges: {
     min: number;
     max: number;
   }[];
+  ageRange?: { min?: number; max?: number };
+  preferredAgeGroups?: string[];
   
   // Price preferences
   priceRange: {
@@ -75,6 +78,8 @@ export interface UserPreferences {
     capacityThreshold: number; // notify when X spots left
     priceDrops: boolean;
     weeklyDigest: boolean;
+    spotsAvailable?: boolean;
+    reminders?: boolean;
   };
   
   // Display preferences

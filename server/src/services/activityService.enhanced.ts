@@ -124,7 +124,7 @@ export class EnhancedActivityService {
         const activityTypeRecords = await this.prisma.activityType.findMany({
           where: {
             OR: [
-              { code: { in: activityTypes.map(t => t.toLowerCase().replace(/\s+/g, '-')) } },
+              { code: { in: activityTypes.map((t: string) => t.toLowerCase().replace(/\s+/g, '-')) } },
               { name: { in: activityTypes } }
             ]
           }

@@ -15,8 +15,8 @@ interface SessionInfo {
   id: string;
   userAgent: string | null;
   ipAddress: string | null;
-  createdAt: Date;
-  lastAccessedAt: Date;
+  createdAt: Date | null;
+  lastAccessedAt: Date | null;
 }
 
 export class SessionService {
@@ -237,8 +237,8 @@ export class SessionService {
    */
   async getTrustedDevices(userId: string): Promise<Array<{
     id: string;
-    name: string;
-    createdAt: Date;
+    name: string | null;
+    createdAt: Date | null;
     expiresAt: Date;
   }>> {
     return prisma.trustedDevice.findMany({

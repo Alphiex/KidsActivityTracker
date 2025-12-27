@@ -113,7 +113,7 @@ export class SharingService {
       // Create child permissions
       await tx.activityShareProfile.createMany({
         data: childPermissions.map(cp => ({
-          activityShareId: activityShare.id,
+          activityShareId: activityShare!.id,
           childId: cp.childId,
           canViewInterested: cp.canViewInterested,
           canViewRegistered: cp.canViewRegistered,
