@@ -16,6 +16,7 @@ import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
 import { Activity } from '../types';
+import { safeToISOString } from '../utils/safeAccessors';
 
 const NewActivitiesScreen = () => {
   const navigation = useNavigation();
@@ -169,10 +170,10 @@ const NewActivitiesScreen = () => {
           const serializedActivity = {
             ...item,
             dateRange: item.dateRange ? {
-              start: item.dateRange.start.toISOString(),
-              end: item.dateRange.end.toISOString(),
+              start: safeToISOString(item.dateRange.start),
+              end: safeToISOString(item.dateRange.end),
             } : null,
-            scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+            scrapedAt: safeToISOString(item.scrapedAt),
           };
           navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
         }}

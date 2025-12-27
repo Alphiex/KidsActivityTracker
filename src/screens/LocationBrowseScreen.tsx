@@ -16,6 +16,7 @@ import ActivityCard from '../components/ActivityCard';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { Activity } from '../types';
+import { safeToISOString } from '../utils/safeAccessors';
 
 const { width, height } = Dimensions.get('window');
 
@@ -292,11 +293,11 @@ const LocationBrowseScreen = () => {
           
           const serializedActivity = {
             ...item,
-            dateRange: item.dateRange && item.dateRange.start && item.dateRange.end ? {
-              start: item.dateRange.start instanceof Date ? item.dateRange.start.toISOString() : item.dateRange.start,
-              end: item.dateRange.end instanceof Date ? item.dateRange.end.toISOString() : item.dateRange.end,
+            dateRange: item.dateRange ? {
+              start: safeToISOString(item.dateRange.start),
+              end: safeToISOString(item.dateRange.end),
             } : null,
-            scrapedAt: item.scrapedAt instanceof Date ? item.scrapedAt.toISOString() : item.scrapedAt,
+            scrapedAt: safeToISOString(item.scrapedAt),
           };
           
           navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);

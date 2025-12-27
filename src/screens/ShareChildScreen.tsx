@@ -42,9 +42,19 @@ interface SharedUser {
 const ShareChildScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { childId, childName } = route.params as { childId: string; childName: string };
+  const params = route.params as { childId?: string; childName?: string } | undefined;
+  const childId = params?.childId ?? '';
+  const childName = params?.childName ?? 'Child';
 
   const [sharedUsers, setSharedUsers] = useState<SharedUser[]>([]);
+
+  // Validate required params
+  useEffect(() => {
+    if (!childId) {
+      console.warn('ShareChildScreen: Missing required childId param');
+      navigation.goBack();
+    }
+  }, [childId, navigation]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [email, setEmail] = useState('');

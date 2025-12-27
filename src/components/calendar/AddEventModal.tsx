@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
+import { safeParseDateISO } from '../../utils/safeAccessors';
 import { ModernColors } from '../../theme/modernTheme';
 import { CHILD_COLORS } from '../../utils/calendarUtils';
 
@@ -77,8 +78,8 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
       setRecurring('none');
 
       if (initialDate) {
-        const parsedDate = parseISO(initialDate);
-        setDate(parsedDate);
+        const parsedDate = safeParseDateISO(initialDate);
+        setDate(parsedDate || new Date());
       } else {
         setDate(new Date());
       }

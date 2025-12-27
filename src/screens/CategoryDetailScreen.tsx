@@ -42,8 +42,11 @@ const CategoryDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { colors } = useTheme();
-  const { categoryId, categoryName } = route.params as { categoryId: string; categoryName: string };
-  
+  const params = route.params as { categoryId?: string; categoryName?: string } | undefined;
+  const categoryId = params?.categoryId ?? '';
+  const categoryName = params?.categoryName ?? 'Category';
+
+  // All hooks must be declared before any conditional returns
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,6 +54,24 @@ const CategoryDetailScreen = () => {
   const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
+  // Validate required params - show error if missing
+  if (!categoryId) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <Icon name="alert-circle" size={64} color={colors.error} />
+        <Text style={[styles.errorTitle, { color: colors.text }]}>
+          Category not found
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.retryButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
   
   const loadActivities = async (offset = 0, isRefresh = false) => {
     try {

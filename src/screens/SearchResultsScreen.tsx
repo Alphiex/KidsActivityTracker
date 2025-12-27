@@ -18,6 +18,7 @@ import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
 import { useTheme } from '../contexts/ThemeContext';
+import { safeToISOString } from '../utils/safeAccessors';
 
 type SearchResultsRouteProp = RouteProp<{
   SearchResults: {
@@ -150,16 +151,16 @@ const SearchResultsScreen = () => {
   };
 
   const handleActivityPress = (activity: Activity) => {
-    // Serialize dates for navigation
+    // Serialize dates for navigation (safely handle undefined/null dates)
     const serializedActivity = {
       ...activity,
       dateRange: activity.dateRange ? {
-        start: activity.dateRange.start.toISOString(),
-        end: activity.dateRange.end.toISOString(),
+        start: safeToISOString(activity.dateRange.start),
+        end: safeToISOString(activity.dateRange.end),
       } : null,
-      scrapedAt: activity.scrapedAt.toISOString(),
+      scrapedAt: safeToISOString(activity.scrapedAt),
     };
-    
+
     navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
   };
 

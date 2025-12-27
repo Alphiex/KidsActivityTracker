@@ -14,6 +14,7 @@ import ActivityCard from '../components/ActivityCard';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { Activity } from '../types';
+import { safeToISOString } from '../utils/safeAccessors';
 
 const RecommendationsScreen = () => {
   const navigation = useNavigation();
@@ -84,10 +85,10 @@ const RecommendationsScreen = () => {
           const serializedActivity = {
             ...item,
             dateRange: item.dateRange ? {
-              start: item.dateRange.start.toISOString(),
-              end: item.dateRange.end.toISOString(),
+              start: safeToISOString(item.dateRange.start),
+              end: safeToISOString(item.dateRange.end),
             } : null,
-            scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+            scrapedAt: safeToISOString(item.scrapedAt),
           };
           navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
         }}

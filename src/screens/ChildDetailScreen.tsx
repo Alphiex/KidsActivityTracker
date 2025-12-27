@@ -47,13 +47,24 @@ interface ActivityWithChild extends Activity {
 const ChildDetailScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { childId, childName, isShared } = route.params as {
-    childId: string;
-    childName: string;
+  const params = route.params as {
+    childId?: string;
+    childName?: string;
     isShared?: boolean;
-  };
+  } | undefined;
+  const childId = params?.childId ?? '';
+  const childName = params?.childName ?? 'Child';
+  const isShared = params?.isShared ?? false;
 
   const [child, setChild] = useState<Child | null>(null);
+
+  // Validate required params
+  useEffect(() => {
+    if (!childId) {
+      console.warn('ChildDetailScreen: Missing required childId param');
+      navigation.goBack();
+    }
+  }, [childId, navigation]);
   const [activities, setActivities] = useState<ActivityWithChild[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

@@ -16,12 +16,16 @@ import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
 import { Activity } from '../types';
+import { safeToISOString } from '../utils/safeAccessors';
 
 const ActivityListScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { category, filters, isActivityType } = route.params as { category: string; filters?: any; isActivityType?: boolean };
-  
+  const params = route.params as { category?: string; filters?: any; isActivityType?: boolean } | undefined;
+  const category = params?.category ?? 'All';
+  const filters = params?.filters;
+  const isActivityType = params?.isActivityType ?? false;
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -199,10 +203,10 @@ const ActivityListScreen = () => {
         const serializedActivity = {
           ...item,
           dateRange: item.dateRange ? {
-            start: item.dateRange.start.toISOString(),
-            end: item.dateRange.end.toISOString(),
+            start: safeToISOString(item.dateRange.start),
+            end: safeToISOString(item.dateRange.end),
           } : null,
-          scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+          scrapedAt: safeToISOString(item.scrapedAt),
         };
         navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
       }}

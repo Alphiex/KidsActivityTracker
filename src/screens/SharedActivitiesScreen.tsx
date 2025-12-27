@@ -16,6 +16,7 @@ import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors } from '../theme';
 import { Activity } from '../types';
 import sharingService from '../services/sharingService';
+import { safeToISOString } from '../utils/safeAccessors';
 
 interface SharedActivity extends Activity {
   sharedBy?: string;
@@ -121,10 +122,10 @@ const SharedActivitiesScreen = () => {
           const serializedActivity = {
             ...item,
             dateRange: item.dateRange ? {
-              start: item.dateRange.start.toISOString(),
-              end: item.dateRange.end.toISOString(),
+              start: safeToISOString(item.dateRange.start),
+              end: safeToISOString(item.dateRange.end),
             } : null,
-            scrapedAt: item.scrapedAt ? item.scrapedAt.toISOString() : null,
+            scrapedAt: safeToISOString(item.scrapedAt),
           };
           navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
         }}

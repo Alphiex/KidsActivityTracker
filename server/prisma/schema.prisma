@@ -447,6 +447,8 @@ model User {
   sentInvitations     Invitation[]    @relation("InvitationSender")
   sessions            Session[]
   trustedDevices      TrustedDevice[]
+  subscription        Subscription?
+  savedSearches       SavedSearch[]
 
   @@index([email])
 }
@@ -494,6 +496,75 @@ model AgeGroup {
 
   @@index([displayOrder])
   @@index([isActive])
+}
+
+// ============================================
+// SUBSCRIPTION MODELS (Freemium Monetization)
+// ============================================
+
+model SubscriptionPlan {
+  id                 String         @id @default(uuid())
+  code               String         @unique // 'free', 'premium'
+  name               String
+  description        String?
+  monthlyPrice       Float          @default(0)
+  annualPrice        Float          @default(0)
+  maxChildren        Int            @default(2)
+  maxFavorites       Int            @default(10)
+  maxSharedUsers     Int            @default(1)
+  hasAdvancedFilters Boolean        @default(false)
+  hasCalendarExport  Boolean        @default(false)
+  hasInstantAlerts   Boolean        @default(false)
+  hasSavedSearches   Boolean        @default(false)
+  savedSearchLimit   Int            @default(0)
+  isActive           Boolean        @default(true)
+  displayOrder       Int            @default(0)
+  subscriptions      Subscription[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model Subscription {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  planId           String
+  status           String           @default("active") // active, trialing, cancelled, expired
+  billingCycle     String?          // monthly, annual (null for free plan)
+  startDate        DateTime         @default(now())
+  currentPeriodEnd DateTime?
+  cancelledAt      DateTime?
+  trialEndsAt      DateTime?
+
+  // RevenueCat integration
+  externalId       String?          @unique // RevenueCat subscriber ID or Stripe subscription ID
+  externalProvider String?          // 'revenuecat', 'stripe'
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             SubscriptionPlan @relation(fields: [planId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([externalId])
+  @@index([planId])
+}
+
+model SavedSearch {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  filters     Json      // Store filter criteria as JSON
+  notifyOnNew Boolean   @default(false)
+  lastChecked DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 enum JobStatus {

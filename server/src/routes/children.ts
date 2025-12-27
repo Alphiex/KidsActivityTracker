@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { verifyToken } from '../middleware/auth';
 import { childrenService } from '../services/childrenService';
+import { subscriptionService } from '../services/subscriptionService';
 import { body, validationResult } from 'express-validator';
 
 const router = Router();
@@ -28,6 +29,18 @@ const handleValidationErrors = (req: Request, res: Response, next: any) => {
 // Create a new child profile
 router.post('/', verifyToken, validateChild, handleValidationErrors, async (req: Request, res: Response) => {
   try {
+    // Check subscription limit
+    const limitCheck = await subscriptionService.canAddChild(req.user!.id);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: 'SUBSCRIPTION_LIMIT_REACHED',
+        message: `You have reached your limit of ${limitCheck.limit} children. Upgrade to Premium to add more.`,
+        limit: limitCheck.limit,
+        current: limitCheck.current
+      });
+    }
+
     const child = await childrenService.createChild({
       userId: req.user!.id,
       name: req.body.name,
@@ -322,6 +335,21 @@ router.post('/bulk', verifyToken, async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: 'Children array is required'
+      });
+    }
+
+    // Check subscription limit for bulk creation
+    const limitCheck = await subscriptionService.canAddChild(req.user!.id);
+    const remainingSlots = limitCheck.limit - limitCheck.current;
+    if (children.length > remainingSlots) {
+      return res.status(403).json({
+        success: false,
+        error: 'SUBSCRIPTION_LIMIT_REACHED',
+        message: `You can only add ${remainingSlots} more ${remainingSlots === 1 ? 'child' : 'children'}. Upgrade to Premium to add more.`,
+        limit: limitCheck.limit,
+        current: limitCheck.current,
+        requested: children.length,
+        availableSlots: remainingSlots
       });
     }
 

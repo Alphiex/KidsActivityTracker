@@ -261,11 +261,50 @@ class ActiveNetworkScraper extends BaseScraper {
       // Get the maximum activities to load from config (no default limit)
       const maxActivities = this.config.scraperConfig.maxActivities || Infinity;
 
-      // Scroll to load all activities AND extract in batches (prevents timeout on large DOMs)
-      const extractedActivities = await this.scrollAndExtractBatched(page, category, maxActivities);
-      activities.push(...extractedActivities);
+      // Keep track of pages
+      let pageNum = 1;
+      const maxPages = 200; // Safety limit to prevent infinite loops
+      const seenExternalIds = new Set();
 
-      this.logProgress(`  Extracted ${extractedActivities.length} activities from ${category.name}`);
+      while (pageNum <= maxPages && activities.length < maxActivities) {
+        // Scroll to load all activities AND extract in batches (prevents timeout on large DOMs)
+        const extractedActivities = await this.scrollAndExtractBatched(page, category, maxActivities);
+
+        // Deduplicate by externalId
+        let newActivities = 0;
+        for (const activity of extractedActivities) {
+          const key = activity.externalId || activity.name;
+          if (!seenExternalIds.has(key)) {
+            seenExternalIds.add(key);
+            activities.push(activity);
+            newActivities++;
+          }
+        }
+
+        this.logProgress(`  Page ${pageNum}: extracted ${newActivities} new activities (total: ${activities.length})`);
+
+        // Try to navigate to next page
+        const hasNextPage = await this.navigateToNextPage(page);
+        if (!hasNextPage) {
+          this.logProgress(`  No more pages after page ${pageNum}`);
+          break;
+        }
+
+        pageNum++;
+
+        // Wait for new page content to load
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Wait for activity cards on new page
+        try {
+          await page.waitForSelector('.card.activity-card, .activity-card', { timeout: 15000 });
+        } catch (e) {
+          this.logProgress(`  Warning: No activity cards on page ${pageNum}`);
+          break;
+        }
+      }
+
+      this.logProgress(`  Extracted ${activities.length} total activities from ${category.name}`);
 
     } finally {
       await page.close();

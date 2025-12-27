@@ -22,6 +22,7 @@ import { formatPrice } from '../utils/formatters';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
 import { consolidateActivityTypes } from '../utils/activityTypeConsolidation';
+import { safeFirst, safeSubstring, safeParseDate } from '../utils/safeAccessors';
 
 const { width } = Dimensions.get('window');
 
@@ -68,12 +69,20 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     });
   };
 
-  const formatDateRange = (start: Date, end: Date) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+  const formatDateRange = (start: Date | string | undefined | null, end: Date | string | undefined | null) => {
+    const startDate = safeParseDate(start);
+    const endDate = safeParseDate(end);
+
+    // Return fallback if dates are invalid
+    if (!startDate || !endDate) {
+      if (startDate) return `Starts ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      if (endDate) return `Ends ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      return 'Date TBD';
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time for date comparison
-    
+
     // Format full date with year if different from current year
     const formatFullDate = (date: Date) => {
       const options: Intl.DateTimeFormatOptions = {
@@ -83,23 +92,23 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       };
       return date.toLocaleDateString('en-US', options);
     };
-    
+
     const baseRange = `${formatFullDate(startDate)} - ${formatFullDate(endDate)}`;
-    
+
     // Check if activity has already started
     if (startDate <= today && endDate >= today) {
       return `In Progress • ${baseRange}`;
     }
-    
+
     // Check if it starts soon (within 7 days)
     const daysUntilStart = Math.floor((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     if (daysUntilStart >= 0 && daysUntilStart <= 7) {
-      const startText = daysUntilStart === 0 ? 'Starts Today' : 
-                       daysUntilStart === 1 ? 'Starts Tomorrow' : 
+      const startText = daysUntilStart === 0 ? 'Starts Today' :
+                       daysUntilStart === 1 ? 'Starts Tomorrow' :
                        `Starts in ${daysUntilStart} days`;
       return `${startText} • ${baseRange}`;
     }
-    
+
     return baseRange;
   };
 
@@ -159,11 +168,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     // Extract from sessions array
     if (activity.sessions && activity.sessions.length > 0) {
       activity.sessions.forEach(session => {
-        if (session.dayOfWeek) {
-          const day = session.dayOfWeek.substring(0, 3);
-          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-          if (dayOrder.includes(normalized)) {
-            daysSet.add(normalized);
+        const dayOfWeek = session?.dayOfWeek;
+        if (dayOfWeek && typeof dayOfWeek === 'string') {
+          const day = safeSubstring(dayOfWeek, 0, 3);
+          if (day) {
+            const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+            if (dayOrder.includes(normalized)) {
+              daysSet.add(normalized);
+            }
           }
         }
       });
@@ -369,15 +381,20 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <View style={[styles.sessionsContainer]}>
               {activity.sessions?.length === 1 ? (
                 // Single session - display inline
-                <View style={[styles.infoRow, styles.scheduleRow]}>
-                  <Icon name="clock-outline" size={16} color={Colors.primary} />
-                  <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
-                    {activity.sessions[0].date && `${activity.sessions[0].date} • `}
-                    {activity.sessions[0].startTime && activity.sessions[0].endTime
-                      ? `${activity.sessions[0].startTime} - ${activity.sessions[0].endTime}`
-                      : activity.sessions[0].startTime || ''}
-                  </Text>
-                </View>
+                (() => {
+                  const firstSession = safeFirst(activity.sessions);
+                  return firstSession ? (
+                    <View style={[styles.infoRow, styles.scheduleRow]}>
+                      <Icon name="clock-outline" size={16} color={Colors.primary} />
+                      <Text style={[styles.infoText, styles.scheduleText, { color: colors.text }]} numberOfLines={2}>
+                        {firstSession.date && `${firstSession.date} • `}
+                        {firstSession.startTime && firstSession.endTime
+                          ? `${firstSession.startTime} - ${firstSession.endTime}`
+                          : firstSession.startTime || ''}
+                      </Text>
+                    </View>
+                  ) : null;
+                })()
               ) : (
                 // Multiple sessions
                 <View style={styles.multipleSessionsContainer}>
@@ -390,9 +407,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                   {activity.sessions?.slice(0, 2).map((session, index) => (
                     <View key={index} style={styles.sessionItem}>
                       <Text style={[styles.sessionText, { color: colors.textSecondary }]}>
-                        {session.date && `${session.date}`}
-                        {session.startTime && ` • ${session.startTime}`}
-                        {session.endTime && ` - ${session.endTime}`}
+                        {session?.date && `${session.date}`}
+                        {session?.startTime && ` • ${session.startTime}`}
+                        {session?.endTime && ` - ${session.endTime}`}
                       </Text>
                     </View>
                   ))}
@@ -418,7 +435,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            Ages {activity.ageRange?.min || 0} - {activity.ageRange?.max || 18} years
+            Ages {activity.ageRange?.min ?? 0} - {activity.ageRange?.max ?? 18} years
           </Text>
         </View>
 

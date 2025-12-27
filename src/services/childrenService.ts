@@ -1,6 +1,7 @@
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Child as StoreChild } from '../store/slices/childrenSlice';
+import { safeMap, safeParseDate, safeString, safeNumber, isValidObject, safeFirst } from '../utils/safeAccessors';
 
 export type Child = StoreChild;
 import { Activity } from '../types';
@@ -116,29 +117,29 @@ class ChildrenService {
   async getChildren(): Promise<Child[]> {
     try {
       const response = await apiClient.get<{ success: boolean; children: Child[] }>('/api/children');
-      return response.children;
+      return Array.isArray(response?.children) ? response.children : [];
     } catch (error) {
       console.error('Error fetching children:', error);
       throw error;
     }
   }
 
-  async getChild(id: string): Promise<Child> {
+  async getChild(id: string): Promise<Child | null> {
     try {
       const response = await apiClient.get<{ success: boolean; child: Child }>(`/api/children/${id}`);
-      return response.child;
+      return response?.child ?? null;
     } catch (error) {
       console.error('Error fetching child:', error);
       throw error;
     }
   }
 
-  async createChild(childData: ChildFormData): Promise<Child> {
+  async createChild(childData: ChildFormData): Promise<Child | null> {
     try {
       console.log('Creating child with data:', JSON.stringify(childData, null, 2));
       const response = await apiClient.post<{ success: boolean; child: Child }>('/api/children', childData);
       console.log('Create child response:', JSON.stringify(response, null, 2));
-      return response.child;
+      return response?.child ?? null;
     } catch (error: any) {
       console.error('Error creating child:', error);
       console.error('Error details:', {
@@ -219,21 +220,50 @@ class ChildrenService {
   }
 
   // Helper method to calculate age from date of birth
-  calculateAge(dateOfBirth: string): number {
-    const today = new Date();
-    // Parse date as local date, not UTC
-    // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
-    const datePart = dateOfBirth.split('T')[0];
-    const parts = datePart.split('-');
-    const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+  calculateAge(dateOfBirth: string | undefined | null): number {
+    if (!dateOfBirth || typeof dateOfBirth !== 'string') {
+      return 0;
     }
 
-    return age;
+    try {
+      const today = new Date();
+      // Parse date as local date, not UTC
+      // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+      const datePart = dateOfBirth.split('T')[0];
+      const parts = datePart.split('-');
+
+      // Validate we have 3 parts (year, month, day)
+      if (parts.length !== 3) {
+        return 0;
+      }
+
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+
+      // Validate parsed values
+      if (isNaN(year) || isNaN(month) || isNaN(day)) {
+        return 0;
+      }
+
+      const birthDate = new Date(year, month - 1, day);
+
+      // Validate the date is valid
+      if (isNaN(birthDate.getTime())) {
+        return 0;
+      }
+
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      return Math.max(0, age); // Ensure non-negative age
+    } catch {
+      return 0;
+    }
   }
 
   // Helper method to get age group label
@@ -269,19 +299,25 @@ class ChildrenService {
         }
       );
 
+      // Validate response has childActivity
+      const ca = response?.childActivity;
+      if (!ca || !isValidObject(ca)) {
+        throw new Error('Invalid response: missing childActivity');
+      }
+
       const childActivity: ChildActivity = {
-        id: response.childActivity.id,
-        childId: response.childActivity.childId,
-        activityId: response.childActivity.activityId,
-        status: response.childActivity.status,
-        addedAt: new Date(response.childActivity.createdAt),
-        startedAt: response.childActivity.registeredAt ? new Date(response.childActivity.registeredAt) : undefined,
-        completedAt: response.childActivity.completedAt ? new Date(response.childActivity.completedAt) : undefined,
-        scheduledDate: response.childActivity.scheduledDate ? new Date(response.childActivity.scheduledDate) : undefined,
-        startTime: response.childActivity.startTime,
-        endTime: response.childActivity.endTime,
-        notes: response.childActivity.notes,
-        activity: response.childActivity.activity, // Include full activity object from API
+        id: safeString(ca.id, `${childId}-${activityId}-${Date.now()}`),
+        childId: safeString(ca.childId, childId),
+        activityId: safeString(ca.activityId, activityId),
+        status: ca.status || status,
+        addedAt: safeParseDate(ca.createdAt) || new Date(),
+        startedAt: safeParseDate(ca.registeredAt) || undefined,
+        completedAt: safeParseDate(ca.completedAt) || undefined,
+        scheduledDate: safeParseDate(ca.scheduledDate) || scheduledDate,
+        startTime: ca.startTime ?? startTime,
+        endTime: ca.endTime ?? endTime,
+        notes: ca.notes,
+        activity: ca.activity, // Include full activity object from API
       };
 
       // Update local cache
@@ -351,24 +387,25 @@ class ChildrenService {
 
       console.log('=== API RESPONSE ===');
       console.log('Response:', JSON.stringify(response, null, 2));
-      console.log('Activities count:', response.activities?.length || 0);
-      if (response.activities && response.activities.length > 0) {
-        console.log('First activity:', JSON.stringify(response.activities[0], null, 2));
+      console.log('Activities count:', response?.activities?.length || 0);
+      const firstActivity = safeFirst(response?.activities);
+      if (firstActivity) {
+        console.log('First activity:', JSON.stringify(firstActivity, null, 2));
       }
 
-      const activities: ChildActivity[] = response.activities.map((ca: any) => ({
-        id: ca.id,
-        childId: ca.childId,
-        activityId: ca.activityId,
-        status: ca.status,
-        addedAt: new Date(ca.createdAt),
-        startedAt: ca.registeredAt ? new Date(ca.registeredAt) : undefined,
-        completedAt: ca.completedAt ? new Date(ca.completedAt) : undefined,
-        scheduledDate: ca.scheduledDate ? new Date(ca.scheduledDate) : undefined,
-        startTime: ca.startTime,
-        endTime: ca.endTime,
-        notes: ca.notes,
-        activity: ca.activity, // Include full activity object from API
+      const activities: ChildActivity[] = safeMap(response?.activities, (ca: any) => ({
+        id: safeString(ca?.id, ''),
+        childId: safeString(ca?.childId, childId),
+        activityId: safeString(ca?.activityId, ''),
+        status: ca?.status || 'planned',
+        addedAt: safeParseDate(ca?.createdAt) || new Date(),
+        startedAt: safeParseDate(ca?.registeredAt) || undefined,
+        completedAt: safeParseDate(ca?.completedAt) || undefined,
+        scheduledDate: safeParseDate(ca?.scheduledDate) || undefined,
+        startTime: ca?.startTime,
+        endTime: ca?.endTime,
+        notes: ca?.notes,
+        activity: ca?.activity, // Include full activity object from API
       }));
 
       // Update local cache
@@ -588,20 +625,20 @@ class ChildrenService {
 
       const response = await apiClient.get<{ success: boolean; activities: any[] }>(`/api/children/activities/all?${params.toString()}`);
 
-      if (response.success && response.activities) {
-        const activities: ChildActivity[] = response.activities.map((ca: any) => ({
-          id: ca.id,
-          childId: ca.childId,
-          activityId: ca.activityId,
-          status: ca.status,
-          addedAt: new Date(ca.createdAt),
-          startedAt: ca.registeredAt ? new Date(ca.registeredAt) : undefined,
-          completedAt: ca.completedAt ? new Date(ca.completedAt) : undefined,
-          scheduledDate: ca.scheduledDate ? new Date(ca.scheduledDate) : undefined,
-          startTime: ca.startTime,
-          endTime: ca.endTime,
-          notes: ca.notes,
-          activity: ca.activity, // Include full activity object from API
+      if (response?.success && Array.isArray(response.activities)) {
+        const activities: ChildActivity[] = safeMap(response.activities, (ca: any) => ({
+          id: safeString(ca?.id, ''),
+          childId: safeString(ca?.childId, ''),
+          activityId: safeString(ca?.activityId, ''),
+          status: ca?.status || 'planned',
+          addedAt: safeParseDate(ca?.createdAt) || new Date(),
+          startedAt: safeParseDate(ca?.registeredAt) || undefined,
+          completedAt: safeParseDate(ca?.completedAt) || undefined,
+          scheduledDate: safeParseDate(ca?.scheduledDate) || undefined,
+          startTime: ca?.startTime,
+          endTime: ca?.endTime,
+          notes: ca?.notes,
+          activity: ca?.activity, // Include full activity object from API
         }));
 
         // Filter by childIds if provided

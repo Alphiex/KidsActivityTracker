@@ -498,43 +498,43 @@ class ActivityService {
         total: response.data?.pagination?.total
       });
 
-      if (response.data && response.data.success) {
+      if (response.data?.success && Array.isArray(response.data.activities)) {
         const activities = response.data.activities.map((activity: any) => ({
           ...activity,
           // Keep the activityType object from the API response as-is
           // activityType is already an object with id, name, code, etc.
-          dateRange: activity.dateStart && activity.dateEnd ? {
+          dateRange: activity?.dateStart && activity?.dateEnd ? {
             start: new Date(activity.dateStart),
             end: new Date(activity.dateEnd),
           } : null,
           ageRange: {
-            min: activity.ageMin || 0,
-            max: activity.ageMax || 18
+            min: activity?.ageMin ?? 0,
+            max: activity?.ageMax ?? 18
           },
-          scrapedAt: new Date(activity.updatedAt || activity.createdAt || Date.now()),
-          provider: activity.provider?.name || 'NVRC',
-          isFavorite: activity._count?.favorites > 0 || false,
-          cost: activity.cost || 0,
-          location: activity.location || 'Unknown',
+          scrapedAt: new Date(activity?.updatedAt || activity?.createdAt || Date.now()),
+          provider: activity?.provider?.name || 'NVRC',
+          isFavorite: (activity?._count?.favorites ?? 0) > 0,
+          cost: activity?.cost ?? 0,
+          location: activity?.location || 'Unknown',
           // Include all enhanced fields
-          registrationStatus: activity.registrationStatus,
-          registrationButtonText: activity.registrationButtonText,
-          detailUrl: activity.detailUrl,
-          fullDescription: activity.fullDescription,
-          instructor: activity.instructor,
-          prerequisites: activity.prerequisites,
-          whatToBring: activity.whatToBring,
-          fullAddress: activity.fullAddress,
-          latitude: activity.latitude,
-          longitude: activity.longitude,
-          directRegistrationUrl: activity.directRegistrationUrl,
-          contactInfo: activity.contactInfo,
-          totalSpots: activity.totalSpots,
+          registrationStatus: activity?.registrationStatus,
+          registrationButtonText: activity?.registrationButtonText,
+          detailUrl: activity?.detailUrl,
+          fullDescription: activity?.fullDescription,
+          instructor: activity?.instructor,
+          prerequisites: activity?.prerequisites,
+          whatToBring: activity?.whatToBring,
+          fullAddress: activity?.fullAddress,
+          latitude: activity?.latitude,
+          longitude: activity?.longitude,
+          directRegistrationUrl: activity?.directRegistrationUrl,
+          contactInfo: activity?.contactInfo,
+          totalSpots: activity?.totalSpots,
           // New fields for sessions and prerequisites
-          hasMultipleSessions: activity.hasMultipleSessions,
-          sessionCount: activity.sessionCount,
-          sessions: activity.sessions,
-          hasPrerequisites: activity.hasPrerequisites
+          hasMultipleSessions: activity?.hasMultipleSessions,
+          sessionCount: activity?.sessionCount,
+          sessions: activity?.sessions,
+          hasPrerequisites: activity?.hasPrerequisites
         }));
         
         // The backend returns the total in pagination.total
@@ -628,23 +628,25 @@ class ActivityService {
       // Use the correct backend endpoint /api/favorites
       const response = await this.api.get(API_CONFIG.ENDPOINTS.FAVORITES);
 
-      if (response.data.success && response.data.favorites) {
-        return response.data.favorites.map((fav: any) => ({
-          ...fav.activity,
-          activityType: [fav.activity.category || 'Other'],
-          dateRange: fav.activity.dateStart && fav.activity.dateEnd ? {
-            start: new Date(fav.activity.dateStart),
-            end: new Date(fav.activity.dateEnd),
-          } : null,
-          ageRange: {
-            min: fav.activity.ageMin || 0,
-            max: fav.activity.ageMax || 18
-          },
-          scrapedAt: new Date(fav.activity.updatedAt || fav.activity.createdAt || Date.now()),
-          provider: fav.activity.provider?.name || 'NVRC',
-          isFavorite: true,
-          favoriteNotes: fav.notes
-        }));
+      if (response.data?.success && Array.isArray(response.data.favorites)) {
+        return response.data.favorites
+          .filter((fav: any) => fav?.activity) // Only process favorites with valid activity
+          .map((fav: any) => ({
+            ...fav.activity,
+            activityType: [fav.activity?.category || 'Other'],
+            dateRange: fav.activity?.dateStart && fav.activity?.dateEnd ? {
+              start: new Date(fav.activity.dateStart),
+              end: new Date(fav.activity.dateEnd),
+            } : null,
+            ageRange: {
+              min: fav.activity?.ageMin ?? 0,
+              max: fav.activity?.ageMax ?? 18
+            },
+            scrapedAt: new Date(fav.activity?.updatedAt || fav.activity?.createdAt || Date.now()),
+            provider: fav.activity?.provider?.name || 'NVRC',
+            isFavorite: true,
+            favoriteNotes: fav?.notes
+          }));
       }
 
       return [];
@@ -755,11 +757,11 @@ class ActivityService {
       const response = await this.api.get('/api/v1/cities', {
         params: { includeEmpty: includeEmpty ? 'true' : 'false' }
       });
-      if (response.data.success && response.data.data) {
+      if (response.data?.success && Array.isArray(response.data.data)) {
         return response.data.data.map((city: any) => ({
-          city: city.city,
-          state: city.province || 'BC',
-          count: city.activityCount || 0
+          city: city?.city || 'Unknown',
+          state: city?.province || 'BC',
+          count: city?.activityCount ?? 0
         }));
       }
       return [];

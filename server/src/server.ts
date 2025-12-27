@@ -22,6 +22,11 @@ import citiesRoutes from './routes/cities';
 import categoriesRoutes from './routes/categories';
 import locationsRoutes from './routes/locations';
 import sponsorsRoutes from './routes/sponsors';
+import subscriptionsRoutes from './routes/subscriptions';
+import webhooksRoutes from './routes/webhooks';
+
+// Import services
+import { subscriptionService } from './services/subscriptionService';
 
 // Import middleware
 import { apiLimiter, verifyToken, optionalAuth } from './middleware/auth';
@@ -140,6 +145,12 @@ app.use('/api/v1/locations', locationsRoutes);
 // Sponsors routes (v1 API)
 app.use('/api/v1/sponsors', sponsorsRoutes);
 
+// Subscription management routes
+app.use('/api/subscriptions', subscriptionsRoutes);
+
+// Webhook routes (RevenueCat, Stripe)
+app.use('/api/webhooks', webhooksRoutes);
+
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {
   res.json({
@@ -167,11 +178,23 @@ app.get('/api/public', optionalAuth, (req, res) => {
 app.post('/api/favorites', verifyToken, async (req, res) => {
   try {
     const { activityId } = req.body;
-    
+
     if (!activityId) {
       return res.status(400).json({
         success: false,
         error: 'Activity ID is required'
+      });
+    }
+
+    // Check subscription limit
+    const limitCheck = await subscriptionService.canAddFavorite(req.user!.id);
+    if (!limitCheck.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: 'SUBSCRIPTION_LIMIT_REACHED',
+        message: `You have reached your limit of ${limitCheck.limit} favorites. Upgrade to Premium to save more.`,
+        limit: limitCheck.limit,
+        current: limitCheck.current
       });
     }
 

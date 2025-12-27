@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
+import { safeInitials } from '../../utils/safeAccessors';
 
 interface ChildAvatarProps {
   name: string;
@@ -20,12 +21,7 @@ const ChildAvatar: React.FC<ChildAvatarProps> = ({
   size = 50,
   style,
 }) => {
-  const initials = name
-    .split(' ')
-    .map(part => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = safeInitials(name, '?');
 
   const backgroundColor = getColorFromName(name);
 
@@ -58,17 +54,20 @@ const ChildAvatar: React.FC<ChildAvatarProps> = ({
 };
 
 // Helper function to generate consistent colors based on name
-const getColorFromName = (name: string): string => {
+const getColorFromName = (name: string | undefined | null): string => {
   const colors = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
     '#FF9FF3', '#54A0FF', '#48DBFB', '#FD79A8', '#A29BFE',
   ];
-  
+
+  // Handle undefined/null/empty names
+  const safeName = name?.trim() || 'Unknown';
+
   let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < safeName.length; i++) {
+    hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
   }
-  
+
   return colors[Math.abs(hash) % colors.length];
 };
 
