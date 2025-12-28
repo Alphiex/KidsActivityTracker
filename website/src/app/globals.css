@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Primary Colors */
+  --primary: #9333ea;
+  --primary-dark: #7c3aed;
+  --secondary: #ec4899;
+  --accent: #f472b6;
+
+  /* Activity Colors */
+  --swim-blue: #0ea5e9;
+  --sport-green: #22c55e;
+  --art-orange: #f97316;
+  --music-yellow: #eab308;
+  --dance-pink: #f472b6;
+  --stem-indigo: #6366f1;
+  --nature-emerald: #10b981;
+  --camp-amber: #f59e0b;
+
+  /* Backgrounds */
+  --bg-cream: #fffbeb;
+  --bg-sky: #f0f9ff;
+  --bg-lavender: #faf5ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Custom gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #9333ea 0%, #ec4899 50%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Floating animation for badges */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 3s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.animate-float-delayed-2 {
+  animation: float 3s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+/* Pulse animation for CTA */
+@keyframes pulse-soft {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(147, 51, 234, 0);
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Confetti/dots background pattern */
+.bg-dots {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(147, 51, 234, 0.1) 0%, transparent 8%),
+    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 6%),
+    radial-gradient(circle at 40% 70%, rgba(249, 115, 22, 0.1) 0%, transparent 5%),
+    radial-gradient(circle at 70% 60%, rgba(14, 165, 233, 0.1) 0%, transparent 7%),
+    radial-gradient(circle at 10% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 6%),
+    radial-gradient(circle at 90% 80%, rgba(234, 179, 8, 0.1) 0%, transparent 4%);
+}
+
+/* Image hover zoom */
+.img-zoom {
+  transition: transform 0.5s ease;
+}
+
+.img-zoom:hover {
+  transform: scale(1.05);
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+/* Staggered fade in for children */
+.stagger-fade-in > * {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.stagger-fade-in > *:nth-child(1) { animation-delay: 0.1s; }
+.stagger-fade-in > *:nth-child(2) { animation-delay: 0.2s; }
+.stagger-fade-in > *:nth-child(3) { animation-delay: 0.3s; }
+.stagger-fade-in > *:nth-child(4) { animation-delay: 0.4s; }
+.stagger-fade-in > *:nth-child(5) { animation-delay: 0.5s; }
+.stagger-fade-in > *:nth-child(6) { animation-delay: 0.6s; }
+.stagger-fade-in > *:nth-child(7) { animation-delay: 0.7s; }
+.stagger-fade-in > *:nth-child(8) { animation-delay: 0.8s; }
+
+/* Gradient borders */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, #9333ea, #ec4899, #f97316);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Text shadow for readability on images */
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Button glow effect */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, #9333ea, #ec4899, #f97316);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  filter: blur(10px);
+}
+
+.btn-glow:hover::after {
+  opacity: 0.6;
+}

@@ -159,6 +159,131 @@ class ScraperOrchestrator {
   }
 
   /**
+   * Run scrapers by schedule tier
+   * @param {String} tier - Schedule tier (critical, high, standard, low)
+   * @param {Object} options - Run options
+   * @returns {Promise<Object>} Run results
+   */
+  async runByTier(tier, options = {}) {
+    const { dryRun = false, batch = null, batchSize = 5 } = options;
+
+    console.log('='.repeat(60));
+    console.log(`SCRAPER ORCHESTRATOR - RUN BY TIER: ${tier.toUpperCase()}`);
+    console.log('='.repeat(60));
+    console.log(`Time: ${new Date().toISOString()}`);
+    console.log(`Mode: ${dryRun ? 'DRY RUN' : 'LIVE'}`);
+    if (batch !== null) console.log(`Batch: ${batch}`);
+    console.log('');
+
+    const allProviders = this.getActiveProviders();
+    let tierProviders = allProviders.filter(p =>
+      (p.schedule?.tier || 'standard') === tier
+    );
+
+    // If batch specified, split into batches
+    if (batch !== null) {
+      const batches = [];
+      for (let i = 0; i < tierProviders.length; i += batchSize) {
+        batches.push(tierProviders.slice(i, i + batchSize));
+      }
+
+      if (batch >= batches.length) {
+        console.log(`Batch ${batch} does not exist (only ${batches.length} batches)`);
+        return { success: true, providers: [], message: 'No providers in this batch' };
+      }
+
+      tierProviders = batches[batch];
+      console.log(`Running batch ${batch + 1}/${batches.length} (${tierProviders.length} providers)`);
+    }
+
+    console.log(`Found ${tierProviders.length} ${tier} tier providers:`);
+    tierProviders.forEach(p => console.log(`  - ${p.code} (${p.platform})`));
+    console.log('');
+
+    const results = {
+      startTime: new Date(),
+      tier,
+      batch,
+      providers: [],
+      summary: {
+        total: tierProviders.length,
+        successful: 0,
+        failed: 0,
+        activitiesFound: 0,
+        activitiesCreated: 0,
+        activitiesUpdated: 0
+      }
+    };
+
+    // Run sequentially within tier to avoid overloading
+    for (const provider of tierProviders) {
+      try {
+        const result = await this.runSingle(provider.code, { dryRun });
+        results.providers.push(result);
+
+        if (result.success) {
+          results.summary.successful++;
+          results.summary.activitiesFound += result.activitiesFound || 0;
+          results.summary.activitiesCreated += result.stats?.created || 0;
+          results.summary.activitiesUpdated += result.stats?.updated || 0;
+        } else {
+          results.summary.failed++;
+        }
+      } catch (error) {
+        results.summary.failed++;
+        results.providers.push({
+          provider: provider.code,
+          success: false,
+          error: error.message
+        });
+      }
+
+      // Small delay between scrapers to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    results.endTime = new Date();
+    results.durationMinutes = ((results.endTime - results.startTime) / 1000 / 60).toFixed(1);
+
+    this.printRunSummary(results);
+
+    return results;
+  }
+
+  /**
+   * Get providers grouped by tier with batch assignments
+   * @param {Number} batchSize - Number of providers per batch
+   * @returns {Object} Tier schedule information
+   */
+  getTierSchedule(batchSize = 5) {
+    const providers = this.getActiveProviders();
+    const tiers = {};
+
+    for (const provider of providers) {
+      const tier = provider.schedule?.tier || 'standard';
+      if (!tiers[tier]) {
+        tiers[tier] = [];
+      }
+      tiers[tier].push(provider.code);
+    }
+
+    const schedule = {};
+    for (const [tier, codes] of Object.entries(tiers)) {
+      const batches = [];
+      for (let i = 0; i < codes.length; i += batchSize) {
+        batches.push(codes.slice(i, i + batchSize));
+      }
+      schedule[tier] = {
+        total: codes.length,
+        batches: batches.length,
+        providers: batches
+      };
+    }
+
+    return schedule;
+  }
+
+  /**
    * Run a single scraper by provider code
    * @param {String} providerCode - Provider code
    * @param {Object} options - Run options

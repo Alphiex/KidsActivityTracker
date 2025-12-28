@@ -26,7 +26,7 @@ import childrenService from '../../services/childrenService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import AssignActivityToChildModal from '../../components/activities/AssignActivityToChildModal';
-import { formatPrice } from '../../utils/formatters';
+import { formatPrice, cleanActivityName } from '../../utils/formatters';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 import { shareActivityViaEmail } from '../../utils/sharing';
 import { getActivityImageByKey } from '../../assets/images';
@@ -391,7 +391,8 @@ const ActivityDetailScreenModern = () => {
         <ImageBackground
           source={getActivityImageByKey(getActivityImageKey(
             activity.category || '',
-            activity.subcategory
+            activity.subcategory,
+            activity.name
           )) || require('../../assets/images/activities/sports_general.jpg')}
           style={styles.heroImage}
           resizeMode="cover"
@@ -420,7 +421,7 @@ const ActivityDetailScreenModern = () => {
             {/* Title Overlay */}
             <View style={styles.heroContent}>
               <Text style={styles.categoryBadge}>{activity.category?.toUpperCase() || 'ACTIVITY'} • {activity.subcategory || 'GENERAL'}</Text>
-              <Text style={styles.activityTitle}>{activity.name}</Text>
+              <Text style={styles.activityTitle}>{cleanActivityName(activity.name)}</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
@@ -738,7 +739,7 @@ const ActivityDetailScreenModern = () => {
                       latitude: mapLat,
                       longitude: mapLng,
                     }}
-                    title={activity.name}
+                    title={cleanActivityName(activity.name)}
                     description={getFullAddress(activity)}
                   />
                 </MapView>
@@ -778,7 +779,7 @@ const ActivityDetailScreenModern = () => {
       {showRegisterModal && (
         <RegisterChildModal
           activityId={activity.id}
-          activityName={activity.name}
+          activityName={cleanActivityName(activity.name)}
           visible={showRegisterModal}
           onClose={() => setShowRegisterModal(false)}
         />

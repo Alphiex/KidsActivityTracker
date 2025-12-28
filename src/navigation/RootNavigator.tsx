@@ -45,6 +45,7 @@ import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
 import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
+import FeaturedPartnersScreen from '../screens/FeaturedPartnersScreen';
 import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 
@@ -86,6 +87,7 @@ const HomeStack = () => (
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
+    <Stack.Screen name="FeaturedPartners" component={FeaturedPartnersScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />

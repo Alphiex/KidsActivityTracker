@@ -1,6 +1,26 @@
 const BaseScraper = require('../base/BaseScraper');
 const DataNormalizer = require('../base/DataNormalizer');
 const puppeteer = require('puppeteer');
+const crypto = require('crypto');
+
+/**
+ * Generate a stable hash for an activity based on its properties.
+ * Used as fallback externalId when the site doesn't provide one.
+ * @param {Object} activity - Activity object
+ * @returns {String} Stable hash ID
+ */
+function generateStableActivityId(activity) {
+  const key = [
+    activity.name || '',
+    activity.location || activity.locationName || '',
+    activity.startTime || '',
+    activity.dateStartStr || '',
+    activity.cost || ''
+  ].join('|').toLowerCase().trim();
+
+  const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
+  return `pm-${hash}`;
+}
 
 /**
  * Platform scraper for PerfectMind-based recreation websites
@@ -44,7 +64,19 @@ class PerfectMindScraper extends BaseScraper {
       /family/i, /camps?/i, /early years/i, /0-5/i, /6-12/i, /13-18/i,
       /adult\s*&\s*child/i, /school\s*age/i, /pro\s*d\s*day/i, /spring\s*break/i,
       /summer/i, /winter\s*break/i, /after\s*school/i, /childminding/i,
-      /just\s*for\s*kids/i, /grown-?up/i, /specialized\s*programs/i
+      /just\s*for\s*kids/i, /grown-?up/i, /specialized\s*programs/i,
+      // Age range patterns like "4 Months - 5 Years", "6 - 12 Years", "13+ Years"
+      /\d+\s*months?\s*[-–to]+\s*\d+/i,  // "4 Months - 5 Years"
+      /\d+\s*[-–to]+\s*\d+\s*years?/i,   // "6 - 12 Years"
+      /\d+\s*[-–to]+\s*\d+\s*yrs?/i,     // "6 - 12 yrs"
+      /\b[0-9]+-[0-9]+\b/,               // Generic age range like "6-12"
+      // Swimming lesson patterns (all ages, will filter by age during extraction)
+      /swim\s*lesson/i, /swimming\s*lesson/i, /low\s*ratio/i,
+      /private.*lesson/i, /semi.*private/i, /strokes/i,
+      /swimmer/i, /beginner/i, /intermediate/i, /advanced/i,
+      // Parent/tot patterns
+      /parent\s*[&+]?\s*tot/i, /tot\s*time/i, /mommy\s*[&+]?\s*me/i,
+      /daddy\s*[&+]?\s*me/i, /caregiver/i
     ];
 
     // Exclude patterns - things we don't want to click on
@@ -243,7 +275,12 @@ class PerfectMindScraper extends BaseScraper {
         /summer/i, /winter\s*break/i, /afterschool|after\s*school/i,
         /childminding/i, /just\s*for\s*kids/i, /grown-?up/i,
         /specialized\s*programs/i, /ice\s*sports?/i, /fencing/i,
-        /try\s*it/i, /playschool/i
+        /try\s*it/i, /playschool/i,
+        // Age range patterns like "4 Months - 5 Years", "6 - 12 Years"
+        /\d+\s*months?\s*[-–to]+\s*\d+/i,
+        /\d+\s*[-–to]+\s*\d+\s*years?/i,
+        /\d+\s*[-–to]+\s*\d+\s*yrs?/i,
+        /\b[0-9]+-[0-9]+\b/
       ];
 
       // Determine if text matches kids section
@@ -348,23 +385,36 @@ class PerfectMindScraper extends BaseScraper {
       await page.goto(widgetUrl, { waitUntil: 'networkidle2', timeout: 60000 });
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Click the link at specific index using the same selector that discovered it
-      // Use the category-specific selector (a.bm-category-calendar-link.enabled) not all 'a' elements
-      const categorySelector = 'a.bm-category-calendar-link.enabled';
-      const clicked = await page.evaluate((selector, linkIndex) => {
-        const links = Array.from(document.querySelectorAll(selector));
-        if (links[linkIndex]) {
-          links[linkIndex].click();
-          return true;
+      // Click the link by finding it by text content
+      // This is more reliable than using index, since discover uses all 'a' but we want specific category links
+      const linkText = linkInfo.text;
+      const clicked = await page.evaluate((targetText) => {
+        // First try the specific PerfectMind category selector
+        const categoryLinks = Array.from(document.querySelectorAll('a.bm-category-calendar-link.enabled'));
+        for (const link of categoryLinks) {
+          if (link.textContent?.trim() === targetText) {
+            link.click();
+            return true;
+          }
+        }
+
+        // Fallback to finding any matching link
+        const allLinks = Array.from(document.querySelectorAll('a'));
+        for (const link of allLinks) {
+          if (link.textContent?.trim() === targetText) {
+            link.click();
+            return true;
+          }
         }
         return false;
-      }, categorySelector, linkInfo.index);
+      }, linkText);
 
       if (!clicked) {
         return activities;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 4000));
+      // Wait for page navigation - some sites navigate to a new page after clicking
+      await new Promise(resolve => setTimeout(resolve, 6000));
 
       // Check for hierarchical subcategory structure (like Port Moody's category pages)
       // Some sites show subcategory sections after clicking a main category, each with a "Show" button
@@ -375,14 +425,24 @@ class PerfectMindScraper extends BaseScraper {
       }
 
       // Also expand any remaining "Show" buttons at the activity level
-      await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('a, button, span'));
+      // This handles Vernon-style pages where Show is plain text, not .bm-group-expander
+      const showButtonsClicked = await page.evaluate(() => {
+        let clicked = 0;
+        const buttons = Array.from(document.querySelectorAll('a, button, span, div'));
         buttons.filter(el => {
           const t = el.textContent?.trim().toLowerCase() || '';
-          return t === 'show' || t === 'show all' || t.includes('show more');
-        }).forEach(btn => btn.click());
+          return t === 'show' || t === 'show all';
+        }).forEach(btn => {
+          btn.click();
+          clicked++;
+        });
+        return clicked;
       });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (showButtonsClicked > 0) {
+        this.logProgress(`    Clicked ${showButtonsClicked} Show buttons`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
 
       // Click "Load More" button repeatedly until no more activities to load
       await this.loadAllActivities(page);
@@ -840,7 +900,7 @@ class PerfectMindScraper extends BaseScraper {
   getPerfectMindFieldMapping() {
     return {
       name: 'name',
-      externalId: 'courseId',
+      externalId: { path: 'courseId', transform: (val, raw) => val || generateStableActivityId(raw) },
       category: 'section',
       subcategory: 'activityType',
       cost: 'cost',

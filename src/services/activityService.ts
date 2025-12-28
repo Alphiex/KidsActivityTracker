@@ -1115,6 +1115,125 @@ class ActivityService {
     }
   }
 
+  /**
+   * Get sponsored activities with pagination
+   * Returns activities ordered by tier (Gold > Silver > Bronze)
+   */
+  async getSponsoredActivitiesPaginated(
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<{ activities: Activity[]; total: number } | null> {
+    try {
+      const isConnected = await this.checkConnectivity();
+      if (!isConnected) {
+        console.log('[SponsorService] No network connection');
+        return null;
+      }
+
+      // Get user preferences for filtering
+      const PreferencesService = require('./preferencesService').default;
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+
+      const params: any = { limit, offset };
+
+      // Apply age filter from preferences
+      if (preferences.ageRange) {
+        params.ageMin = preferences.ageRange.min;
+        params.ageMax = preferences.ageRange.max;
+      }
+
+      // Apply cost filter
+      if (preferences.maxCost !== undefined) {
+        params.costMax = preferences.maxCost;
+      }
+
+      // Apply activity type preferences
+      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
+        params.activityType = preferences.preferredActivityTypes[0];
+      }
+
+      // Apply location preferences
+      if (preferences.preferredLocations && preferences.preferredLocations.length > 0) {
+        params.locations = preferences.preferredLocations.join(',');
+      }
+
+      // Apply date range filter
+      if (preferences.dateFilter === 'range' && preferences.dateRange?.start) {
+        params.startDate = preferences.dateRange.start;
+        if (preferences.dateRange.end) {
+          params.endDate = preferences.dateRange.end;
+        }
+      }
+
+      console.log('[SponsorService] Fetching paginated sponsored activities with params:', params);
+
+      const response = await this.api.get('/api/v1/sponsors', { params });
+
+      if (response.data && response.data.success && response.data.data) {
+        console.log(`[SponsorService] Found ${response.data.data.length} sponsored activities (total: ${response.data.pagination?.total || response.data.data.length})`);
+
+        // Transform activities to match app format
+        const activities = response.data.data.map((activity: any) => ({
+          ...activity,
+          dateRange: activity.dateStart && activity.dateEnd ? {
+            start: new Date(activity.dateStart),
+            end: new Date(activity.dateEnd),
+          } : null,
+          ageRange: {
+            min: activity.ageMin || 0,
+            max: activity.ageMax || 18
+          },
+          scrapedAt: new Date(activity.updatedAt || activity.createdAt || Date.now()),
+          provider: activity.provider?.name || 'Unknown',
+          isFavorite: activity._count?.favorites > 0 || false,
+          cost: activity.cost || 0,
+          location: activity.location?.name || activity.locationName || 'Unknown',
+          locationAddress: activity.location?.fullAddress || activity.fullAddress || null,
+          locationCity: activity.location?.cityRecord?.name || null,
+          isSponsor: activity.isSponsor,
+          sponsorTier: activity.sponsorTier,
+          registrationStatus: activity.registrationStatus,
+          registrationButtonText: activity.registrationButtonText,
+          detailUrl: activity.detailUrl,
+          fullDescription: activity.fullDescription,
+          instructor: activity.instructor,
+          prerequisites: activity.prerequisites,
+          whatToBring: activity.whatToBring,
+          fullAddress: activity.fullAddress,
+          latitude: activity.latitude,
+          longitude: activity.longitude,
+          directRegistrationUrl: activity.directRegistrationUrl,
+          contactInfo: activity.contactInfo,
+          totalSpots: activity.totalSpots,
+          hasMultipleSessions: activity.hasMultipleSessions,
+          sessionCount: activity.sessionCount,
+          sessions: activity.sessions,
+          hasPrerequisites: activity.hasPrerequisites
+        }));
+
+        // Sort by tier: gold first, then silver, then bronze
+        const tierOrder: Record<string, number> = { gold: 0, silver: 1, bronze: 2 };
+        activities.sort((a: Activity, b: Activity) => {
+          const aTier = (a.sponsorTier?.toLowerCase() || 'bronze');
+          const bTier = (b.sponsorTier?.toLowerCase() || 'bronze');
+          return (tierOrder[aTier] ?? 3) - (tierOrder[bTier] ?? 3);
+        });
+
+        return {
+          activities,
+          total: response.data.pagination?.total || response.data.data.length
+        };
+      }
+
+      console.log('[SponsorService] No sponsored activities found');
+      return { activities: [], total: 0 };
+    } catch (error: any) {
+      console.error('[SponsorService] Error fetching paginated sponsored activities:', error);
+      return null;
+    }
+  }
+
 }
 
 export default ActivityService;

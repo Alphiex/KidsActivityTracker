@@ -68,6 +68,12 @@ model Activity {
   sponsorStartDate       DateTime?
   sponsorEndDate         DateTime?
 
+  // Vendor import tracking
+  vendorId               String?
+  importBatchId          String?
+  importedAt             DateTime?
+  lastImportedAt         DateTime?
+
   activitySubtype        ActivitySubtype?       @relation(fields: [activitySubtypeId], references: [id])
   activityType           ActivityType?          @relation(fields: [activityTypeId], references: [id])
   location               Location?              @relation(fields: [locationId], references: [id])
@@ -76,8 +82,12 @@ model Activity {
   sessions               ActivitySession[]
   childActivities        ChildActivity[]
   favorites              Favorite[]
+  vendor                 Vendor?                @relation("VendorActivities", fields: [vendorId], references: [id])
+  importRows             ImportRow[]
 
   @@unique([providerId, externalId])
+  @@index([vendorId])
+  @@index([vendorId, externalId])
   @@index([activitySubtypeId])
   @@index([activityTypeId, activitySubtypeId])
   @@index([activityTypeId])
@@ -341,6 +351,8 @@ model Provider {
   ProviderMetrics    ProviderMetrics[]
   ScrapeJob          ScrapeJob[]
   ScraperHealthCheck ScraperHealthCheck[]
+  vendor             Vendor?
+  sponsorAccount     SponsorAccount?
 
   @@index([isActive])
   @@index([platform])
@@ -449,6 +461,11 @@ model User {
   trustedDevices      TrustedDevice[]
   subscription        Subscription?
   savedSearches       SavedSearch[]
+
+  // Third-party import system
+  adminProfile        AdminUser?
+  vendorMemberships   VendorUser[]
+  importBatches       ImportBatch[]
 
   @@index([email])
 }
@@ -616,4 +633,534 @@ enum enum_users_admin_type {
   none
   pool_admin
   site_admin
+}
+
+// ============================================
+// THIRD-PARTY IMPORT SYSTEM
+// ============================================
+
+// Admin roles for platform administration
+enum AdminRole {
+  SUPER_ADMIN   // Full system access
+  ADMIN         // Can manage vendors, approve imports
+  MODERATOR     // Can review and approve imports
+  VIEWER        // Read-only access to admin dashboard
+}
+
+// Vendor organization status
+enum VendorStatus {
+  PENDING       // Awaiting verification
+  ACTIVE        // Verified and active
+  SUSPENDED     // Temporarily suspended
+  REJECTED      // Application rejected
+  INACTIVE      // Vendor-initiated deactivation
+}
+
+// Vendor user roles within organization
+enum VendorUserRole {
+  OWNER         // Full vendor management
+  ADMIN         // Can manage imports, users
+  MEMBER        // Can submit imports
+}
+
+// Import batch processing status
+enum ImportStatus {
+  PENDING             // Uploaded, awaiting validation
+  VALIDATING          // Validation in progress
+  VALIDATION_FAILED   // Validation failed
+  VALIDATED           // Validation complete, awaiting processing
+  PENDING_APPROVAL    // Submitted for approval
+  APPROVED            // Approved, ready to process
+  PROCESSING          // Processing in progress
+  COMPLETED           // Successfully processed
+  PARTIALLY_COMPLETED // Completed with some failures
+  FAILED              // Processing failed
+  CANCELLED           // Cancelled by user
+  REJECTED            // Rejected by admin
+  CHANGES_REQUESTED   // Admin requested changes
+}
+
+// Approval workflow status
+enum ApprovalStatus {
+  PENDING           // Awaiting review
+  APPROVED          // Approved by admin
+  REJECTED          // Rejected by admin
+  AUTO_APPROVED     // Automatically approved (trusted vendor)
+  CHANGES_REQUESTED // Admin requested changes
+}
+
+// Individual import row status
+enum ImportRowStatus {
+  PENDING   // Awaiting processing
+  VALID     // Passed validation
+  INVALID   // Failed validation
+  CREATED   // Activity created
+  UPDATED   // Activity updated
+  SKIPPED   // Skipped (duplicate, etc.)
+  FAILED    // Processing failed
+}
+
+// Admin user profile for platform staff
+model AdminUser {
+  id              String           @id @default(uuid())
+  userId          String           @unique
+  role            AdminRole        @default(MODERATOR)
+  permissions     Json             @default("[]")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  createdBy       String?
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvalActions ImportApproval[]
+
+  @@index([role])
+}
+
+// Third-party vendor organization
+model Vendor {
+  id                  String         @id @default(uuid())
+  code                String         @unique
+  name                String
+  email               String         @unique
+  website             String?
+  contactName         String?
+  contactPhone        String?
+  description         String?
+  logoUrl             String?
+
+  // Status & verification
+  status              VendorStatus   @default(PENDING)
+  verifiedAt          DateTime?
+  verifiedBy          String?
+
+  // Approval workflow settings
+  requiresApproval    Boolean        @default(true)
+  autoApproveUpdates  Boolean        @default(false)
+
+  // Sponsorship tier
+  defaultSponsorTier  String?
+  sponsorStartDate    DateTime?
+  sponsorEndDate      DateTime?
+
+  // Rate limiting
+  dailyImportLimit    Int            @default(500)
+  monthlyImportLimit  Int            @default(5000)
+
+  // API access
+  apiKeyHash          String?
+  apiKeyLastUsedAt    DateTime?
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  providerId          String?        @unique
+  provider            Provider?      @relation(fields: [providerId], references: [id])
+  imports             ImportBatch[]
+  vendorUsers         VendorUser[]
+  activities          Activity[]     @relation("VendorActivities")
+  fieldMappings       ImportFieldMapping[]
+
+  @@index([status])
+  @@index([email])
+}
+
+// Vendor portal users (multiple users per vendor)
+model VendorUser {
+  id         String         @id @default(uuid())
+  vendorId   String
+  userId     String
+  role       VendorUserRole @default(MEMBER)
+  invitedBy  String?
+  invitedAt  DateTime       @default(now())
+  acceptedAt DateTime?
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  vendor     Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, userId])
+  @@index([userId])
+}
+
+// Import batch tracking
+model ImportBatch {
+  id                    String         @id @default(uuid())
+  vendorId              String
+  uploadedBy            String
+
+  // File information
+  fileName              String
+  fileSize              Int
+  fileType              String
+  fileUrl               String?
+
+  // Processing status
+  status                ImportStatus   @default(PENDING)
+  totalRows             Int            @default(0)
+  validRows             Int            @default(0)
+  invalidRows           Int            @default(0)
+
+  // Processing results
+  activitiesCreated     Int            @default(0)
+  activitiesUpdated     Int            @default(0)
+  activitiesSkipped     Int            @default(0)
+  activitiesFailed      Int            @default(0)
+
+  // Approval workflow
+  requiresApproval        Boolean        @default(true)
+  approvalStatus          ApprovalStatus @default(PENDING)
+  submittedForApprovalAt  DateTime?
+  submittedForApprovalBy  String?
+  approvedAt              DateTime?
+  approvedBy              String?
+  rejectedAt              DateTime?
+  rejectedBy              String?
+  rejectionReason         String?
+
+  // Timing
+  uploadedAt              DateTime       @default(now())
+  validationStartedAt     DateTime?
+  validationCompletedAt   DateTime?
+  processingStartedAt     DateTime?
+  processingCompletedAt   DateTime?
+
+  // Error tracking
+  errors                Json?
+  warnings              Json?
+
+  // Metadata
+  fieldMappingUsed      Json?
+  notes                 String?
+
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  vendor                Vendor         @relation(fields: [vendorId], references: [id])
+  uploadedByUser        User           @relation(fields: [uploadedBy], references: [id])
+  rows                  ImportRow[]
+  approvals             ImportApproval[]
+
+  @@index([vendorId, status])
+  @@index([status])
+  @@index([uploadedAt])
+}
+
+// Individual row tracking for imports
+model ImportRow {
+  id                 String          @id @default(uuid())
+  importBatchId      String
+  rowNumber          Int
+
+  // Raw data
+  rawData            Json
+
+  // Parsed data
+  parsedData         Json?
+  externalId         String?
+
+  // Status
+  status             ImportRowStatus @default(PENDING)
+
+  // Linked activity (after successful import)
+  activityId         String?
+  action             String?
+
+  // Validation
+  validationErrors   Json?
+  validationWarnings Json?
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  importBatch        ImportBatch     @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  activity           Activity?       @relation(fields: [activityId], references: [id])
+
+  @@unique([importBatchId, rowNumber])
+  @@index([importBatchId, status])
+  @@index([externalId])
+}
+
+// Approval audit trail
+model ImportApproval {
+  id            String      @id @default(uuid())
+  importBatchId String
+  reviewerId    String
+  action        String
+  reason        String?
+  comments      String?
+  createdAt     DateTime    @default(now())
+
+  importBatch   ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  reviewer      AdminUser   @relation(fields: [reviewerId], references: [id])
+
+  @@index([importBatchId])
+}
+
+// Field mapping templates
+model ImportFieldMapping {
+  id              String   @id @default(uuid())
+  vendorId        String?
+  name            String
+  description     String?
+  isDefault       Boolean  @default(false)
+
+  // Column mappings
+  mappings        Json
+
+  // Transformation rules
+  transformations Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
+
+  @@unique([vendorId, name])
+  @@index([vendorId])
+}
+
+// ============================================
+// CITY REQUEST (Marketing Website)
+// ============================================
+
+// City request status
+enum CityRequestStatus {
+  PENDING    // Awaiting review
+  APPROVED   // Will add city
+  REJECTED   // Will not add city
+  COMPLETED  // City has been added
+}
+
+// User requests for new city support
+model CityRequest {
+  id          String            @id @default(uuid())
+  cityName    String
+  province    String
+  email       String
+  sites       String?           // Specific sites/programs requested
+  notes       String?
+  status      CityRequestStatus @default(PENDING)
+
+  // Admin handling
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  adminNotes  String?
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+}
+
+// ============================================
+// SPONSOR MANAGEMENT SYSTEM
+// ============================================
+
+// Sponsor subscription plans (Bronze, Silver, Gold)
+model SponsorPlan {
+  id              String           @id @default(uuid())
+  name            String           // "Bronze", "Silver", "Gold"
+  tier            String           // "bronze", "silver", "gold"
+  monthlyPrice    Decimal          @db.Decimal(10, 2)
+  yearlyPrice     Decimal          @db.Decimal(10, 2)
+  impressionLimit Int?             // null = unlimited
+  features        Json             // Feature flags for this tier
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  accounts        SponsorAccount[]
+
+  @@index([tier])
+  @@index([isActive])
+}
+
+// Sponsor accounts (businesses that sponsor activities)
+model SponsorAccount {
+  id                    String                    @id @default(uuid())
+  providerId            String                    @unique
+  provider              Provider                  @relation(fields: [providerId], references: [id])
+  planId                String?
+  plan                  SponsorPlan?              @relation(fields: [planId], references: [id])
+
+  // RevenueCat integration
+  revenueCatCustomerId  String?
+  subscriptionStatus    String                    @default("inactive") // active, cancelled, past_due, inactive
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+
+  // Geographic targeting
+  targetCities          String[]                  // City IDs for targeting
+  targetProvinces       String[]                  // Province codes
+
+  // Contact info
+  billingEmail          String
+  billingName           String?
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  impressions           SponsorImpression[]
+  clicks                SponsorClick[]
+  abTestAssignments     SponsorABTestAssignment[]
+
+  @@index([subscriptionStatus])
+  @@index([providerId])
+}
+
+// Impression tracking (batch inserts for performance)
+model SponsorImpression {
+  id               String         @id @default(uuid())
+  sponsorAccountId String
+  sponsorAccount   SponsorAccount @relation(fields: [sponsorAccountId], references: [id])
+  activityId       String?
+
+  // Context
+  placement        String         // "activity_list", "activity_detail", "search_results", "dashboard"
+  userId           String?        // Anonymous if null
+  city             String?
+  province         String?
+
+  // A/B test info
+  abTestId         String?
+  abVariant        String?
+
+  // Device info
+  platform         String         // "ios", "android", "web"
+  deviceType       String?        // "phone", "tablet"
+
+  timestamp        DateTime       @default(now())
+
+  @@index([sponsorAccountId])
+  @@index([activityId])
+  @@index([timestamp])
+  @@index([placement])
+  @@index([city])
+}
+
+// Click tracking
+model SponsorClick {
+  id               String         @id @default(uuid())
+  sponsorAccountId String
+  sponsorAccount   SponsorAccount @relation(fields: [sponsorAccountId], references: [id])
+  activityId       String?
+
+  // Context
+  placement        String
+  destinationType  String         // "activity_detail", "external_url", "registration"
+  destinationUrl   String?
+
+  userId           String?
+  city             String?
+  province         String?
+
+  // A/B test info
+  abTestId         String?
+  abVariant        String?
+
+  platform         String
+  timestamp        DateTime       @default(now())
+
+  @@index([sponsorAccountId])
+  @@index([activityId])
+  @@index([timestamp])
+}
+
+// A/B test status enum
+enum ABTestStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+// A/B Tests for sponsor placement optimization
+model SponsorABTest {
+  id                      String                    @id @default(uuid())
+  name                    String
+  description             String?
+
+  // Test configuration
+  testType                String                    // "placement", "display_style", "frequency"
+  variants                Json                      // Array of variant configurations
+
+  // Traffic allocation
+  trafficPercent          Int                       @default(100) // Percentage of users in test
+
+  // Status
+  status                  ABTestStatus              @default(DRAFT)
+  startDate               DateTime?
+  endDate                 DateTime?
+
+  // Results
+  winningVariant          String?
+  statisticalSignificance Decimal?                  @db.Decimal(5, 4)
+
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  createdBy               String?
+
+  assignments             SponsorABTestAssignment[]
+
+  @@index([status])
+  @@index([testType])
+}
+
+// User assignments to A/B test variants
+model SponsorABTestAssignment {
+  id               String          @id @default(uuid())
+  testId           String
+  test             SponsorABTest   @relation(fields: [testId], references: [id])
+
+  // Can be user ID or device ID for anonymous users
+  identifier       String
+  identifierType   String          // "user_id", "device_id"
+  variant          String
+
+  sponsorAccountId String?
+  sponsorAccount   SponsorAccount? @relation(fields: [sponsorAccountId], references: [id])
+
+  assignedAt       DateTime        @default(now())
+
+  @@unique([testId, identifier])
+  @@index([testId])
+  @@index([identifier])
+}
+
+// Daily aggregated analytics (for fast dashboard queries)
+model SponsorAnalyticsDaily {
+  id                        String   @id @default(uuid())
+  sponsorAccountId          String
+  date                      DateTime @db.Date
+
+  // Impression counts by placement
+  impressionsTotal          Int      @default(0)
+  impressionsActivityList   Int      @default(0)
+  impressionsActivityDetail Int      @default(0)
+  impressionsSearchResults  Int      @default(0)
+  impressionsDashboard      Int      @default(0)
+
+  // Click counts
+  clicksTotal               Int      @default(0)
+  clicksActivityDetail      Int      @default(0)
+  clicksExternalUrl         Int      @default(0)
+  clicksRegistration        Int      @default(0)
+
+  // Calculated metrics
+  ctr                       Decimal? @db.Decimal(5, 4) // Click-through rate
+
+  // Geographic breakdown (JSON for flexibility)
+  impressionsByCity         Json?
+  clicksByCity              Json?
+
+  // Platform breakdown
+  impressionsByPlatform     Json?
+  clicksByPlatform          Json?
+
+  @@unique([sponsorAccountId, date])
+  @@index([sponsorAccountId])
+  @@index([date])
 }

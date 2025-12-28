@@ -43,13 +43,14 @@ dist/
 build/
 
 # Data files
-*.json
-!package.json
-!package-lock.json
-!tsconfig.json
+# Don't ignore JSON files - scrapers need config files
+# *.json
+# !package.json
+# !package-lock.json
+# !tsconfig.json
 
-# Scripts we don't need in production
-scripts/
+# Scripts we don't need in production (but keep scrapers/scripts/)
+/scripts/
 monitoring/
 
 # Documentation

@@ -1,6 +1,29 @@
 const BaseScraper = require('../base/BaseScraper');
 const DataNormalizer = require('../base/DataNormalizer');
 const puppeteer = require('puppeteer');
+const crypto = require('crypto');
+
+/**
+ * Generate a stable hash for an activity based on its properties.
+ * Used as fallback externalId when the site doesn't provide one.
+ * @param {Object} activity - Activity object
+ * @returns {String} Stable hash ID
+ */
+function generateStableActivityId(activity) {
+  // Create a unique key from stable properties
+  const key = [
+    activity.name || '',
+    activity.locationName || '',
+    activity.schedule || '',
+    activity.dates || '',
+    activity.startTime || '',
+    activity.cost || ''
+  ].join('|').toLowerCase().trim();
+
+  // Generate a short hash
+  const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
+  return `gen-${hash}`;
+}
 
 /**
  * Platform scraper for Active Network-based recreation websites
@@ -1279,7 +1302,7 @@ class ActiveNetworkScraper extends BaseScraper {
   getActiveNetworkFieldMapping() {
     return {
       name: 'name',
-      externalId: { path: 'externalId', transform: (val) => val || `generated-${Date.now()}` },
+      externalId: { path: 'externalId', transform: (val, raw) => val || generateStableActivityId(raw) },
       category: 'category',
       subcategory: 'name',
       description: 'description',

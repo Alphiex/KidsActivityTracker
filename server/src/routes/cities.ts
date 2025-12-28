@@ -256,4 +256,129 @@ router.get('/:city/activities', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/cities/request:
+ *   post:
+ *     summary: Request support for a new city
+ *     description: Submit a request to add a new city to the app
+ *     tags: [Cities]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cityName
+ *               - province
+ *               - email
+ *             properties:
+ *               cityName:
+ *                 type: string
+ *                 description: Name of the city
+ *               province:
+ *                 type: string
+ *                 description: Province or region
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Contact email
+ *               sites:
+ *                 type: string
+ *                 description: Specific sites or programs to add
+ *               notes:
+ *                 type: string
+ *                 description: Additional notes
+ *     responses:
+ *       201:
+ *         description: Request submitted successfully
+ *       400:
+ *         description: Validation error
+ *       429:
+ *         description: Too many requests
+ */
+router.post('/request', async (req: Request, res: Response) => {
+  try {
+    const { cityName, province, email, sites, notes } = req.body;
+
+    // Validation
+    if (!cityName || !cityName.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'City name is required'
+      });
+    }
+
+    if (!province || !province.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Province is required'
+      });
+    }
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    // Check for duplicate requests from same email in last 24 hours
+    const recentRequest = await prisma.cityRequest.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        cityName: {
+          equals: cityName.trim(),
+          mode: 'insensitive'
+        },
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+        }
+      }
+    });
+
+    if (recentRequest) {
+      return res.status(429).json({
+        success: false,
+        error: 'You have already submitted a request for this city in the last 24 hours'
+      });
+    }
+
+    // Create the city request
+    const cityRequest = await prisma.cityRequest.create({
+      data: {
+        cityName: cityName.trim(),
+        province: province.trim(),
+        email: email.toLowerCase().trim(),
+        sites: sites?.trim() || null,
+        notes: notes?.trim() || null
+      }
+    });
+
+    console.log(`📬 [CityRequest] New request from ${email} for ${cityName}, ${province}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Your request has been submitted. We will review it and notify you when the city is added.',
+      requestId: cityRequest.id
+    });
+  } catch (error: any) {
+    console.error('❌ [CityRequest] Error submitting request:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to submit request'
+    });
+  }
+});
+
 export default router;

@@ -96,15 +96,31 @@ export class EnhancedActivityService {
     }
     // When includeInactive is true, we don't filter by isActive at all
 
+    // Kids-only filter: Only show activities appropriate for ages 0-18
+    // Exclude adult-only activities (where ageMin > 18)
+    // Include activities where:
+    // - ageMin <= 18 (kids can participate)
+    // - ageMin is null (no minimum age, open to all)
+    where.AND = [
+      {
+        OR: [
+          { ageMin: { lte: 18 } },
+          { ageMin: null }
+        ]
+      }
+    ];
+
     // Text search
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { location: { name: { contains: search, mode: 'insensitive' } } },
-        { category: { contains: search, mode: 'insensitive' } },
-        { subcategory: { contains: search, mode: 'insensitive' } }
-      ];
+      (where.AND as any[]).push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { location: { name: { contains: search, mode: 'insensitive' } } },
+          { category: { contains: search, mode: 'insensitive' } },
+          { subcategory: { contains: search, mode: 'insensitive' } }
+        ]
+      });
     }
 
     // Category filter - for now, use the old category field

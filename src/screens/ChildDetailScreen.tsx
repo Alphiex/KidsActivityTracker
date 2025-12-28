@@ -333,7 +333,7 @@ const ChildDetailScreen: React.FC = () => {
       category: item.category
     });
 
-    const imageKey = getActivityImageKey(activityTypeName, subcategory);
+    const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
     const imageSource = getActivityImageByKey(imageKey);
 
     return (

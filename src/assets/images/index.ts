@@ -20,12 +20,14 @@ export const activityImageMap: { [key: string]: any } = {
   dance: require('./activities/dance.jpg'),
   ballet: require('./activities/ballet.jpg'),
   hip_hop_dance: require('./activities/hip_hop_dance.jpg'),
+  cheerleading: require('./activities/cheerleading.jpg'),
   
   // Arts & Crafts
   arts_crafts: require('./activities/arts_crafts.jpg'),
   pottery: require('./activities/pottery.jpg'),
   painting: require('./activities/painting.jpg'),
   crafts: require('./activities/crafts.jpg'),
+  theater: require('./activities/theater.jpg'),
   
   // Music
   music: require('./activities/music.jpg'),
@@ -38,6 +40,8 @@ export const activityImageMap: { [key: string]: any } = {
   yoga: require('./activities/yoga.jpg'),
   climbing: require('./activities/climbing.jpg'),
   gym: require('./activities/gym.jpg'),
+  running: require('./activities/running.jpg'),
+  gymnastics: require('./activities/gymnastics.jpg'),
   
   // Martial Arts
   martial_arts: require('./activities/martial_arts.jpg'),
@@ -49,6 +53,7 @@ export const activityImageMap: { [key: string]: any } = {
   science: require('./activities/science.jpg'),
   leadership: require('./activities/leadership.jpg'),
   language: require('./activities/language.jpg'),
+  reading: require('./activities/reading.jpg'),
   
   // Outdoor & Camps
   summer_camp: require('./activities/summer_camp.jpg'),
@@ -56,6 +61,7 @@ export const activityImageMap: { [key: string]: any } = {
   nature: require('./activities/nature.jpg'),
   playground: require('./activities/playground.jpg'),
   hiking: require('./activities/hiking.jpg'),
+  skiing: require('./activities/skiing.jpg'),
   
   // Early Years
   early_years: require('./activities/early_years.jpg'),

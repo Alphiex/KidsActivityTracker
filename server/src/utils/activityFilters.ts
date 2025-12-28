@@ -30,6 +30,15 @@ export function buildActivityWhereClause(
     where.isActive = true;
   }
 
+  // Kids-only filter: Only show activities appropriate for ages 0-18
+  // Exclude adult-only activities (where ageMin > 18)
+  andConditions.push({
+    OR: [
+      { ageMin: { lte: 18 } },
+      { ageMin: null }
+    ]
+  });
+
   // Apply combined hideClosedOrFull filter if present
   console.log('🔧 [buildActivityWhereClause] Applying filters:', {
     hideClosedOrFull: filters.hideClosedOrFull,

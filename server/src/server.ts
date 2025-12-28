@@ -24,6 +24,11 @@ import locationsRoutes from './routes/locations';
 import sponsorsRoutes from './routes/sponsors';
 import subscriptionsRoutes from './routes/subscriptions';
 import webhooksRoutes from './routes/webhooks';
+import analyticsRoutes from './routes/analytics';
+import adminSponsorsRoutes from './routes/adminSponsors';
+import sponsorPortalRoutes from './routes/sponsorPortal';
+import adminRoutes from './routes/admin';
+import vendorRoutes from './routes/vendor';
 
 // Import services
 import { subscriptionService } from './services/subscriptionService';
@@ -54,6 +59,10 @@ const ALLOWED_WEB_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:8081',
+  'https://kidsactivitytracker.com',
+  'https://www.kidsactivitytracker.com',
+  // Cloud Run URLs (update after deployment)
+  'https://website-205843686007.us-central1.run.app',
 ];
 
 app.use(cors({
@@ -145,11 +154,26 @@ app.use('/api/v1/locations', locationsRoutes);
 // Sponsors routes (v1 API)
 app.use('/api/v1/sponsors', sponsorsRoutes);
 
+// Analytics tracking routes (v1 API)
+app.use('/api/v1/analytics', analyticsRoutes);
+
 // Subscription management routes
 app.use('/api/subscriptions', subscriptionsRoutes);
 
 // Webhook routes (RevenueCat, Stripe)
 app.use('/api/webhooks', webhooksRoutes);
+
+// Admin routes (third-party import management)
+app.use('/api/admin', adminRoutes);
+
+// Admin sponsor management routes
+app.use('/api/admin/sponsors', adminSponsorsRoutes);
+
+// Sponsor self-service portal routes
+app.use('/api/sponsor', sponsorPortalRoutes);
+
+// Vendor portal routes
+app.use('/api/vendor', vendorRoutes);
 
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {

@@ -294,7 +294,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                 ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
                 : (activity.activityType as any)?.name
             ) || '',
-            activity.subcategory
+            activity.subcategory,
+            activity.name
           ))}
           style={styles.image}
           resizeMode="cover"
