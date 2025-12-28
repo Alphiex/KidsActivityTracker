@@ -38,6 +38,7 @@ class PreferencesService {
       },
       preferredCategories: [], // DEPRECATED - use preferredActivityTypes
       preferredActivityTypes: [],
+      preferredSubtypes: [],
       excludedCategories: [],
       notifications: {
         enabled: true,

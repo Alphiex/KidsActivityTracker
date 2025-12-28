@@ -69,6 +69,7 @@ export interface UserPreferences {
   
   // Activity type preferences
   preferredActivityTypes: string[];
+  preferredSubtypes: string[]; // Activity subtype codes
   
   // Notification preferences
   notifications: {

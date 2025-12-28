@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Switch,
-  Alert,
   Animated,
   Platform,
   Modal,
@@ -21,7 +20,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
 import { UserPreferences, HierarchicalProvince } from '../types/preferences';
-import { API_CONFIG } from '../config/api';
 import TopTabNavigation from '../components/TopTabNavigation';
 import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
 import useSubscription from '../hooks/useSubscription';
@@ -34,10 +32,20 @@ interface ExpandableSection {
   expanded: boolean;
 }
 
+interface ActivitySubtype {
+  id: string;
+  name: string;
+  code: string;
+  activityCount: number;
+}
+
 interface ActivityType {
   id: string;
   name: string;
   code: string;
+  iconName?: string;
+  activityCount: number;
+  subtypes: ActivitySubtype[];
 }
 
 interface Location {
@@ -87,9 +95,11 @@ const FiltersScreen = () => {
   ]);
 
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
+  const [expandedActivityTypes, setExpandedActivityTypes] = useState<Set<string>>(new Set());
   const [cities, setCities] = useState<City[]>([]);
   const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [activityTypesLoading, setActivityTypesLoading] = useState(true);
 
   // Hierarchical location state
   const [hierarchyData, setHierarchyData] = useState<HierarchicalProvince[]>([]);
@@ -141,14 +151,30 @@ const FiltersScreen = () => {
 
   const loadActivityTypes = async () => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/activity-types`);
-      const result = await response.json();
-      
-      if (result.success && result.data && Array.isArray(result.data)) {
-        setActivityTypes(result.data);
+      setActivityTypesLoading(true);
+      console.log('📋 [FiltersScreen] Loading activity types...');
+
+      // Use activityService which properly handles auth and global filters
+      const types = await activityService.getActivityTypesWithCounts(true);
+      console.log('📋 [FiltersScreen] Received activity types:', types?.length || 0);
+
+      if (types && Array.isArray(types)) {
+        // Map to include subtypes properly
+        const mappedTypes: ActivityType[] = types.map((type: any) => ({
+          id: type.id,
+          name: type.name,
+          code: type.code,
+          iconName: type.iconName,
+          activityCount: type.activityCount || 0,
+          subtypes: type.subtypes || []
+        }));
+        setActivityTypes(mappedTypes);
+        console.log('📋 [FiltersScreen] Activity types loaded:', mappedTypes.length, 'with subtypes');
       }
     } catch (error) {
       console.error('Error loading activity types:', error);
+    } finally {
+      setActivityTypesLoading(false);
     }
   };
 
@@ -164,7 +190,9 @@ const FiltersScreen = () => {
       ]);
 
       console.log('📍 [FiltersScreen] Received cities:', citiesData?.length || 0);
+      console.log('📍 [FiltersScreen] Sample city:', citiesData?.[0]);
       console.log('📍 [FiltersScreen] Received locations:', locationsData?.length || 0);
+      console.log('📍 [FiltersScreen] Sample location:', locationsData?.[0]);
 
       if (!locationsData || locationsData.length === 0) {
         console.warn('📍 [FiltersScreen] No locations returned from API');
@@ -175,6 +203,9 @@ const FiltersScreen = () => {
       // Build hierarchical structure (Province -> City -> Location)
       const hierarchy = buildHierarchyFromAPI(citiesData || [], locationsData);
       console.log('📍 [FiltersScreen] Built hierarchy with provinces:', hierarchy.length);
+      if (hierarchy.length > 0) {
+        console.log('📍 [FiltersScreen] First province:', hierarchy[0].name, 'with', hierarchy[0].cities.length, 'cities');
+      }
       setHierarchyData(hierarchy);
 
       // Initialize selectedLocationIds from preferences
@@ -449,29 +480,136 @@ const FiltersScreen = () => {
     }
   };
 
-  const renderActivityTypesContent = () => (
-    <View style={styles.sectionContent}>
-      <View style={styles.optionsGrid}>
-        {activityTypes.map((type) => (
-          <TouchableOpacity
-            key={type.code}
-            style={[
-              styles.optionChip,
-              preferences?.preferredActivityTypes?.includes(type.code) && styles.optionChipActive,
-            ]}
-            onPress={() => toggleActivityType(type.code)}
-          >
-            <Text style={[
-              styles.optionChipText,
-              preferences?.preferredActivityTypes?.includes(type.code) && styles.optionChipTextActive,
-            ]}>
-              {type.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
+  const toggleActivityTypeExpand = (typeCode: string) => {
+    setExpandedActivityTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(typeCode)) {
+        next.delete(typeCode);
+      } else {
+        next.add(typeCode);
+      }
+      return next;
+    });
+  };
+
+  const toggleSubtype = (subtypeCode: string) => {
+    if (!preferences) return;
+
+    const currentSubtypes = preferences.preferredSubtypes || [];
+    const updatedSubtypes = currentSubtypes.includes(subtypeCode)
+      ? currentSubtypes.filter(code => code !== subtypeCode)
+      : [...currentSubtypes, subtypeCode];
+
+    updatePreferences({ preferredSubtypes: updatedSubtypes });
+  };
+
+  const renderActivityTypesContent = () => {
+    if (activityTypesLoading) {
+      return (
+        <View style={styles.sectionContent}>
+          <ActivityIndicator size="small" color="#FF385C" />
+          <Text style={styles.loadingText}>Loading activity types...</Text>
+        </View>
+      );
+    }
+
+    if (activityTypes.length === 0) {
+      return (
+        <View style={styles.sectionContent}>
+          <Text style={styles.emptyText}>No activity types available</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.sectionContent}>
+        {activityTypes.map((type) => {
+          const isTypeSelected = preferences?.preferredActivityTypes?.includes(type.code);
+          const isExpanded = expandedActivityTypes.has(type.code);
+          const hasSubtypes = type.subtypes && type.subtypes.length > 0;
+
+          return (
+            <View key={type.code} style={styles.activityTypeContainer}>
+              {/* Main activity type row */}
+              <View style={styles.activityTypeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.activityTypeChip,
+                    isTypeSelected && styles.activityTypeChipActive,
+                  ]}
+                  onPress={() => toggleActivityType(type.code)}
+                >
+                  <Icon
+                    name={type.iconName || 'tag'}
+                    size={18}
+                    color={isTypeSelected ? '#FFFFFF' : '#717171'}
+                  />
+                  <Text style={[
+                    styles.activityTypeText,
+                    isTypeSelected && styles.activityTypeTextActive,
+                  ]}>
+                    {type.name}
+                  </Text>
+                  <Text style={[
+                    styles.activityTypeCount,
+                    isTypeSelected && styles.activityTypeCountActive,
+                  ]}>
+                    ({type.activityCount})
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Expand button for subtypes */}
+                {hasSubtypes && (
+                  <TouchableOpacity
+                    style={styles.expandSubtypesButton}
+                    onPress={() => toggleActivityTypeExpand(type.code)}
+                  >
+                    <Icon
+                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color="#717171"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Subtypes (when expanded) */}
+              {isExpanded && hasSubtypes && (
+                <View style={styles.subtypesContainer}>
+                  {type.subtypes.map((subtype) => {
+                    const isSubtypeSelected = preferences?.preferredSubtypes?.includes(subtype.code);
+                    return (
+                      <TouchableOpacity
+                        key={subtype.code}
+                        style={[
+                          styles.subtypeChip,
+                          isSubtypeSelected && styles.subtypeChipActive,
+                        ]}
+                        onPress={() => toggleSubtype(subtype.code)}
+                      >
+                        <Text style={[
+                          styles.subtypeText,
+                          isSubtypeSelected && styles.subtypeTextActive,
+                        ]}>
+                          {subtype.name}
+                        </Text>
+                        <Text style={[
+                          styles.subtypeCount,
+                          isSubtypeSelected && styles.subtypeCountActive,
+                        ]}>
+                          ({subtype.activityCount})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderAgeContent = () => {
     const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
@@ -1805,6 +1943,98 @@ const styles = StyleSheet.create({
   },
   iosDatePicker: {
     height: 200,
+  },
+  // Activity type styles
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  activityTypeContainer: {
+    marginBottom: 12,
+  },
+  activityTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityTypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#DDDDDD',
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  activityTypeChipActive: {
+    borderColor: '#FF385C',
+    backgroundColor: '#FF385C',
+  },
+  activityTypeText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#222222',
+    flex: 1,
+  },
+  activityTypeTextActive: {
+    color: '#FFFFFF',
+  },
+  activityTypeCount: {
+    fontSize: 13,
+    color: '#717171',
+  },
+  activityTypeCountActive: {
+    color: 'rgba(255,255,255,0.8)',
+  },
+  expandSubtypesButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subtypesContainer: {
+    marginTop: 8,
+    marginLeft: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  subtypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    gap: 4,
+  },
+  subtypeChipActive: {
+    borderColor: '#FF385C',
+    backgroundColor: '#FEF2F2',
+  },
+  subtypeText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  subtypeTextActive: {
+    color: '#FF385C',
+  },
+  subtypeCount: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  subtypeCountActive: {
+    color: '#FF385C',
   },
 });
 

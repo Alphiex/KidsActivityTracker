@@ -11,14 +11,13 @@ async function seedDatabase() {
     console.log('📚 Creating activity types...');
     const activityTypes = [
       { code: 'swimming', name: 'Swimming', description: 'Water-based activities and swimming lessons', iconName: 'swimmer', displayOrder: 1 },
-      { code: 'sports', name: 'Sports', description: 'Team and individual sports activities', iconName: 'football', displayOrder: 2 },
-      { code: 'arts', name: 'Arts', description: 'Visual arts, crafts, and creative activities', iconName: 'palette', displayOrder: 3 },
-      { code: 'music', name: 'Music', description: 'Music lessons and performances', iconName: 'music-note', displayOrder: 4 },
-      { code: 'dance', name: 'Dance', description: 'Dance classes and performances', iconName: 'walk', displayOrder: 5 },
-      { code: 'martial-arts', name: 'Martial Arts', description: 'Karate, Kung Fu, and other martial arts', iconName: 'flash', displayOrder: 6 },
-      { code: 'education', name: 'Education', description: 'Educational programs and tutoring', iconName: 'book', displayOrder: 7 },
-      { code: 'camps', name: 'Camps', description: 'Day camps and holiday programs', iconName: 'home', displayOrder: 8 },
-      { code: 'outdoor', name: 'Outdoor', description: 'Outdoor adventures and nature activities', iconName: 'leaf', displayOrder: 9 }
+      { code: 'team-sports', name: 'Team Sports', description: 'Team-based sports like soccer, basketball, hockey', iconName: 'football', displayOrder: 2 },
+      { code: 'individual-sports', name: 'Individual Sports', description: 'Individual sports like tennis, golf, gymnastics', iconName: 'tennis', displayOrder: 3 },
+      { code: 'visual-arts', name: 'Visual Arts', description: 'Visual arts, crafts, and creative activities', iconName: 'palette', displayOrder: 4 },
+      { code: 'music', name: 'Music', description: 'Music lessons and performances', iconName: 'music-note', displayOrder: 5 },
+      { code: 'dance', name: 'Dance', description: 'Dance classes and performances', iconName: 'walk', displayOrder: 6 },
+      { code: 'martial-arts', name: 'Martial Arts', description: 'Karate, Kung Fu, and other martial arts', iconName: 'flash', displayOrder: 7 },
+      { code: 'camps', name: 'Camps', description: 'Day camps and holiday programs', iconName: 'home', displayOrder: 8 }
     ];
 
     for (const type of activityTypes) {
@@ -69,8 +68,8 @@ async function seedDatabase() {
         registrationUrl: 'https://example.com/register/soccer-001',
         registrationStatus: 'Open',
         spotsAvailable: 12,
-        activityType: 'Sports',
-        category: 'Sports',
+        activityType: 'Team Sports',
+        category: 'Team Sports',
         provider: 'North Vancouver Recreation & Culture'
       },
       {
