@@ -578,53 +578,6 @@ const ActivityDetailScreenModern = () => {
             )}
           </View>
 
-          {/* Location and Map */}
-          <View style={styles.locationSection}>
-            <View style={styles.locationHeader}>
-              <Icon name="map-marker" size={24} color={ModernColors.primary} />
-              <View style={styles.locationTextContainer}>
-                <Text style={styles.locationLabel}>Location</Text>
-                <Text style={styles.locationName}>
-                  {activity.locationName ||
-                   (typeof activity.location === 'string' ? activity.location : activity.location?.name) ||
-                   activity.fullAddress ||
-                   getFullAddress(activity) ||
-                   'Location not specified'}
-                </Text>
-                {activity.fullAddress && (activity.locationName || (typeof activity.location === 'string' ? activity.location : activity.location?.name)) && (
-                  <Text style={styles.locationAddress}>{activity.fullAddress}</Text>
-                )}
-              </View>
-            </View>
-
-            {/* Map */}
-            <View style={styles.mapContainer}>
-              <MapView
-                ref={mapRef}
-                style={styles.map}
-                initialRegion={{
-                  latitude: mapLat,
-                  longitude: mapLng,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={true}
-                zoomEnabled={true}
-                rotateEnabled={false}
-                pitchEnabled={false}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: mapLat,
-                    longitude: mapLng,
-                  }}
-                  title={activity.locationName || activity.name}
-                  description={activity.fullAddress || getFullAddress(activity)}
-                />
-              </MapView>
-            </View>
-          </View>
-
           {/* Description */}
           {(activity.fullDescription || activity.description) && (
             <View style={styles.sectionCard}>
@@ -1006,23 +959,6 @@ const styles = StyleSheet.create({
     fontSize: ModernTypography.sizes.base,
     fontWeight: '500',
     color: ModernColors.text,
-  },
-  locationSection: {
-    backgroundColor: ModernColors.surface,
-    borderRadius: ModernBorderRadius.lg,
-    marginBottom: ModernSpacing.lg,
-    overflow: 'hidden',
-    ...ModernShadows.sm,
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: ModernSpacing.lg,
-  },
-  locationLabel: {
-    fontSize: ModernTypography.sizes.sm,
-    color: ModernColors.textSecondary,
-    marginBottom: 4,
   },
   actionButtonsContainer: {
     marginBottom: ModernSpacing.xl,
