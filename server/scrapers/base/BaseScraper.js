@@ -156,15 +156,29 @@ class BaseScraper {
         });
 
         if (existingActivity) {
-          // Check for changes
-          const hasChanges = this.detectActivityChanges(existingActivity, activityWithTypes);
+          // Filter out manually edited fields from the update data
+          // These fields should not be overwritten by the scraper
+          const manuallyEditedFields = existingActivity.manuallyEditedFields || [];
+          const filteredActivityData = { ...activityWithTypes };
+
+          if (manuallyEditedFields.length > 0) {
+            for (const field of manuallyEditedFields) {
+              if (field in filteredActivityData) {
+                delete filteredActivityData[field];
+              }
+            }
+            console.log(`🔒 Protected ${manuallyEditedFields.length} manually edited field(s) for "${activity.name}": ${manuallyEditedFields.join(', ')}`);
+          }
+
+          // Check for changes (only comparing fields that will be updated)
+          const hasChanges = this.detectActivityChanges(existingActivity, filteredActivityData);
 
           if (hasChanges.changed) {
             // Update existing activity - fields were modified
             const updated = await this.prisma.activity.update({
               where: { id: existingActivity.id },
               data: {
-                ...activityWithTypes,
+                ...filteredActivityData,
                 isUpdated: true,  // Mark as updated since fields changed
                 isActive: true,   // Activity is active (seen in this scrape)
                 lastSeenAt: new Date(),

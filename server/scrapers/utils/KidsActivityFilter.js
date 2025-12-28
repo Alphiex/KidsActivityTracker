@@ -40,19 +40,28 @@ class KidsActivityFilter {
 
   // Patterns that indicate adult-only programs (should be excluded)
   static ADULT_ONLY_PATTERNS = [
-    /55\+/i,
-    /65\+/i,
-    /seniors?$/i,
-    /older\s*adults?/i,
-    /adult\s*only/i,
-    /adults?\s*\(?19\+\)?/i,
-    /adults?\s*\(?18\+\)?/i,
-    /adults?\s*\(?21\+\)?/i,
-    /19\s*years?\s*(and\s*over|\+|older)/i,
-    /18\s*years?\s*(and\s*over|\+|older)/i,
-    /mature\s*adult/i,
-    /retirement/i,
-    /active\s*aging/i
+    // Senior age patterns
+    /\b(50|55|60|65|70|75|80)\s*\+/i,
+    /\bfor\s*(50|55|60|65|70)\s*\+/i,
+    /\bseniors?\b/i,
+    /\bsenior\s*(citizen|adult)s?\b/i,
+    /\bolder\s*adults?\b/i,
+    /\bactive\s*aging\b/i,
+    /\bretirement\b/i,
+    /\bmature\s*adults?\b/i,
+    /\bgolden\s*(age|years)\b/i,
+
+    // Adult-only patterns
+    /\badults?\s*only\b/i,
+    /\badults?\s*\(?(18|19|21)\+?\)?/i,
+    /\b(18|19|21)\s*(?:years?\s*)?(and\s*over|\+|older)/i,
+    /\bover\s*(18|19|21)\b/i,
+    /\b(18|19|21)\s*y(?:ears?)?\s*\+/i,
+
+    // Age-restricted patterns
+    /\bage\s*(18|19|21)\s*(and\s*over|\+)/i,
+    /\bages?\s*(18|19|21)\s*-\s*\d+/i,
+    /\bminimum\s*age\s*(18|19|21)/i
   ];
 
   // Age keywords to extract from activity names/descriptions
@@ -107,31 +116,109 @@ class KidsActivityFilter {
    * @returns {boolean} - True if activity is for kids
    */
   static isKidsActivity(activity) {
-    const ageMin = activity.ageMin ?? activity.ageRange?.min ?? 0;
-    const ageMax = activity.ageMax ?? activity.ageRange?.max ?? null;
+    // Check if already flagged as adult activity by DataNormalizer
+    if (activity.isAdultActivity === true) {
+      return false;
+    }
 
-    // If no age info, check name/category for patterns
-    if (ageMax === null) {
-      const name = (activity.name || '').toLowerCase();
-      const category = (activity.category || '').toLowerCase();
-      const combined = `${name} ${category}`;
+    const name = (activity.name || '');
+    const category = (activity.category || '');
+    const combined = `${name} ${category}`;
 
-      // Exclude if explicitly adult
-      if (this.ADULT_ONLY_PATTERNS.some(pattern => pattern.test(combined))) {
+    // FIRST: Extract age from activity name - most reliable
+    const nameAge = this.extractAgeFromName(name);
+    if (nameAge) {
+      // If name clearly indicates adult activity
+      if (nameAge.min > this.MAX_KIDS_AGE) {
         return false;
       }
-
-      // Include if matches kids patterns
-      if (this.KIDS_CATEGORY_PATTERNS.some(pattern => pattern.test(combined))) {
+      // If name indicates kids activity
+      if (nameAge.min <= this.MAX_KIDS_AGE) {
         return true;
       }
+    }
 
-      // Default to include (benefit of the doubt)
+    // SECOND: Check for adult-only patterns in name/category
+    if (this.ADULT_ONLY_PATTERNS.some(pattern => pattern.test(combined))) {
+      return false;
+    }
+
+    // THIRD: Use explicit age fields if available
+    const ageMin = activity.ageMin ?? activity.ageRange?.min ?? null;
+    const ageMax = activity.ageMax ?? activity.ageRange?.max ?? null;
+
+    if (ageMin !== null) {
+      // If minimum age is above our threshold, it's an adult activity
+      if (ageMin > this.MAX_KIDS_AGE) {
+        return false;
+      }
+      // If min age is appropriate for kids
       return true;
     }
 
-    // Include if any part of age range includes kids (min starts at 18 or below)
-    return ageMin <= this.MAX_KIDS_AGE;
+    // FOURTH: Check for kids category patterns
+    if (this.KIDS_CATEGORY_PATTERNS.some(pattern => pattern.test(combined))) {
+      return true;
+    }
+
+    // Default to include (benefit of the doubt for activities without clear age info)
+    return true;
+  }
+
+  /**
+   * Extract age range specifically from activity name
+   * @param {string} name - Activity name
+   * @returns {Object|null} - { min, max } or null if not found
+   */
+  static extractAgeFromName(name) {
+    if (!name) return null;
+
+    // Check for senior/adult patterns first
+    const seniorMatch = name.match(/\b(50|55|60|65|70|75|80)\s*\+/i);
+    if (seniorMatch) {
+      return { min: parseInt(seniorMatch[1]), max: 99 };
+    }
+
+    // Check for 18+, 19+, 21+ patterns
+    const adultMatch = name.match(/\b(18|19|21)\s*(?:y(?:ears?)?)?\s*\+/i);
+    if (adultMatch) {
+      return { min: parseInt(adultMatch[1]), max: 99 };
+    }
+
+    // Check for "(4-10Y)" or "(3-5Y)" format
+    const yFormatMatch = name.match(/\((\d+)\s*-\s*(\d+)\s*Y\)/i);
+    if (yFormatMatch) {
+      return { min: parseInt(yFormatMatch[1]), max: parseInt(yFormatMatch[2]) };
+    }
+
+    // Check for "(5-13yrs)" format
+    const yrsFormatMatch = name.match(/\((\d+)\s*-\s*(\d+)\s*(?:yrs?|years?)\)/i);
+    if (yrsFormatMatch) {
+      return { min: parseInt(yrsFormatMatch[1]), max: parseInt(yrsFormatMatch[2]) };
+    }
+
+    // Check for "(5-13)" format (just numbers in parentheses)
+    const parenMatch = name.match(/\((\d+)\s*-\s*(\d+)\)/);
+    if (parenMatch) {
+      const min = parseInt(parenMatch[1]);
+      const max = parseInt(parenMatch[2]);
+      // Only use if it looks like an age range (not a year or other number)
+      if (min >= 0 && min <= 99 && max <= 99 && min < max) {
+        return { min, max };
+      }
+    }
+
+    // Check for "7-12 Beginners" pattern (age range at start of name)
+    const startMatch = name.match(/^(\d+)\s*-\s*(\d+)\s+/);
+    if (startMatch) {
+      const min = parseInt(startMatch[1]);
+      const max = parseInt(startMatch[2]);
+      if (min >= 0 && min <= 18 && max <= 99) {
+        return { min, max };
+      }
+    }
+
+    return null;
   }
 
   /**

@@ -28,6 +28,7 @@ import analyticsRoutes from './routes/analytics';
 import adminSponsorsRoutes from './routes/adminSponsors';
 import sponsorPortalRoutes from './routes/sponsorPortal';
 import adminRoutes from './routes/admin';
+import adminActivitiesRoutes from './routes/adminActivities';
 import vendorRoutes from './routes/vendor';
 
 // Import services
@@ -168,6 +169,9 @@ app.use('/api/admin', adminRoutes);
 
 // Admin sponsor management routes
 app.use('/api/admin/sponsors', adminSponsorsRoutes);
+
+// Admin activity management routes
+app.use('/api/admin/activities', adminActivitiesRoutes);
 
 // Sponsor self-service portal routes
 app.use('/api/sponsor', sponsorPortalRoutes);

@@ -74,6 +74,11 @@ model Activity {
   importedAt             DateTime?
   lastImportedAt         DateTime?
 
+  // Manual edit protection - prevents scrapers from overwriting admin edits
+  manuallyEditedFields   String[]               @default([])  // Field names that were manually edited
+  manuallyEditedAt       DateTime?                            // When last manually edited
+  manuallyEditedBy       String?                              // Admin who made the edit
+
   activitySubtype        ActivitySubtype?       @relation(fields: [activitySubtypeId], references: [id])
   activityType           ActivityType?          @relation(fields: [activityTypeId], references: [id])
   location               Location?              @relation(fields: [locationId], references: [id])

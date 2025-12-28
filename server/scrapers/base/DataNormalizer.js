@@ -84,9 +84,10 @@ class DataNormalizer {
       totalSpots: this.normalizeNumber(this.mapField(rawActivity, fieldMapping.totalSpots)),
       registrationStatus: this.normalizeRegistrationStatus(this.mapField(rawActivity, fieldMapping.registrationStatus)),
       
-      // Demographics
-      ageMin: this.normalizeAge(this.mapField(rawActivity, fieldMapping.ageMin)),
-      ageMax: this.normalizeAge(this.mapField(rawActivity, fieldMapping.ageMax)),
+      // Demographics - will be set below with priority logic
+      ageMin: null,
+      ageMax: null,
+      isAdultActivity: false,
       
       // Location
       locationName: this.mapField(rawActivity, fieldMapping.locationName),
@@ -107,19 +108,70 @@ class DataNormalizer {
       rawData: rawActivity
     };
 
-    // Parse age range if not provided separately
-    if (!normalized.ageMin && !normalized.ageMax) {
-      const ageRange = this.extractAgeRange(rawActivity);
-      if (ageRange) {
-        normalized.ageMin = ageRange.min;
-        normalized.ageMax = ageRange.max;
+    // PRIORITY 1: Extract age from activity NAME first - most reliable source
+    // This catches patterns like "(4-10Y)", "55+", "Seniors", etc. in the name
+    const nameAgeRange = this.extractAgeFromName(normalized.name);
+    if (nameAgeRange) {
+      if (nameAgeRange.isAdult) {
+        // Mark as adult activity for filtering
+        normalized.isAdultActivity = true;
+        normalized.ageMin = nameAgeRange.min;
+        normalized.ageMax = nameAgeRange.max;
+      } else {
+        // Valid kids activity with ages in name
+        normalized.ageMin = nameAgeRange.min;
+        normalized.ageMax = Math.min(nameAgeRange.max, 18);
       }
     }
 
-    // Fallback: derive age from category if still not found
-    if (!normalized.ageMin && !normalized.ageMax && normalized.category) {
+    // PRIORITY 2: Use field-mapped ages only if name didn't have any
+    if (!normalized.ageMin && !normalized.ageMax && !normalized.isAdultActivity) {
+      const mappedMin = this.normalizeAge(this.mapField(rawActivity, fieldMapping.ageMin));
+      const mappedMax = this.normalizeAge(this.mapField(rawActivity, fieldMapping.ageMax));
+
+      // Check if mapped ages indicate adult activity (normalizeAge returns null for >18)
+      // So we need to check raw values too
+      const rawAgeMin = this.mapField(rawActivity, fieldMapping.ageMin);
+      const rawAgeMax = this.mapField(rawActivity, fieldMapping.ageMax);
+
+      if (rawAgeMin) {
+        const rawMinNum = parseInt(String(rawAgeMin));
+        if (rawMinNum > 18) {
+          normalized.isAdultActivity = true;
+          normalized.ageMin = rawMinNum;
+          normalized.ageMax = rawAgeMax ? parseInt(String(rawAgeMax)) : 99;
+        }
+      }
+
+      if (!normalized.isAdultActivity) {
+        normalized.ageMin = mappedMin;
+        normalized.ageMax = mappedMax;
+      }
+    }
+
+    // PRIORITY 3: Extract from description/category text if still not found
+    if (!normalized.ageMin && !normalized.ageMax && !normalized.isAdultActivity) {
+      const ageRange = this.extractAgeRange(rawActivity);
+      if (ageRange) {
+        if (ageRange.isAdult) {
+          normalized.isAdultActivity = true;
+          normalized.ageMin = ageRange.min;
+          normalized.ageMax = ageRange.max;
+        } else {
+          normalized.ageMin = ageRange.min;
+          normalized.ageMax = ageRange.max;
+        }
+      }
+    }
+
+    // PRIORITY 4: Derive age from category if still not found
+    if (!normalized.ageMin && !normalized.ageMax && !normalized.isAdultActivity && normalized.category) {
       const derivedAge = this.deriveAgeFromCategory(normalized.category, normalized.subcategory);
       if (derivedAge) {
+        // Check if derived age is for adults
+        if (derivedAge.min > 18) {
+          normalized.isAdultActivity = true;
+        }
         normalized.ageMin = derivedAge.min;
         normalized.ageMax = derivedAge.max;
       }
@@ -495,11 +547,15 @@ class DataNormalizer {
   }
 
   /**
-   * Extract age range from text
+   * Extract age range from activity text - returns raw ages without filtering
+   * This allows detecting adult activities (55+, etc.) for exclusion
    * @param {Object} rawActivity - Raw activity data
-   * @returns {Object|null} - Age range {min, max} or null
+   * @param {Object} options - Options: { capAt18: boolean, returnAdult: boolean }
+   * @returns {Object|null} - Age range {min, max, isAdult} or null
    */
-  static extractAgeRange(rawActivity) {
+  static extractAgeRange(rawActivity, options = {}) {
+    const { capAt18 = true, returnAdult = false } = options;
+
     // Look for age information in various fields
     const textFields = [
       rawActivity.name,
@@ -517,18 +573,22 @@ class DataNormalizer {
     const patterns = [
       // "Age: 2 to 3 y 12m" - PerfectMind format with months
       /age:\s*(\d+)\s*(?:y)?\s*(?:\d+\s*m)?\s*to\s*(\d+)\s*y/i,
-      // "(0-6yrs)" or "(5-13yrs)" - common format in activity names
-      /\((\d+)\s*-\s*(\d+)\s*(?:yrs?|years?)\)/i,
-      // "1-5yrs" or "1-5 yrs" in activity name
-      /(\d+)\s*-\s*(\d+)\s*(?:yrs?|years?)/i,
-      // "5 to 13 years"
-      /(\d+)\s*to\s*(\d+)\s*(?:years?|yrs?)/i,
+      // "(0-6yrs)" or "(5-13yrs)" or "(4-10Y)" - common format in activity names
+      /\((\d+)\s*-\s*(\d+)\s*(?:yrs?|years?|y)\)/i,
+      // "1-5yrs" or "1-5 yrs" or "1-5Y" in activity name
+      /(\d+)\s*-\s*(\d+)\s*(?:yrs?|years?|y)\b/i,
+      // "5 to 13 years" or "5 to 13 yrs"
+      /(\d+)\s*to\s*(\d+)\s*(?:years?|yrs?|y)\b/i,
       // "ages 5-13"
       /ages?\s*(\d+)\s*-\s*(\d+)/i,
       // "ages 5 to 13"
       /ages?\s*(\d+)\s*to\s*(\d+)/i,
       // "Age: 5-13" or "Age: 5 - 13"
-      /age:\s*(\d+)\s*(?:-|to)\s*(\d+)/i
+      /age:\s*(\d+)\s*(?:-|–|to)\s*(\d+)/i,
+      // "(5-13)" - parentheses with just numbers
+      /\((\d+)\s*-\s*(\d+)\)/,
+      // "5-13" at the start of name or after space (like "7-12 Beginners")
+      /(?:^|\s)(\d+)\s*-\s*(\d+)(?:\s|$)/
     ];
 
     for (const pattern of patterns) {
@@ -537,24 +597,120 @@ class DataNormalizer {
         const min = parseInt(match[1]);
         const max = parseInt(match[2]);
         if (min <= max && min >= 0 && max <= 99) {
-          // Cap at 18 for children's activities
-          return { min, max: Math.min(max, 18) };
+          const isAdult = min > 18 || (min >= 18 && max > 25);
+
+          // If it's an adult activity, only return if returnAdult is true
+          if (isAdult && !returnAdult) {
+            return { min, max, isAdult: true };
+          }
+
+          // Cap at 18 for children's activities if requested
+          return {
+            min,
+            max: capAt18 ? Math.min(max, 18) : max,
+            isAdult
+          };
         }
       }
     }
 
-    // Check for single age patterns
+    // Check for single age patterns like "55+" or "18+"
     const singleAgePatterns = [
       /(\d+)\s*(?:yrs?|years?)\s*(?:&|and)\s*(?:up|older|above)/i, // "5yrs & up"
-      /(\d+)\s*\+/i // "5+"
+      /(\d+)\s*\+/i, // "55+" or "18+"
+      /(\d+)\s*(?:yrs?|years?)\s*\+/i // "55 yrs+"
     ];
 
     for (const pattern of singleAgePatterns) {
       const match = fullText.match(pattern);
       if (match) {
         const min = parseInt(match[1]);
-        if (min >= 0 && min <= 18) {
-          return { min, max: 18 };
+        if (min >= 0) {
+          const isAdult = min > 18;
+
+          // If it's an adult activity (55+, 18+, etc.)
+          if (isAdult) {
+            if (returnAdult) {
+              return { min, max: 99, isAdult: true };
+            }
+            // Return the flag so caller knows this is an adult activity
+            return { min, max: 99, isAdult: true };
+          }
+
+          // Kids activity with min age
+          return { min, max: 18, isAdult: false };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract age specifically from activity name - most reliable source
+   * @param {String} activityName - The activity name
+   * @returns {Object|null} - Age range {min, max, isAdult} or null
+   */
+  static extractAgeFromName(activityName) {
+    if (!activityName) return null;
+
+    const name = activityName.toLowerCase();
+
+    // Check for explicit adult keywords first
+    const adultKeywords = [
+      /\b(55|60|65|70)\s*\+/,          // Senior ages
+      /\bseniors?\b/i,                  // "Seniors" or "Senior"
+      /\badults?\s+only\b/i,            // "Adults Only"
+      /\b(19|20|21)\s*\+/,              // Adult minimum ages
+      /\bover\s*(18|19|21)\b/i          // "Over 18", "Over 21"
+    ];
+
+    for (const pattern of adultKeywords) {
+      if (pattern.test(activityName)) {
+        const match = activityName.match(/(\d+)\s*\+/);
+        const min = match ? parseInt(match[1]) : 18;
+        return { min, max: 99, isAdult: true };
+      }
+    }
+
+    // Pattern priority for name parsing (most specific first)
+    const namePatterns = [
+      // "(4-10Y)" or "(3-5Y)" format
+      { pattern: /\((\d+)\s*-\s*(\d+)\s*Y\)/i, type: 'range' },
+      // "(5-13yrs)" or "(5-13 yrs)"
+      { pattern: /\((\d+)\s*-\s*(\d+)\s*(?:yrs?|years?)\)/i, type: 'range' },
+      // "(5-13)" just numbers in parentheses
+      { pattern: /\((\d+)\s*-\s*(\d+)\)/i, type: 'range' },
+      // "7-12 Beginners" - age range at start
+      { pattern: /^(\d+)\s*-\s*(\d+)\s+/i, type: 'range' },
+      // "Kids 5-12" or "Youth 13-17"
+      { pattern: /(?:kids?|youth|children|teens?)\s*(?:\()?(\d+)\s*-\s*(\d+)/i, type: 'range' },
+      // "(6-8Y)" single letter Y
+      { pattern: /(\d+)\s*-\s*(\d+)\s*Y\b/i, type: 'range' },
+      // "18Y+" or "12Y+"
+      { pattern: /(\d+)\s*Y\s*\+/i, type: 'plus' },
+      // "12+" or "18+"
+      { pattern: /(\d+)\s*\+/, type: 'plus' },
+      // "Teens/Adults 12yrs+"
+      { pattern: /(\d+)\s*(?:yrs?|years?)\s*\+/i, type: 'plus' }
+    ];
+
+    for (const { pattern, type } of namePatterns) {
+      const match = activityName.match(pattern);
+      if (match) {
+        if (type === 'range') {
+          const min = parseInt(match[1]);
+          const max = parseInt(match[2]);
+          if (min <= max && min >= 0 && max <= 99) {
+            const isAdult = min > 18 || (min >= 18 && max > 25);
+            return { min, max, isAdult };
+          }
+        } else if (type === 'plus') {
+          const min = parseInt(match[1]);
+          if (min >= 0) {
+            const isAdult = min > 18;
+            return { min, max: isAdult ? 99 : 18, isAdult };
+          }
         }
       }
     }
