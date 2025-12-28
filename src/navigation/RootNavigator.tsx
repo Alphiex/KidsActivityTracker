@@ -245,7 +245,8 @@ const MainTabs = () => {
 const RootNavigator = () => {
   console.log('RootNavigator rendering');
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isLoading: authLoading } = useAppSelector((state) => state.auth);
+  const isAuthenticated = useAppSelector((state) => state.auth?.isAuthenticated ?? false);
+  const authLoading = useAppSelector((state) => state.auth?.isLoading ?? true);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const { isDark, colors } = useTheme();

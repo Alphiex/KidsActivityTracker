@@ -96,7 +96,7 @@ const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
 
-  const config = FEATURE_CONFIGS[feature];
+  const config = FEATURE_CONFIGS[feature] || FEATURE_CONFIGS.favorites;
 
   // Track when modal is shown
   useEffect(() => {

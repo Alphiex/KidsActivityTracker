@@ -60,7 +60,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
   const ITEMS_PER_PAGE = 50;
 
-  const { user } = useAppSelector((state) => state.auth);
+  const user = useAppSelector((state) => state.auth?.user);
 
   const getConfig = () => {
     if (type === 'favorites') {

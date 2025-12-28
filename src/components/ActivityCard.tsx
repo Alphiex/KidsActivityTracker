@@ -314,7 +314,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>{formatActivityPrice(activity.cost)}</Text>
-            {activity.cost && activity.cost > 0 && <Text style={styles.priceLabel}>per child</Text>}
+            {activity.cost !== null && activity.cost !== undefined && activity.cost > 0 && <Text style={styles.priceLabel}>per child</Text>}
           </View>
         </View>
         <TouchableOpacity

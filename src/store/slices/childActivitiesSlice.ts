@@ -240,21 +240,21 @@ const childActivitiesSlice = createSlice({
 
 export const { clearError, clearChildActivities } = childActivitiesSlice.actions;
 
-// Selectors
-export const selectChildActivities = (childId: string) => (state: RootState) => 
-  state.childActivities.childActivities[childId] || [];
+// Selectors - with null safety for when slice hasn't loaded yet
+export const selectChildActivities = (childId: string) => (state: RootState) =>
+  state.childActivities?.childActivities?.[childId] || [];
 
-export const selectActivityChildren = (activityId: string) => (state: RootState) => 
-  state.childActivities.activityChildren[activityId] || [];
+export const selectActivityChildren = (activityId: string) => (state: RootState) =>
+  state.childActivities?.activityChildren?.[activityId] || [];
 
 export const selectChildActivityStatus = (childId: string, activityId: string) => (state: RootState) => {
-  const childActivities = state.childActivities.childActivities[childId];
+  const childActivities = state.childActivities?.childActivities?.[childId];
   if (!childActivities) return null;
   const activity = childActivities.find(ca => ca.activityId === activityId);
   return activity?.status || null;
 };
 
-export const selectChildActivitiesLoading = (state: RootState) => state.childActivities.loading;
-export const selectChildActivitiesError = (state: RootState) => state.childActivities.error;
+export const selectChildActivitiesLoading = (state: RootState) => state.childActivities?.loading ?? false;
+export const selectChildActivitiesError = (state: RootState) => state.childActivities?.error ?? null;
 
 export default childActivitiesSlice.reducer;

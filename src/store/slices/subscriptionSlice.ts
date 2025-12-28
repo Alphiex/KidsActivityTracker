@@ -304,66 +304,66 @@ export const {
 
 export default subscriptionSlice.reducer;
 
-// Selectors
-export const selectSubscription = (state: { subscription: SubscriptionState }) =>
+// Selectors - with null safety for when subscription slice hasn't loaded yet
+export const selectSubscription = (state: { subscription?: SubscriptionState }) =>
   state.subscription;
 
-export const selectCurrentTier = (state: { subscription: SubscriptionState }): SubscriptionTier =>
-  state.subscription.currentPlan?.code || 'free';
+export const selectCurrentTier = (state: { subscription?: SubscriptionState }): SubscriptionTier =>
+  state.subscription?.currentPlan?.code || 'free';
 
-export const selectIsPremium = (state: { subscription: SubscriptionState }): boolean =>
-  state.subscription.currentPlan?.code === 'premium';
+export const selectIsPremium = (state: { subscription?: SubscriptionState }): boolean =>
+  state.subscription?.currentPlan?.code === 'premium';
 
-export const selectIsTrialing = (state: { subscription: SubscriptionState }): boolean =>
-  state.subscription.isTrialing;
+export const selectIsTrialing = (state: { subscription?: SubscriptionState }): boolean =>
+  state.subscription?.isTrialing ?? false;
 
-export const selectLimits = (state: { subscription: SubscriptionState }): PlanFeatures =>
-  state.subscription.limits || DEFAULT_FREE_LIMITS;
+export const selectLimits = (state: { subscription?: SubscriptionState }): PlanFeatures =>
+  state.subscription?.limits || DEFAULT_FREE_LIMITS;
 
-export const selectUsage = (state: { subscription: SubscriptionState }): SubscriptionUsage | null =>
-  state.subscription.usage;
+export const selectUsage = (state: { subscription?: SubscriptionState }): SubscriptionUsage | null =>
+  state.subscription?.usage ?? null;
 
-export const selectCanAddChild = (state: { subscription: SubscriptionState }): boolean => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription.usage;
+export const selectCanAddChild = (state: { subscription?: SubscriptionState }): boolean => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
   return !usage || usage.childrenCount < limits.maxChildren;
 };
 
-export const selectCanAddFavorite = (state: { subscription: SubscriptionState }): boolean => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription.usage;
+export const selectCanAddFavorite = (state: { subscription?: SubscriptionState }): boolean => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
   return !usage || usage.favoritesCount < limits.maxFavorites;
 };
 
-export const selectCanShare = (state: { subscription: SubscriptionState }): boolean => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription.usage;
+export const selectCanShare = (state: { subscription?: SubscriptionState }): boolean => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
   return !usage || usage.sharedUsersCount < limits.maxSharedUsers;
 };
 
 export const selectHasFeature = (
-  state: { subscription: SubscriptionState },
+  state: { subscription?: SubscriptionState },
   feature: keyof PlanFeatures
 ): boolean => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
   const value = limits[feature];
   return typeof value === 'boolean' ? value : value > 0;
 };
 
-export const selectChildrenRemaining = (state: { subscription: SubscriptionState }): number => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription.usage;
+export const selectChildrenRemaining = (state: { subscription?: SubscriptionState }): number => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
   return Math.max(0, limits.maxChildren - (usage?.childrenCount || 0));
 };
 
-export const selectFavoritesRemaining = (state: { subscription: SubscriptionState }): number => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription.usage;
+export const selectFavoritesRemaining = (state: { subscription?: SubscriptionState }): number => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
   return Math.max(0, limits.maxFavorites - (usage?.favoritesCount || 0));
 };
 
-export const selectSharesRemaining = (state: { subscription: SubscriptionState }): number => {
-  const limits = state.subscription.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription.usage;
+export const selectSharesRemaining = (state: { subscription?: SubscriptionState }): number => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
   return Math.max(0, limits.maxSharedUsers - (usage?.sharedUsersCount || 0));
 };
