@@ -68,7 +68,7 @@ const FeaturedPartnersScreen: React.FC = () => {
           return next;
         });
       } else {
-        await favoritesService.addFavorite(activity.id);
+        await favoritesService.addFavorite(activity);
         setFavoriteIds(prev => new Set(prev).add(activity.id));
       }
     } catch (error) {
