@@ -4,29 +4,44 @@
 
 const consolidationMap = {
   // Swimming activities
-  'Swimming': ['Swimming', 'Private Lessons Swimming', 'Swimming - Aquatic Leadership', 'Swim.*'],
-  
-  // Music activities  
+  'Swimming & Aquatics': ['Swimming', 'Private Lessons Swimming', 'Swimming - Aquatic Leadership', 'Swim.*', 'Aquatic.*'],
+
+  // Music activities
   'Music': ['Music', 'Private Lessons Music'],
-  
-  // Sports (keep general sports separate from specific sports)
-  'Sports': ['Sports'],
-  
+
+  // Team Sports
+  'Team Sports': ['Soccer', 'Basketball', 'Volleyball', 'Baseball', 'Hockey', 'Football', 'Lacrosse'],
+
+  // Individual Sports
+  'Individual Sports': ['Golf', 'Archery', 'Fencing', 'Track', 'Running'],
+
+  // Racquet Sports
+  'Racquet Sports': ['Tennis', 'Badminton', 'Squash', 'Pickleball'],
+
   // Skating
-  'Skating': ['Skating', 'Skate.*'],
-  
+  'Skating & Wheels': ['Skating', 'Skate.*', 'Roller.*', 'Skateboard.*'],
+
   // Visual Arts
-  'Visual Arts': ['Visual Arts', 'Arts Visual.*'],
-  
+  'Visual Arts': ['Visual Arts', 'Arts Visual.*', 'Art', 'Paint.*', 'Draw.*', 'Pottery', 'Craft.*'],
+
   // Dance
-  'Dance': ['Dance', 'Ballet', 'Hip Hop', 'Arts Dance.*'],
-  
+  'Dance': ['Dance', 'Ballet', 'Hip Hop', 'Arts Dance.*', 'Jazz', 'Tap'],
+
   // Martial Arts
-  'Martial Arts': ['Martial Arts', 'Karate', 'Taekwondo', 'Judo'],
-  
+  'Martial Arts': ['Martial Arts', 'Karate', 'Taekwondo', 'Judo', 'Kung Fu'],
+
   // Camps
   'Camps': ['Part Day Camp', 'Full Day Camp', 'Day Camp.*', 'Camp.*'],
-  
+
+  // Gymnastics
+  'Gymnastics & Movement': ['Gymnastics', 'Tumbl.*', 'Acro.*', 'Trampoline'],
+
+  // STEM
+  'STEM & Education': ['Science', 'Coding', 'Robot.*', 'STEM', 'Engineering'],
+
+  // Fitness
+  'Fitness & Wellness': ['Fitness', 'Yoga', 'Pilates', 'Workout'],
+
   // Everything else stays as is
 };
 
