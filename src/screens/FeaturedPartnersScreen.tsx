@@ -174,7 +174,7 @@ const FeaturedPartnersScreen: React.FC = () => {
           <Image source={imageSource} style={styles.cardImage} />
 
           {/* Featured badge */}
-          {activity.sponsorTier && (
+          {activity.isFeatured && (
             <View style={styles.featuredBadge}>
               <Icon name="star" size={10} color="#FFF" />
               <Text style={styles.featuredBadgeText}>FEATURED</Text>

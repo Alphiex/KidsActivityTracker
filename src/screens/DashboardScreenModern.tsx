@@ -663,8 +663,8 @@ const DashboardScreenModern = () => {
             </View>
           )}
 
-          {/* Featured badge for sponsored activities */}
-          {activity.sponsorTier && (
+          {/* Featured badge for featured partner activities */}
+          {activity.isFeatured && (
             <View style={styles.featuredBadge}>
               <Icon name="star" size={10} color="#FFF" />
               <Text style={styles.featuredBadgeText}>FEATURED</Text>

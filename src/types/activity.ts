@@ -81,11 +81,11 @@ export interface Activity {
   popularityCount?: number;
   createdAt?: Date | string;
 
-  // Sponsor fields
-  isSponsor?: boolean;
-  sponsorTier?: 'gold' | 'silver' | 'bronze';
-  sponsorStartDate?: Date | string;
-  sponsorEndDate?: Date | string;
+  // Featured partner fields
+  isFeatured?: boolean;
+  featuredTier?: 'gold' | 'silver' | 'bronze';
+  featuredStartDate?: Date | string;
+  featuredEndDate?: Date | string;
 }
 
 export interface Location {

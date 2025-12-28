@@ -277,6 +277,10 @@ const ActivityDetailScreenModern = () => {
   const getAgeRange = () => {
     // First check if we have proper ageRange data from API
     if (activity.ageRange && activity.ageRange.min !== undefined && activity.ageRange.max !== undefined) {
+      // Check for "All Ages" pattern (0-99 or similar wide range)
+      if (activity.ageRange.min === 0 && activity.ageRange.max >= 99) {
+        return 'All Ages';
+      }
       // Validate it's not the default 0-18 fallback when there's specific age info in the name
       if (activity.ageRange.min === 0 && activity.ageRange.max === 18) {
         // Try to parse from name/description first
@@ -531,23 +535,25 @@ const ActivityDetailScreenModern = () => {
                   <Text style={styles.detailLabel}>Cost</Text>
                   <Text style={styles.detailValue}>
                     {formatActivityPrice(activity.cost)}
-                    {activity.cost && activity.cost > 0 && activity.costIncludesTax === false && ' + tax'}
+                    {activity.cost !== null && activity.cost !== undefined && activity.cost > 0 && activity.costIncludesTax === false && ' + tax'}
                   </Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
-                <Icon name="account-group" size={20} color={ModernColors.primary} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Available Spots</Text>
-                  <Text style={styles.detailValue}>
-                    {activity.spotsAvailable || 0}
-                    {activity.totalSpots ? `/${activity.totalSpots}` : ''}
-                  </Text>
+              {(activity.spotsAvailable !== null && activity.spotsAvailable !== undefined) && (
+                <View style={styles.detailItem}>
+                  <Icon name="account-group" size={20} color={ModernColors.primary} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Available Spots</Text>
+                    <Text style={styles.detailValue}>
+                      {activity.spotsAvailable}
+                      {activity.totalSpots ? `/${activity.totalSpots}` : ''}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
               <View style={styles.detailItem}>
                 <Icon name="account" size={20} color={ModernColors.primary} />

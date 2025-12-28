@@ -305,6 +305,12 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.imageGradient}
         />
+        {activity.isFeatured && (
+          <View style={[styles.featuredBadge, activity.featuredTier === 'gold' ? styles.featuredGold : activity.featuredTier === 'silver' ? styles.featuredSilver : styles.featuredBronze]}>
+            <Icon name="star" size={12} color="#FFF" />
+            <Text style={styles.featuredText}>Featured</Text>
+          </View>
+        )}
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>{formatActivityPrice(activity.cost)}</Text>
@@ -466,35 +472,37 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
         <View style={styles.bottomSection}>
           <View style={styles.spotsContainer}>
-            {activity.spotsAvailable === 0 ? (
-              <View style={styles.fullBadge}>
-                <Text style={styles.fullText}>FULL</Text>
-              </View>
-            ) : (activity.spotsAvailable ?? 0) <= 3 && activity.spotsAvailable !== undefined ? (
-              <View style={[styles.limitedBadge, { backgroundColor: getCapacityColor(activity.spotsAvailable ?? 0) + '20' }]}>
-                <Icon name="alert-circle" size={14} color={getCapacityColor(activity.spotsAvailable ?? 0)} />
-                <Text style={[styles.limitedText, { color: getCapacityColor(activity.spotsAvailable ?? 0) }]}>
-                  Only {activity.spotsAvailable} {activity.spotsAvailable === 1 ? 'spot' : 'spots'} left!
-                </Text>
-                {hasCapacityAlert && (
-                  <Icon name="bell-ring" size={14} color={getCapacityColor(activity.spotsAvailable ?? 0)} style={{ marginLeft: 4 }} />
-                )}
-              </View>
-            ) : (activity.spotsAvailable ?? 0) <= 5 && activity.spotsAvailable !== undefined ? (
-              <View style={styles.limitedBadge}>
-                <Icon name="alert-circle" size={14} color={Colors.warning} />
-                <Text style={styles.limitedText}>
-                  Only {activity.spotsAvailable} spots left!
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.availableBadge}>
-                <Icon name="check-circle" size={14} color={Colors.success} />
-                <Text style={styles.availableText}>
-                  {activity.spotsAvailable} spots available
-                </Text>
-              </View>
-            )}
+            {activity.spotsAvailable !== null && activity.spotsAvailable !== undefined ? (
+              activity.spotsAvailable === 0 ? (
+                <View style={styles.fullBadge}>
+                  <Text style={styles.fullText}>FULL</Text>
+                </View>
+              ) : activity.spotsAvailable <= 3 ? (
+                <View style={[styles.limitedBadge, { backgroundColor: getCapacityColor(activity.spotsAvailable) + '20' }]}>
+                  <Icon name="alert-circle" size={14} color={getCapacityColor(activity.spotsAvailable)} />
+                  <Text style={[styles.limitedText, { color: getCapacityColor(activity.spotsAvailable) }]}>
+                    Only {activity.spotsAvailable} {activity.spotsAvailable === 1 ? 'spot' : 'spots'} left!
+                  </Text>
+                  {hasCapacityAlert && (
+                    <Icon name="bell-ring" size={14} color={getCapacityColor(activity.spotsAvailable)} style={{ marginLeft: 4 }} />
+                  )}
+                </View>
+              ) : activity.spotsAvailable <= 5 ? (
+                <View style={styles.limitedBadge}>
+                  <Icon name="alert-circle" size={14} color={Colors.warning} />
+                  <Text style={styles.limitedText}>
+                    Only {activity.spotsAvailable} spots left!
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.availableBadge}>
+                  <Icon name="check-circle" size={14} color={Colors.success} />
+                  <Text style={styles.availableText}>
+                    {activity.spotsAvailable} spots available
+                  </Text>
+                </View>
+              )
+            ) : null}
           </View>
 
           <View style={styles.activityIcons}>
@@ -606,6 +614,38 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  featuredBadge: {
+    position: 'absolute',
+    top: Theme.spacing.sm,
+    left: Theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  featuredGold: {
+    backgroundColor: '#FFB800',
+  },
+  featuredSilver: {
+    backgroundColor: '#8E8E93',
+  },
+  featuredBronze: {
+    backgroundColor: '#CD7F32',
+  },
+  featuredText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   content: {
     padding: Theme.spacing.md,

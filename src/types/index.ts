@@ -86,9 +86,9 @@ export interface Activity {
   // Created timestamp
   createdAt?: Date | string;
 
-  // Sponsorship support
-  sponsorTier?: string;
-  isSponsored?: boolean;
+  // Featured partner support
+  featuredTier?: 'gold' | 'silver' | 'bronze' | string | null;
+  isFeatured?: boolean;
 
   // Alias for spotsAvailable (used by some components)
   spotsLeft?: number;
