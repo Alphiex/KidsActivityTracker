@@ -5,6 +5,17 @@ export const formatPrice = (price: number | string | undefined | null): string =
 };
 
 /**
+ * Format price for display on activity cards
+ * Returns "Free" for $0 activities, otherwise formatted price with $ prefix
+ */
+export const formatActivityPrice = (price: number | string | undefined | null): string => {
+  if (price === undefined || price === null) return 'Free';
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  if (isNaN(numPrice) || numPrice === 0) return 'Free';
+  return `$${numPrice.toFixed(2)}`;
+};
+
+/**
  * Clean activity name by removing test/mock prefixes
  */
 export const cleanActivityName = (name: string | undefined | null): string => {

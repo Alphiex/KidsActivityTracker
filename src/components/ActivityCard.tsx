@@ -18,7 +18,7 @@ import { Colors, Theme } from '../theme';
 import { getActivityImageByKey } from '../assets/images';
 import { useTheme } from '../contexts/ThemeContext';
 import ChildActivityStatus from './activities/ChildActivityStatus';
-import { formatPrice } from '../utils/formatters';
+import { formatActivityPrice } from '../utils/formatters';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
 import { consolidateActivityTypes } from '../utils/activityTypeConsolidation';
@@ -307,8 +307,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         />
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>${formatPrice(activity.cost)}</Text>
-            <Text style={styles.priceLabel}>per child</Text>
+            <Text style={styles.priceText}>{formatActivityPrice(activity.cost)}</Text>
+            {activity.cost && activity.cost > 0 && <Text style={styles.priceLabel}>per child</Text>}
           </View>
         </View>
         <TouchableOpacity

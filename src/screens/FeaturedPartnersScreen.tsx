@@ -20,11 +20,10 @@ import FavoritesService from '../services/favoritesService';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
-import { formatPrice, cleanActivityName } from '../utils/formatters';
+import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
 import { useAppSelector } from '../store';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
 
 const FeaturedPartnersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -140,23 +139,6 @@ const FeaturedPartnersScreen: React.FC = () => {
     }
   };
 
-  const getTierColor = (tier?: string) => {
-    switch (tier?.toLowerCase()) {
-      case 'gold': return '#FFD700';
-      case 'silver': return '#C0C0C0';
-      case 'bronze': return '#CD7F32';
-      default: return '#CD7F32';
-    }
-  };
-
-  const getTierOrder = (tier?: string) => {
-    switch (tier?.toLowerCase()) {
-      case 'gold': return 0;
-      case 'silver': return 1;
-      case 'bronze': return 2;
-      default: return 3;
-    }
-  };
 
   const renderActivityCard = ({ item: activity }: { item: Activity }) => {
     const activityTypeName = Array.isArray(activity.activityType)
@@ -191,11 +173,11 @@ const FeaturedPartnersScreen: React.FC = () => {
         <View style={styles.cardImageContainer}>
           <Image source={imageSource} style={styles.cardImage} />
 
-          {/* Tier badge */}
+          {/* Featured badge */}
           {activity.sponsorTier && (
-            <View style={[styles.tierBadge, { backgroundColor: getTierColor(activity.sponsorTier) }]}>
+            <View style={styles.featuredBadge}>
               <Icon name="star" size={10} color="#FFF" />
-              <Text style={styles.tierBadgeText}>{activity.sponsorTier.toUpperCase()}</Text>
+              <Text style={styles.featuredBadgeText}>FEATURED</Text>
             </View>
           )}
 
@@ -215,11 +197,9 @@ const FeaturedPartnersScreen: React.FC = () => {
           </TouchableOpacity>
 
           {/* Price overlay */}
-          {price > 0 && (
-            <View style={styles.priceOverlay}>
-              <Text style={styles.priceText}>${formatPrice(price)}</Text>
-            </View>
-          )}
+          <View style={styles.priceOverlay}>
+            <Text style={styles.priceText}>{formatActivityPrice(price)}</Text>
+          </View>
         </View>
 
         <View style={styles.cardContent}>
@@ -254,21 +234,6 @@ const FeaturedPartnersScreen: React.FC = () => {
         </Text>
       </LinearGradient>
 
-      {/* Tier legend */}
-      <View style={styles.tierLegend}>
-        <View style={styles.tierLegendItem}>
-          <View style={[styles.tierDot, { backgroundColor: '#FFD700' }]} />
-          <Text style={styles.tierLegendText}>Gold</Text>
-        </View>
-        <View style={styles.tierLegendItem}>
-          <View style={[styles.tierDot, { backgroundColor: '#C0C0C0' }]} />
-          <Text style={styles.tierLegendText}>Silver</Text>
-        </View>
-        <View style={styles.tierLegendItem}>
-          <View style={[styles.tierDot, { backgroundColor: '#CD7F32' }]} />
-          <Text style={styles.tierLegendText}>Bronze</Text>
-        </View>
-      </View>
 
       {totalCount > 0 && (
         <Text style={styles.resultCount}>{totalCount} featured {totalCount === 1 ? 'activity' : 'activities'}</Text>
@@ -323,8 +288,6 @@ const FeaturedPartnersScreen: React.FC = () => {
           data={activities}
           renderItem={renderActivityCard}
           keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={renderEmpty}
@@ -402,41 +365,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  tierLegend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#FFF',
-    gap: 24,
-  },
-  tierLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  tierDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  tierLegendText: {
-    fontSize: 13,
-    color: '#717171',
-    fontWeight: '500',
-  },
   resultCount: {
     fontSize: 14,
     color: '#717171',
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  row: {
-    paddingHorizontal: 16,
-    gap: 16,
-    marginBottom: 16,
-  },
   card: {
-    width: CARD_WIDTH,
+    marginHorizontal: 16,
+    marginBottom: 16,
     backgroundColor: '#FFF',
     borderRadius: 12,
     overflow: 'hidden',
@@ -444,7 +381,7 @@ const styles = StyleSheet.create({
   },
   cardImageContainer: {
     width: '100%',
-    height: CARD_WIDTH * 0.75,
+    height: 180,
     position: 'relative',
   },
   cardImage: {
@@ -452,7 +389,7 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  tierBadge: {
+  featuredBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
@@ -461,9 +398,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    backgroundColor: '#FF385C',
     gap: 4,
   },
-  tierBadgeText: {
+  featuredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FFF',

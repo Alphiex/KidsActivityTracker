@@ -17,7 +17,7 @@ import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
-import { formatPrice, cleanActivityName } from '../utils/formatters';
+import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
@@ -651,12 +651,10 @@ const DashboardScreenModern = () => {
           </TouchableOpacity>
           
           {/* Price overlay */}
-          {price && price > 0 && (
-            <View style={styles.priceOverlay}>
-              <Text style={styles.priceText}>${formatPrice(price)}</Text>
-              <Text style={styles.perChildText}>per child</Text>
-            </View>
-          )}
+          <View style={styles.priceOverlay}>
+            <Text style={styles.priceText}>{formatActivityPrice(price)}</Text>
+            {price && price > 0 && <Text style={styles.perChildText}>per child</Text>}
+          </View>
           
           {/* NEW badge if recently added */}
           {activity.isNew && (
@@ -664,8 +662,16 @@ const DashboardScreenModern = () => {
               <Text style={styles.newBadgeText}>NEW</Text>
             </View>
           )}
+
+          {/* Featured badge for sponsored activities */}
+          {activity.sponsorTier && (
+            <View style={styles.featuredBadge}>
+              <Icon name="star" size={10} color="#FFF" />
+              <Text style={styles.featuredBadgeText}>FEATURED</Text>
+            </View>
+          )}
         </View>
-        
+
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>{cleanActivityName(activity.name)}</Text>
           
@@ -769,227 +775,7 @@ const DashboardScreenModern = () => {
               </View>
             </TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {sponsoredActivities.map((activity) => {
-                // Get tier color for badge
-                const getTierColor = (tier?: string) => {
-                  switch (tier?.toLowerCase()) {
-                    case 'gold': return '#FFD700';
-                    case 'silver': return '#C0C0C0';
-                    case 'bronze': return '#CD7F32';
-                    default: return '#CD7F32';
-                  }
-                };
-
-                // Get image based on activityType or category
-                const activityTypeName = Array.isArray(activity.activityType)
-                  ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
-                  : (activity.activityType as any)?.name || activity.category || 'general';
-                const subcategory = activity.activitySubtype?.name || activity.subcategory;
-                const imageKey = getActivityImageKey(activityTypeName, subcategory, activity.name);
-                const imageSource = getActivityImageByKey(imageKey);
-                const isFavorite = favoriteIds.has(activity.id);
-                const price = activity.cost || 0;
-
-                // Format date range display
-                let dateRangeText = null;
-                if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
-                  const start = new Date(activity.dateRange.start);
-                  const end = new Date(activity.dateRange.end);
-                  const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  dateRangeText = `${startStr} - ${endStr}`;
-                } else if (activity.startDate && activity.endDate) {
-                  const start = new Date(activity.startDate);
-                  const end = new Date(activity.endDate);
-                  const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  dateRangeText = `${startStr} - ${endStr}`;
-                } else if (activity.dates) {
-                  dateRangeText = activity.dates;
-                }
-
-                // Check if activity is in progress
-                const isInProgress = (() => {
-                  const now = new Date();
-                  if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
-                    const start = new Date(activity.dateRange.start);
-                    const end = new Date(activity.dateRange.end);
-                    return now >= start && now <= end;
-                  }
-                  if (activity.startDate && activity.endDate) {
-                    const start = new Date(activity.startDate);
-                    const end = new Date(activity.endDate);
-                    return now >= start && now <= end;
-                  }
-                  return false;
-                })();
-
-                // Extract days of week
-                const getDaysOfWeek = (): string | null => {
-                  const daysSet = new Set<string>();
-                  const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-                  if (activity.sessions && activity.sessions.length > 0) {
-                    activity.sessions.forEach(session => {
-                      if (session.dayOfWeek) {
-                        const day = session.dayOfWeek.substring(0, 3);
-                        const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-                        if (dayOrder.includes(normalized)) {
-                          daysSet.add(normalized);
-                        }
-                      }
-                    });
-                  }
-
-                  if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
-                    const scheduleObj = activity.schedule as { days?: string[] };
-                    if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
-                      scheduleObj.days.forEach(day => {
-                        const abbrev = day.substring(0, 3);
-                        const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
-                        if (dayOrder.includes(normalized)) {
-                          daysSet.add(normalized);
-                        }
-                      });
-                    }
-                  }
-
-                  if (typeof activity.schedule === 'string' && activity.schedule) {
-                    const dayPatterns = [
-                      /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
-                      /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi
-                    ];
-                    dayPatterns.forEach(pattern => {
-                      let match;
-                      while ((match = pattern.exec(activity.schedule as string)) !== null) {
-                        const day = match[1].substring(0, 3);
-                        const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-                        if (dayOrder.includes(normalized)) {
-                          daysSet.add(normalized);
-                        }
-                      }
-                    });
-                  }
-
-                  if (daysSet.size === 0) return null;
-                  const sortedDays = Array.from(daysSet).sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-                  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-                  const weekend = ['Sat', 'Sun'];
-                  if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) return 'Weekdays';
-                  if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) return 'Weekends';
-                  if (sortedDays.length === 7) return 'Daily';
-                  return sortedDays.join(', ');
-                };
-
-                const daysOfWeekText = getDaysOfWeek();
-
-                // Format time
-                let timeText = null;
-                if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
-                  const firstSession = activity.sessions[0];
-                  if (firstSession.startTime || firstSession.endTime) {
-                    timeText = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
-                  }
-                } else if (activity.startTime || activity.endTime) {
-                  timeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
-                }
-
-                // Format age display
-                let ageText = 'All ages';
-                if (activity.ageRange) {
-                  if (activity.ageRange.min && activity.ageRange.max) {
-                    ageText = `Ages ${activity.ageRange.min}-${activity.ageRange.max}`;
-                  } else if (activity.ageRange.min) {
-                    ageText = `Ages ${activity.ageRange.min}+`;
-                  }
-                } else if (activity.ageMin && activity.ageMax) {
-                  ageText = `Ages ${activity.ageMin}-${activity.ageMax}`;
-                } else if (activity.ageMin) {
-                  ageText = `Ages ${activity.ageMin}+`;
-                }
-
-                return (
-                  <TouchableOpacity
-                    key={activity.id}
-                    style={styles.card}
-                    onPress={() => handleNavigate('ActivityDetail', { activity })}
-                  >
-                    <View style={styles.cardImageContainer}>
-                      <Image source={imageSource} style={styles.cardImage} />
-
-                      {/* Tier badge */}
-                      {activity.sponsorTier && (
-                        <View style={[styles.tierBadge, { backgroundColor: getTierColor(activity.sponsorTier) }]}>
-                          <Icon name="star" size={10} color="#FFF" />
-                          <Text style={styles.tierBadgeText}>{activity.sponsorTier.toUpperCase()}</Text>
-                        </View>
-                      )}
-
-                      {/* Heart icon for favorites */}
-                      <TouchableOpacity
-                        style={styles.favoriteButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(activity);
-                        }}
-                      >
-                        <Icon
-                          name={isFavorite ? "heart" : "heart-outline"}
-                          size={20}
-                          color={isFavorite ? "#FF385C" : "#FFF"}
-                        />
-                      </TouchableOpacity>
-
-                      {/* Price overlay */}
-                      {price > 0 && (
-                        <View style={styles.priceOverlay}>
-                          <Text style={styles.priceText}>${formatPrice(price)}</Text>
-                          <Text style={styles.perChildText}>per child</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardTitle} numberOfLines={2}>{cleanActivityName(activity.name)}</Text>
-                      <View style={styles.cardLocationRow}>
-                        <Icon name="map-marker" size={12} color="#717171" />
-                        <Text style={styles.cardSubtitle} numberOfLines={1}>
-                          {typeof activity.location === 'string' ? activity.location : activity.location?.name || activity.locationName || 'Location TBD'}
-                        </Text>
-                      </View>
-
-                      {isInProgress && dateRangeText && (
-                        <View style={styles.cardInfoRow}>
-                          <Icon name="calendar" size={12} color="#4CAF50" />
-                          <Text style={[styles.cardDetails, { color: '#4CAF50', fontWeight: '600' }]}>In Progress</Text>
-                          <Text style={styles.cardDetails}> • {dateRangeText}</Text>
-                        </View>
-                      )}
-
-                      {!isInProgress && dateRangeText && (
-                        <View style={styles.cardInfoRow}>
-                          <Icon name="calendar" size={12} color="#717171" />
-                          <Text style={styles.cardDetails}>{dateRangeText}</Text>
-                        </View>
-                      )}
-
-                      {(daysOfWeekText || timeText) && (
-                        <View style={styles.daysRow}>
-                          <Icon name="calendar-week" size={12} color="#E91E63" />
-                          <Text style={styles.daysText}>
-                            {daysOfWeekText}{daysOfWeekText && timeText ? ' • ' : ''}{timeText ? timeText : ''}
-                          </Text>
-                        </View>
-                      )}
-
-                      <View style={styles.cardInfoRow}>
-                        <Icon name="account-child" size={12} color="#717171" />
-                        <Text style={styles.cardDetails}>{ageText}</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {sponsoredActivities.map(renderActivityCard)}
             </ScrollView>
           </View>
         )}
@@ -1279,7 +1065,7 @@ const styles = StyleSheet.create({
   },
   priceOverlay: {
     position: 'absolute',
-    top: 10,
+    bottom: 10,
     left: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 8,
@@ -1447,17 +1233,18 @@ const styles = StyleSheet.create({
     color: '#FFF',
     letterSpacing: 0.5,
   },
-  tierBadge: {
+  featuredBadge: {
     position: 'absolute',
-    bottom: 10,
+    top: 10,
     left: 10,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    backgroundColor: '#FF385C',
   },
-  tierBadgeText: {
+  featuredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FFF',

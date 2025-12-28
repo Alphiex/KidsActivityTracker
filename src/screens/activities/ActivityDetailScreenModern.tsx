@@ -26,7 +26,7 @@ import childrenService from '../../services/childrenService';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import AssignActivityToChildModal from '../../components/activities/AssignActivityToChildModal';
-import { formatPrice, cleanActivityName } from '../../utils/formatters';
+import { formatActivityPrice, cleanActivityName } from '../../utils/formatters';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 import { shareActivityViaEmail } from '../../utils/sharing';
 import { getActivityImageByKey } from '../../assets/images';
@@ -530,8 +530,8 @@ const ActivityDetailScreenModern = () => {
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Cost</Text>
                   <Text style={styles.detailValue}>
-                    ${formatPrice(activity.cost || 22.04)}
-                    {activity.costIncludesTax === false && ' + tax'}
+                    {formatActivityPrice(activity.cost)}
+                    {activity.cost && activity.cost > 0 && activity.costIncludesTax === false && ' + tax'}
                   </Text>
                 </View>
               </View>
