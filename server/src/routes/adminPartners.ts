@@ -29,8 +29,8 @@ const requireAdmin = async (req: Request, res: Response, next: any) => {
 };
 
 /**
- * @route   GET /api/admin/sponsors
- * @desc    List all sponsor accounts with stats
+ * @route   GET /api/admin/partners
+ * @desc    List all partner accounts with stats
  * @access  Admin
  */
 router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) => {
@@ -64,9 +64,9 @@ router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) =
       };
     }
 
-    // Get sponsors with aggregated stats
-    const [sponsors, total] = await Promise.all([
-      prisma.sponsorAccount.findMany({
+    // Get partners with aggregated stats
+    const [partners, total] = await Promise.all([
+      prisma.partnerAccount.findMany({
         where,
         skip,
         take: limitNum,
@@ -94,33 +94,34 @@ router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) =
         },
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.sponsorAccount.count({ where })
+      prisma.partnerAccount.count({ where })
     ]);
 
-    // Transform with stats
-    const sponsorsWithStats = sponsors.map(sponsor => ({
-      id: sponsor.id,
-      provider: sponsor.provider,
-      plan: sponsor.plan,
-      subscriptionStatus: sponsor.subscriptionStatus,
-      subscriptionStartDate: sponsor.subscriptionStartDate,
-      subscriptionEndDate: sponsor.subscriptionEndDate,
-      billingEmail: sponsor.billingEmail,
-      targetCities: sponsor.targetCities,
-      targetProvinces: sponsor.targetProvinces,
-      createdAt: sponsor.createdAt,
+    // Transform with stats (keep 'sponsors' key for backward compatibility with frontend)
+    const partnersWithStats = partners.map(partner => ({
+      id: partner.id,
+      provider: partner.provider,
+      plan: partner.plan,
+      subscriptionStatus: partner.subscriptionStatus,
+      subscriptionStartDate: partner.subscriptionStartDate,
+      subscriptionEndDate: partner.subscriptionEndDate,
+      billingEmail: partner.billingEmail,
+      targetCities: partner.targetCities,
+      targetProvinces: partner.targetProvinces,
+      createdAt: partner.createdAt,
       stats: {
-        totalImpressions: sponsor._count.impressions,
-        totalClicks: sponsor._count.clicks,
-        ctr: sponsor._count.impressions > 0
-          ? ((sponsor._count.clicks / sponsor._count.impressions) * 100).toFixed(2)
+        totalImpressions: partner._count.impressions,
+        totalClicks: partner._count.clicks,
+        ctr: partner._count.impressions > 0
+          ? ((partner._count.clicks / partner._count.impressions) * 100).toFixed(2)
           : '0.00'
       }
     }));
 
     res.json({
       success: true,
-      sponsors: sponsorsWithStats,
+      sponsors: partnersWithStats, // Keep for backward compatibility
+      partners: partnersWithStats,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -129,21 +130,21 @@ router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) =
       }
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error listing sponsors:', error);
+    console.error('[AdminPartners] Error listing partners:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to list sponsors'
+      error: error.message || 'Failed to list partners'
     });
   }
 });
 
 /**
- * @route   GET /api/admin/sponsors/:id
- * @desc    Get sponsor details with full analytics
+ * @route   GET /api/admin/partners/:id
+ * @desc    Get partner details with full analytics
  * @access  Admin
  */
 router.get('/:id', [
-  param('id').isUUID().withMessage('Valid sponsor ID required'),
+  param('id').isUUID().withMessage('Valid partner ID required'),
 ], verifyToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const errors = validationResult(req);
@@ -153,7 +154,7 @@ router.get('/:id', [
 
     const { id } = req.params;
 
-    const sponsor = await prisma.sponsorAccount.findUnique({
+    const partner = await prisma.partnerAccount.findUnique({
       where: { id },
       include: {
         provider: {
@@ -168,8 +169,8 @@ router.get('/:id', [
       }
     });
 
-    if (!sponsor) {
-      return res.status(404).json({ success: false, error: 'Sponsor not found' });
+    if (!partner) {
+      return res.status(404).json({ success: false, error: 'Partner not found' });
     }
 
     // Get aggregated stats for last 30 days
@@ -177,21 +178,21 @@ router.get('/:id', [
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const [impressionCount, clickCount, recentAnalytics] = await Promise.all([
-      prisma.sponsorImpression.count({
+      prisma.partnerImpression.count({
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           timestamp: { gte: thirtyDaysAgo }
         }
       }),
-      prisma.sponsorClick.count({
+      prisma.partnerClick.count({
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           timestamp: { gte: thirtyDaysAgo }
         }
       }),
-      prisma.sponsorAnalyticsDaily.findMany({
+      prisma.partnerAnalyticsDaily.findMany({
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           date: { gte: thirtyDaysAgo }
         },
         orderBy: { date: 'asc' }
@@ -200,8 +201,21 @@ router.get('/:id', [
 
     res.json({
       success: true,
-      sponsor: {
-        ...sponsor,
+      sponsor: { // Keep for backward compatibility
+        ...partner,
+        analytics: {
+          last30Days: {
+            impressions: impressionCount,
+            clicks: clickCount,
+            ctr: impressionCount > 0
+              ? ((clickCount / impressionCount) * 100).toFixed(2)
+              : '0.00'
+          },
+          daily: recentAnalytics
+        }
+      },
+      partner: {
+        ...partner,
         analytics: {
           last30Days: {
             impressions: impressionCount,
@@ -215,21 +229,21 @@ router.get('/:id', [
       }
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error getting sponsor:', error);
+    console.error('[AdminPartners] Error getting partner:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to get sponsor'
+      error: error.message || 'Failed to get partner'
     });
   }
 });
 
 /**
- * @route   PUT /api/admin/sponsors/:id
- * @desc    Update sponsor settings
+ * @route   PUT /api/admin/partners/:id
+ * @desc    Update partner settings
  * @access  Admin
  */
 router.put('/:id', [
-  param('id').isUUID().withMessage('Valid sponsor ID required'),
+  param('id').isUUID().withMessage('Valid partner ID required'),
 ], verifyToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const errors = validationResult(req);
@@ -256,7 +270,7 @@ router.put('/:id', [
     if (billingEmail !== undefined) updateData.billingEmail = billingEmail;
     if (billingName !== undefined) updateData.billingName = billingName;
 
-    const sponsor = await prisma.sponsorAccount.update({
+    const partner = await prisma.partnerAccount.update({
       where: { id },
       data: updateData,
       include: {
@@ -269,24 +283,25 @@ router.put('/:id', [
 
     res.json({
       success: true,
-      sponsor
+      sponsor: partner, // Keep for backward compatibility
+      partner
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error updating sponsor:', error);
+    console.error('[AdminPartners] Error updating partner:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to update sponsor'
+      error: error.message || 'Failed to update partner'
     });
   }
 });
 
 /**
- * @route   GET /api/admin/sponsors/:id/analytics
- * @desc    Get detailed analytics for sponsor
+ * @route   GET /api/admin/partners/:id/analytics
+ * @desc    Get detailed analytics for partner
  * @access  Admin
  */
 router.get('/:id/analytics', [
-  param('id').isUUID().withMessage('Valid sponsor ID required'),
+  param('id').isUUID().withMessage('Valid partner ID required'),
 ], verifyToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const errors = validationResult(req);
@@ -305,9 +320,9 @@ router.get('/:id/analytics', [
     const end = endDate ? new Date(endDate as string) : new Date();
 
     // Get daily analytics
-    const dailyAnalytics = await prisma.sponsorAnalyticsDaily.findMany({
+    const dailyAnalytics = await prisma.partnerAnalyticsDaily.findMany({
       where: {
-        sponsorAccountId: id,
+        partnerAccountId: id,
         date: {
           gte: start,
           lte: end
@@ -318,18 +333,18 @@ router.get('/:id/analytics', [
 
     // Get breakdown by placement
     const [impressionsByPlacement, clicksByPlacement] = await Promise.all([
-      prisma.sponsorImpression.groupBy({
+      prisma.partnerImpression.groupBy({
         by: ['placement'],
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           timestamp: { gte: start, lte: end }
         },
         _count: true
       }),
-      prisma.sponsorClick.groupBy({
+      prisma.partnerClick.groupBy({
         by: ['placement'],
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           timestamp: { gte: start, lte: end }
         },
         _count: true
@@ -338,18 +353,18 @@ router.get('/:id/analytics', [
 
     // Get breakdown by platform
     const [impressionsByPlatform, clicksByPlatform] = await Promise.all([
-      prisma.sponsorImpression.groupBy({
+      prisma.partnerImpression.groupBy({
         by: ['platform'],
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           timestamp: { gte: start, lte: end }
         },
         _count: true
       }),
-      prisma.sponsorClick.groupBy({
+      prisma.partnerClick.groupBy({
         by: ['platform'],
         where: {
-          sponsorAccountId: id,
+          partnerAccountId: id,
           timestamp: { gte: start, lte: end }
         },
         _count: true
@@ -385,7 +400,7 @@ router.get('/:id/analytics', [
       }
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error getting analytics:', error);
+    console.error('[AdminPartners] Error getting analytics:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to get analytics'
@@ -394,8 +409,8 @@ router.get('/:id/analytics', [
 });
 
 /**
- * @route   GET /api/admin/analytics/overview
- * @desc    Platform-wide sponsor analytics overview
+ * @route   GET /api/admin/partners/analytics/overview
+ * @desc    Platform-wide partner analytics overview
  * @access  Admin
  */
 router.get('/analytics/overview', verifyToken, requireAdmin, async (req: Request, res: Response) => {
@@ -405,17 +420,17 @@ router.get('/analytics/overview', verifyToken, requireAdmin, async (req: Request
 
     // Get overall stats
     const [
-      totalSponsors,
-      activeSponsors,
+      totalPartners,
+      activePartners,
       totalImpressions,
       totalClicks,
-      topSponsors
+      topPartners
     ] = await Promise.all([
-      prisma.sponsorAccount.count(),
-      prisma.sponsorAccount.count({ where: { subscriptionStatus: 'active' } }),
-      prisma.sponsorImpression.count({ where: { timestamp: { gte: thirtyDaysAgo } } }),
-      prisma.sponsorClick.count({ where: { timestamp: { gte: thirtyDaysAgo } } }),
-      prisma.sponsorAccount.findMany({
+      prisma.partnerAccount.count(),
+      prisma.partnerAccount.count({ where: { subscriptionStatus: 'active' } }),
+      prisma.partnerImpression.count({ where: { timestamp: { gte: thirtyDaysAgo } } }),
+      prisma.partnerClick.count({ where: { timestamp: { gte: thirtyDaysAgo } } }),
+      prisma.partnerAccount.findMany({
         take: 5,
         include: {
           provider: { select: { name: true } },
@@ -435,8 +450,10 @@ router.get('/analytics/overview', verifyToken, requireAdmin, async (req: Request
     res.json({
       success: true,
       overview: {
-        totalSponsors,
-        activeSponsors,
+        totalSponsors: totalPartners, // Keep for backward compatibility
+        totalPartners,
+        activeSponsors: activePartners, // Keep for backward compatibility
+        activePartners,
         last30Days: {
           impressions: totalImpressions,
           clicks: totalClicks,
@@ -444,16 +461,22 @@ router.get('/analytics/overview', verifyToken, requireAdmin, async (req: Request
             ? ((totalClicks / totalImpressions) * 100).toFixed(2)
             : '0.00'
         },
-        topSponsors: topSponsors.map(s => ({
-          id: s.id,
-          providerName: s.provider.name,
-          impressions: s._count.impressions,
-          clicks: s._count.clicks
+        topSponsors: topPartners.map(p => ({ // Keep for backward compatibility
+          id: p.id,
+          providerName: p.provider.name,
+          impressions: p._count.impressions,
+          clicks: p._count.clicks
+        })),
+        topPartners: topPartners.map(p => ({
+          id: p.id,
+          providerName: p.provider.name,
+          impressions: p._count.impressions,
+          clicks: p._count.clicks
         }))
       }
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error getting overview:', error);
+    console.error('[AdminPartners] Error getting overview:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to get overview'
@@ -462,8 +485,8 @@ router.get('/analytics/overview', verifyToken, requireAdmin, async (req: Request
 });
 
 /**
- * @route   POST /api/admin/sponsors
- * @desc    Create a new sponsor account for a provider
+ * @route   POST /api/admin/partners
+ * @desc    Create a new partner account for a provider
  * @access  Admin
  */
 router.post('/', [
@@ -486,19 +509,19 @@ router.post('/', [
       targetProvinces
     } = req.body;
 
-    // Check if sponsor account already exists
-    const existing = await prisma.sponsorAccount.findUnique({
+    // Check if partner account already exists
+    const existing = await prisma.partnerAccount.findUnique({
       where: { providerId }
     });
 
     if (existing) {
       return res.status(409).json({
         success: false,
-        error: 'Sponsor account already exists for this provider'
+        error: 'Partner account already exists for this provider'
       });
     }
 
-    const sponsor = await prisma.sponsorAccount.create({
+    const partner = await prisma.partnerAccount.create({
       data: {
         providerId,
         planId: planId || null,
@@ -516,25 +539,26 @@ router.post('/', [
 
     res.status(201).json({
       success: true,
-      sponsor
+      sponsor: partner, // Keep for backward compatibility
+      partner
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error creating sponsor:', error);
+    console.error('[AdminPartners] Error creating partner:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to create sponsor'
+      error: error.message || 'Failed to create partner'
     });
   }
 });
 
 /**
- * @route   GET /api/admin/sponsor-plans
- * @desc    List all sponsor plans
+ * @route   GET /api/admin/partner-plans
+ * @desc    List all partner plans
  * @access  Admin
  */
 router.get('/plans', verifyToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const plans = await prisma.sponsorPlan.findMany({
+    const plans = await prisma.partnerPlan.findMany({
       where: { isActive: true },
       orderBy: { monthlyPrice: 'asc' }
     });
@@ -544,7 +568,7 @@ router.get('/plans', verifyToken, requireAdmin, async (req: Request, res: Respon
       plans
     });
   } catch (error: any) {
-    console.error('[AdminSponsors] Error listing plans:', error);
+    console.error('[AdminPartners] Error listing plans:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to list plans'

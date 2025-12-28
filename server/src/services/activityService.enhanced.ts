@@ -564,10 +564,10 @@ export class EnhancedActivityService {
   }
 
   /**
-   * Search for sponsored activities matching user filters
+   * Search for featured partner activities matching user filters
    * Returns activities ordered by tier (Gold > Silver > Bronze) with randomization within each tier
    */
-  async searchSponsoredActivities(params: {
+  async searchFeaturedActivities(params: {
     ageMin?: number;
     ageMax?: number;
     costMin?: number;
@@ -596,22 +596,22 @@ export class EnhancedActivityService {
       limit = 3
     } = params;
 
-    console.log('[SponsorService] Searching sponsored activities with params:', {
+    console.log('[PartnerService] Searching featured activities with params:', {
       ageMin, ageMax, activityType, locations, limit
     });
 
     const now = new Date();
 
-    // Build base where clause for sponsors
+    // Build base where clause for featured partners
     const where: any = {
       isActive: true,
-      isSponsor: true,
-      // Sponsor must be currently active (within date range or no dates set)
+      isFeatured: true,
+      // Featured partner must be currently active (within date range or no dates set)
       OR: [
-        { sponsorStartDate: null, sponsorEndDate: null },
-        { sponsorStartDate: { lte: now }, sponsorEndDate: null },
-        { sponsorStartDate: null, sponsorEndDate: { gte: now } },
-        { sponsorStartDate: { lte: now }, sponsorEndDate: { gte: now } }
+        { featuredStartDate: null, featuredEndDate: null },
+        { featuredStartDate: { lte: now }, featuredEndDate: null },
+        { featuredStartDate: null, featuredEndDate: { gte: now } },
+        { featuredStartDate: { lte: now }, featuredEndDate: { gte: now } }
       ]
     };
 
@@ -757,7 +757,7 @@ export class EnhancedActivityService {
       }
     });
 
-    console.log(`[SponsorService] Found ${activities.length} matching sponsored activities`);
+    console.log(`[PartnerService] Found ${activities.length} matching featured activities`);
 
     // Group by tier and randomize within each tier
     const randomizedActivities = this.randomizeWithinTiers(activities, limit);
@@ -792,7 +792,7 @@ export class EnhancedActivityService {
 
     // Group by tier
     activities.forEach(activity => {
-      const tier = activity.sponsorTier?.toLowerCase() || 'bronze';
+      const tier = activity.featuredTier?.toLowerCase() || 'bronze';
       if (tiers[tier]) {
         tiers[tier].push(activity);
       } else {
@@ -812,7 +812,7 @@ export class EnhancedActivityService {
       ...tiers.bronze
     ].slice(0, limit);
 
-    console.log(`[SponsorService] Randomized results - Gold: ${tiers.gold.length}, Silver: ${tiers.silver.length}, Bronze: ${tiers.bronze.length}, Returned: ${result.length}`);
+    console.log(`[PartnerService] Randomized results - Gold: ${tiers.gold.length}, Silver: ${tiers.silver.length}, Bronze: ${tiers.bronze.length}, Returned: ${result.length}`);
 
     return result;
   }

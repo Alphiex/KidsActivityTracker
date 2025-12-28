@@ -42,7 +42,7 @@ export default function SponsorLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-purple-900 px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Sponsor Portal</h1>
+          <h1 className="text-3xl font-bold text-white">Partner Portal</h1>
           <p className="mt-2 text-purple-200">Sign in to view your analytics</p>
         </div>
 
@@ -94,13 +94,13 @@ export default function SponsorLoginPage() {
 
           <div className="mt-6 pt-6 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-500">
-              Don&apos;t have a sponsor account?
+              Don&apos;t have a partner account?
             </p>
             <Link
               href="/vendor"
               className="text-purple-600 hover:text-purple-700 font-medium"
             >
-              Become a Sponsor
+              Become a Partner
             </Link>
           </div>
         </div>

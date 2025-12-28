@@ -117,6 +117,45 @@ class PerfectMindScraper extends BaseScraper {
     }
   }
 
+  /**
+   * Launch browser with retry logic to handle resource exhaustion
+   * @param {Number} maxRetries - Maximum retry attempts
+   * @returns {Promise<Browser>} Puppeteer browser instance
+   */
+  async launchBrowserWithRetry(maxRetries = 3) {
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const browser = await puppeteer.launch({
+          headless: this.config.scraperConfig.headless !== false,
+          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process',  // Reduce resource usage
+            '--no-zygote'        // Reduce process count
+          ]
+        });
+        return browser;
+      } catch (error) {
+        lastError = error;
+        this.logProgress(`Browser launch attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+
+        if (attempt < maxRetries) {
+          // Exponential backoff: 2s, 4s, 8s
+          const delay = Math.pow(2, attempt) * 1000;
+          this.logProgress(`Waiting ${delay/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
   async extractPerfectMindActivities() {
     const activities = [];
     const { entryPoints, maxConcurrency = 5 } = this.config.scraperConfig;
@@ -139,30 +178,47 @@ class PerfectMindScraper extends BaseScraper {
 
     this.logProgress(`Found ${activityLinks.length} activity links to process`);
 
-    // Process in batches
-    const batches = [];
-    for (let i = 0; i < activityLinks.length; i += maxConcurrency) {
-      batches.push(activityLinks.slice(i, i + maxConcurrency));
+    // Launch a SINGLE shared browser for all link extractions
+    // This prevents resource exhaustion from launching too many browsers
+    let sharedBrowser;
+    try {
+      sharedBrowser = await this.launchBrowserWithRetry();
+    } catch (error) {
+      this.logProgress(`Failed to launch browser after retries: ${error.message}`);
+      throw error;
     }
 
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex];
-      this.logProgress(`Processing batch ${batchIndex + 1}/${batches.length}`);
+    try {
+      // Process in batches using the shared browser
+      const batches = [];
+      for (let i = 0; i < activityLinks.length; i += maxConcurrency) {
+        batches.push(activityLinks.slice(i, i + maxConcurrency));
+      }
 
-      const batchPromises = batch.map(link =>
-        this.extractActivitiesFromLink(widgetUrl, link)
-      );
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        this.logProgress(`Processing batch ${batchIndex + 1}/${batches.length}`);
 
-      const batchResults = await Promise.allSettled(batchPromises);
+        const batchPromises = batch.map(link =>
+          this.extractActivitiesFromLink(widgetUrl, link, sharedBrowser)
+        );
 
-      batchResults.forEach((result, idx) => {
-        if (result.status === 'fulfilled' && result.value.length > 0) {
-          activities.push(...result.value);
-          this.logProgress(`  ✅ ${batch[idx].text} (${batch[idx].section}): ${result.value.length} activities`);
-        } else if (result.status === 'rejected') {
-          this.logProgress(`  ❌ ${batch[idx].text}: ${result.reason}`);
-        }
-      });
+        const batchResults = await Promise.allSettled(batchPromises);
+
+        batchResults.forEach((result, idx) => {
+          if (result.status === 'fulfilled' && result.value.length > 0) {
+            activities.push(...result.value);
+            this.logProgress(`  ✅ ${batch[idx].text} (${batch[idx].section}): ${result.value.length} activities`);
+          } else if (result.status === 'rejected') {
+            this.logProgress(`  ❌ ${batch[idx].text}: ${result.reason}`);
+          }
+        });
+      }
+    } finally {
+      // Always close the shared browser
+      if (sharedBrowser) {
+        await sharedBrowser.close();
+      }
     }
 
     this.logProgress(`Total activities extracted: ${activities.length}`);
@@ -177,11 +233,7 @@ class PerfectMindScraper extends BaseScraper {
     let browser;
 
     try {
-      browser = await puppeteer.launch({
-        headless: this.config.scraperConfig.headless !== false,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      });
+      browser = await this.launchBrowserWithRetry();
 
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
@@ -367,17 +419,21 @@ class PerfectMindScraper extends BaseScraper {
   /**
    * Extract activities by clicking a link at a specific position
    * Handles hierarchical navigation where clicking a category reveals subcategories with "Show" buttons
+   * @param {String} widgetUrl - URL of the widget page
+   * @param {Object} linkInfo - Link information (text, section, etc.)
+   * @param {Browser} sharedBrowser - Optional shared browser instance to reuse
    */
-  async extractActivitiesFromLink(widgetUrl, linkInfo) {
-    let browser;
+  async extractActivitiesFromLink(widgetUrl, linkInfo, sharedBrowser = null) {
+    let browser = sharedBrowser;
+    let ownsBrowser = false;
     const activities = [];
 
     try {
-      browser = await puppeteer.launch({
-        headless: this.config.scraperConfig.headless !== false,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      });
+      // If no shared browser provided, launch our own (backward compatibility)
+      if (!browser) {
+        browser = await this.launchBrowserWithRetry();
+        ownsBrowser = true;
+      }
 
       const page = await browser.newPage();
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
@@ -451,10 +507,16 @@ class PerfectMindScraper extends BaseScraper {
       const pageActivities = await this.extractActivitiesFromPage(page, linkInfo.section, linkInfo.text);
       activities.push(...pageActivities);
 
+      // Close the page when done (important for shared browser to free resources)
+      await page.close();
+
     } catch (error) {
       this.handleError(error, `extractActivitiesFromLink ${linkInfo.text}`);
     } finally {
-      if (browser) await browser.close();
+      // Only close the browser if we own it (not shared)
+      if (ownsBrowser && browser) {
+        await browser.close();
+      }
     }
 
     return activities;
@@ -1007,11 +1069,7 @@ class PerfectMindScraper extends BaseScraper {
 
     let browser;
     try {
-      browser = await puppeteer.launch({
-        headless: this.config.scraperConfig.headless !== false,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      });
+      browser = await this.launchBrowserWithRetry();
 
       const batchSize = 5;
       let enhanced = 0;

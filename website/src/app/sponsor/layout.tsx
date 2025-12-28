@@ -109,7 +109,7 @@ export default function SponsorLayout({ children }: SponsorLayoutProps) {
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0`}>
         <div className="flex items-center justify-center h-16 px-4 bg-purple-900">
-          <h1 className="text-xl font-bold text-white">Sponsor Portal</h1>
+          <h1 className="text-xl font-bold text-white">Partner Portal</h1>
         </div>
         <div className="px-4 py-4 border-b border-purple-700">
           <p className="text-purple-200 text-sm">Logged in as</p>

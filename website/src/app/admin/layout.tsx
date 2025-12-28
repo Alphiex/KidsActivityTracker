@@ -11,7 +11,7 @@ interface AdminLayoutProps {
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: 'chart' },
   { href: '/admin/activities', label: 'Activities', icon: 'activities' },
-  { href: '/admin/sponsors', label: 'Sponsors', icon: 'users' },
+  { href: '/admin/sponsors', label: 'Featured Partners', icon: 'users' },
   { href: '/admin/analytics', label: 'Analytics', icon: 'analytics' },
 ];
 
@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0`}>
         <div className="flex items-center justify-center h-16 px-4 bg-gray-800">
-          <h1 className="text-xl font-bold text-white">Sponsor Admin</h1>
+          <h1 className="text-xl font-bold text-white">Partner Admin</h1>
         </div>
         <nav className="mt-8 px-4">
           {navItems.map((item) => {

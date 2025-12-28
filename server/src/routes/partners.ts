@@ -6,8 +6,8 @@ const router = Router();
 const activityService = new EnhancedActivityService();
 
 /**
- * @route   GET /api/v1/sponsors
- * @desc    Get sponsored activities matching user filters
+ * @route   GET /api/v1/partners
+ * @desc    Get featured partner activities matching user filters
  * @access  Public (optional auth for personalization)
  */
 router.get('/', optionalAuth, async (req: Request, res: Response) => {
@@ -39,11 +39,11 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       // Location parameters
       location,
       locations,
-      // Limit (default 3 for sponsors)
+      // Limit (default 3 for partners)
       limit = '3'
     } = req.query;
 
-    console.log('[Sponsors] API Request:', {
+    console.log('[Partners] API Request:', {
       ageMin: ageMin || age_min,
       ageMax: ageMax || age_max,
       activityType,
@@ -89,7 +89,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       limit: parseInt(limit as string)
     };
 
-    const result = await activityService.searchSponsoredActivities(params);
+    const result = await activityService.searchFeaturedActivities(params);
 
     res.json({
       success: true,
@@ -100,10 +100,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    console.error('[Sponsors] Error:', error);
+    console.error('[Partners] Error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch sponsored activities'
+      error: error.message || 'Failed to fetch featured partner activities'
     });
   }
 });

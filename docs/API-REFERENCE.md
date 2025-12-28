@@ -259,11 +259,13 @@ Get activity details.
 
 ---
 
-## Sponsors Endpoints
+## Featured Partners Endpoints
 
-### GET /api/v1/sponsors
+### GET /api/v1/partners
 
-Get sponsored activities matching user filters. Returns activities ordered by tier (Gold > Silver > Bronze) with randomization within each tier for fair exposure.
+Get featured activities matching user filters. Returns activities ordered by tier (Gold > Silver > Bronze) with randomization within each tier for fair exposure.
+
+**Backward Compatibility**: Also available at `/api/v1/sponsors`
 
 **Access**: Public (optional auth for personalization)
 
@@ -292,10 +294,10 @@ Get sponsored activities matching user filters. Returns activities ordered by ti
       "id": "uuid",
       "name": "Elite Swimming Academy",
       "category": "Aquatics",
-      "isSponsor": true,
-      "sponsorTier": "gold",
-      "sponsorStartDate": "2024-01-01T00:00:00Z",
-      "sponsorEndDate": "2024-12-31T23:59:59Z",
+      "isFeatured": true,
+      "featuredTier": "gold",
+      "featuredStartDate": "2024-01-01T00:00:00Z",
+      "featuredEndDate": "2024-12-31T23:59:59Z",
       "dateStart": "2024-01-15T00:00:00Z",
       "ageMin": 5,
       "ageMax": 12,
@@ -315,6 +317,35 @@ Get sponsored activities matching user filters. Returns activities ordered by ti
   }
 }
 ```
+
+### Admin Partner Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/partners` | GET | List all partner accounts |
+| `/api/admin/partners/:id` | GET | Get partner details |
+| `/api/admin/partners/:id` | PUT | Update partner settings |
+| `/api/admin/partners` | POST | Create partner account |
+| `/api/admin/partners/:id/analytics` | GET | Partner analytics |
+| `/api/admin/partners/analytics/overview` | GET | Platform-wide analytics |
+
+### Partner Portal Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/partner/login` | POST | Partner authentication |
+| `/api/partner/dashboard` | GET | Partner dashboard |
+| `/api/partner/activities` | GET | List activities |
+| `/api/partner/analytics` | GET | View performance |
+
+### Analytics Tracking Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/analytics/impressions` | POST | Batch record impressions |
+| `/api/v1/analytics/clicks` | POST | Record click events |
+| `/api/v1/analytics/ab-tests/active` | GET | Get active A/B tests |
+| `/api/v1/analytics/ab-test/:id/assignment` | GET | Get test variant |
 
 ---
 

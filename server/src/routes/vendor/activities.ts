@@ -86,8 +86,8 @@ router.get('/', requireVendorAuth(), async (req: Request, res: Response) => {
           fullAddress: true,
           isActive: true,
           isUpdated: true,
-          isSponsor: true,
-          sponsorTier: true,
+          isFeatured: true,
+          featuredTier: true,
           spotsAvailable: true,
           totalSpots: true,
           registrationStatus: true,
@@ -326,7 +326,7 @@ router.delete('/:id', requireVendorAuth('ADMIN'), async (req: Request, res: Resp
  */
 router.get('/stats/summary', requireVendorAuth(), async (req: Request, res: Response) => {
   try {
-    const [total, active, sponsored, byCategory] = await Promise.all([
+    const [total, active, featured, byCategory] = await Promise.all([
       prisma.activity.count({
         where: { vendorId: req.vendor!.id },
       }),
@@ -334,7 +334,7 @@ router.get('/stats/summary', requireVendorAuth(), async (req: Request, res: Resp
         where: { vendorId: req.vendor!.id, isActive: true },
       }),
       prisma.activity.count({
-        where: { vendorId: req.vendor!.id, isSponsor: true },
+        where: { vendorId: req.vendor!.id, isFeatured: true },
       }),
       prisma.activity.groupBy({
         by: ['category'],
@@ -349,7 +349,7 @@ router.get('/stats/summary', requireVendorAuth(), async (req: Request, res: Resp
         total,
         active,
         inactive: total - active,
-        sponsored,
+        featured,
         byCategory: byCategory.map(c => ({
           category: c.category,
           count: c._count,

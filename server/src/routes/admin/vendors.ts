@@ -33,19 +33,19 @@ router.get(
   [
     query('status').optional().isIn(['PENDING', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'INACTIVE']),
     query('search').optional().isString().trim(),
-    query('hasSponsor').optional().isBoolean(),
+    query('hasFeatured').optional().isBoolean(),
     query('limit').optional().isInt({ min: 1, max: 100 }),
     query('offset').optional().isInt({ min: 0 }),
   ],
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
-      const { status, search, hasSponsor, limit, offset } = req.query;
+      const { status, search, hasFeatured, limit, offset } = req.query;
 
       const result = await vendorService.listVendors({
         status: status as VendorStatus,
         search: search as string,
-        hasSponsor: hasSponsor === 'true' ? true : hasSponsor === 'false' ? false : undefined,
+        hasFeatured: hasFeatured === 'true' ? true : hasFeatured === 'false' ? false : undefined,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       });
@@ -525,17 +525,17 @@ router.delete(
 );
 
 /**
- * PUT /api/admin/vendors/:id/sponsorship
- * Update vendor sponsorship
+ * PUT /api/admin/vendors/:id/featured
+ * Update vendor featured status
  */
 router.put(
-  '/:id/sponsorship',
+  '/:id/featured',
   requirePermission(PERMISSIONS.ACTIVITY_SPONSOR),
   [
     param('id').isUUID(),
-    body('defaultSponsorTier').optional({ nullable: true }).isIn(['gold', 'silver', 'bronze', null]),
-    body('sponsorStartDate').optional({ nullable: true }).isISO8601(),
-    body('sponsorEndDate').optional({ nullable: true }).isISO8601(),
+    body('defaultFeaturedTier').optional({ nullable: true }).isIn(['gold', 'silver', 'bronze', null]),
+    body('featuredStartDate').optional({ nullable: true }).isISO8601(),
+    body('featuredEndDate').optional({ nullable: true }).isISO8601(),
   ],
   handleValidationErrors,
   async (req: Request, res: Response) => {
@@ -548,10 +548,10 @@ router.put(
         });
       }
 
-      const updatedVendor = await vendorService.updateSponsorship(req.params.id, {
-        defaultSponsorTier: req.body.defaultSponsorTier,
-        sponsorStartDate: req.body.sponsorStartDate ? new Date(req.body.sponsorStartDate) : null,
-        sponsorEndDate: req.body.sponsorEndDate ? new Date(req.body.sponsorEndDate) : null,
+      const updatedVendor = await vendorService.updateFeatured(req.params.id, {
+        defaultFeaturedTier: req.body.defaultFeaturedTier,
+        featuredStartDate: req.body.featuredStartDate ? new Date(req.body.featuredStartDate) : null,
+        featuredEndDate: req.body.featuredEndDate ? new Date(req.body.featuredEndDate) : null,
       });
 
       return res.json({
@@ -559,21 +559,21 @@ router.put(
         data: updatedVendor,
       });
     } catch (error: any) {
-      console.error('Error updating sponsorship:', error);
+      console.error('Error updating featured status:', error);
       return res.status(500).json({
         success: false,
-        error: error.message || 'Failed to update sponsorship',
+        error: error.message || 'Failed to update featured status',
       });
     }
   }
 );
 
 /**
- * POST /api/admin/vendors/:id/apply-sponsorship
- * Apply vendor's sponsorship to all their activities
+ * POST /api/admin/vendors/:id/apply-featured
+ * Apply vendor's featured status to all their activities
  */
 router.post(
-  '/:id/apply-sponsorship',
+  '/:id/apply-featured',
   requirePermission(PERMISSIONS.ACTIVITY_SPONSOR),
   [param('id').isUUID()],
   handleValidationErrors,
@@ -587,38 +587,38 @@ router.post(
         });
       }
 
-      if (!vendor.defaultSponsorTier) {
+      if (!vendor.defaultFeaturedTier) {
         return res.status(400).json({
           success: false,
-          error: 'Vendor does not have a sponsorship tier configured',
+          error: 'Vendor does not have a featured tier configured',
         });
       }
 
-      const count = await vendorService.applySponsorship(req.params.id);
+      const count = await vendorService.applyFeatured(req.params.id);
 
       return res.json({
         success: true,
         data: {
           activitiesUpdated: count,
         },
-        message: `Sponsorship applied to ${count} activities`,
+        message: `Featured status applied to ${count} activities`,
       });
     } catch (error: any) {
-      console.error('Error applying sponsorship:', error);
+      console.error('Error applying featured status:', error);
       return res.status(500).json({
         success: false,
-        error: error.message || 'Failed to apply sponsorship',
+        error: error.message || 'Failed to apply featured status',
       });
     }
   }
 );
 
 /**
- * POST /api/admin/vendors/:id/remove-sponsorship
- * Remove sponsorship from all vendor's activities
+ * POST /api/admin/vendors/:id/remove-featured
+ * Remove featured status from all vendor's activities
  */
 router.post(
-  '/:id/remove-sponsorship',
+  '/:id/remove-featured',
   requirePermission(PERMISSIONS.ACTIVITY_SPONSOR),
   [param('id').isUUID()],
   handleValidationErrors,
@@ -632,20 +632,20 @@ router.post(
         });
       }
 
-      const count = await vendorService.removeSponsorship(req.params.id);
+      const count = await vendorService.removeFeatured(req.params.id);
 
       return res.json({
         success: true,
         data: {
           activitiesUpdated: count,
         },
-        message: `Sponsorship removed from ${count} activities`,
+        message: `Featured status removed from ${count} activities`,
       });
     } catch (error: any) {
-      console.error('Error removing sponsorship:', error);
+      console.error('Error removing featured status:', error);
       return res.status(500).json({
         success: false,
-        error: error.message || 'Failed to remove sponsorship',
+        error: error.message || 'Failed to remove featured status',
       });
     }
   }

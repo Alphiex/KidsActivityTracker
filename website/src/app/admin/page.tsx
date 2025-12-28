@@ -82,12 +82,12 @@ export default function AdminDashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
-          title="Total Sponsors"
+          title="Total Partners"
           value={data?.totalSponsors || 0}
           icon="users"
         />
         <StatCard
-          title="Active Sponsors"
+          title="Active Partners"
           value={data?.activeSponsors || 0}
           icon="check"
           color="green"
@@ -121,10 +121,10 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Top Sponsors */}
+      {/* Top Partners */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Top Sponsors</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Top Partners</h2>
           <Link
             href="/admin/sponsors"
             className="text-sm text-purple-600 hover:text-purple-700"
@@ -155,7 +155,7 @@ export default function AdminDashboardPage() {
             ))
           ) : (
             <div className="px-6 py-8 text-center text-gray-500">
-              No sponsors yet.{' '}
+              No partners yet.{' '}
               <Link href="/admin/sponsors" className="text-purple-600 hover:text-purple-700">
                 Add one
               </Link>

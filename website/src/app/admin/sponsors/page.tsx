@@ -120,12 +120,12 @@ export default function SponsorsListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Sponsors</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Featured Partners</h1>
         <button
-          onClick={() => {/* TODO: Add new sponsor modal */}}
+          onClick={() => {/* TODO: Add new partner modal */}}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
         >
-          Add Sponsor
+          Add Partner
         </button>
       </div>
 
@@ -177,7 +177,7 @@ export default function SponsorsListPage() {
           </div>
         ) : sponsors.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
-            No sponsors found.
+            No partners found.
           </div>
         ) : (
           <>
@@ -264,7 +264,7 @@ export default function SponsorsListPage() {
                 <div className="text-sm text-gray-500">
                   Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
                   {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                  {pagination.total} sponsors
+                  {pagination.total} partners
                 </div>
                 <div className="flex gap-2">
                   <button

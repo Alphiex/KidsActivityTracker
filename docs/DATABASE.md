@@ -103,18 +103,21 @@ Primary activity records from recreation providers.
 | locationId | UUID? | FK to Location |
 | isActive | Boolean | Currently available |
 | lastSeenAt | DateTime? | Last scrape time |
-| isSponsor | Boolean | Sponsored activity flag |
-| sponsorTier | String? | Tier: gold, silver, bronze |
-| sponsorStartDate | DateTime? | Sponsorship start date |
-| sponsorEndDate | DateTime? | Sponsorship end date |
+| isFeatured | Boolean | Featured partner activity flag |
+| featuredTier | String? | Tier: gold, silver, bronze |
+| featuredStartDate | DateTime? | Featured start date |
+| featuredEndDate | DateTime? | Featured end date |
+| manuallyEditedFields | String[] | Fields protected from scraper overwrites |
+| manuallyEditedAt | DateTime? | When last manually edited |
+| manuallyEditedBy | String? | Admin user who made edit |
 
 **Indexes**:
 - `(providerId, externalId)` - Unique deduplication
 - `(activityTypeId, activitySubtypeId)` - Type filtering
 - `(isActive, category)` - Status + category
 - `(locationId)` - Location queries
-- `(isSponsor, sponsorTier)` - Sponsor tier queries
-- `(isSponsor, sponsorEndDate)` - Sponsor expiration queries
+- `(isFeatured, featuredTier)` - Featured tier queries
+- `(isFeatured, featuredEndDate)` - Featured expiration queries
 
 #### ActivitySession
 Multi-session activity schedule details.
@@ -356,6 +359,105 @@ Historical performance data.
 | activitiesFound | Int | Count |
 | dataQualityScore | Float | Quality % |
 | scrapeDuration | Int | Seconds |
+
+### Partner Domain (7 tables)
+
+#### PartnerPlan
+Subscription plans for partners.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | String | Plan name |
+| tier | String | gold, silver, bronze |
+| monthlyPrice | Decimal | Monthly cost |
+| yearlyPrice | Decimal? | Annual cost |
+| maxFeaturedActivities | Int | Max featured |
+| features | JSON | Plan features |
+| isActive | Boolean | Available for signup |
+
+#### PartnerAccount
+Partner accounts linked to providers.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| providerId | UUID | FK to Provider (unique) |
+| planId | UUID? | FK to PartnerPlan |
+| subscriptionStatus | String | active/inactive/cancelled |
+| subscriptionStartDate | DateTime? | Start date |
+| subscriptionEndDate | DateTime? | End date |
+| billingEmail | String | Billing email |
+| billingName | String? | Billing name |
+| targetCities | String[] | Geographic targeting |
+| targetProvinces | String[] | Province targeting |
+
+#### PartnerImpression
+Impression tracking for analytics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| partnerAccountId | UUID | FK to PartnerAccount |
+| activityId | UUID? | FK to Activity |
+| placement | String | Where shown |
+| platform | String | ios/android/web |
+| userId | UUID? | Logged-in user |
+| city | String? | User city |
+| timestamp | DateTime | When shown |
+
+#### PartnerClick
+Click tracking for analytics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| partnerAccountId | UUID | FK to PartnerAccount |
+| activityId | UUID? | FK to Activity |
+| placement | String | Where clicked |
+| destinationType | String | registration/website |
+| destinationUrl | String? | Target URL |
+| platform | String | ios/android/web |
+| timestamp | DateTime | When clicked |
+
+#### PartnerAnalyticsDaily
+Pre-aggregated daily metrics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| partnerAccountId | UUID | FK to PartnerAccount |
+| date | DateTime | Analytics date |
+| impressionsTotal | Int | Daily impressions |
+| clicksTotal | Int | Daily clicks |
+| impressionsByPlacement | JSON | By placement |
+| clicksByPlacement | JSON | By placement |
+
+#### PartnerABTest
+A/B testing configuration.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | String | Test name |
+| testType | String | Test type |
+| status | String | DRAFT/RUNNING/COMPLETED |
+| variants | JSON | Variant config |
+| trafficPercent | Int | % in test |
+| startDate | DateTime? | Test start |
+| endDate | DateTime? | Test end |
+
+#### PartnerABTestAssignment
+User assignments to test variants.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| testId | UUID | FK to PartnerABTest |
+| identifier | String | User/device ID |
+| identifierType | String | user_id/device_id |
+| variant | String | Assigned variant |
+| assignedAt | DateTime | Assignment time |
 
 ## Common Queries
 

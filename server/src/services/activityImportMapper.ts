@@ -553,12 +553,12 @@ export class ActivityImportMapper {
       lastImportedAt: new Date(),
       importBatchId,
 
-      // Apply sponsor settings if vendor has them
-      ...(vendor.defaultSponsorTier && {
-        isSponsor: true,
-        sponsorTier: vendor.defaultSponsorTier,
-        sponsorStartDate: vendor.sponsorStartDate,
-        sponsorEndDate: vendor.sponsorEndDate,
+      // Apply featured settings if vendor has them
+      ...(vendor.defaultFeaturedTier && {
+        isFeatured: true,
+        featuredTier: vendor.defaultFeaturedTier,
+        featuredStartDate: vendor.featuredStartDate,
+        featuredEndDate: vendor.featuredEndDate,
       }),
     };
 

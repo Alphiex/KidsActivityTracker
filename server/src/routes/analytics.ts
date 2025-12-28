@@ -58,38 +58,38 @@ router.post('/impressions', [
       .filter(i => i.activityId)
       .map(i => i.activityId!);
 
-    // Find sponsor accounts linked to these activities via their providers
-    const sponsorActivities = activityIds.length > 0 ? await prisma.activity.findMany({
+    // Find partner accounts linked to these activities via their providers
+    const featuredActivities = activityIds.length > 0 ? await prisma.activity.findMany({
       where: {
         id: { in: activityIds },
-        isSponsor: true
+        isFeatured: true
       },
       include: {
         provider: {
           include: {
-            sponsorAccount: true
+            partnerAccount: true
           }
         }
       }
     }) : [];
 
-    // Create a map of activityId -> sponsorAccountId
-    const activityToSponsor = new Map<string, string>();
-    for (const activity of sponsorActivities) {
-      if (activity.provider?.sponsorAccount) {
-        activityToSponsor.set(activity.id, activity.provider.sponsorAccount.id);
+    // Create a map of activityId -> partnerAccountId
+    const activityToPartner = new Map<string, string>();
+    for (const activity of featuredActivities) {
+      if (activity.provider?.partnerAccount) {
+        activityToPartner.set(activity.id, activity.provider.partnerAccount.id);
       }
     }
 
     // Create impression records
     const impressionRecords = impressions
       .filter(impression => {
-        // Only create records for sponsored activities or general placements
-        return !impression.activityId || activityToSponsor.has(impression.activityId);
+        // Only create records for featured activities or general placements
+        return !impression.activityId || activityToPartner.has(impression.activityId);
       })
       .map(impression => ({
-        sponsorAccountId: impression.activityId
-          ? activityToSponsor.get(impression.activityId)!
+        partnerAccountId: impression.activityId
+          ? activityToPartner.get(impression.activityId)!
           : null,
         activityId: impression.activityId || null,
         placement: impression.placement,
@@ -102,11 +102,11 @@ router.post('/impressions', [
         deviceType: impression.deviceType || null,
         timestamp: impression.timestamp ? new Date(impression.timestamp) : new Date()
       }))
-      .filter(record => record.sponsorAccountId !== null);
+      .filter(record => record.partnerAccountId !== null);
 
     // Batch insert impressions
     if (impressionRecords.length > 0) {
-      await prisma.sponsorImpression.createMany({
+      await prisma.partnerImpression.createMany({
         data: impressionRecords as any[]
       });
     }
@@ -147,8 +147,8 @@ router.post('/clicks', [
     const clickEvent: ClickEvent = req.body;
     const userId = req.user?.id || null;
 
-    // Find sponsor account for the activity
-    let sponsorAccountId: string | null = null;
+    // Find partner account for the activity
+    let partnerAccountId: string | null = null;
 
     if (clickEvent.activityId) {
       const activity = await prisma.activity.findUnique({
@@ -156,22 +156,22 @@ router.post('/clicks', [
         include: {
           provider: {
             include: {
-              sponsorAccount: true
+              partnerAccount: true
             }
           }
         }
       });
 
-      if (activity?.provider?.sponsorAccount) {
-        sponsorAccountId = activity.provider.sponsorAccount.id;
+      if (activity?.provider?.partnerAccount) {
+        partnerAccountId = activity.provider.partnerAccount.id;
       }
     }
 
-    // Only record if we found a sponsor account
-    if (sponsorAccountId) {
-      await prisma.sponsorClick.create({
+    // Only record if we found a partner account
+    if (partnerAccountId) {
+      await prisma.partnerClick.create({
         data: {
-          sponsorAccountId,
+          partnerAccountId,
           activityId: clickEvent.activityId || null,
           placement: clickEvent.placement,
           destinationType: clickEvent.destinationType,
@@ -188,7 +188,7 @@ router.post('/clicks', [
 
     res.json({
       success: true,
-      recorded: sponsorAccountId !== null
+      recorded: partnerAccountId !== null
     });
   } catch (error: any) {
     console.error('[Analytics] Error recording click:', error);
@@ -222,7 +222,7 @@ router.get('/ab-test/:testId/assignment', [
     const { identifier, identifierType } = req.query as { identifier: string; identifierType: string };
 
     // Get the test
-    const test = await prisma.sponsorABTest.findUnique({
+    const test = await prisma.partnerABTest.findUnique({
       where: { id: testId }
     });
 
@@ -234,7 +234,7 @@ router.get('/ab-test/:testId/assignment', [
     }
 
     // Check for existing assignment
-    let assignment = await prisma.sponsorABTestAssignment.findUnique({
+    let assignment = await prisma.partnerABTestAssignment.findUnique({
       where: {
         testId_identifier: {
           testId,
@@ -263,7 +263,7 @@ router.get('/ab-test/:testId/assignment', [
       const variantIndex = Math.floor(Math.random() * variants.length);
       const selectedVariant = variants[variantIndex];
 
-      assignment = await prisma.sponsorABTestAssignment.create({
+      assignment = await prisma.partnerABTestAssignment.create({
         data: {
           testId,
           identifier,
@@ -301,7 +301,7 @@ router.get('/ab-test/:testId/assignment', [
  */
 router.get('/ab-tests/active', async (req: Request, res: Response) => {
   try {
-    const tests = await prisma.sponsorABTest.findMany({
+    const tests = await prisma.partnerABTest.findMany({
       where: {
         status: 'RUNNING'
       },

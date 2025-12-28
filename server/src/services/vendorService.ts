@@ -32,16 +32,16 @@ export interface UpdateVendorInput {
   monthlyImportLimit?: number;
 }
 
-export interface SponsorshipInput {
-  defaultSponsorTier: 'gold' | 'silver' | 'bronze' | null;
-  sponsorStartDate?: Date | null;
-  sponsorEndDate?: Date | null;
+export interface FeaturedInput {
+  defaultFeaturedTier: 'gold' | 'silver' | 'bronze' | null;
+  featuredStartDate?: Date | null;
+  featuredEndDate?: Date | null;
 }
 
 export interface VendorFilters {
   status?: VendorStatus;
   search?: string;
-  hasSponsor?: boolean;
+  hasFeatured?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -153,7 +153,7 @@ export class VendorService {
    * List vendors with filters
    */
   async listVendors(filters: VendorFilters = {}): Promise<{ vendors: Vendor[]; total: number }> {
-    const { status, search, hasSponsor, limit = 50, offset = 0 } = filters;
+    const { status, search, hasFeatured, limit = 50, offset = 0 } = filters;
 
     const where: any = {};
 
@@ -169,11 +169,11 @@ export class VendorService {
       ];
     }
 
-    if (hasSponsor !== undefined) {
-      if (hasSponsor) {
-        where.defaultSponsorTier = { not: null };
+    if (hasFeatured !== undefined) {
+      if (hasFeatured) {
+        where.defaultFeaturedTier = { not: null };
       } else {
-        where.defaultSponsorTier = null;
+        where.defaultFeaturedTier = null;
       }
     }
 
@@ -408,28 +408,28 @@ export class VendorService {
   }
 
   /**
-   * Update vendor sponsorship
+   * Update vendor featured status
    */
-  async updateSponsorship(vendorId: string, data: SponsorshipInput): Promise<Vendor> {
+  async updateFeatured(vendorId: string, data: FeaturedInput): Promise<Vendor> {
     return prisma.vendor.update({
       where: { id: vendorId },
       data: {
-        defaultSponsorTier: data.defaultSponsorTier,
-        sponsorStartDate: data.sponsorStartDate,
-        sponsorEndDate: data.sponsorEndDate,
+        defaultFeaturedTier: data.defaultFeaturedTier,
+        featuredStartDate: data.featuredStartDate,
+        featuredEndDate: data.featuredEndDate,
       },
     });
   }
 
   /**
-   * Bulk update activities with vendor's sponsorship
+   * Bulk update activities with vendor's featured status
    */
-  async applySponsorship(vendorId: string): Promise<number> {
+  async applyFeatured(vendorId: string): Promise<number> {
     const vendor = await prisma.vendor.findUnique({
       where: { id: vendorId },
     });
 
-    if (!vendor || !vendor.defaultSponsorTier) {
+    if (!vendor || !vendor.defaultFeaturedTier) {
       return 0;
     }
 
@@ -439,10 +439,10 @@ export class VendorService {
         isActive: true,
       },
       data: {
-        isSponsor: true,
-        sponsorTier: vendor.defaultSponsorTier,
-        sponsorStartDate: vendor.sponsorStartDate,
-        sponsorEndDate: vendor.sponsorEndDate,
+        isFeatured: true,
+        featuredTier: vendor.defaultFeaturedTier,
+        featuredStartDate: vendor.featuredStartDate,
+        featuredEndDate: vendor.featuredEndDate,
       },
     });
 
@@ -450,18 +450,18 @@ export class VendorService {
   }
 
   /**
-   * Remove sponsorship from all vendor activities
+   * Remove featured status from all vendor activities
    */
-  async removeSponsorship(vendorId: string): Promise<number> {
+  async removeFeatured(vendorId: string): Promise<number> {
     const result = await prisma.activity.updateMany({
       where: {
         vendorId,
       },
       data: {
-        isSponsor: false,
-        sponsorTier: null,
-        sponsorStartDate: null,
-        sponsorEndDate: null,
+        isFeatured: false,
+        featuredTier: null,
+        featuredStartDate: null,
+        featuredEndDate: null,
       },
     });
 

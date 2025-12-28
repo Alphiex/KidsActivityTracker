@@ -72,7 +72,7 @@ export default function SponsorDetailPage() {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to load sponsor');
+        throw new Error('Failed to load partner');
       }
 
       const result = await response.json();
@@ -128,9 +128,9 @@ export default function SponsorDetailPage() {
   if (error || !sponsor) {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-600">{error || 'Sponsor not found'}</p>
+        <p className="text-red-600">{error || 'Partner not found'}</p>
         <Link href="/admin/sponsors" className="mt-2 text-purple-600 hover:text-purple-700">
-          Back to Sponsors
+          Back to Featured Partners
         </Link>
       </div>
     );

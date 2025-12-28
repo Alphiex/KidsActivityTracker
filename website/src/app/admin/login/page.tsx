@@ -29,9 +29,10 @@ export default function AdminLoginPage() {
       }
 
       // Verify user is an admin
+      const token = data.tokens?.accessToken || data.token;
       const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/profile`, {
         headers: {
-          'Authorization': `Bearer ${data.token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
@@ -40,7 +41,7 @@ export default function AdminLoginPage() {
       }
 
       // Store token and redirect
-      localStorage.setItem('admin_token', data.token);
+      localStorage.setItem('admin_token', token);
       router.push('/admin');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -53,8 +54,8 @@ export default function AdminLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Sponsor Admin</h1>
-          <p className="mt-2 text-gray-600">Sign in to manage sponsors</p>
+          <h1 className="text-3xl font-bold text-gray-900">Partner Admin</h1>
+          <p className="mt-2 text-gray-600">Sign in to manage featured partners</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8">

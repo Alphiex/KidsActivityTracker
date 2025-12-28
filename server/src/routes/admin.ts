@@ -17,29 +17,28 @@ router.get('/profile', verifyToken, async (req: Request, res: Response) => {
     }
 
     const adminUser = await prisma.adminUser.findUnique({
-      where: { userId: req.user.id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        }
-      }
+      where: { userId: req.user.id }
     });
 
     if (!adminUser || !['SUPER_ADMIN', 'ADMIN'].includes(adminUser.role)) {
       return res.status(403).json({ success: false, error: 'Admin access required' });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true
+      }
+    });
+
     res.json({
       success: true,
       admin: {
         id: adminUser.id,
         role: adminUser.role,
-        user: adminUser.user
+        user
       }
     });
   } catch (error) {

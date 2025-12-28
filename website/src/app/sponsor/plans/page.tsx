@@ -92,7 +92,7 @@ export default function PlansPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Sponsor Plans</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Partner Plans</h1>
         <p className="text-gray-500 mt-1">
           Choose the plan that works best for your business
         </p>
@@ -219,7 +219,7 @@ export default function PlansPage() {
       {plans.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl shadow">
           <p className="text-gray-500">No plans available at the moment.</p>
-          <p className="text-gray-500 mt-2">Contact support for sponsorship options.</p>
+          <p className="text-gray-500 mt-2">Contact support for partnership options.</p>
         </div>
       )}
 
@@ -232,7 +232,7 @@ export default function PlansPage() {
           Contact us for enterprise pricing and custom features
         </p>
         <a
-          href="mailto:sponsors@kidsactivitytracker.com"
+          href="mailto:partners@kidsactivitytracker.com"
           className="inline-block px-6 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
         >
           Contact Sales

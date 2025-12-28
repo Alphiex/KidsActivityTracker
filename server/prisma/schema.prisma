@@ -62,11 +62,11 @@ model Activity {
   hasPrerequisites       Boolean                @default(false)
   isUpdated              Boolean?               @default(false)
 
-  // Sponsor fields (admin-only)
-  isSponsor              Boolean                @default(false)
-  sponsorTier            String?                // 'gold', 'silver', 'bronze'
-  sponsorStartDate       DateTime?
-  sponsorEndDate         DateTime?
+  // Featured partner fields (admin-only)
+  isFeatured             Boolean                @default(false)
+  featuredTier           String?                // 'gold', 'silver', 'bronze'
+  featuredStartDate      DateTime?
+  featuredEndDate        DateTime?
 
   // Vendor import tracking
   vendorId               String?
@@ -104,8 +104,8 @@ model Activity {
   @@index([providerId])
   @@index([registrationStatus])
   @@index([latitude, longitude])
-  @@index([isSponsor, sponsorTier])
-  @@index([isSponsor, sponsorEndDate])
+  @@index([isFeatured, featuredTier])
+  @@index([isFeatured, featuredEndDate])
 }
 
 model ActivityHistory {
@@ -357,7 +357,7 @@ model Provider {
   ScrapeJob          ScrapeJob[]
   ScraperHealthCheck ScraperHealthCheck[]
   vendor             Vendor?
-  sponsorAccount     SponsorAccount?
+  partnerAccount     PartnerAccount?
 
   @@index([isActive])
   @@index([platform])
@@ -741,10 +741,10 @@ model Vendor {
   requiresApproval    Boolean        @default(true)
   autoApproveUpdates  Boolean        @default(false)
 
-  // Sponsorship tier
-  defaultSponsorTier  String?
-  sponsorStartDate    DateTime?
-  sponsorEndDate      DateTime?
+  // Featured partner tier
+  defaultFeaturedTier String?
+  featuredStartDate   DateTime?
+  featuredEndDate     DateTime?
 
   // Rate limiting
   dailyImportLimit    Int            @default(500)
@@ -962,11 +962,11 @@ model CityRequest {
 }
 
 // ============================================
-// SPONSOR MANAGEMENT SYSTEM
+// FEATURED PARTNER MANAGEMENT SYSTEM
 // ============================================
 
-// Sponsor subscription plans (Bronze, Silver, Gold)
-model SponsorPlan {
+// Partner subscription plans (Bronze, Silver, Gold)
+model PartnerPlan {
   id              String           @id @default(uuid())
   name            String           // "Bronze", "Silver", "Gold"
   tier            String           // "bronze", "silver", "gold"
@@ -977,19 +977,20 @@ model SponsorPlan {
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  accounts        SponsorAccount[]
+  accounts        PartnerAccount[]
 
+  @@map("SponsorPlan")
   @@index([tier])
   @@index([isActive])
 }
 
-// Sponsor accounts (businesses that sponsor activities)
-model SponsorAccount {
+// Partner accounts (businesses that are featured partners)
+model PartnerAccount {
   id                    String                    @id @default(uuid())
   providerId            String                    @unique
   provider              Provider                  @relation(fields: [providerId], references: [id])
   planId                String?
-  plan                  SponsorPlan?              @relation(fields: [planId], references: [id])
+  plan                  PartnerPlan?              @relation(fields: [planId], references: [id])
 
   // RevenueCat integration
   revenueCatCustomerId  String?
@@ -1008,19 +1009,20 @@ model SponsorAccount {
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
 
-  impressions           SponsorImpression[]
-  clicks                SponsorClick[]
-  abTestAssignments     SponsorABTestAssignment[]
+  impressions           PartnerImpression[]
+  clicks                PartnerClick[]
+  abTestAssignments     PartnerABTestAssignment[]
 
+  @@map("SponsorAccount")
   @@index([subscriptionStatus])
   @@index([providerId])
 }
 
 // Impression tracking (batch inserts for performance)
-model SponsorImpression {
+model PartnerImpression {
   id               String         @id @default(uuid())
-  sponsorAccountId String
-  sponsorAccount   SponsorAccount @relation(fields: [sponsorAccountId], references: [id])
+  partnerAccountId String
+  partnerAccount   PartnerAccount @relation(fields: [partnerAccountId], references: [id])
   activityId       String?
 
   // Context
@@ -1039,7 +1041,8 @@ model SponsorImpression {
 
   timestamp        DateTime       @default(now())
 
-  @@index([sponsorAccountId])
+  @@map("SponsorImpression")
+  @@index([partnerAccountId])
   @@index([activityId])
   @@index([timestamp])
   @@index([placement])
@@ -1047,10 +1050,10 @@ model SponsorImpression {
 }
 
 // Click tracking
-model SponsorClick {
+model PartnerClick {
   id               String         @id @default(uuid())
-  sponsorAccountId String
-  sponsorAccount   SponsorAccount @relation(fields: [sponsorAccountId], references: [id])
+  partnerAccountId String
+  partnerAccount   PartnerAccount @relation(fields: [partnerAccountId], references: [id])
   activityId       String?
 
   // Context
@@ -1069,7 +1072,8 @@ model SponsorClick {
   platform         String
   timestamp        DateTime       @default(now())
 
-  @@index([sponsorAccountId])
+  @@map("SponsorClick")
+  @@index([partnerAccountId])
   @@index([activityId])
   @@index([timestamp])
 }
@@ -1082,8 +1086,8 @@ enum ABTestStatus {
   COMPLETED
 }
 
-// A/B Tests for sponsor placement optimization
-model SponsorABTest {
+// A/B Tests for partner placement optimization
+model PartnerABTest {
   id                      String                    @id @default(uuid())
   name                    String
   description             String?
@@ -1108,37 +1112,39 @@ model SponsorABTest {
   updatedAt               DateTime                  @updatedAt
   createdBy               String?
 
-  assignments             SponsorABTestAssignment[]
+  assignments             PartnerABTestAssignment[]
 
+  @@map("SponsorABTest")
   @@index([status])
   @@index([testType])
 }
 
 // User assignments to A/B test variants
-model SponsorABTestAssignment {
+model PartnerABTestAssignment {
   id               String          @id @default(uuid())
   testId           String
-  test             SponsorABTest   @relation(fields: [testId], references: [id])
+  test             PartnerABTest   @relation(fields: [testId], references: [id])
 
   // Can be user ID or device ID for anonymous users
   identifier       String
   identifierType   String          // "user_id", "device_id"
   variant          String
 
-  sponsorAccountId String?
-  sponsorAccount   SponsorAccount? @relation(fields: [sponsorAccountId], references: [id])
+  partnerAccountId String?
+  partnerAccount   PartnerAccount? @relation(fields: [partnerAccountId], references: [id])
 
   assignedAt       DateTime        @default(now())
 
+  @@map("SponsorABTestAssignment")
   @@unique([testId, identifier])
   @@index([testId])
   @@index([identifier])
 }
 
 // Daily aggregated analytics (for fast dashboard queries)
-model SponsorAnalyticsDaily {
+model PartnerAnalyticsDaily {
   id                        String   @id @default(uuid())
-  sponsorAccountId          String
+  partnerAccountId          String
   date                      DateTime @db.Date
 
   // Impression counts by placement
@@ -1165,7 +1171,8 @@ model SponsorAnalyticsDaily {
   impressionsByPlatform     Json?
   clicksByPlatform          Json?
 
-  @@unique([sponsorAccountId, date])
-  @@index([sponsorAccountId])
+  @@map("SponsorAnalyticsDaily")
+  @@unique([partnerAccountId, date])
+  @@index([partnerAccountId])
   @@index([date])
 }

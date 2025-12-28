@@ -8,11 +8,11 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Sponsor portal JWT secret (separate from user auth)
-const SPONSOR_JWT_SECRET = process.env.SPONSOR_JWT_SECRET || process.env.JWT_SECRET || 'sponsor-secret';
+// Partner portal JWT secret (separate from user auth)
+const PARTNER_JWT_SECRET = process.env.SPONSOR_JWT_SECRET || process.env.JWT_SECRET || 'partner-secret';
 
-// Middleware to verify sponsor token
-const verifySponsorToken = async (req: Request, res: Response, next: any) => {
+// Middleware to verify partner token
+const verifyPartnerToken = async (req: Request, res: Response, next: any) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -20,9 +20,9 @@ const verifySponsorToken = async (req: Request, res: Response, next: any) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, SPONSOR_JWT_SECRET) as { sponsorAccountId: string; providerId: string };
+    const decoded = jwt.verify(token, PARTNER_JWT_SECRET) as { sponsorAccountId: string; providerId: string };
 
-    const sponsor = await prisma.sponsorAccount.findUnique({
+    const partner = await prisma.partnerAccount.findUnique({
       where: { id: decoded.sponsorAccountId },
       include: {
         provider: true,
@@ -30,11 +30,11 @@ const verifySponsorToken = async (req: Request, res: Response, next: any) => {
       }
     });
 
-    if (!sponsor) {
-      return res.status(401).json({ success: false, error: 'Invalid sponsor account' });
+    if (!partner) {
+      return res.status(401).json({ success: false, error: 'Invalid partner account' });
     }
 
-    (req as any).sponsor = sponsor;
+    (req as any).partner = partner;
     next();
   } catch (error) {
     return res.status(401).json({ success: false, error: 'Invalid token' });
@@ -42,8 +42,8 @@ const verifySponsorToken = async (req: Request, res: Response, next: any) => {
 };
 
 /**
- * @route   POST /api/sponsor/auth/login
- * @desc    Sponsor portal login (uses vendor credentials)
+ * @route   POST /api/partner/auth/login
+ * @desc    Partner portal login (uses vendor credentials)
  * @access  Public
  */
 router.post('/auth/login', [
@@ -68,7 +68,7 @@ router.post('/auth/login', [
               include: {
                 provider: {
                   include: {
-                    sponsorAccount: {
+                    partnerAccount: {
                       include: {
                         plan: true
                       }
@@ -92,28 +92,28 @@ router.post('/auth/login', [
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    // Find vendor with sponsor account
-    const vendorWithSponsor = user.vendorMemberships.find(
-      vm => vm.vendor.provider?.sponsorAccount
+    // Find vendor with partner account
+    const vendorWithPartner = user.vendorMemberships.find(
+      vm => vm.vendor.provider?.partnerAccount
     );
 
-    if (!vendorWithSponsor || !vendorWithSponsor.vendor.provider?.sponsorAccount) {
+    if (!vendorWithPartner || !vendorWithPartner.vendor.provider?.partnerAccount) {
       return res.status(403).json({
         success: false,
-        error: 'No sponsor account associated with your vendor account'
+        error: 'No partner account associated with your vendor account'
       });
     }
 
-    const sponsorAccount = vendorWithSponsor.vendor.provider.sponsorAccount;
+    const partnerAccount = vendorWithPartner.vendor.provider.partnerAccount;
 
-    // Generate sponsor token
+    // Generate partner token (keep sponsorAccountId for backward compatibility with existing tokens)
     const token = jwt.sign(
       {
-        sponsorAccountId: sponsorAccount.id,
-        providerId: vendorWithSponsor.vendor.providerId,
+        sponsorAccountId: partnerAccount.id,
+        providerId: vendorWithPartner.vendor.providerId,
         userId: user.id
       },
-      SPONSOR_JWT_SECRET,
+      PARTNER_JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -121,14 +121,14 @@ router.post('/auth/login', [
       success: true,
       token,
       sponsor: {
-        id: sponsorAccount.id,
-        providerName: vendorWithSponsor.vendor.name,
-        plan: sponsorAccount.plan,
-        subscriptionStatus: sponsorAccount.subscriptionStatus
+        id: partnerAccount.id,
+        providerName: vendorWithPartner.vendor.name,
+        plan: partnerAccount.plan,
+        subscriptionStatus: partnerAccount.subscriptionStatus
       }
     });
   } catch (error: any) {
-    console.error('[SponsorPortal] Login error:', error);
+    console.error('[PartnerPortal] Login error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Login failed'
@@ -137,27 +137,27 @@ router.post('/auth/login', [
 });
 
 /**
- * @route   GET /api/sponsor/auth/me
- * @desc    Get current sponsor account details
- * @access  Sponsor
+ * @route   GET /api/partner/auth/me
+ * @desc    Get current partner account details
+ * @access  Partner
  */
-router.get('/auth/me', verifySponsorToken, async (req: Request, res: Response) => {
+router.get('/auth/me', verifyPartnerToken, async (req: Request, res: Response) => {
   try {
-    const sponsor = (req as any).sponsor;
+    const partner = (req as any).partner;
 
     res.json({
       success: true,
       sponsor: {
-        id: sponsor.id,
-        provider: sponsor.provider,
-        plan: sponsor.plan,
-        subscriptionStatus: sponsor.subscriptionStatus,
-        subscriptionStartDate: sponsor.subscriptionStartDate,
-        subscriptionEndDate: sponsor.subscriptionEndDate,
-        targetCities: sponsor.targetCities,
-        targetProvinces: sponsor.targetProvinces,
-        billingEmail: sponsor.billingEmail,
-        billingName: sponsor.billingName
+        id: partner.id,
+        provider: partner.provider,
+        plan: partner.plan,
+        subscriptionStatus: partner.subscriptionStatus,
+        subscriptionStartDate: partner.subscriptionStartDate,
+        subscriptionEndDate: partner.subscriptionEndDate,
+        targetCities: partner.targetCities,
+        targetProvinces: partner.targetProvinces,
+        billingEmail: partner.billingEmail,
+        billingName: partner.billingName
       }
     });
   } catch (error: any) {
@@ -169,13 +169,13 @@ router.get('/auth/me', verifySponsorToken, async (req: Request, res: Response) =
 });
 
 /**
- * @route   GET /api/sponsor/dashboard
- * @desc    Get sponsor's own analytics dashboard data
- * @access  Sponsor
+ * @route   GET /api/partner/dashboard
+ * @desc    Get partner's own analytics dashboard data
+ * @access  Partner
  */
-router.get('/dashboard', verifySponsorToken, async (req: Request, res: Response) => {
+router.get('/dashboard', verifyPartnerToken, async (req: Request, res: Response) => {
   try {
-    const sponsor = (req as any).sponsor;
+    const partner = (req as any).partner;
 
     // Get stats for different periods
     const now = new Date();
@@ -194,27 +194,27 @@ router.get('/dashboard', verifySponsorToken, async (req: Request, res: Response)
       clicksLast30Days,
       recentDaily
     ] = await Promise.all([
-      prisma.sponsorImpression.count({
-        where: { sponsorAccountId: sponsor.id, timestamp: { gte: today } }
+      prisma.partnerImpression.count({
+        where: { partnerAccountId: partner.id, timestamp: { gte: today } }
       }),
-      prisma.sponsorClick.count({
-        where: { sponsorAccountId: sponsor.id, timestamp: { gte: today } }
+      prisma.partnerClick.count({
+        where: { partnerAccountId: partner.id, timestamp: { gte: today } }
       }),
-      prisma.sponsorImpression.count({
-        where: { sponsorAccountId: sponsor.id, timestamp: { gte: sevenDaysAgo } }
+      prisma.partnerImpression.count({
+        where: { partnerAccountId: partner.id, timestamp: { gte: sevenDaysAgo } }
       }),
-      prisma.sponsorClick.count({
-        where: { sponsorAccountId: sponsor.id, timestamp: { gte: sevenDaysAgo } }
+      prisma.partnerClick.count({
+        where: { partnerAccountId: partner.id, timestamp: { gte: sevenDaysAgo } }
       }),
-      prisma.sponsorImpression.count({
-        where: { sponsorAccountId: sponsor.id, timestamp: { gte: thirtyDaysAgo } }
+      prisma.partnerImpression.count({
+        where: { partnerAccountId: partner.id, timestamp: { gte: thirtyDaysAgo } }
       }),
-      prisma.sponsorClick.count({
-        where: { sponsorAccountId: sponsor.id, timestamp: { gte: thirtyDaysAgo } }
+      prisma.partnerClick.count({
+        where: { partnerAccountId: partner.id, timestamp: { gte: thirtyDaysAgo } }
       }),
-      prisma.sponsorAnalyticsDaily.findMany({
+      prisma.partnerAnalyticsDaily.findMany({
         where: {
-          sponsorAccountId: sponsor.id,
+          partnerAccountId: partner.id,
           date: { gte: sevenDaysAgo }
         },
         orderBy: { date: 'asc' }
@@ -244,14 +244,14 @@ router.get('/dashboard', verifySponsorToken, async (req: Request, res: Response)
         },
         dailyTrend: recentDaily,
         subscription: {
-          plan: sponsor.plan,
-          status: sponsor.subscriptionStatus,
-          endsAt: sponsor.subscriptionEndDate
+          plan: partner.plan,
+          status: partner.subscriptionStatus,
+          endsAt: partner.subscriptionEndDate
         }
       }
     });
   } catch (error: any) {
-    console.error('[SponsorPortal] Dashboard error:', error);
+    console.error('[PartnerPortal] Dashboard error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to load dashboard'
@@ -260,22 +260,22 @@ router.get('/dashboard', verifySponsorToken, async (req: Request, res: Response)
 });
 
 /**
- * @route   GET /api/sponsor/analytics
+ * @route   GET /api/partner/analytics
  * @desc    Get detailed analytics for own account
- * @access  Sponsor
+ * @access  Partner
  */
-router.get('/analytics', verifySponsorToken, async (req: Request, res: Response) => {
+router.get('/analytics', verifyPartnerToken, async (req: Request, res: Response) => {
   try {
-    const sponsor = (req as any).sponsor;
+    const partner = (req as any).partner;
     const { startDate, endDate } = req.query;
 
     const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate as string) : new Date();
 
     // Get daily analytics
-    const dailyAnalytics = await prisma.sponsorAnalyticsDaily.findMany({
+    const dailyAnalytics = await prisma.partnerAnalyticsDaily.findMany({
       where: {
-        sponsorAccountId: sponsor.id,
+        partnerAccountId: partner.id,
         date: { gte: start, lte: end }
       },
       orderBy: { date: 'asc' }
@@ -283,18 +283,18 @@ router.get('/analytics', verifySponsorToken, async (req: Request, res: Response)
 
     // Get breakdown by placement
     const [impressionsByPlacement, clicksByPlacement] = await Promise.all([
-      prisma.sponsorImpression.groupBy({
+      prisma.partnerImpression.groupBy({
         by: ['placement'],
         where: {
-          sponsorAccountId: sponsor.id,
+          partnerAccountId: partner.id,
           timestamp: { gte: start, lte: end }
         },
         _count: true
       }),
-      prisma.sponsorClick.groupBy({
+      prisma.partnerClick.groupBy({
         by: ['placement'],
         where: {
-          sponsorAccountId: sponsor.id,
+          partnerAccountId: partner.id,
           timestamp: { gte: start, lte: end }
         },
         _count: true
@@ -303,10 +303,10 @@ router.get('/analytics', verifySponsorToken, async (req: Request, res: Response)
 
     // Get breakdown by city (top 10)
     const [impressionsByCity, clicksByCity] = await Promise.all([
-      prisma.sponsorImpression.groupBy({
+      prisma.partnerImpression.groupBy({
         by: ['city'],
         where: {
-          sponsorAccountId: sponsor.id,
+          partnerAccountId: partner.id,
           timestamp: { gte: start, lte: end },
           city: { not: null }
         },
@@ -314,10 +314,10 @@ router.get('/analytics', verifySponsorToken, async (req: Request, res: Response)
         orderBy: { _count: { city: 'desc' } },
         take: 10
       }),
-      prisma.sponsorClick.groupBy({
+      prisma.partnerClick.groupBy({
         by: ['city'],
         where: {
-          sponsorAccountId: sponsor.id,
+          partnerAccountId: partner.id,
           timestamp: { gte: start, lte: end },
           city: { not: null }
         },
@@ -347,7 +347,7 @@ router.get('/analytics', verifySponsorToken, async (req: Request, res: Response)
       }
     });
   } catch (error: any) {
-    console.error('[SponsorPortal] Analytics error:', error);
+    console.error('[PartnerPortal] Analytics error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to load analytics'
@@ -356,29 +356,29 @@ router.get('/analytics', verifySponsorToken, async (req: Request, res: Response)
 });
 
 /**
- * @route   PUT /api/sponsor/settings
+ * @route   PUT /api/partner/settings
  * @desc    Update targeting settings
- * @access  Sponsor
+ * @access  Partner
  */
 router.put('/settings', [
   body('targetCities').optional().isArray(),
   body('targetProvinces').optional().isArray(),
-], verifySponsorToken, async (req: Request, res: Response) => {
+], verifyPartnerToken, async (req: Request, res: Response) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const sponsor = (req as any).sponsor;
+    const partner = (req as any).partner;
     const { targetCities, targetProvinces } = req.body;
 
     const updateData: any = {};
     if (targetCities !== undefined) updateData.targetCities = targetCities;
     if (targetProvinces !== undefined) updateData.targetProvinces = targetProvinces;
 
-    const updated = await prisma.sponsorAccount.update({
-      where: { id: sponsor.id },
+    const updated = await prisma.partnerAccount.update({
+      where: { id: partner.id },
       data: updateData
     });
 
@@ -390,7 +390,7 @@ router.put('/settings', [
       }
     });
   } catch (error: any) {
-    console.error('[SponsorPortal] Settings error:', error);
+    console.error('[PartnerPortal] Settings error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to update settings'
@@ -399,13 +399,13 @@ router.put('/settings', [
 });
 
 /**
- * @route   GET /api/sponsor/plans
- * @desc    List available sponsor plans
- * @access  Sponsor
+ * @route   GET /api/partner/plans
+ * @desc    List available partner plans
+ * @access  Partner
  */
-router.get('/plans', verifySponsorToken, async (req: Request, res: Response) => {
+router.get('/plans', verifyPartnerToken, async (req: Request, res: Response) => {
   try {
-    const plans = await prisma.sponsorPlan.findMany({
+    const plans = await prisma.partnerPlan.findMany({
       where: { isActive: true },
       orderBy: { monthlyPrice: 'asc' }
     });
@@ -431,11 +431,11 @@ router.get('/plans', verifySponsorToken, async (req: Request, res: Response) => 
 });
 
 /**
- * @route   GET /api/sponsor/cities
+ * @route   GET /api/partner/cities
  * @desc    Get available cities for targeting
- * @access  Sponsor
+ * @access  Partner
  */
-router.get('/cities', verifySponsorToken, async (req: Request, res: Response) => {
+router.get('/cities', verifyPartnerToken, async (req: Request, res: Response) => {
   try {
     const cities = await prisma.city.findMany({
       orderBy: [{ province: 'asc' }, { name: 'asc' }]

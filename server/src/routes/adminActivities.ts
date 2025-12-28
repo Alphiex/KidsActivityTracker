@@ -41,7 +41,7 @@ router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) =
       city,
       category,
       isActive,
-      isSponsor,
+      isFeatured,
       hasManualEdits,
       page = '1',
       limit = '50',
@@ -82,8 +82,8 @@ router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) =
       where.isActive = isActive === 'true';
     }
 
-    if (isSponsor !== undefined) {
-      where.isSponsor = isSponsor === 'true';
+    if (isFeatured !== undefined) {
+      where.isFeatured = isFeatured === 'true';
     }
 
     if (hasManualEdits === 'true') {
@@ -135,8 +135,8 @@ router.get('/', verifyToken, requireAdmin, async (req: Request, res: Response) =
         ageMax: a.ageMax,
         cost: a.cost,
         isActive: a.isActive,
-        isSponsor: a.isSponsor,
-        sponsorTier: a.sponsorTier,
+        isFeatured: a.isFeatured,
+        featuredTier: a.featuredTier,
         manuallyEditedFields: a.manuallyEditedFields,
         manuallyEditedAt: a.manuallyEditedAt,
         updatedAt: a.updatedAt,
@@ -185,7 +185,7 @@ router.get('/providers', verifyToken, requireAdmin, async (req: Request, res: Re
  */
 router.get('/locations', verifyToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { search, providerId } = req.query;
+    const { search } = req.query;
 
     const where: Prisma.LocationWhereInput = {};
 
@@ -194,10 +194,6 @@ router.get('/locations', verifyToken, requireAdmin, async (req: Request, res: Re
         { name: { contains: search as string, mode: 'insensitive' } },
         { city: { contains: search as string, mode: 'insensitive' } }
       ];
-    }
-
-    if (providerId) {
-      where.providerId = providerId as string;
     }
 
     const locations = await prisma.location.findMany({
@@ -371,7 +367,7 @@ router.put('/:id',
         'registrationDate', 'registrationEndDate', 'spotsAvailable', 'totalSpots',
         'cost', 'costIncludesTax', 'taxAmount',
         'ageMin', 'ageMax',
-        'isSponsor', 'sponsorTier', 'sponsorStartDate', 'sponsorEndDate',
+        'isFeatured', 'featuredTier', 'featuredStartDate', 'featuredEndDate',
         'isActive', 'activityTypeId', 'activitySubtypeId'
       ];
 

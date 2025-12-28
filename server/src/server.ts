@@ -21,12 +21,12 @@ import referenceRoutes from './routes/reference';
 import citiesRoutes from './routes/cities';
 import categoriesRoutes from './routes/categories';
 import locationsRoutes from './routes/locations';
-import sponsorsRoutes from './routes/sponsors';
+import partnersRoutes from './routes/partners';
 import subscriptionsRoutes from './routes/subscriptions';
 import webhooksRoutes from './routes/webhooks';
 import analyticsRoutes from './routes/analytics';
-import adminSponsorsRoutes from './routes/adminSponsors';
-import sponsorPortalRoutes from './routes/sponsorPortal';
+import adminPartnersRoutes from './routes/adminPartners';
+import partnerPortalRoutes from './routes/partnerPortal';
 import adminRoutes from './routes/admin';
 import adminActivitiesRoutes from './routes/adminActivities';
 import vendorRoutes from './routes/vendor';
@@ -152,8 +152,10 @@ app.use('/api/v1/categories', categoriesRoutes);
 // Locations routes (v1 API)
 app.use('/api/v1/locations', locationsRoutes);
 
-// Sponsors routes (v1 API)
-app.use('/api/v1/sponsors', sponsorsRoutes);
+// Featured Partners routes (v1 API) - new naming
+app.use('/api/v1/partners', partnersRoutes);
+// Backward compatibility - keep old /sponsors endpoint working
+app.use('/api/v1/sponsors', partnersRoutes);
 
 // Analytics tracking routes (v1 API)
 app.use('/api/v1/analytics', analyticsRoutes);
@@ -167,14 +169,18 @@ app.use('/api/webhooks', webhooksRoutes);
 // Admin routes (third-party import management)
 app.use('/api/admin', adminRoutes);
 
-// Admin sponsor management routes
-app.use('/api/admin/sponsors', adminSponsorsRoutes);
+// Admin partner management routes - new naming
+app.use('/api/admin/partners', adminPartnersRoutes);
+// Backward compatibility - keep old /sponsors endpoint working
+app.use('/api/admin/sponsors', adminPartnersRoutes);
 
 // Admin activity management routes
 app.use('/api/admin/activities', adminActivitiesRoutes);
 
-// Sponsor self-service portal routes
-app.use('/api/sponsor', sponsorPortalRoutes);
+// Partner self-service portal routes - new naming
+app.use('/api/partner', partnerPortalRoutes);
+// Backward compatibility - keep old /sponsor endpoint working
+app.use('/api/sponsor', partnerPortalRoutes);
 
 // Vendor portal routes
 app.use('/api/vendor', vendorRoutes);

@@ -42,7 +42,7 @@ const BENEFITS = [
       </svg>
     ),
     title: 'Get Featured',
-    description: 'Upgrade to sponsored placements and get your activities highlighted at the top of search results.',
+    description: 'Upgrade to featured placements and get your activities highlighted at the top of search results.',
   },
   {
     icon: (
@@ -60,7 +60,7 @@ const BENEFITS = [
       </svg>
     ),
     title: 'Free Basic Listing',
-    description: 'List your activities for free. Only pay if you want premium features and sponsored placements.',
+    description: 'List your activities for free. Only pay if you want premium features and featured placements.',
   },
 ];
 
@@ -181,11 +181,11 @@ export default function VendorPage() {
                   Premium Feature
                 </span>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Sponsored Placements
+                  Featured Placements
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  Want more visibility? Upgrade to sponsored placements and get your activities
-                  featured at the top of search results with a special badge.
+                  Want more visibility? Upgrade to featured placements and get your activities
+                  highlighted at the top of search results with a special badge.
                 </p>
                 <ul className="space-y-3 mb-8">
                   {[
@@ -203,7 +203,7 @@ export default function VendorPage() {
                   ))}
                 </ul>
                 <Link
-                  href="mailto:sponsors@kidsactivitytracker.com"
+                  href="mailto:partners@kidsactivitytracker.com"
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
                 >
                   Contact for Pricing
@@ -220,7 +220,7 @@ export default function VendorPage() {
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
                     </div>
-                    <span className="text-sm font-medium text-orange-600">Sponsored</span>
+                    <span className="text-sm font-medium text-orange-600">Featured</span>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Summer Swim Camp</h3>
                   <p className="text-gray-500 text-sm mb-4">
