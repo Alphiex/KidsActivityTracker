@@ -659,5 +659,5 @@ GET /api/v1/activities?page=2&limit=20
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: December 2024
+**Document Version**: 5.0
+**Last Updated**: December 2025

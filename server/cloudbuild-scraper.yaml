@@ -1,0 +1,12 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/kids-activity-scraper:latest'
+      - '-f'
+      - 'scrapers/Dockerfile'
+      - '.'
+images:
+  - 'gcr.io/$PROJECT_ID/kids-activity-scraper:latest'
+timeout: '1800s'

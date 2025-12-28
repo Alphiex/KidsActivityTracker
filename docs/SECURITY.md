@@ -6,7 +6,7 @@ Security practices and implementation for Kids Activity Tracker.
 
 This document covers security measures for the React Native mobile app and Node.js/Express backend API.
 
-**Last Security Audit**: December 2024
+**Last Security Audit**: December 2025
 
 ## Security Architecture
 
@@ -357,4 +357,4 @@ Set up alerts for:
 ---
 
 **Document Version**: 4.0
-**Last Updated**: December 2024
+**Last Updated**: December 2025

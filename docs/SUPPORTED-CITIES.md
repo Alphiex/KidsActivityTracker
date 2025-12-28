@@ -4,146 +4,196 @@ Coverage of recreation centers and activity providers across Canada.
 
 ## Coverage Summary
 
-| Region | Cities | Status |
-|--------|--------|--------|
-| British Columbia | 19 | Active |
-| Ontario | 15 | Active |
-| Alberta | 2 | Active |
-| Saskatchewan | 2 | Active |
-| Manitoba | 1 | Active |
-| Nova Scotia | 1 | Active |
-| Quebec | 1 | Active |
-| **Total** | **43** | |
+| Region | Active Providers | Activities |
+|--------|------------------|------------|
+| British Columbia | 25 | 48,000+ |
+| Ontario | 16 | 9,500+ |
+| Alberta | 2 | 3,600+ |
+| Quebec | 1 | 550+ |
+| Saskatchewan | 1 | 75+ |
+| **Total** | **45** | **61,700+** |
 
-## British Columbia (19 Cities)
+## Active Providers by Activity Count
 
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Vancouver | Vancouver Parks & Rec | ActiveNetwork | Active |
-| Burnaby | Burnaby Parks & Rec | PerfectMind | Active |
-| Richmond | Richmond Community | PerfectMind | Active |
-| Surrey | Surrey Parks & Rec | PerfectMind | Active |
-| Abbotsford | Abbotsford Rec | PerfectMind | Active |
-| Coquitlam | Coquitlam Parks | PerfectMind | Active |
-| Langley | Langley City/Township | PerfectMind | Active |
-| Langley City | Langley City Rec | PerfectMind | Active |
-| New Westminster | New West Parks | PerfectMind | Active |
-| North Vancouver | NVRC | PerfectMind | Active |
-| Port Coquitlam | Port Coquitlam Rec | PerfectMind | Active |
-| Port Moody | Port Moody Rec | PerfectMind | Active |
-| West Vancouver | West Van Rec | PerfectMind | Active |
-| White Rock | White Rock Rec | PerfectMind | Active |
-| Lions Bay | Lions Bay Rec | Custom | Active |
-| Pitt Meadows | Pitt Meadows Rec | PerfectMind | Active |
-| Maple Ridge | Maple Ridge Parks | PerfectMind | Active |
-| Bowen Island | Bowen Island Rec | Custom | Active |
-| Delta | Delta Rec | PerfectMind | Active |
+### Top Providers (1,000+ Activities)
 
-## Ontario (15 Cities)
+| Provider | City | Platform | Region | Activities |
+|----------|------|----------|--------|------------|
+| City of Vancouver Parks & Recreation | Vancouver | ActiveNetwork | Metro Vancouver | 10,350+ |
+| North Vancouver Recreation Commission | North Vancouver | PerfectMind | North Vancouver | 4,930+ |
+| City of Burnaby Parks & Recreation | Burnaby | ActiveNetwork | Metro Vancouver | 4,460+ |
+| City of Surrey Parks, Recreation & Culture | Surrey | PerfectMind | Metro Vancouver | 4,000+ |
+| City of Brampton Recreation | Brampton | PerfectMind | Greater Toronto Area | 3,580+ |
+| City of Edmonton - move.learn.play | Edmonton | COE | Alberta | 3,110+ |
+| West Vancouver Recreation | West Vancouver | ActiveNetwork | West Vancouver | 3,110+ |
+| City of Langley Recreation | Langley | ActiveNetwork | Metro Vancouver | 1,500+ |
+| City of Port Coquitlam Recreation | Port Coquitlam | ActiveNetwork | Metro Vancouver | 1,470+ |
+| Township of Langley Recreation | Langley Township | PerfectMind | Metro Vancouver | 1,350+ |
+| City of Delta Parks & Recreation | Delta | PerfectMind | Metro Vancouver | 1,320+ |
+| City of Maple Ridge Parks & Recreation | Maple Ridge | PerfectMind | Metro Vancouver | 1,290+ |
+| City of Richmond Community Services | Richmond | PerfectMind | Metro Vancouver | 1,190+ |
+| Town of Whitby Recreation | Whitby | ActiveNetwork | Durham Region | 1,090+ |
+| Town of Oakville Recreation | Oakville | PerfectMind | Greater Toronto Area | 1,000+ |
 
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Toronto | City of Toronto | ActiveNetwork | Active |
-| Ottawa | City of Ottawa | ActiveNetwork | Active |
-| Mississauga | Mississauga Rec | ActiveNetwork | Active |
-| Brampton | Brampton Rec | ActiveNetwork | Active |
-| Hamilton | Hamilton Rec | WebTrac | Active |
-| London | London Parks & Rec | PerfectMind | Active |
-| Kitchener | Kitchener Rec | PerfectMind | Active |
-| Windsor | Windsor Rec | WebTrac | Active |
-| Markham | Markham Rec | PerfectMind | Active |
-| Oakville | Oakville Rec | PerfectMind | Active |
-| Richmond Hill | Richmond Hill Rec | PerfectMind | Active |
-| Vaughan | Vaughan Rec | ActiveNetwork | Active |
-| Burlington | Burlington Rec | PerfectMind | Active |
-| Oshawa | Oshawa Rec | WebTrac | Active |
-| Greater Sudbury | Sudbury Rec | WebTrac | Active |
-| Guelph | Guelph Rec | PerfectMind | Active |
+### Medium Providers (100-999 Activities)
 
-## Alberta (2 Cities)
+| Provider | City | Platform | Region | Activities |
+|----------|------|----------|--------|------------|
+| City of Abbotsford Parks, Recreation & Culture | Abbotsford | PerfectMind | Fraser Valley | 970+ |
+| City of St. Catharines Recreation | St. Catharines | ActiveNetwork | Niagara Region | 950+ |
+| City of Coquitlam Parks & Recreation | Coquitlam | PerfectMind | Metro Vancouver | 910+ |
+| City of Guelph Parks and Recreation | Guelph | PerfectMind | Southwestern Ontario | 850+ |
+| Ville de Montreal Loisirs | Montreal | IC3 | Quebec | 560+ |
+| City of Calgary Recreation - Live and Play | Calgary | REGPROG | Alberta | 490+ |
+| City of Port Moody Recreation | Port Moody | PerfectMind | Metro Vancouver | 470+ |
+| City of Nanaimo Recreation | Nanaimo | PerfectMind | Vancouver Island | 460+ |
+| City of Vaughan Recreation | Vaughan | PerfectMind | Greater Toronto Area | 460+ |
+| City of Markham Recreation | Markham | PerfectMind | Greater Toronto Area | 380+ |
+| City of Pitt Meadows Recreation | Pitt Meadows | Intelligenz | Metro Vancouver | 260+ |
+| City of Oshawa Recreation | Oshawa | Intelligenz | Durham Region | 230+ |
+| City of Kamloops Recreation | Kamloops | PerfectMind | Thompson-Okanagan | 220+ |
+| City of Kingston Recreation | Kingston | PerfectMind | Eastern Ontario | 200+ |
+| City of Victoria Recreation | Victoria | PerfectMind | Greater Victoria | 160+ |
+| City of Kelowna Active Living & Culture | Kelowna | Intelligenz | Okanagan | 120+ |
+| Bowen Island Community Recreation | Bowen Island | ActiveNetwork | Metro Vancouver | 110+ |
 
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Calgary | Live and Play Calgary | REGPROG | Active |
-| Edmonton | Edmonton Parks & Rec | COE | Active |
+### Small Providers (1-99 Activities)
 
-## Saskatchewan (2 Cities)
+| Provider | City | Platform | Region | Activities |
+|----------|------|----------|--------|------------|
+| Municipality of Chatham-Kent Recreation | Chatham-Kent | PerfectMind | Southwestern Ontario | 99 |
+| City of White Rock Recreation | White Rock | PerfectMind | Metro Vancouver | 89 |
+| City of Saskatoon Leisure Services | Saskatoon | WebTrac | Saskatchewan | 76 |
+| City of Greater Sudbury Leisure Services | Greater Sudbury | PerfectMind | Northern Ontario | 66 |
+| City of New Westminster Parks & Recreation | New Westminster | PerfectMind | Metro Vancouver | 52 |
+| City of Cambridge Recreation | Cambridge | ActiveNetwork | Waterloo Region | 37 |
+| City of Barrie Recreation | Barrie | ActiveNetwork | Central Ontario | 29 |
+| Lions Bay Community Recreation | Lions Bay | FullCalendar | Metro Vancouver | 1 |
 
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Saskatoon | Saskatoon Leisure | PerfectMind | Active |
-| Regina | Regina Parks & Rec | WebTrac | Active |
+### Pending Providers (Configured, Awaiting Data)
 
-## Manitoba (1 City)
-
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Winnipeg | Winnipeg Leisure Guide | ActiveNetwork | Active |
-
-## Nova Scotia (1 City)
-
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Halifax | Halifax Recreation | PerfectMind | Active |
-
-## Quebec (1 City)
-
-| City | Provider | Platform | Status |
-|------|----------|----------|--------|
-| Montreal | Ville de Montreal | Custom | Active |
+| Provider | City | Platform | Region |
+|----------|------|----------|--------|
+| City of Vernon Recreation | Vernon | PerfectMind | Okanagan |
+| City of Windsor Recreation | Windsor | ActiveNetwork | Southwestern Ontario |
+| Halifax Regional Municipality Recreation | Halifax | PerfectMind | Nova Scotia |
+| City of Hamilton Recreation | Hamilton | PerfectMind | Greater Hamilton Area |
+| City of Waterloo Recreation | Waterloo | ActiveNetwork | Waterloo Region |
+| City of Ottawa Recreation | Ottawa | ActiveNetwork | National Capital Region |
+| Municipality of Clarington Recreation | Clarington | ActiveNetwork | Durham Region |
+| City of Kitchener Recreation | Kitchener | ActiveNetwork | Waterloo Region |
+| City of London Recreation | London | PerfectMind | Southwestern Ontario |
+| City of Richmond Hill Recreation | Richmond Hill | ActiveNetwork | Greater Toronto Area |
+| City of Toronto Parks, Forestry & Recreation | Toronto | ActiveNetwork | Greater Toronto Area |
+| City of Burlington Recreation | Burlington | PerfectMind | Golden Horseshoe |
+| District of Saanich Recreation | Saanich | ActiveNetwork | Greater Victoria |
+| City of Winnipeg Leisure Guide | Winnipeg | ActiveNetwork | Manitoba |
+| Town of Ajax Recreation | Ajax | ActiveNetwork | Greater Toronto Area |
+| Town of Newmarket Recreation | Newmarket | PerfectMind | York Region |
+| City of Mississauga Recreation | Mississauga | ActiveNetwork | Greater Toronto Area |
+| City of Regina Recreation | Regina | ActiveNetwork | Saskatchewan |
 
 ## Platform Distribution
 
-| Platform | Cities | % Coverage |
-|----------|--------|------------|
-| PerfectMind | 22 | 51% |
-| ActiveNetwork | 8 | 19% |
-| WebTrac | 5 | 12% |
-| REGPROG | 1 | 2% |
-| COE | 1 | 2% |
-| Custom | 3 | 7% |
-| Other | 3 | 7% |
+| Platform | Providers | % of Active |
+|----------|-----------|-------------|
+| PerfectMind | 23 | 51% |
+| ActiveNetwork | 17 | 38% |
+| Intelligenz | 3 | 7% |
+| COE (Edmonton) | 1 | 2% |
+| REGPROG (Calgary) | 1 | 2% |
+| IC3 (Montreal) | 1 | 2% |
+| WebTrac | 1 | 2% |
+| FullCalendar | 1 | 2% |
+
+## Geographic Coverage
+
+### British Columbia (25 Active Providers)
+
+**Metro Vancouver (17)**
+- Vancouver, Burnaby, Richmond, Surrey, Delta
+- Coquitlam, Port Coquitlam, Port Moody
+- North Vancouver, West Vancouver
+- Langley City, Langley Township
+- Maple Ridge, Pitt Meadows
+- New Westminster, White Rock
+- Bowen Island, Lions Bay
+
+**Vancouver Island (2)**
+- Nanaimo, Victoria
+
+**Okanagan (2)**
+- Kelowna, Kamloops
+
+**Fraser Valley (1)**
+- Abbotsford
+
+### Ontario (16 Active Providers)
+
+**Greater Toronto Area (5)**
+- Brampton, Vaughan, Markham, Oakville, Whitby
+
+**Durham Region (2)**
+- Whitby, Oshawa
+
+**Southwestern Ontario (4)**
+- Guelph, Chatham-Kent, St. Catharines, Cambridge
+
+**Other (3)**
+- Kingston (Eastern), Greater Sudbury (Northern), Barrie (Central)
+
+### Alberta (2 Active Providers)
+- Edmonton, Calgary
+
+### Quebec (1 Active Provider)
+- Montreal
+
+### Saskatchewan (1 Active Provider)
+- Saskatoon
 
 ## Activity Categories
 
 All providers are mapped to these standard categories:
 
-| Category | Description |
-|----------|-------------|
-| Aquatics | Swimming, water polo, diving |
-| Arts | Visual arts, music, drama |
-| Sports | Team sports, individual sports |
-| Dance | Ballet, hip hop, ballroom |
-| Camps | Day camps, specialty camps |
-| Early Years | Programs for ages 0-5 |
-| Youth | Teen programs (13-17) |
-| Fitness | Exercise classes, gym programs |
-| Education | Academic, life skills |
+| Category | Description | Typical Age Range |
+|----------|-------------|-------------------|
+| Aquatics | Swimming, water polo, diving | 0-18 |
+| Arts | Visual arts, music, drama | 3-18 |
+| Sports | Team sports, individual sports | 5-18 |
+| Dance | Ballet, hip hop, ballroom | 3-18 |
+| Camps | Day camps, specialty camps | 5-14 |
+| Early Years | Parent & tot, preschool | 0-5 |
+| Youth | Teen programs | 13-17 |
+| Fitness | Exercise classes, gym programs | 5-18 |
+| Education | Academic, life skills | 5-18 |
 
-## Scheduling Tiers
+## Scraping Schedule
 
-| Tier | Frequency | Cities |
-|------|-----------|--------|
-| Critical | 3x daily | Vancouver, Calgary, Toronto |
-| Standard | Daily | All other cities |
+### Tier 1: High Volume (3x Daily)
+Scraped at 7:00 AM, 1:00 PM, 7:00 PM local time
 
-### Critical Tier Schedule
-- 7:00 AM local time
-- 1:00 PM local time
-- 7:00 PM local time
+- Vancouver
+- North Vancouver
+- Burnaby
+- Surrey
+- Edmonton
+- Brampton
 
-### Standard Tier Schedule
-- 6:00 AM UTC (daily)
+### Tier 2: Standard (Daily)
+Scraped at 6:00 AM UTC
 
-## Adding New Cities
+- All other active providers
+
+## Adding New Providers
 
 ### Requirements
 1. Identify registration platform type
 2. Locate activity catalog URL
-3. Analyze page structure
-4. Create provider config
+3. Analyze page structure for scraping
+4. Create provider config file
 5. Test scraper locally
 6. Deploy to production
+7. Monitor for first 7 days
 
 ### Config Template
 
@@ -153,7 +203,7 @@ All providers are mapped to these standard categories:
   "name": "City Name Parks & Recreation",
   "code": "cityname",
   "platform": "perfectmind",
-  "region": "Province",
+  "region": "Region Name",
   "city": "City Name",
   "baseUrl": "https://cityname.perfectmind.com",
   "isActive": true,
@@ -175,23 +225,28 @@ All providers are mapped to these standard categories:
 
 ## Coverage Roadmap
 
-### Phase 1 (Complete)
-- All major BC cities
-- Major Ontario cities
+### Completed
+- Metro Vancouver (17 providers)
+- Greater Toronto Area (5 providers)
+- Major Alberta cities
+- Vancouver Island expansion
+- Okanagan region
 
-### Phase 2 (In Progress)
-- Alberta expansion
-- Prairie provinces
+### In Progress
+- Remaining GTA suburbs
+- Hamilton/Niagara region
+- Ottawa/National Capital Region
 
-### Phase 3 (Planned)
-- Atlantic provinces
-- Northern territories
+### Planned
+- Atlantic provinces (Halifax configured)
+- Prairie provinces expansion
+- Northern Ontario
 
-### Phase 4 (Future)
-- Quebec (bilingual support)
+### Future
+- Quebec expansion (bilingual)
 - Complete national coverage
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: December 2024
+**Document Version**: 5.0
+**Last Updated**: December 2025

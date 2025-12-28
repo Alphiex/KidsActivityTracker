@@ -14,8 +14,8 @@ Kids Activity Tracker helps parents find and organize activities for their child
 | Supported Cities | 43 |
 | Scraper Platforms | 9 |
 | Activity Categories | 9 |
-| API Endpoints | 60+ |
-| Database Tables | 24 |
+| API Endpoints | 75+ |
+| Database Tables | 31 |
 
 ## Features
 
@@ -66,7 +66,7 @@ cd server && npm run dev
 | [Security](SECURITY.md) | Security practices |
 | [Subscriptions](SUBSCRIPTIONS.md) | Subscription system, purchase flow, auditing |
 | [Subscription Setup](SUBSCRIPTION_SETUP.md) | RevenueCat & App Store/Play Store configuration |
-| [Sponsorship](SPONSORSHIP.md) | Paid sponsorship system for activity providers |
+| [Featured Partners](FEATURED-PARTNERS.md) | Partner system for activity providers with analytics |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and solutions |
 
 ## Project Structure
@@ -108,5 +108,5 @@ KidsActivityTracker/
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: December 2024
+**Document Version**: 5.0
+**Last Updated**: December 2025

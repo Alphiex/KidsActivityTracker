@@ -65,10 +65,10 @@ export default function NewActivityPage() {
     ageMax: '',
     activityTypeId: '',
     activitySubtypeId: '',
-    isSponsor: false,
-    sponsorTier: '',
-    sponsorStartDate: '',
-    sponsorEndDate: '',
+    isFeatured: false,
+    featuredTier: '',
+    featuredStartDate: '',
+    featuredEndDate: '',
     isActive: true,
   });
 
@@ -183,10 +183,10 @@ export default function NewActivityPage() {
         ageMax: formData.ageMax ? parseInt(formData.ageMax) : null,
         activityTypeId: formData.activityTypeId || null,
         activitySubtypeId: formData.activitySubtypeId || null,
-        isSponsor: formData.isSponsor,
-        sponsorTier: formData.sponsorTier || null,
-        sponsorStartDate: formData.sponsorStartDate ? new Date(formData.sponsorStartDate).toISOString() : null,
-        sponsorEndDate: formData.sponsorEndDate ? new Date(formData.sponsorEndDate).toISOString() : null,
+        isFeatured: formData.isFeatured,
+        featuredTier: formData.featuredTier || null,
+        featuredStartDate: formData.featuredStartDate ? new Date(formData.featuredStartDate).toISOString() : null,
+        featuredEndDate: formData.featuredEndDate ? new Date(formData.featuredEndDate).toISOString() : null,
         isActive: formData.isActive,
       };
 
@@ -653,8 +653,8 @@ export default function NewActivityPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="isSponsor"
-                  checked={formData.isSponsor}
+                  name="isFeatured"
+                  checked={formData.isFeatured}
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
@@ -664,10 +664,10 @@ export default function NewActivityPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured Tier</label>
               <select
-                name="sponsorTier"
-                value={formData.sponsorTier}
+                name="featuredTier"
+                value={formData.featuredTier}
                 onChange={handleChange}
-                disabled={!formData.isSponsor}
+                disabled={!formData.isFeatured}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select Tier</option>
@@ -680,10 +680,10 @@ export default function NewActivityPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured Start Date</label>
               <input
                 type="date"
-                name="sponsorStartDate"
-                value={formData.sponsorStartDate}
+                name="featuredStartDate"
+                value={formData.featuredStartDate}
                 onChange={handleChange}
-                disabled={!formData.isSponsor}
+                disabled={!formData.isFeatured}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               />
             </div>
@@ -691,10 +691,10 @@ export default function NewActivityPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured End Date</label>
               <input
                 type="date"
-                name="sponsorEndDate"
-                value={formData.sponsorEndDate}
+                name="featuredEndDate"
+                value={formData.featuredEndDate}
                 onChange={handleChange}
-                disabled={!formData.isSponsor}
+                disabled={!formData.isFeatured}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               />
             </div>

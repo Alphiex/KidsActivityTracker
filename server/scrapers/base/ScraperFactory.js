@@ -6,6 +6,8 @@ const IC3Scraper = require('../platforms/IC3Scraper');
 const REGPROGScraper = require('../platforms/REGPROGScraper');
 const COEScraper = require('../platforms/COEScraper');
 const WebTracScraper = require('../platforms/WebTracScraper');
+const LookNBookScraper = require('../platforms/LookNBookScraper');
+const AmiliaScraper = require('../platforms/AmiliaScraper');
 const ExtensionLoader = require('./ExtensionLoader');
 
 /**
@@ -68,6 +70,14 @@ class ScraperFactory {
         scraper = new WebTracScraper(providerConfig);
         break;
 
+      case 'looknbook':
+        scraper = new LookNBookScraper(providerConfig);
+        break;
+
+      case 'amilia':
+        scraper = new AmiliaScraper(providerConfig);
+        break;
+
       default:
         throw new Error(`Unsupported platform: ${providerConfig.platform}`);
     }
@@ -120,7 +130,9 @@ class ScraperFactory {
       'ic3',
       'regprog',
       'coe',
-      'webtrac'
+      'webtrac',
+      'looknbook',
+      'amilia'
     ];
   }
 

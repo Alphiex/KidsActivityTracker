@@ -12,7 +12,7 @@ PostgreSQL database schema and operations for Kids Activity Tracker.
 | **IP Address** | 34.42.149.102 |
 | **Database Name** | `kidsactivity` |
 | **ORM** | Prisma 6.x |
-| **Total Tables** | 24 |
+| **Total Tables** | 31 |
 
 ## Connection
 
@@ -532,5 +532,5 @@ npx prisma validate
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: December 2024
+**Document Version**: 5.0
+**Last Updated**: December 2025

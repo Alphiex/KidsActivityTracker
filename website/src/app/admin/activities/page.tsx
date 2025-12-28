@@ -24,8 +24,8 @@ interface Activity {
   ageMax: number | null;
   cost: number | null;
   isActive: boolean;
-  isSponsor: boolean;
-  sponsorTier: string | null;
+  isFeatured: boolean;
+  featuredTier: string | null;
   manuallyEditedFields: string[];
   manuallyEditedAt: string | null;
   updatedAt: string;
@@ -57,7 +57,7 @@ export default function ActivitiesListPage() {
   const [city, setCity] = useState('');
   const [category, setCategory] = useState('');
   const [isActive, setIsActive] = useState('');
-  const [isSponsor, setIsSponsor] = useState('');
+  const [isFeatured, setIsFeatured] = useState('');
   const [hasManualEdits, setHasManualEdits] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -67,7 +67,7 @@ export default function ActivitiesListPage() {
 
   useEffect(() => {
     fetchActivities();
-  }, [currentPage, providerId, city, category, isActive, isSponsor, hasManualEdits]);
+  }, [currentPage, providerId, city, category, isActive, isFeatured, hasManualEdits]);
 
   const fetchProviders = async () => {
     try {
@@ -103,7 +103,7 @@ export default function ActivitiesListPage() {
       if (city) params.set('city', city);
       if (category) params.set('category', category);
       if (isActive) params.set('isActive', isActive);
-      if (isSponsor) params.set('isSponsor', isSponsor);
+      if (isFeatured) params.set('isFeatured', isFeatured);
       if (hasManualEdits) params.set('hasManualEdits', 'true');
 
       const response = await fetch(
@@ -287,9 +287,9 @@ export default function ActivitiesListPage() {
             </select>
 
             <select
-              value={isSponsor}
+              value={isFeatured}
               onChange={(e) => {
-                setIsSponsor(e.target.value);
+                setIsFeatured(e.target.value);
                 setCurrentPage(1);
               }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
@@ -377,7 +377,7 @@ export default function ActivitiesListPage() {
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-gray-500">{activity.category}</span>
-                            {activity.isSponsor && getSponsorBadge(activity.sponsorTier)}
+                            {activity.isFeatured && getSponsorBadge(activity.featuredTier)}
                             {activity.manuallyEditedFields.length > 0 && (
                               <span
                                 className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800"

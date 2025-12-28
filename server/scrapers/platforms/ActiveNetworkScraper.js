@@ -272,7 +272,7 @@ class ActiveNetworkScraper extends BaseScraper {
       await page.goto(category.url, { waitUntil: 'networkidle2', timeout: 90000 });
 
       // Wait longer for JavaScript-heavy ActiveNet to render
-      await new Promise(resolve => setTimeout(resolve, 8000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Wait for activity cards to appear
       try {
@@ -284,23 +284,47 @@ class ActiveNetworkScraper extends BaseScraper {
       // Check total results from page
       const totalResults = await page.evaluate(() => {
         const text = document.body.innerText;
-        const match = text.match(/Found\s*(\d+)\s*matching/i) || text.match(/(\d+)\s*results?/i);
-        return match ? parseInt(match[1]) : null;
+        // Try multiple patterns to find the total
+        const patterns = [
+          /Found\s+([\d,]+)/i,
+          /([\d,]+)\s*results?/i,
+          /([\d,]+)\s*activities?/i
+        ];
+        for (const pattern of patterns) {
+          const match = text.match(pattern);
+          if (match) {
+            return parseInt(match[1].replace(/,/g, ''));
+          }
+        }
+        return null;
       });
+
+      this.logProgress(`  Total results on page: ${totalResults || 'unknown'}`);
 
       // Get the maximum activities to load from config (no default limit)
       const maxActivities = this.config.scraperConfig.maxActivities || Infinity;
 
-      // First try scroll-based extraction
-      const scrollActivities = await this.scrollAndExtractBatched(page, category, maxActivities);
-      activities.push(...scrollActivities);
+      // For large cities (1000+ activities) or when total is unknown, prefer API extraction
+      // This is faster and more reliable than scroll-based extraction
+      const useAPIDirectly = (totalResults && totalResults >= 500) ||
+                            (this.config.metadata?.expectedActivities >= 1000) ||
+                            (this.config.metadata?.population >= 500000);
 
-      this.logProgress(`  Scroll extraction: ${activities.length} activities`);
-
-      // If we got significantly fewer than expected, use API-based pagination
-      if (totalResults && activities.length < totalResults * 0.5) {
-        this.logProgress(`  Using API pagination (scroll got ${activities.length}/${totalResults})`);
+      if (useAPIDirectly) {
+        this.logProgress(`  Using direct API extraction for large dataset`);
         activities = await this.extractActivitiesViaAPI(page, category, maxActivities);
+      } else {
+        // For smaller cities, try scroll-based extraction first
+        const scrollActivities = await this.scrollAndExtractBatched(page, category, maxActivities);
+        activities.push(...scrollActivities);
+
+        this.logProgress(`  Scroll extraction: ${activities.length} activities`);
+
+        // If we got significantly fewer than expected, fall back to API
+        if (totalResults && activities.length < totalResults * 0.5) {
+          this.logProgress(`  Falling back to API (scroll got ${activities.length}/${totalResults})`);
+          activities = await this.extractActivitiesViaAPI(page, category, maxActivities);
+        }
       }
 
       this.logProgress(`  Extracted ${activities.length} total activities from ${category.name}`);
@@ -314,64 +338,251 @@ class ActiveNetworkScraper extends BaseScraper {
 
   /**
    * Extract activities using direct API calls with pagination
-   * This is a fallback when infinite scroll doesn't work properly
+   * Uses full URL with credentials for proper session handling
    * @param {Object} page - Puppeteer page (already loaded with session)
    * @param {Object} category - Category information
    * @param {Number} maxActivities - Maximum activities to fetch
    * @returns {Promise<Array>} Extracted activities
    */
   async extractActivitiesViaAPI(page, category, maxActivities) {
-    const activities = [];
     const { searchParams, ageFilter } = this.config.scraperConfig;
     const maxAge = ageFilter?.maxAge || 18;
+    const baseUrl = this.config.baseUrl;
 
-    let pageNum = 1;
-    const maxPages = Math.ceil(maxActivities / 20) || 500;
+    // Build the full API URL
+    const apiUrl = `${baseUrl}/rest/activities/list?locale=en-US`;
+
+    // First, get the total count
+    this.logProgress(`    Fetching activity count from API...`);
+    const initialResult = await page.evaluate(async (apiUrl, maxAge, searchParams) => {
+      try {
+        const pageInfo = JSON.stringify({
+          order_by: 'Date range',
+          page_number: 1,
+          total_records_per_page: 20
+        });
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'page_info': pageInfo
+          },
+          body: JSON.stringify({
+            activity_search_pattern: {
+              skills: [],
+              time_after_str: '',
+              days_of_week: searchParams?.days_of_week || '0000000',
+              activity_select_param: searchParams?.activity_select_param || 2,
+              center_ids: [],
+              time_before_str: '',
+              open_spots: null,
+              activity_id: null,
+              activity_category_ids: [],
+              date_before: '',
+              min_age: null,
+              date_after: '',
+              activity_type_ids: [],
+              site_ids: [],
+              for_map: false,
+              geographic_area_ids: [],
+              season_ids: [],
+              activity_department_ids: [],
+              activity_other_category_ids: [],
+              child_season_ids: [],
+              activity_keyword: '',
+              instructor_ids: [],
+              max_age: maxAge,
+              custom_price_from: '',
+              custom_price_to: ''
+            },
+            activity_transfer_pattern: {}
+          })
+        });
+
+        const data = await response.json();
+        return {
+          success: true,
+          totalRecords: data.headers?.page_info?.total_records || 0,
+          totalPages: data.headers?.page_info?.total_page || 0,
+          items: data.body?.activity_items || []
+        };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }, apiUrl, maxAge, searchParams);
+
+    if (!initialResult.success) {
+      this.logProgress(`    API error: ${initialResult.error}`);
+      return [];
+    }
+
+    const totalRecords = initialResult.totalRecords;
+    const totalPages = initialResult.totalPages;
+    const effectiveMax = Math.min(maxActivities, totalRecords);
+    const pagesToFetch = Math.min(Math.ceil(effectiveMax / 20), totalPages);
+
+    this.logProgress(`    Found ${totalRecords} total activities (${totalPages} pages), fetching up to ${effectiveMax}`);
+
+    // For large datasets (1000+ activities), use parallel fetching
+    if (totalRecords >= 1000) {
+      return await this.extractActivitiesViaAPIParallel(page, category, apiUrl, maxAge, searchParams, pagesToFetch, initialResult.items);
+    }
+
+    // For smaller datasets, use sequential fetching
+    return await this.extractActivitiesViaAPISequential(page, category, apiUrl, maxAge, searchParams, pagesToFetch, initialResult.items, effectiveMax);
+  }
+
+  /**
+   * Extract activities using parallel API pagination
+   * Used for large cities with 1000+ activities
+   * @param {Object} page - Puppeteer page
+   * @param {Object} category - Category information
+   * @param {String} apiUrl - Full API URL
+   * @param {Number} maxAge - Max age filter
+   * @param {Object} searchParams - Search parameters
+   * @param {Number} totalPages - Total pages to fetch
+   * @param {Array} firstPageItems - Items from first page (already fetched)
+   * @returns {Promise<Array>} All activities
+   */
+  async extractActivitiesViaAPIParallel(page, category, apiUrl, maxAge, searchParams, totalPages, firstPageItems) {
+    const CONCURRENT_REQUESTS = 10; // Number of parallel requests
+    const allActivities = [];
     const seenIds = new Set();
 
-    while (pageNum <= maxPages) {
-      const pageInfo = JSON.stringify({
-        order_by: 'Date range',
-        page_number: pageNum,
-        total_records_per_page: 20
-      });
+    // Add first page items
+    for (const item of firstPageItems) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        allActivities.push(this.convertAPIItemToActivity(item, category));
+      }
+    }
 
-      const result = await page.evaluate(async (pageInfo, maxAge, searchParams) => {
+    this.logProgress(`    Using parallel fetching with ${CONCURRENT_REQUESTS} concurrent requests`);
+
+    // Create batches of page numbers
+    const pageNumbers = [];
+    for (let i = 2; i <= totalPages; i++) {
+      pageNumbers.push(i);
+    }
+
+    // Process in batches
+    for (let batchStart = 0; batchStart < pageNumbers.length; batchStart += CONCURRENT_REQUESTS) {
+      const batch = pageNumbers.slice(batchStart, batchStart + CONCURRENT_REQUESTS);
+
+      const batchResults = await page.evaluate(async (apiUrl, maxAge, searchParams, pageNums) => {
+        const results = await Promise.all(pageNums.map(async (pageNum) => {
+          try {
+            const pageInfo = JSON.stringify({
+              order_by: 'Date range',
+              page_number: pageNum,
+              total_records_per_page: 20
+            });
+
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'page_info': pageInfo
+              },
+              body: JSON.stringify({
+                activity_search_pattern: {
+                  max_age: maxAge,
+                  activity_select_param: searchParams?.activity_select_param || 2
+                },
+                activity_transfer_pattern: {}
+              })
+            });
+
+            const data = await response.json();
+            return { success: true, pageNum, items: data.body?.activity_items || [] };
+          } catch (e) {
+            return { success: false, pageNum, error: e.message };
+          }
+        }));
+        return results;
+      }, apiUrl, maxAge, searchParams, batch);
+
+      // Process batch results
+      for (const result of batchResults) {
+        if (result.success && result.items) {
+          for (const item of result.items) {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              allActivities.push(this.convertAPIItemToActivity(item, category));
+            }
+          }
+        }
+      }
+
+      // Log progress every 50 pages
+      const pagesProcessed = Math.min(batchStart + CONCURRENT_REQUESTS, pageNumbers.length) + 1;
+      if (pagesProcessed % 50 === 0 || batchStart + CONCURRENT_REQUESTS >= pageNumbers.length) {
+        this.logProgress(`    Progress: ${allActivities.length} activities (${pagesProcessed}/${totalPages} pages)`);
+      }
+
+      // Small delay between batches to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    this.logProgress(`    Parallel fetch complete: ${allActivities.length} total activities`);
+    return allActivities;
+  }
+
+  /**
+   * Extract activities using sequential API pagination
+   * Used for smaller cities with <1000 activities
+   * @param {Object} page - Puppeteer page
+   * @param {Object} category - Category information
+   * @param {String} apiUrl - Full API URL
+   * @param {Number} maxAge - Max age filter
+   * @param {Object} searchParams - Search parameters
+   * @param {Number} maxPages - Maximum pages to fetch
+   * @param {Array} firstPageItems - Items from first page
+   * @param {Number} maxActivities - Maximum activities to fetch
+   * @returns {Promise<Array>} All activities
+   */
+  async extractActivitiesViaAPISequential(page, category, apiUrl, maxAge, searchParams, maxPages, firstPageItems, maxActivities) {
+    const activities = [];
+    const seenIds = new Set();
+
+    // Add first page items
+    for (const item of firstPageItems) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        activities.push(this.convertAPIItemToActivity(item, category));
+      }
+    }
+
+    let pageNum = 2;
+    while (pageNum <= maxPages && activities.length < maxActivities) {
+      const result = await page.evaluate(async (apiUrl, maxAge, searchParams, pageNum) => {
         try {
-          const response = await fetch(window.location.pathname.replace('/activity/search', '/rest/activities/list') + '?locale=en-US', {
+          const pageInfo = JSON.stringify({
+            order_by: 'Date range',
+            page_number: pageNum,
+            total_records_per_page: 20
+          });
+
+          const response = await fetch(apiUrl, {
             method: 'POST',
+            credentials: 'include',
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json',
               'X-Requested-With': 'XMLHttpRequest',
               'page_info': pageInfo
             },
             body: JSON.stringify({
               activity_search_pattern: {
-                skills: [],
-                time_after_str: '',
-                days_of_week: searchParams?.days_of_week || '0000000',
-                activity_select_param: searchParams?.activity_select_param || 2,
-                center_ids: [],
-                time_before_str: '',
-                open_spots: null,
-                activity_id: null,
-                activity_category_ids: [],
-                date_before: '',
-                min_age: null,
-                date_after: '',
-                activity_type_ids: [],
-                site_ids: [],
-                for_map: false,
-                geographic_area_ids: [],
-                season_ids: [],
-                activity_department_ids: [],
-                activity_other_category_ids: [],
-                child_season_ids: [],
-                activity_keyword: '',
-                instructor_ids: [],
                 max_age: maxAge,
-                custom_price_from: '',
-                custom_price_to: ''
+                activity_select_param: searchParams?.activity_select_param || 2
               },
               activity_transfer_pattern: {}
             })
@@ -382,13 +593,12 @@ class ActiveNetworkScraper extends BaseScraper {
         } catch (e) {
           return { success: false, error: e.message };
         }
-      }, pageInfo, maxAge, searchParams);
+      }, apiUrl, maxAge, searchParams, pageNum);
 
       if (!result.success || result.items.length === 0) {
         break;
       }
 
-      // Add unique activities
       for (const item of result.items) {
         if (!seenIds.has(item.id)) {
           seenIds.add(item.id);
@@ -397,15 +607,11 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       if (pageNum % 20 === 0) {
-        this.logProgress(`    API pagination: ${activities.length} activities (page ${pageNum})`);
-      }
-
-      if (activities.length >= maxActivities) {
-        break;
+        this.logProgress(`    Sequential fetch: ${activities.length} activities (page ${pageNum})`);
       }
 
       pageNum++;
-      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     return activities;
@@ -418,11 +624,28 @@ class ActiveNetworkScraper extends BaseScraper {
    * @returns {Object} Activity object
    */
   convertAPIItemToActivity(item, category) {
+    // Handle location - can be string or object with label
+    const locationName = typeof item.location === 'object'
+      ? item.location?.label
+      : item.location;
+
+    // Handle cost - search_from_price or parse from fee object
+    let cost = null;
+    if (item.search_from_price !== null && item.search_from_price !== undefined) {
+      cost = parseFloat(item.search_from_price);
+    } else {
+      cost = this.parseAPICost(item.fee);
+    }
+
+    // Handle description
+    const description = item.desc || item.description || null;
+
     return {
       name: item.name,
       externalId: String(item.id || item.number),
       category: category.name,
-      cost: this.parseAPICost(item.fee),
+      cost: cost,
+      description: description,
       registrationUrl: item.detail_url,
       schedule: item.time_range,
       startTime: this.parseAPITime(item.time_range_landing_page, 'start'),
@@ -431,26 +654,37 @@ class ActiveNetworkScraper extends BaseScraper {
       dateStartStr: item.date_range_start,
       dateEndStr: item.date_range_end,
       dates: item.date_range,
-      locationName: item.location,
+      locationName: locationName,
       ageMin: item.age_min_year || null,
       ageMax: item.age_max_year || null,
       ageRange: item.age_description,
-      spotsAvailable: parseInt(item.openings) || null,
-      availability: parseInt(item.openings) > 0 ? 'Open' : 'Full',
-      registrationStatus: item.total_open > 0 ? 'Open' : 'Full'
+      spotsAvailable: item.total_open || null,
+      availability: item.total_open > 0 ? 'Open' : 'Full',
+      registrationStatus: item.total_open > 0 ? 'Open' : (item.urgent_message?.status_description || 'Unknown')
     };
   }
 
   /**
    * Parse cost from API fee field
+   * Handles both string and object formats
    */
   parseAPICost(fee) {
     if (!fee) return null;
-    const feeStr = String(fee);
+
+    // If fee is an object, get the label
+    const feeStr = typeof fee === 'object' ? (fee.label || '') : String(fee);
+
+    // "View fee details" means we need to get cost from detail page
+    if (feeStr === 'View fee details' || !feeStr) {
+      return null;
+    }
+
     // Check for free activities
     if (/\bfree\b/i.test(feeStr) || /\bno\s*(?:fee|cost|charge)\b/i.test(feeStr)) {
       return 0;
     }
+
+    // Extract dollar amount
     const match = feeStr.match(/\$?([0-9,]+(?:\.\d{2})?)/);
     return match ? parseFloat(match[1].replace(',', '')) : null;
   }

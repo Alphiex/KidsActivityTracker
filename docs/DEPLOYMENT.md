@@ -297,4 +297,4 @@ gcloud run services logs read kids-activity-api \
 ---
 
 **Document Version**: 4.0
-**Last Updated**: December 2024
+**Last Updated**: December 2025

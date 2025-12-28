@@ -41,10 +41,10 @@ interface Activity {
   activityType: { id: string; name: string } | null;
   activitySubtypeId: string | null;
   activitySubtype: { id: string; name: string } | null;
-  isSponsor: boolean;
-  sponsorTier: string | null;
-  sponsorStartDate: string | null;
-  sponsorEndDate: string | null;
+  isFeatured: boolean;
+  featuredTier: string | null;
+  featuredStartDate: string | null;
+  featuredEndDate: string | null;
   isActive: boolean;
   manuallyEditedFields: string[];
   manuallyEditedAt: string | null;
@@ -115,10 +115,10 @@ export default function EditActivityPage() {
     ageMax: '',
     activityTypeId: '',
     activitySubtypeId: '',
-    isSponsor: false,
-    sponsorTier: '',
-    sponsorStartDate: '',
-    sponsorEndDate: '',
+    isFeatured: false,
+    featuredTier: '',
+    featuredStartDate: '',
+    featuredEndDate: '',
     isActive: true,
   });
 
@@ -178,10 +178,10 @@ export default function EditActivityPage() {
         ageMax: a.ageMax?.toString() || '',
         activityTypeId: a.activityTypeId || '',
         activitySubtypeId: a.activitySubtypeId || '',
-        isSponsor: a.isSponsor || false,
-        sponsorTier: a.sponsorTier || '',
-        sponsorStartDate: a.sponsorStartDate ? a.sponsorStartDate.split('T')[0] : '',
-        sponsorEndDate: a.sponsorEndDate ? a.sponsorEndDate.split('T')[0] : '',
+        isFeatured: a.isFeatured || false,
+        featuredTier: a.featuredTier || '',
+        featuredStartDate: a.featuredStartDate ? a.featuredStartDate.split('T')[0] : '',
+        featuredEndDate: a.featuredEndDate ? a.featuredEndDate.split('T')[0] : '',
         isActive: a.isActive,
       });
     } catch (err: any) {
@@ -284,10 +284,10 @@ export default function EditActivityPage() {
         ageMax: formData.ageMax ? parseInt(formData.ageMax) : null,
         activityTypeId: formData.activityTypeId || null,
         activitySubtypeId: formData.activitySubtypeId || null,
-        isSponsor: formData.isSponsor,
-        sponsorTier: formData.sponsorTier || null,
-        sponsorStartDate: formData.sponsorStartDate ? new Date(formData.sponsorStartDate).toISOString() : null,
-        sponsorEndDate: formData.sponsorEndDate ? new Date(formData.sponsorEndDate).toISOString() : null,
+        isFeatured: formData.isFeatured,
+        featuredTier: formData.featuredTier || null,
+        featuredStartDate: formData.featuredStartDate ? new Date(formData.featuredStartDate).toISOString() : null,
+        featuredEndDate: formData.featuredEndDate ? new Date(formData.featuredEndDate).toISOString() : null,
         isActive: formData.isActive,
       };
 
@@ -841,8 +841,8 @@ export default function EditActivityPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="isSponsor"
-                  checked={formData.isSponsor}
+                  name="isFeatured"
+                  checked={formData.isFeatured}
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
@@ -852,10 +852,10 @@ export default function EditActivityPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured Tier</label>
               <select
-                name="sponsorTier"
-                value={formData.sponsorTier}
+                name="featuredTier"
+                value={formData.featuredTier}
                 onChange={handleChange}
-                disabled={!formData.isSponsor}
+                disabled={!formData.isFeatured}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select Tier</option>
@@ -868,10 +868,10 @@ export default function EditActivityPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured Start Date</label>
               <input
                 type="date"
-                name="sponsorStartDate"
-                value={formData.sponsorStartDate}
+                name="featuredStartDate"
+                value={formData.featuredStartDate}
                 onChange={handleChange}
-                disabled={!formData.isSponsor}
+                disabled={!formData.isFeatured}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               />
             </div>
@@ -879,10 +879,10 @@ export default function EditActivityPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured End Date</label>
               <input
                 type="date"
-                name="sponsorEndDate"
-                value={formData.sponsorEndDate}
+                name="featuredEndDate"
+                value={formData.featuredEndDate}
                 onChange={handleChange}
-                disabled={!formData.isSponsor}
+                disabled={!formData.isFeatured}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
               />
             </div>
