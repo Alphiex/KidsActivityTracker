@@ -1171,14 +1171,25 @@ class PerfectMindScraper extends BaseScraper {
                 }
 
                 // === COST ===
-                const feeMatch = pageHtml.match(/["']Fee["']\s*:\s*(\d+(?:\.\d{2})?)/i) ||
-                                 pageHtml.match(/["']Price["']\s*:\s*(\d+(?:\.\d{2})?)/i);
-                if (feeMatch) data.cost = parseFloat(feeMatch[1]);
+                // Check for free activities first
+                if (/\bFree\b/i.test(pageText) && !/\bFree\s+(?:parking|wifi|access)/i.test(pageText)) {
+                  // Look for "Free" near enrollment/price indicators
+                  const freeMatch = pageText.match(/(?:Enroll|Register|Price|Fee|Cost)[^\n]*\bFree\b|\bFree\b[^\n]*(?:Enroll|Register)/i);
+                  if (freeMatch || /^\s*Free\s*$/im.test(pageText)) {
+                    data.cost = 0;
+                  }
+                }
 
-                // Extract from visible "$XX.XX"
-                const costMatch = pageText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
-                if (costMatch && !data.cost) {
-                  data.cost = parseFloat(costMatch[1].replace(/,/g, ''));
+                if (data.cost === undefined) {
+                  const feeMatch = pageHtml.match(/["']Fee["']\s*:\s*(\d+(?:\.\d{2})?)/i) ||
+                                   pageHtml.match(/["']Price["']\s*:\s*(\d+(?:\.\d{2})?)/i);
+                  if (feeMatch) data.cost = parseFloat(feeMatch[1]);
+
+                  // Extract from visible "$XX.XX"
+                  const costMatch = pageText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+                  if (costMatch && !data.cost) {
+                    data.cost = parseFloat(costMatch[1].replace(/,/g, ''));
+                  }
                 }
 
                 // === DESCRIPTION ===

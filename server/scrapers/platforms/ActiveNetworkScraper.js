@@ -446,7 +446,12 @@ class ActiveNetworkScraper extends BaseScraper {
    */
   parseAPICost(fee) {
     if (!fee) return null;
-    const match = String(fee).match(/\$?([0-9,]+(?:\.\d{2})?)/);
+    const feeStr = String(fee);
+    // Check for free activities
+    if (/\bfree\b/i.test(feeStr) || /\bno\s*(?:fee|cost|charge)\b/i.test(feeStr)) {
+      return 0;
+    }
+    const match = feeStr.match(/\$?([0-9,]+(?:\.\d{2})?)/);
     return match ? parseFloat(match[1].replace(',', '')) : null;
   }
 
@@ -642,12 +647,37 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       function extractCost(element, text) {
+        // First check the fee element (most reliable)
         const feeEl = element.querySelector('.activity-card__fee, [class*="fee"], [class*="price"]');
         if (feeEl) {
           const feeText = feeEl.textContent || '';
+          // Check for "Free" in fee element specifically
+          if (/\bfree\b/i.test(feeText)) {
+            return 0;
+          }
           const costMatch = feeText.match(/\$([0-9,]+(?:\.\d{2})?)/);
-          if (costMatch) return parseFloat(costMatch[1].replace(',', ''));
+          if (costMatch) {
+            return parseFloat(costMatch[1].replace(',', ''));
+          }
         }
+
+        // Check for free activities in text (but not "free parking" etc)
+        if (/\bfree\b/i.test(text) && !/\bfree\s+(?:parking|wifi|access)/i.test(text)) {
+          // Make sure there's no actual dollar amount
+          const costMatch = text.match(/\$([0-9,]+(?:\.\d{2})?)/);
+          if (costMatch) {
+            const amount = parseFloat(costMatch[1].replace(',', ''));
+            if (amount > 0) return amount;
+          }
+          return 0;
+        }
+
+        // Check for "no fee/cost/charge"
+        if (/\bno\s*(?:fee|cost|charge)\b/i.test(text)) {
+          return 0;
+        }
+
+        // Fallback to dollar amount in text
         const costMatch = text.match(/\$([0-9,]+(?:\.\d{2})?)/);
         return costMatch ? parseFloat(costMatch[1].replace(',', '')) : null;
       }
@@ -1050,17 +1080,37 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       function extractCost(element, text) {
-        // Look for fee element first
+        // First check the fee element (most reliable)
         const feeEl = element.querySelector('.activity-card__fee, [class*="fee"], [class*="price"]');
         if (feeEl) {
           const feeText = feeEl.textContent || '';
+          // Check for "Free" in fee element specifically
+          if (/\bfree\b/i.test(feeText)) {
+            return 0;
+          }
           const costMatch = feeText.match(/\$([0-9,]+(?:\.\d{2})?)/);
           if (costMatch) {
             return parseFloat(costMatch[1].replace(',', ''));
           }
         }
 
-        // Fallback to text search
+        // Check for free activities in text (but not "free parking" etc)
+        if (/\bfree\b/i.test(text) && !/\bfree\s+(?:parking|wifi|access)/i.test(text)) {
+          // Make sure there's no actual dollar amount
+          const costMatch = text.match(/\$([0-9,]+(?:\.\d{2})?)/);
+          if (costMatch) {
+            const amount = parseFloat(costMatch[1].replace(',', ''));
+            if (amount > 0) return amount;
+          }
+          return 0;
+        }
+
+        // Check for "no fee/cost/charge"
+        if (/\bno\s*(?:fee|cost|charge)\b/i.test(text)) {
+          return 0;
+        }
+
+        // Fallback to dollar amount in text
         const costMatch = text.match(/\$([0-9,]+(?:\.\d{2})?)/);
         return costMatch ? parseFloat(costMatch[1].replace(',', '')) : null;
       }
@@ -1526,12 +1576,23 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === COST ===
+                // Check for free activities first
+                if (/\bFree\b/i.test(pageText) && !/\bFree\s+(?:parking|wifi|access)/i.test(pageText)) {
+                  // Make sure "Free" refers to the activity cost, not amenities
+                  // Look for "Free" near enrollment/registration buttons
+                  const freeMatch = pageText.match(/(?:Enroll|Register|Price|Fee|Cost)[^\n]*\bFree\b|\bFree\b[^\n]*(?:Enroll|Register)/i);
+                  if (freeMatch || /^\s*Free\s*$/im.test(pageText)) {
+                    data.cost = 0;
+                  }
+                }
                 // Look for fee/cost - usually in "View fee details" section or near "$XX.XX"
-                const costMatches = pageText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g);
-                if (costMatches) {
-                  // Find the largest fee (usually the program fee, not admin fee)
-                  const fees = costMatches.map(c => parseFloat(c.replace(/[$,]/g, '')));
-                  data.cost = Math.max(...fees);
+                if (data.cost === undefined) {
+                  const costMatches = pageText.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g);
+                  if (costMatches) {
+                    // Find the largest fee (usually the program fee, not admin fee)
+                    const fees = costMatches.map(c => parseFloat(c.replace(/[$,]/g, '')));
+                    data.cost = Math.max(...fees);
+                  }
                 }
 
                 // === DESCRIPTION ===
