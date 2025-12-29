@@ -83,11 +83,11 @@ const OnboardingLocationScreen: React.FC = () => {
         preferredLocation: selectedCity,
       });
     }
-    navigation.navigate('OnboardingComplete');
+    navigation.navigate('OnboardingDistance');
   };
 
   const handleSkip = () => {
-    navigation.navigate('OnboardingComplete');
+    navigation.navigate('OnboardingDistance');
   };
 
   const handleBack = () => {

@@ -235,21 +235,32 @@ class BaseScraper {
     }
 
     // AFTER all activities are processed, mark activities NOT in this run as inactive
-    // This matches the original NVRC scraper logic - safer because if scraper crashes,
-    // existing activities remain active until a successful scrape completes
-    const inactiveResult = await this.prisma.activity.updateMany({
-      where: {
-        providerId,
-        id: { notIn: processedActivityIds },
-        isActive: true  // Only deactivate currently active activities
-      },
-      data: {
-        isActive: false,
-        updatedAt: new Date()
-      }
+    // SAFEGUARD: Only deactivate if we got a reasonable number of activities
+    // This prevents mass deactivation when a scraper fails or returns empty results
+    const currentActiveCount = await this.prisma.activity.count({
+      where: { providerId, isActive: true }
     });
 
-    stats.removed = inactiveResult.count;
+    const minRequiredActivities = Math.max(10, Math.floor(currentActiveCount * 0.1));
+    const shouldDeactivate = activities.length >= minRequiredActivities || currentActiveCount < 10;
+
+    if (shouldDeactivate) {
+      const inactiveResult = await this.prisma.activity.updateMany({
+        where: {
+          providerId,
+          id: { notIn: processedActivityIds },
+          isActive: true  // Only deactivate currently active activities
+        },
+        data: {
+          isActive: false,
+          updatedAt: new Date()
+        }
+      });
+      stats.removed = inactiveResult.count;
+    } else {
+      console.warn(`⚠️  SAFEGUARD: Skipping deactivation - only ${activities.length} activities returned vs ${currentActiveCount} currently active (need at least ${minRequiredActivities})`);
+      stats.removed = 0;
+    }
 
     console.log(`✅ Database save complete: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} ✗${stats.errors}`);
 
@@ -522,19 +533,31 @@ class BaseScraper {
     }
 
     // Step 5: Mark activities NOT in this run as inactive
-    const inactiveResult = await this.prisma.activity.updateMany({
-      where: {
-        providerId,
-        id: { notIn: processedActivityIds },
-        isActive: true
-      },
-      data: {
-        isActive: false,
-        updatedAt: new Date()
-      }
+    // SAFEGUARD: Only deactivate if we got a reasonable number of activities
+    const currentActiveCount = await this.prisma.activity.count({
+      where: { providerId, isActive: true }
     });
 
-    stats.removed = inactiveResult.count;
+    const minRequiredActivities = Math.max(10, Math.floor(currentActiveCount * 0.1));
+    const shouldDeactivate = activities.length >= minRequiredActivities || currentActiveCount < 10;
+
+    if (shouldDeactivate) {
+      const inactiveResult = await this.prisma.activity.updateMany({
+        where: {
+          providerId,
+          id: { notIn: processedActivityIds },
+          isActive: true
+        },
+        data: {
+          isActive: false,
+          updatedAt: new Date()
+        }
+      });
+      stats.removed = inactiveResult.count;
+    } else {
+      console.warn(`⚠️  SAFEGUARD: Skipping deactivation - only ${activities.length} activities returned vs ${currentActiveCount} currently active (need at least ${minRequiredActivities})`);
+      stats.removed = 0;
+    }
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`✅ Batch save complete in ${totalTime}s: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} ✗${stats.errors}`);

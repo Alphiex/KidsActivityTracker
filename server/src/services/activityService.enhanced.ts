@@ -96,31 +96,15 @@ export class EnhancedActivityService {
     }
     // When includeInactive is true, we don't filter by isActive at all
 
-    // Kids-only filter: Only show activities appropriate for ages 0-18
-    // Exclude adult-only activities (where ageMin > 18)
-    // Include activities where:
-    // - ageMin <= 18 (kids can participate)
-    // - ageMin is null (no minimum age, open to all)
-    where.AND = [
-      {
-        OR: [
-          { ageMin: { lte: 18 } },
-          { ageMin: null }
-        ]
-      }
-    ];
-
     // Text search
     if (search) {
-      (where.AND as any[]).push({
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { location: { name: { contains: search, mode: 'insensitive' } } },
-          { category: { contains: search, mode: 'insensitive' } },
-          { subcategory: { contains: search, mode: 'insensitive' } }
-        ]
-      });
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { location: { name: { contains: search, mode: 'insensitive' } } },
+        { category: { contains: search, mode: 'insensitive' } },
+        { subcategory: { contains: search, mode: 'insensitive' } }
+      ];
     }
 
     // Category filter - for now, use the old category field
@@ -140,7 +124,7 @@ export class EnhancedActivityService {
         const activityTypeRecords = await this.prisma.activityType.findMany({
           where: {
             OR: [
-              { code: { in: activityTypes.map((t: string) => t.toLowerCase().replace(/\s+/g, '-')) } },
+              { code: { in: activityTypes.map(t => t.toLowerCase().replace(/\s+/g, '-')) } },
               { name: { in: activityTypes } }
             ]
           }
@@ -561,260 +545,6 @@ export class EnhancedActivityService {
       totalActivities: activeCount + inactiveCount,
       lastScraperRun: lastRun
     };
-  }
-
-  /**
-   * Search for featured partner activities matching user filters
-   * Returns activities ordered by tier (Gold > Silver > Bronze) with randomization within each tier
-   */
-  async searchFeaturedActivities(params: {
-    ageMin?: number;
-    ageMax?: number;
-    costMin?: number;
-    costMax?: number;
-    activityType?: string;
-    activitySubtype?: string;
-    categories?: string;
-    startDate?: Date;
-    endDate?: Date;
-    dayOfWeek?: string[];
-    locations?: string[];
-    limit?: number;
-  }) {
-    const {
-      ageMin,
-      ageMax,
-      costMin,
-      costMax,
-      activityType,
-      activitySubtype,
-      categories,
-      startDate,
-      endDate,
-      dayOfWeek,
-      locations,
-      limit = 3
-    } = params;
-
-    console.log('[PartnerService] Searching featured activities with params:', {
-      ageMin, ageMax, activityType, locations, limit
-    });
-
-    const now = new Date();
-
-    // Build base where clause for featured partners
-    const where: any = {
-      isActive: true,
-      isFeatured: true,
-      // Featured partner must be currently active (within date range or no dates set)
-      OR: [
-        { featuredStartDate: null, featuredEndDate: null },
-        { featuredStartDate: { lte: now }, featuredEndDate: null },
-        { featuredStartDate: null, featuredEndDate: { gte: now } },
-        { featuredStartDate: { lte: now }, featuredEndDate: { gte: now } }
-      ]
-    };
-
-    // Apply user filters
-    const andConditions: any[] = [];
-
-    // Age range filter
-    if (ageMin !== undefined) {
-      andConditions.push({
-        OR: [
-          { ageMin: { lte: ageMin } },
-          { ageMin: null }
-        ]
-      });
-    }
-    if (ageMax !== undefined) {
-      andConditions.push({
-        OR: [
-          { ageMax: { gte: ageMax } },
-          { ageMax: null }
-        ]
-      });
-    }
-
-    // Cost range filter
-    if (costMin !== undefined || costMax !== undefined) {
-      const costFilter: any = {};
-      if (costMin !== undefined) costFilter.gte = costMin;
-      if (costMax !== undefined) costFilter.lte = costMax;
-      andConditions.push({ cost: costFilter });
-    }
-
-    // Activity type filter
-    if (activityType) {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activityType);
-      if (isUuid) {
-        andConditions.push({ activityTypeId: activityType });
-      } else {
-        const activityTypeRecord = await this.prisma.activityType.findFirst({
-          where: {
-            OR: [
-              { code: activityType.toLowerCase().replace(/\s+/g, '-') },
-              { name: { equals: activityType, mode: 'insensitive' } }
-            ]
-          }
-        });
-        if (activityTypeRecord) {
-          andConditions.push({ activityTypeId: activityTypeRecord.id });
-        }
-      }
-    }
-
-    // Activity subtype filter
-    if (activitySubtype) {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activitySubtype);
-      if (isUuid) {
-        andConditions.push({ activitySubtypeId: activitySubtype });
-      } else {
-        const subtypeRecord = await this.prisma.activitySubtype.findFirst({
-          where: {
-            OR: [
-              { code: activitySubtype.toLowerCase().replace(/\s+/g, '-') },
-              { name: { equals: activitySubtype, mode: 'insensitive' } }
-            ]
-          }
-        });
-        if (subtypeRecord) {
-          andConditions.push({ activitySubtypeId: subtypeRecord.id });
-        }
-      }
-    }
-
-    // Date range filter
-    if (startDate) {
-      andConditions.push({ dateEnd: { gte: startDate } });
-    }
-    if (endDate) {
-      andConditions.push({ dateStart: { lte: endDate } });
-    }
-
-    // Day of week filter
-    if (dayOfWeek && dayOfWeek.length > 0) {
-      const dayNameMap: Record<string, string> = {
-        'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed',
-        'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat', 'Sunday': 'Sun',
-        'Mon': 'Mon', 'Tue': 'Tue', 'Wed': 'Wed',
-        'Thu': 'Thu', 'Fri': 'Fri', 'Sat': 'Sat', 'Sun': 'Sun'
-      };
-      const abbreviatedDays = dayOfWeek
-        .map(day => dayNameMap[day] || day)
-        .filter(day => day);
-
-      if (abbreviatedDays.length > 0) {
-        andConditions.push({
-          sessions: {
-            some: {
-              dayOfWeek: { in: abbreviatedDays }
-            }
-          }
-        });
-      }
-    }
-
-    // Location filter
-    if (locations && locations.length > 0) {
-      // Look up city IDs for the location names
-      const cityRecords = await this.prisma.city.findMany({
-        where: {
-          name: { in: locations, mode: 'insensitive' }
-        }
-      });
-
-      if (cityRecords.length > 0) {
-        const cityIds = cityRecords.map(c => c.id);
-        andConditions.push({
-          location: {
-            cityId: { in: cityIds }
-          }
-        });
-      }
-    }
-
-    // Apply AND conditions
-    if (andConditions.length > 0) {
-      where.AND = andConditions;
-    }
-
-    // Fetch all matching sponsored activities
-    const activities = await this.prisma.activity.findMany({
-      where,
-      include: {
-        provider: true,
-        location: {
-          include: {
-            cityRecord: true
-          }
-        },
-        activityType: true,
-        activitySubtype: true,
-        _count: {
-          select: { favorites: true }
-        }
-      }
-    });
-
-    console.log(`[PartnerService] Found ${activities.length} matching featured activities`);
-
-    // Group by tier and randomize within each tier
-    const randomizedActivities = this.randomizeWithinTiers(activities, limit);
-
-    return {
-      activities: randomizedActivities
-    };
-  }
-
-  /**
-   * Shuffle array using Fisher-Yates algorithm
-   */
-  private shuffleArray<T>(array: T[]): T[] {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }
-
-  /**
-   * Group activities by tier, shuffle within each tier, then combine
-   * Priority: Gold > Silver > Bronze
-   */
-  private randomizeWithinTiers(activities: any[], limit: number): any[] {
-    const tiers: Record<string, any[]> = {
-      gold: [],
-      silver: [],
-      bronze: []
-    };
-
-    // Group by tier
-    activities.forEach(activity => {
-      const tier = activity.featuredTier?.toLowerCase() || 'bronze';
-      if (tiers[tier]) {
-        tiers[tier].push(activity);
-      } else {
-        tiers.bronze.push(activity); // Default to bronze if unknown tier
-      }
-    });
-
-    // Shuffle each tier
-    Object.keys(tiers).forEach(tier => {
-      tiers[tier] = this.shuffleArray(tiers[tier]);
-    });
-
-    // Combine in priority order and limit
-    const result = [
-      ...tiers.gold,
-      ...tiers.silver,
-      ...tiers.bronze
-    ].slice(0, limit);
-
-    console.log(`[PartnerService] Randomized results - Gold: ${tiers.gold.length}, Silver: ${tiers.silver.length}, Bronze: ${tiers.bronze.length}, Returned: ${result.length}`);
-
-    return result;
   }
 
   async cleanup() {

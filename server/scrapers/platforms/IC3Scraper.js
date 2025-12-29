@@ -19,6 +19,10 @@ class IC3Scraper extends BaseScraper {
 
     // Day of week mapping (IC3 uses 1-7 for Monday-Sunday based on API)
     this.dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    // Parallelization settings for large cities (1000+ activities)
+    this.CONCURRENT_REQUESTS = config.scraperConfig?.concurrentRequests || 10;
+    this.PAGE_SIZE = 20; // IC3 default page size
   }
 
   /**
@@ -61,6 +65,7 @@ class IC3Scraper extends BaseScraper {
 
   /**
    * Use Puppeteer to load page and capture API responses
+   * For large cities (1000+ activities), uses parallel pagination
    */
   async fetchActivitiesViaBrowser() {
     const activities = [];
@@ -77,16 +82,15 @@ class IC3Scraper extends BaseScraper {
       const page = await browser.newPage();
       await page.setViewport({ width: 1920, height: 1080 });
 
-      // Enable request interception to capture POST responses
+      // Enable request interception to capture API responses
       await page.setRequestInterception(true);
       page.on('request', request => request.continue());
 
-      // Intercept ALL responses and log them
+      // Capture API responses to get record count and first page data
       page.on('response', async response => {
         const url = response.url();
         const contentType = response.headers()['content-type'] || '';
 
-        // Check for any IC3 search API response (uses site code from config)
         if (url.includes(self.siteCode) && url.includes('search') && contentType.includes('json')) {
           try {
             const text = await response.text();
@@ -96,13 +100,13 @@ class IC3Scraper extends BaseScraper {
               self.logProgress(`  Captured ${json.results.length} activities (recordCount: ${json.recordCount})`);
             }
           } catch (e) {
-            // Ignore
+            // Ignore parse errors
           }
         }
       });
 
       // Navigate to main page
-      this.logProgress('Loading Montreal IC3 page...');
+      this.logProgress('Loading IC3 page...');
       await page.goto(this.config.baseUrl, {
         waitUntil: 'networkidle0',
         timeout: 90000
@@ -110,14 +114,14 @@ class IC3Scraper extends BaseScraper {
 
       // Wait for Angular app to fully initialize
       this.logProgress('Waiting for Angular app...');
-      await new Promise(r => setTimeout(r, 8000));
+      await new Promise(r => setTimeout(r, this.config.scraperConfig?.initialWaitTime || 8000));
 
       // Find and click the search button
-      this.logProgress('Triggering search...');
-      const searchClicked = await page.evaluate(() => {
+      this.logProgress('Triggering initial search...');
+      const searchClicked = await page.evaluate((siteCode) => {
         // Try multiple selectors for the search button
         const selectors = [
-          '#u2010_btnSearch',
+          `#${siteCode.toLowerCase()}_btnSearch`,
           'button[id*="btnSearch"]',
           'input[type="submit"]',
           'button.btn-primary'
@@ -134,74 +138,37 @@ class IC3Scraper extends BaseScraper {
           }
         }
         return { clicked: false };
-      });
+      }, this.siteCode);
 
       this.logProgress(`  Search clicked: ${searchClicked.clicked} (${searchClicked.selector || 'none'})`);
 
-      // Wait for initial API response
-      await new Promise(r => setTimeout(r, 8000));
+      // Wait for initial API response to be captured
+      await new Promise(r => setTimeout(r, 10000));
 
-      // Navigate through result pages to get all activities
-      let totalExpected = 0;
+      // Get total records from captured API response
+      let totalRecords = 0;
+      let pageSize = this.PAGE_SIZE;
+
       if (capturedData.length > 0) {
-        totalExpected = capturedData[0].recordCount || 0;
-        this.logProgress(`  Total available: ${totalExpected}`);
-      }
-
-      // Paginate through results using Angular pagination
-      // Montreal IC3 uses .pagination-next a for the next page button
-      const maxPages = this.config.scraperConfig?.maxPages || 30;
-      let pageNum = 1;
-
-      while (pageNum < maxPages) {
-        const currentCount = capturedData.reduce((sum, d) => sum + (d.results?.length || 0), 0);
-        this.logProgress(`  Page ${pageNum}: ${currentCount}/${totalExpected} activities captured`);
-
-        if (currentCount >= totalExpected) {
-          break;
-        }
-
-        // Click the "next page" button
-        const hasNextPage = await page.evaluate(() => {
-          // Angular pagination uses .pagination-next li with a child anchor
-          const nextLi = document.querySelector('.pagination-next');
-          if (nextLi && !nextLi.classList.contains('disabled')) {
-            const anchor = nextLi.querySelector('a');
-            if (anchor) {
-              anchor.click();
-              return true;
-            }
-          }
-          return false;
-        });
-
-        if (!hasNextPage) {
-          this.logProgress(`  No more pages available`);
-          break;
-        }
-
-        // Wait for API response
-        await new Promise(r => setTimeout(r, 3000));
-        pageNum++;
-
-        // Check if we got new results
-        const newCount = capturedData.reduce((sum, d) => sum + (d.results?.length || 0), 0);
-        if (newCount === currentCount) {
-          // No new results after clicking next
-          this.logProgress(`  No new results on page ${pageNum}`);
-          break;
-        }
-      }
-
-      // If we captured data, parse it
-      this.logProgress(`Processing ${capturedData.length} API responses...`);
-      for (const data of capturedData) {
-        for (const item of (data.results || [])) {
+        totalRecords = capturedData[0].recordCount || 0;
+        // Parse first page activities
+        for (const item of (capturedData[0].results || [])) {
           const activity = this.parseActivity(item);
-          if (activity) {
-            activities.push(activity);
-          }
+          if (activity) activities.push(activity);
         }
+      }
+
+      const totalPages = Math.ceil(totalRecords / pageSize);
+      const expectedActivities = this.config.metadata?.expectedActivities || 0;
+
+      this.logProgress(`  Total available: ${totalRecords} (${totalPages} pages)`);
+
+      // Use sequential pagination with response capture (most reliable for IC3)
+      // The IC3 API requires session context and specific request format
+      if (totalRecords > pageSize) {
+        this.logProgress(`  Fetching remaining ${totalRecords - activities.length} activities via pagination...`);
+        const additionalResults = await this.fetchPagesSequentially(page, totalRecords, capturedData);
+        activities.push(...additionalResults);
       }
 
       // Deduplicate by externalId
@@ -212,7 +179,7 @@ class IC3Scraper extends BaseScraper {
         return true;
       });
 
-      this.logProgress(`Fetched ${unique.length} unique activities from IC3 (${totalExpected} available)`);
+      this.logProgress(`Fetched ${unique.length} unique activities from IC3 (${totalRecords} available)`);
       return unique;
 
     } finally {
@@ -220,6 +187,156 @@ class IC3Scraper extends BaseScraper {
         await browser.close();
       }
     }
+  }
+
+  /**
+   * Fetch all pages in parallel using browser fetch API
+   * IC3 uses Angular and the API supports skip/take parameters
+   */
+  async fetchAllPagesParallel(page, totalRecords, pageSize) {
+    const activities = [];
+    const totalPages = Math.ceil(totalRecords / pageSize);
+
+    // Generate all page offsets
+    const offsets = [];
+    for (let i = 0; i < totalPages; i++) {
+      offsets.push(i * pageSize);
+    }
+
+    this.logProgress(`    Fetching ${totalPages} pages with ${this.CONCURRENT_REQUESTS} concurrent requests...`);
+
+    // Process in batches of CONCURRENT_REQUESTS
+    for (let batchStart = 0; batchStart < offsets.length; batchStart += this.CONCURRENT_REQUESTS) {
+      const batchOffsets = offsets.slice(batchStart, batchStart + this.CONCURRENT_REQUESTS);
+
+      const batchResults = await page.evaluate(async (siteCode, offsetBatch, take) => {
+        const results = await Promise.all(offsetBatch.map(async (skip) => {
+          try {
+            // IC3 Angular API endpoint pattern
+            const apiUrl = `/api/${siteCode}/public/search/activity?skip=${skip}&take=${take}`;
+
+            const response = await fetch(apiUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include'
+            });
+
+            if (!response.ok) {
+              return { success: false, skip, error: response.status };
+            }
+
+            const data = await response.json();
+            return {
+              success: true,
+              skip,
+              results: data.results || data || [],
+              count: (data.results || data || []).length
+            };
+          } catch (e) {
+            return { success: false, skip, error: e.message };
+          }
+        }));
+        return results;
+      }, this.siteCode, batchOffsets, pageSize);
+
+      // Process batch results
+      for (const result of batchResults) {
+        if (result.success && result.results) {
+          for (const item of result.results) {
+            const activity = this.parseActivity(item);
+            if (activity) {
+              activities.push(activity);
+            }
+          }
+        }
+      }
+
+      // Progress update
+      const pagesProcessed = Math.min(batchStart + this.CONCURRENT_REQUESTS, totalPages);
+      if (pagesProcessed % 20 === 0 || pagesProcessed >= totalPages) {
+        this.logProgress(`    Progress: ${activities.length} activities (${pagesProcessed}/${totalPages} pages)`);
+      }
+
+      // Small delay between batches to avoid rate limiting
+      if (batchStart + this.CONCURRENT_REQUESTS < offsets.length) {
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+
+    return activities;
+  }
+
+  /**
+   * Sequential pagination - continues from first page, uses shared capturedData
+   * The response handler is already set up in fetchActivitiesViaBrowser
+   */
+  async fetchPagesSequentially(page, totalExpected, capturedData) {
+    const activities = [];
+
+    // Paginate through results - response handler already captures data
+    const maxPages = this.config.scraperConfig?.maxPages || 100;
+    let pageNum = 1;
+    const startCount = capturedData.reduce((sum, d) => sum + (d.results?.length || 0), 0);
+
+    while (pageNum < maxPages) {
+      const currentCount = capturedData.reduce((sum, d) => sum + (d.results?.length || 0), 0);
+
+      if (currentCount >= totalExpected) {
+        this.logProgress(`    All ${currentCount} activities captured`);
+        break;
+      }
+
+      // Click the "next page" button
+      const hasNextPage = await page.evaluate(() => {
+        const nextLi = document.querySelector('.pagination-next');
+        if (nextLi && !nextLi.classList.contains('disabled')) {
+          const anchor = nextLi.querySelector('a');
+          if (anchor) {
+            anchor.click();
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (!hasNextPage) {
+        this.logProgress(`    No more pages at ${currentCount} activities`);
+        break;
+      }
+
+      await new Promise(r => setTimeout(r, 2000));
+      pageNum++;
+
+      const newCount = capturedData.reduce((sum, d) => sum + (d.results?.length || 0), 0);
+      if (newCount === currentCount) {
+        // Wait a bit more and check again
+        await new Promise(r => setTimeout(r, 2000));
+        const finalCheck = capturedData.reduce((sum, d) => sum + (d.results?.length || 0), 0);
+        if (finalCheck === currentCount) {
+          this.logProgress(`    No new results on page ${pageNum}`);
+          break;
+        }
+      }
+
+      if (pageNum % 10 === 0) {
+        this.logProgress(`    Page ${pageNum}: ${newCount}/${totalExpected} activities`);
+      }
+    }
+
+    // Parse all captured data (skip first page since already parsed)
+    for (let i = 1; i < capturedData.length; i++) {
+      for (const item of (capturedData[i].results || [])) {
+        const activity = this.parseActivity(item);
+        if (activity) {
+          activities.push(activity);
+        }
+      }
+    }
+
+    return activities;
   }
 
   /**

@@ -39,6 +39,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       // Location parameters
       location,
       locations,
+      // Distance filtering
+      userLat,
+      userLon,
+      radiusKm,
       // Limit (default 3 for partners)
       limit = '3'
     } = req.query;
@@ -86,6 +90,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       endDate: endDate ? new Date(endDate as string) : end_date ? new Date(end_date as string) : undefined,
       dayOfWeek: parsedDayOfWeek,
       locations: parsedLocations,
+      // Distance filtering - sponsors only appear if within user's radius
+      userLat: userLat ? parseFloat(userLat as string) : undefined,
+      userLon: userLon ? parseFloat(userLon as string) : undefined,
+      radiusKm: radiusKm ? parseFloat(radiusKm as string) : undefined,
       limit: parseInt(limit as string)
     };
 
