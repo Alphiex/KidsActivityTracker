@@ -501,9 +501,14 @@ class REGPROGScraper extends BaseScraper {
           const bookLink = card.querySelector('a[href*="CourseDetails"]');
           const registrationUrl = bookLink?.href || null;
 
+          // Stable fallback: use name + location hash instead of index + Date.now()
+          const stableId = courseId
+            ? `calgary-${courseId}`
+            : `calgary-${name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20)}`;
+
           activities.push({
             name: name.replace(/\s+/g, ' ').trim(),
-            externalId: courseId ? `calgary-${courseId}` : `calgary-${index}-${Date.now()}`,
+            externalId: stableId,
             courseId,
             price,
             startDateText,
@@ -564,9 +569,13 @@ class REGPROGScraper extends BaseScraper {
 
         const link = card.querySelector('a')?.href;
 
+        // Stable fallback: use name hash instead of index + Date.now()
+        const cleanName = name.replace(/\((\d+)\s*[-–]\s*(\d+)[^)]*\)/g, '').trim();
+        const fallbackId = `calgary-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20)}`;
+
         activities.push({
-          name: name.replace(/\((\d+)\s*[-–]\s*(\d+)[^)]*\)/g, '').trim(),
-          externalId: idMatch ? `calgary-${idMatch[1]}` : `calgary-${index}-${Date.now()}`,
+          name: cleanName,
+          externalId: idMatch ? `calgary-${idMatch[1]}` : fallbackId,
           courseId: idMatch?.[1] || null,
           price: priceMatch ? priceMatch[1].replace(',', '') : null,
           dateText: dateMatch?.[0] || null,

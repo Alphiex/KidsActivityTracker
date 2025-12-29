@@ -2,6 +2,7 @@ const BaseScraper = require('../base/BaseScraper');
 const DataNormalizer = require('../base/DataNormalizer');
 const KidsActivityFilter = require('../utils/KidsActivityFilter');
 const puppeteer = require('puppeteer');
+const { generateStableHash } = require('../utils/stableIdGenerator');
 
 /**
  * Platform scraper for WebTrac recreation systems (by Vermont Systems)
@@ -489,9 +490,13 @@ class WebTracScraper extends BaseScraper {
 
           if (rows.length === 0) {
             // No sections visible, create one activity from header info
+            // Use programCode if available, otherwise create stable hash from name + category
+            const stableId = programCode
+              ? 'saskatoon-' + programCode
+              : 'saskatoon-' + name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20);
             activities.push({
               name,
-              externalId: programCode ? 'saskatoon-' + programCode : 'saskatoon-' + containerIndex + '-' + Date.now(),
+              externalId: stableId,
               programCode,
               category: typeName,
               description,
@@ -551,13 +556,26 @@ class WebTracScraper extends BaseScraper {
                 }
               });
 
-              // Extract FMID from link for unique ID
+              // Extract FMID from link for unique ID (PREFERRED - stable native ID)
               const fmidMatch = link?.match(/FMID=(\d+)/);
               const fmid = fmidMatch ? fmidMatch[1] : null;
 
+              // Use FMID if available, otherwise use sectionCode, otherwise use name-based hash
+              // NEVER use rowIndex as it changes when order changes!
+              let stableId;
+              if (fmid) {
+                stableId = 'saskatoon-' + fmid;
+              } else if (sectionCode) {
+                stableId = 'saskatoon-' + sectionCode.replace(/[^a-z0-9-]/gi, '');
+              } else {
+                // Fallback: use name + location for stable hash
+                const fallbackKey = (name + '-' + (location || '')).toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 24);
+                stableId = 'saskatoon-' + fallbackKey;
+              }
+
               activities.push({
                 name: name + (sectionCode ? ' - ' + sectionCode : ''),
-                externalId: fmid ? 'saskatoon-' + fmid : 'saskatoon-' + programCode + '-' + rowIndex,
+                externalId: stableId,
                 programCode: sectionCode || programCode,
                 category: typeName,
                 description,

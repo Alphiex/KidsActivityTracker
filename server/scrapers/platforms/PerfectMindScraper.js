@@ -1,25 +1,22 @@
 const BaseScraper = require('../base/BaseScraper');
 const DataNormalizer = require('../base/DataNormalizer');
 const puppeteer = require('puppeteer');
-const crypto = require('crypto');
+const { generateExternalId, extractNativeId } = require('../utils/stableIdGenerator');
 
 /**
- * Generate a stable hash for an activity based on its properties.
- * Used as fallback externalId when the site doesn't provide one.
+ * Generate a stable ID for PerfectMind activities.
+ * Priority: courseId from page > courseId from URL > stable hash (name + location only)
+ *
  * @param {Object} activity - Activity object
- * @returns {String} Stable hash ID
+ * @returns {String} Stable external ID
  */
 function generateStableActivityId(activity) {
-  const key = [
-    activity.name || '',
-    activity.location || activity.locationName || '',
-    activity.startTime || '',
-    activity.dateStartStr || '',
-    activity.cost || ''
-  ].join('|').toLowerCase().trim();
-
-  const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
-  return `pm-${hash}`;
+  // Use the centralized ID generator with PerfectMind-specific options
+  return generateExternalId(activity, {
+    platform: 'perfectmind',
+    providerCode: 'pm',
+    hashPrefix: 'pm'
+  });
 }
 
 /**
@@ -370,6 +367,7 @@ class PerfectMindScraper extends BaseScraper {
   /**
    * Filter links to activity links that are kids-related
    * For grid layouts, we look at the link text itself to determine if it's kids-related
+   * NOTE: We're now MORE INCLUSIVE because recursive navigation will find kids subcategories
    */
   filterActivityLinks(links) {
     const activityPatterns = this.activityPatterns;
@@ -390,6 +388,11 @@ class PerfectMindScraper extends BaseScraper {
         return false;
       }
 
+      // Skip explicitly adult-only programs (but not "adult & child" or family programs)
+      if (/^adult$/i.test(text) && !/child|family|parent/i.test(text)) {
+        return false;
+      }
+
       // The link text must indicate a kids-related category
       // This works for grid layouts where the link text IS the category
       const textIsKidsRelated = kidsSectionPatterns.some(p => p.test(text));
@@ -400,15 +403,16 @@ class PerfectMindScraper extends BaseScraper {
       // Check if it matches an activity pattern
       const isActivity = activityPatterns.some(p => p.test(text));
 
-      // For grid layout pages (like Abbotsford): if the link matches an activity pattern,
-      // include it even if it's not explicitly kids-related. Activities within will be
-      // filtered by age during extraction. This is more inclusive to avoid missing categories.
-      // Only require kids-related match for hierarchical layouts where section is set.
+      // CHANGED: Include ALL activity links, even if not explicitly kids-related
+      // The recursive navigation (findKidsSubcategories) will discover kids subcategories
+      // within top-level categories like "Arts", "Sports", "Swimming", etc.
+      // This is necessary because many sites organize by activity type first, then by age
       if (isActivity) {
-        // If we have a section context, require kids-related match
-        if (section && !sectionIsKidsRelated && !textIsKidsRelated) {
-          return false;
-        }
+        return true;
+      }
+
+      // Also include explicitly kids-related links even if they don't match activity patterns
+      if (textIsKidsRelated || sectionIsKidsRelated) {
         return true;
       }
 
@@ -419,14 +423,22 @@ class PerfectMindScraper extends BaseScraper {
   /**
    * Extract activities by clicking a link at a specific position
    * Handles hierarchical navigation where clicking a category reveals subcategories with "Show" buttons
+   * Also handles RECURSIVE navigation when categories have subcategories (e.g., Arts -> Children (Ages 5-12))
    * @param {String} widgetUrl - URL of the widget page
    * @param {Object} linkInfo - Link information (text, section, etc.)
    * @param {Browser} sharedBrowser - Optional shared browser instance to reuse
+   * @param {Number} depth - Current recursion depth (default 0, max 3)
    */
-  async extractActivitiesFromLink(widgetUrl, linkInfo, sharedBrowser = null) {
+  async extractActivitiesFromLink(widgetUrl, linkInfo, sharedBrowser = null, depth = 0) {
+    const MAX_DEPTH = 3; // Prevent infinite recursion
     let browser = sharedBrowser;
     let ownsBrowser = false;
     const activities = [];
+
+    if (depth > MAX_DEPTH) {
+      this.logProgress(`    Max depth ${MAX_DEPTH} reached, stopping recursion`);
+      return activities;
+    }
 
     try {
       // If no shared browser provided, launch our own (backward compatibility)
@@ -466,11 +478,33 @@ class PerfectMindScraper extends BaseScraper {
       }, linkText);
 
       if (!clicked) {
+        await page.close();
         return activities;
       }
 
       // Wait for page navigation - some sites navigate to a new page after clicking
       await new Promise(resolve => setTimeout(resolve, 6000));
+
+      // CHECK FOR SUBCATEGORIES - if we find kids-related subcategory links, recurse into them
+      const subcategoryLinks = await this.findKidsSubcategories(page);
+
+      if (subcategoryLinks.length > 0 && depth < MAX_DEPTH) {
+        this.logProgress(`    Found ${subcategoryLinks.length} subcategories in "${linkText}", recursing...`);
+        await page.close();
+
+        // Recursively process each subcategory
+        for (const subLink of subcategoryLinks) {
+          const subActivities = await this.extractActivitiesFromLink(
+            widgetUrl,
+            { text: subLink, section: linkInfo.text }, // Parent category becomes the section
+            browser,
+            depth + 1
+          );
+          activities.push(...subActivities);
+        }
+
+        return activities;
+      }
 
       // Check for hierarchical subcategory structure (like Port Moody's category pages)
       // Some sites show subcategory sections after clicking a main category, each with a "Show" button
@@ -520,6 +554,77 @@ class PerfectMindScraper extends BaseScraper {
     }
 
     return activities;
+  }
+
+  /**
+   * Find kids-related subcategory links on a page
+   * These are links like "Children (Ages 5-12)", "Preschool (Ages 5 and Under)", "Youth (Ages 13-17)"
+   * that appear after clicking a top-level category like "Arts" or "Sports"
+   * @param {Page} page - Puppeteer page
+   * @returns {Array<String>} - Array of subcategory link texts to click
+   */
+  async findKidsSubcategories(page) {
+    const kidsSubcategories = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      const subcategories = [];
+
+      // Patterns that indicate kids-related subcategories
+      const kidsPatterns = [
+        /children/i,
+        /preschool/i,
+        /pre-school/i,
+        /youth/i,
+        /teen/i,
+        /toddler/i,
+        /infant/i,
+        /baby/i,
+        /family/i,
+        /parent.*tot/i,
+        /parent.*child/i,
+        /ages?\s*\d+\s*[-–to]+\s*\d+/i,  // "Ages 5-12" or "Age 5 to 12"
+        /\(\s*ages?\s*\d+/i,              // "(Ages 5-12)" or "(Age 5 and Under)"
+        /\d+\s*[-–to]+\s*\d+\s*(?:yrs?|years?)/i,  // "5-12 yrs" or "5 to 12 years"
+        /\d+\s*(?:and\s*)?under/i,        // "5 and Under" or "5 Under"
+        /school\s*age/i,
+        /all\s*ages/i
+      ];
+
+      // Adult patterns to EXCLUDE
+      const adultPatterns = [
+        /adult\s*\(\s*(?:ages?\s*)?18\+?\s*\)/i,   // "Adult (Ages 18+)" or "Adult (18+)"
+        /adult\s*\(\s*18\s*(?:and\s*)?(?:over|up)\s*\)/i,  // "Adult (18 and over)"
+        /^adult$/i,
+        /55\+/i,
+        /senior/i,
+        /older\s*adult/i
+      ];
+
+      for (const link of links) {
+        const text = link.textContent?.trim() || '';
+        if (!text || text.length < 3 || text.length > 100) continue;
+
+        // Skip adult-only categories
+        if (adultPatterns.some(p => p.test(text))) continue;
+
+        // Check if it's a kids-related subcategory
+        if (kidsPatterns.some(p => p.test(text))) {
+          // Verify it's a clickable category link (not just any text)
+          const href = link.getAttribute('href');
+          const isClickable = link.onclick || (href && href !== '#' && href !== 'javascript:void(0)');
+          const hasValidSelector = link.classList.contains('bm-category-calendar-link') ||
+                                   link.closest('.bm-category-column') ||
+                                   link.closest('[class*="category"]');
+
+          if (isClickable || hasValidSelector) {
+            subcategories.push(text);
+          }
+        }
+      }
+
+      return [...new Set(subcategories)]; // Dedupe
+    });
+
+    return kidsSubcategories;
   }
 
   /**
@@ -652,9 +757,11 @@ class PerfectMindScraper extends BaseScraper {
       // Wait for new content to load
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Check if count increased
+      // Check if count increased (support multiple DOM structures)
       const newCount = await page.evaluate(() => {
-        return document.querySelectorAll('.bm-group-item-row').length;
+        let count = document.querySelectorAll('.bm-group-item-row').length;
+        if (count === 0) count = document.querySelectorAll('.bm-group-header').length;
+        return count;
       });
 
       if (newCount === result.count) {
@@ -673,7 +780,13 @@ class PerfectMindScraper extends BaseScraper {
 
     const pageActivities = await page.evaluate((section, actType, provider) => {
       const activities = [];
-      const itemRows = document.querySelectorAll('.bm-group-item-row');
+      // Support multiple DOM structures across different PerfectMind implementations
+      // .bm-group-item-row: Used by many sites (Vancouver, Ottawa, etc.)
+      // .bm-group-header: Used by Milton, Burlington, and other sites
+      let itemRows = document.querySelectorAll('.bm-group-item-row');
+      if (itemRows.length === 0) {
+        itemRows = document.querySelectorAll('.bm-group-header');
+      }
 
       itemRows.forEach(row => {
         try {

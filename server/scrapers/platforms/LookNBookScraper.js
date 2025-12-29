@@ -25,6 +25,9 @@ class LookNBookScraper extends BaseScraper {
     this.logProgress('Starting LookNBook scraper');
 
     try {
+      // Get or create provider
+      const provider = await this.getOrCreateProvider();
+
       // Build the courses URL
       const coursesUrl = this.buildCoursesUrl();
       this.logProgress(`Fetching courses from: ${coursesUrl}`);
@@ -52,10 +55,14 @@ class LookNBookScraper extends BaseScraper {
       // Normalize activities
       const normalizedActivities = await this.normalizeActivities(filteredActivities);
 
+      // Save to database
+      const stats = await this.saveActivitiesToDatabase(normalizedActivities, provider.id);
+
       const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+      const report = this.generateReport(stats, duration);
       this.logProgress(`Scraping completed in ${duration} minutes`);
 
-      return normalizedActivities;
+      return { activities: normalizedActivities, stats, report };
     } catch (error) {
       this.logProgress(`Error in scrape: ${error.message}`);
       throw error;
@@ -559,6 +566,33 @@ class LookNBookScraper extends BaseScraper {
       providerCode: this.config.code,
       platform: this.platformName,
     }));
+  }
+
+  /**
+   * Get or create provider in database
+   */
+  async getOrCreateProvider() {
+    const { name } = this.config;
+
+    let provider = await this.prisma.provider.findFirst({
+      where: { name }
+    });
+
+    if (!provider) {
+      provider = await this.prisma.provider.create({
+        data: {
+          name: this.config.name,
+          website: this.config.baseUrl,
+          platform: this.platformName,
+          region: this.config.region || 'Canada',
+          isActive: true,
+          scraperConfig: this.config.scraperConfig
+        }
+      });
+      this.logProgress(`Created new provider: ${name}`);
+    }
+
+    return provider;
   }
 }
 

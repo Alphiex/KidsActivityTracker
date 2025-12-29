@@ -584,9 +584,15 @@ class COEScraper extends BaseScraper {
           const descEl = card.querySelector('.card-text, .description');
           const description = descEl?.textContent?.trim() || null;
 
+          // Stable fallback: use name + location hash instead of index + Date.now()
+          const cleanedName = name.replace(/\s+/g, ' ').trim();
+          const stableId = courseId
+            ? `edmonton-${courseId}`
+            : `edmonton-${cleanedName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20)}`;
+
           activities.push({
-            name: name.replace(/\s+/g, ' ').trim(),
-            externalId: courseId ? `edmonton-${courseId}` : `edmonton-${index}-${Date.now()}`,
+            name: cleanedName,
+            externalId: stableId,
             courseId,
             price,
             startDateText,

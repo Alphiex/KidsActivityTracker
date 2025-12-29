@@ -1,5 +1,6 @@
 const { PrismaClient } = require('../../generated/prisma');
 const { mapActivityType, loadTypesCache } = require('../../utils/activityTypeMapper');
+const { findPotentialDuplicates, normalizeString } = require('../utils/stableIdGenerator');
 
 /**
  * Abstract base class for all scrapers in the Kids Activity Tracker system.
@@ -10,7 +11,7 @@ class BaseScraper {
     if (new.target === BaseScraper) {
       throw new TypeError('Cannot construct BaseScraper instances directly');
     }
-    
+
     this.config = config;
     this.prisma = new PrismaClient();
     this.activities = [];
@@ -19,7 +20,8 @@ class BaseScraper {
       updated: 0,
       unchanged: 0,
       removed: 0,
-      errors: 0
+      errors: 0,
+      potentialDuplicates: 0
     };
   }
 
@@ -192,6 +194,10 @@ class BaseScraper {
               name: updated.name,
               changes: hasChanges.changes
             });
+
+            // Log the specific changes detected
+            const changesStr = hasChanges.changes.map(c => `${c.field}: "${c.oldValue}" → "${c.newValue}"`).join(', ');
+            console.log(`📝 UPDATED: "${updated.name}" [${updated.externalId}] - ${changesStr}`);
           } else {
             // No changes, but still update timestamps and keep active
             const updated = await this.prisma.activity.update({
@@ -207,6 +213,50 @@ class BaseScraper {
             stats.unchanged++;
           }
         } else {
+          // Before creating, check for potential duplicates (renamed activities)
+          // This helps catch cases where an activity's name changed but it's the same activity
+          const recentlyDeactivated = await this.prisma.activity.findMany({
+            where: {
+              providerId,
+              isActive: false,
+              updatedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+            },
+            select: { id: true, name: true, locationName: true, externalId: true }
+          });
+
+          const duplicates = findPotentialDuplicates(activity, recentlyDeactivated, 0.8);
+
+          if (duplicates.length > 0) {
+            // Found a potential duplicate - log it and potentially reactivate
+            const bestMatch = duplicates[0];
+            console.log(`🔍 Potential duplicate detected for "${activity.name}":`);
+            console.log(`   → Similar to deactivated: "${bestMatch.existing.name}" (confidence: ${(bestMatch.confidence * 100).toFixed(0)}%)`);
+            console.log(`   → Reason: ${bestMatch.reason}`);
+            stats.potentialDuplicates++;
+
+            // If high confidence match, reactivate the old activity and update it
+            if (bestMatch.confidence >= 0.9) {
+              console.log(`   → Reactivating and updating existing activity`);
+              const reactivated = await this.prisma.activity.update({
+                where: { id: bestMatch.existing.id },
+                data: {
+                  ...activityWithTypes,
+                  isActive: true,
+                  isUpdated: true,
+                  lastSeenAt: new Date(),
+                  updatedAt: new Date()
+                }
+              });
+              processedActivityIds.push(reactivated.id);
+              stats.updated++;
+              stats.changedActivities.push({
+                name: reactivated.name,
+                changes: [{ field: 'reactivated', oldValue: bestMatch.existing.name, newValue: activity.name }]
+              });
+              continue; // Skip creating new activity
+            }
+          }
+
           // Create new activity
           const created = await this.prisma.activity.create({
             data: {
@@ -223,10 +273,12 @@ class BaseScraper {
           stats.created++;
           stats.newActivities.push({
             name: created.name,
+            externalId: created.externalId,
             category: created.category,
             subcategory: created.subcategory,
             cost: created.cost
           });
+          console.log(`✨ NEW: "${created.name}" [${created.externalId}] - ${created.category}`);
         }
       } catch (error) {
         console.error(`Error saving activity ${activity.name}:`, error.message);
@@ -262,7 +314,33 @@ class BaseScraper {
       stats.removed = 0;
     }
 
-    console.log(`✅ Database save complete: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} ✗${stats.errors}`);
+    console.log(`✅ Database save complete: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} 🔍${stats.potentialDuplicates || 0} ✗${stats.errors}`);
+
+    // Print summary of new and changed activities
+    if (stats.created > 0 && stats.newActivities.length > 0) {
+      console.log(`\n📊 NEW ACTIVITIES SUMMARY (${stats.created} total):`);
+      const sampleNew = stats.newActivities.slice(0, 10);
+      sampleNew.forEach(a => console.log(`   ✨ ${a.name} [${a.externalId}] - ${a.category}`));
+      if (stats.newActivities.length > 10) {
+        console.log(`   ... and ${stats.newActivities.length - 10} more`);
+      }
+    }
+
+    if (stats.updated > 0 && stats.changedActivities.length > 0) {
+      console.log(`\n📊 CHANGED ACTIVITIES SUMMARY (${stats.updated} total):`);
+      const sampleChanged = stats.changedActivities.slice(0, 10);
+      sampleChanged.forEach(a => {
+        const fields = a.changes.map(c => c.field).join(', ');
+        console.log(`   📝 ${a.name} - changed: ${fields}`);
+      });
+      if (stats.changedActivities.length > 10) {
+        console.log(`   ... and ${stats.changedActivities.length - 10} more`);
+      }
+    }
+
+    if (stats.removed > 0) {
+      console.log(`\n⚠️  DEACTIVATED: ${stats.removed} activities no longer found in source`);
+    }
 
     return stats;
   }
@@ -281,6 +359,7 @@ class BaseScraper {
       unchanged: 0,
       removed: 0,
       errors: 0,
+      potentialDuplicates: 0,
       newActivities: [],
       changedActivities: []
     };
@@ -560,7 +639,33 @@ class BaseScraper {
     }
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`✅ Batch save complete in ${totalTime}s: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} ✗${stats.errors}`);
+    console.log(`✅ Batch save complete in ${totalTime}s: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} 🔍${stats.potentialDuplicates || 0} ✗${stats.errors}`);
+
+    // Print summary of new and changed activities
+    if (stats.created > 0 && stats.newActivities.length > 0) {
+      console.log(`\n📊 NEW ACTIVITIES SUMMARY (${stats.created} total):`);
+      const sampleNew = stats.newActivities.slice(0, 10);
+      sampleNew.forEach(a => console.log(`   ✨ ${a.name} [${a.externalId || 'no-id'}] - ${a.category}`));
+      if (stats.newActivities.length > 10) {
+        console.log(`   ... and ${stats.newActivities.length - 10} more`);
+      }
+    }
+
+    if (stats.updated > 0 && stats.changedActivities.length > 0) {
+      console.log(`\n📊 CHANGED ACTIVITIES SUMMARY (${stats.updated} total):`);
+      const sampleChanged = stats.changedActivities.slice(0, 10);
+      sampleChanged.forEach(a => {
+        const fields = a.changes.map(c => c.field).join(', ');
+        console.log(`   📝 ${a.name} - changed: ${fields}`);
+      });
+      if (stats.changedActivities.length > 10) {
+        console.log(`   ... and ${stats.changedActivities.length - 10} more`);
+      }
+    }
+
+    if (stats.removed > 0) {
+      console.log(`\n⚠️  DEACTIVATED: ${stats.removed} activities no longer found in source`);
+    }
 
     return stats;
   }

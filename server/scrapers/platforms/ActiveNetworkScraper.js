@@ -1,28 +1,22 @@
 const BaseScraper = require('../base/BaseScraper');
 const DataNormalizer = require('../base/DataNormalizer');
 const puppeteer = require('puppeteer');
-const crypto = require('crypto');
+const { generateExternalId, extractNativeId } = require('../utils/stableIdGenerator');
 
 /**
- * Generate a stable hash for an activity based on its properties.
- * Used as fallback externalId when the site doesn't provide one.
+ * Generate a stable ID for Active Network activities.
+ * Priority: native ID from URL/page > stable hash (name + location only)
+ *
  * @param {Object} activity - Activity object
- * @returns {String} Stable hash ID
+ * @returns {String} Stable external ID
  */
 function generateStableActivityId(activity) {
-  // Create a unique key from stable properties
-  const key = [
-    activity.name || '',
-    activity.locationName || '',
-    activity.schedule || '',
-    activity.dates || '',
-    activity.startTime || '',
-    activity.cost || ''
-  ].join('|').toLowerCase().trim();
-
-  // Generate a short hash
-  const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
-  return `gen-${hash}`;
+  // Use the centralized ID generator with Active Network-specific options
+  return generateExternalId(activity, {
+    platform: 'activenetwork',
+    providerCode: 'an',
+    hashPrefix: 'an'
+  });
 }
 
 /**

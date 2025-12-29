@@ -534,7 +534,12 @@ class FullCalendarScraper extends BaseScraper {
   getFieldMapping() {
     return {
       name: 'name',
-      externalId: { path: 'externalId', transform: (val, raw) => val || `fullcalendar-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` },
+      externalId: { path: 'externalId', transform: (val, raw) => {
+        if (val) return val;
+        // Stable fallback: use name + location hash instead of Date.now() + random
+        const key = ((raw.name || '') + '-' + (raw.location || '')).toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 24);
+        return `fullcalendar-${key || 'unknown'}`;
+      }},
       category: { path: 'category', transform: (val, raw) => val || 'Community Event' },
       subcategory: 'name',
       description: 'description',

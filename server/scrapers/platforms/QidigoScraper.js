@@ -1,24 +1,22 @@
 const BaseScraper = require('../base/BaseScraper');
 const KidsActivityFilter = require('../utils/KidsActivityFilter');
 const puppeteer = require('puppeteer');
-const crypto = require('crypto');
+const { generateExternalId } = require('../utils/stableIdGenerator');
 
 /**
- * Generate a stable hash for an activity based on its properties.
+ * Generate a stable ID for Qidigo activities.
+ * Priority: native ID from URL/page > stable hash (name + location only)
+ *
  * @param {Object} activity - Activity object
- * @returns {String} Stable hash ID
+ * @returns {String} Stable external ID
  */
 function generateStableActivityId(activity) {
-  const key = [
-    activity.name || '',
-    activity.location || activity.locationName || '',
-    activity.startTime || '',
-    activity.dateStart || '',
-    activity.cost || ''
-  ].join('|').toLowerCase().trim();
-
-  const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
-  return `qidigo-${hash}`;
+  // Use the centralized ID generator with Qidigo-specific options
+  return generateExternalId(activity, {
+    platform: 'qidigo',
+    providerCode: 'qd',
+    hashPrefix: 'qd'
+  });
 }
 
 /**

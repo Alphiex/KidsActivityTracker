@@ -276,8 +276,9 @@ class LiveAndPlayScraper extends BaseScraper {
           const spotsText = card.querySelector(selectors.programSpots)?.textContent?.trim();
           const registerLink = card.querySelector(selectors.registerButton)?.href;
 
-          // Generate external ID
-          const externalId = `${categoryInfo.name.toLowerCase().replace(/\s+/g, '-')}-${index}-${Date.now()}`;
+          // Generate stable external ID - use name + category instead of index + Date.now()
+          const stableKey = (name + '-' + categoryInfo.name).toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 24);
+          const externalId = `liveandplay-${stableKey}`;
 
           activities.push({
             name,

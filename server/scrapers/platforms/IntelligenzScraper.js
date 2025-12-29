@@ -1526,7 +1526,12 @@ class IntelligenzScraper extends BaseScraper {
   getIntelligenzFieldMapping() {
     return {
       name: 'name',
-      externalId: { path: 'courseId', transform: (val, raw) => val || `intelligenz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` },
+      externalId: { path: 'courseId', transform: (val, raw) => {
+        if (val) return val;
+        // Stable fallback: use name + location hash instead of Date.now()
+        const key = ((raw.name || '') + '-' + (raw.location || '')).toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 24);
+        return `intelligenz-${key || 'unknown'}`;
+      }},
       category: 'courseType',
       subcategory: 'name',
       description: 'description',
