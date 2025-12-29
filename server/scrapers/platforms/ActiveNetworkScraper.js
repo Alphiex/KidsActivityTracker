@@ -61,8 +61,10 @@ class ActiveNetworkScraper extends BaseScraper {
       // Normalize the data
       const normalizedActivities = await this.normalizeActivities(enhancedActivities);
 
-      // Save to database
-      const stats = await this.saveActivitiesToDatabase(normalizedActivities, provider.id);
+      // Save to database - use batch method for large datasets (500+ activities)
+      const stats = normalizedActivities.length >= 500
+        ? await this.saveActivitiesToDatabaseBatch(normalizedActivities, provider.id)
+        : await this.saveActivitiesToDatabase(normalizedActivities, provider.id);
 
       // Generate report
       const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);

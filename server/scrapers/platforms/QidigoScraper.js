@@ -18,26 +18,26 @@ function generateStableActivityId(activity) {
   ].join('|').toLowerCase().trim();
 
   const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
-  return `amilia-${hash}`;
+  return `qidigo-${hash}`;
 }
 
 /**
- * Platform scraper for Amilia SmartRec recreation registration systems
- * URL pattern: app.amilia.com/store/{locale}/{org}/shop/programs
+ * Platform scraper for Qidigo recreation registration systems
+ * URL pattern: qidigo.com/u/{organization}/activities/session
  *
- * Uses Puppeteer to navigate program categories and extract activity data
+ * Uses Puppeteer to navigate activity categories and extract activity data
  */
-class AmiliaScraper extends BaseScraper {
+class QidigoScraper extends BaseScraper {
   constructor(config) {
     super(config);
-    this.platformName = 'Amilia';
+    this.platformName = 'Qidigo';
 
-    // Day of week mapping
+    // Day of week mapping (French)
     this.dayMap = {
-      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
-      'Thursday': 4, 'Friday': 5, 'Saturday': 6,
       'dimanche': 0, 'lundi': 1, 'mardi': 2, 'mercredi': 3,
-      'jeudi': 4, 'vendredi': 5, 'samedi': 6
+      'jeudi': 4, 'vendredi': 5, 'samedi': 6,
+      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+      'Thursday': 4, 'Friday': 5, 'Saturday': 6
     };
   }
 
@@ -46,7 +46,7 @@ class AmiliaScraper extends BaseScraper {
    */
   async scrape() {
     const startTime = Date.now();
-    this.logProgress(`Starting Amilia scraper for ${this.config.name}`);
+    this.logProgress(`Starting Qidigo scraper for ${this.config.name}`);
 
     try {
       this.validateConfig();
@@ -108,7 +108,7 @@ class AmiliaScraper extends BaseScraper {
   }
 
   /**
-   * Use Puppeteer to navigate Amilia and extract activities
+   * Use Puppeteer to navigate Qidigo and extract activities
    */
   async fetchActivitiesViaBrowser() {
     const activities = [];
@@ -126,7 +126,7 @@ class AmiliaScraper extends BaseScraper {
       // Set user agent
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-      // Navigate to programs page
+      // Navigate to activities page
       const baseUrl = this.config.baseUrl;
       this.logProgress(`Navigating to ${baseUrl}`);
 
@@ -135,52 +135,24 @@ class AmiliaScraper extends BaseScraper {
         timeout: 60000
       });
 
-      // Accept cookies if modal appears
-      try {
-        await page.waitForSelector('button.btn-primary, .cookie-accept, [data-testid="cookie-accept"]', { timeout: 3000 });
-        await page.click('button.btn-primary, .cookie-accept, [data-testid="cookie-accept"]');
-        await this.delay(1000);
-      } catch (e) {
-        // No cookie modal, continue
-      }
+      // Wait for page to load
+      await this.delay(3000);
 
-      // Wait for program cards to load
-      await page.waitForSelector('.program-card, .card, [class*="program"], a[href*="/shop/programs/"]', { timeout: 30000 });
+      // Get all category links
+      const categoryLinks = await this.extractCategoryLinks(page);
+      this.logProgress(`Found ${categoryLinks.length} activity categories`);
 
-      // Get all program links
-      const programLinks = await page.evaluate(() => {
-        const links = [];
-        // Find program cards/links
-        const programElements = document.querySelectorAll('a[href*="/shop/programs/"]');
-        programElements.forEach(el => {
-          const href = el.getAttribute('href');
-          const title = el.textContent?.trim() || el.querySelector('h2, h3, h4, .title')?.textContent?.trim();
-          if (href && !links.some(l => l.href === href)) {
-            links.push({ href, title });
-          }
-        });
-        return links;
-      });
-
-      this.logProgress(`Found ${programLinks.length} program categories`);
-
-      // Visit each program to extract activities
-      for (const program of programLinks) {
+      // Process each category
+      for (const category of categoryLinks) {
         try {
-          const programUrl = program.href.startsWith('http')
-            ? program.href
-            : `https://app.amilia.com${program.href}`;
-
-          this.logProgress(`Processing program: ${program.title || programUrl}`);
-
-          const programActivities = await this.extractActivitiesFromProgram(page, programUrl, program.title);
-          activities.push(...programActivities);
+          this.logProgress(`Processing category: ${category.name}`);
+          const categoryActivities = await this.extractActivitiesFromCategory(page, category);
+          activities.push(...categoryActivities);
 
           // Rate limiting
           await this.delay(this.config.scraperConfig?.rateLimits?.delayBetweenPages || 2000);
-
         } catch (error) {
-          this.logProgress(`Error processing program ${program.title}: ${error.message}`);
+          this.logProgress(`Error processing category ${category.name}: ${error.message}`);
         }
       }
 
@@ -197,103 +169,142 @@ class AmiliaScraper extends BaseScraper {
   }
 
   /**
-   * Extract activities from a single program page
+   * Extract category links from the main activities page
    */
-  async extractActivitiesFromProgram(page, programUrl, programTitle) {
+  async extractCategoryLinks(page) {
+    return await page.evaluate(() => {
+      const links = [];
+      // Find activity category cards/links
+      const categoryElements = document.querySelectorAll(
+        'a[href*="/activity/"], .activity-card a, [class*="activity"] a'
+      );
+
+      categoryElements.forEach(el => {
+        const href = el.getAttribute('href');
+        const name = el.textContent?.trim();
+
+        // Only include category links (not individual activity sessions)
+        if (href && name && !links.some(l => l.href === href)) {
+          links.push({
+            href: href.startsWith('http') ? href : `https://www.qidigo.com${href}`,
+            name: name.substring(0, 100)
+          });
+        }
+      });
+
+      return links;
+    });
+  }
+
+  /**
+   * Extract activities from a category page
+   */
+  async extractActivitiesFromCategory(page, category) {
     const activities = [];
 
     try {
-      await page.goto(programUrl, {
+      await page.goto(category.href, {
         waitUntil: 'networkidle2',
         timeout: 60000
       });
 
-      // Wait for activities to load
+      // Wait for content to load
       await this.delay(2000);
 
-      // Extract activity data from the page
-      const pageActivities = await page.evaluate((category) => {
+      // Extract activities from the page
+      const pageActivities = await page.evaluate((categoryName) => {
         const activities = [];
 
-        // Look for activity cards/rows
-        const activityElements = document.querySelectorAll(
-          '.activity-card, .event-card, [class*="activity"], [class*="event"], ' +
-          '.list-group-item, .table tbody tr, [data-activity-id]'
+        // Look for session/activity rows
+        const rows = document.querySelectorAll(
+          '.session-row, .activity-session, [class*="session"], ' +
+          'table tbody tr, .list-item, [class*="schedule"]'
         );
 
-        activityElements.forEach(el => {
+        rows.forEach(row => {
           try {
-            // Extract activity name
-            const nameEl = el.querySelector('h2, h3, h4, h5, .title, .activity-name, .event-name, td:first-child');
+            // Extract activity details
+            const nameEl = row.querySelector('h1, h2, h3, h4, .title, .name, td:first-child');
             const name = nameEl?.textContent?.trim();
 
             if (!name) return;
 
-            // Extract dates
-            const dateEl = el.querySelector('[class*="date"], .dates, td:nth-child(2)');
-            const dateText = dateEl?.textContent?.trim() || '';
-
-            // Extract time
-            const timeEl = el.querySelector('[class*="time"], .schedule, td:nth-child(3)');
-            const timeText = timeEl?.textContent?.trim() || '';
-
-            // Extract location
-            const locationEl = el.querySelector('[class*="location"], .venue, .place, td:nth-child(4)');
-            const location = locationEl?.textContent?.trim() || '';
+            // Extract schedule/dates
+            const scheduleEl = row.querySelector('[class*="schedule"], [class*="date"], .time, td:nth-child(2)');
+            const schedule = scheduleEl?.textContent?.trim() || '';
 
             // Extract price
-            const priceEl = el.querySelector('[class*="price"], .cost, .fee, td:nth-child(5)');
+            const priceEl = row.querySelector('[class*="price"], [class*="cost"], .fee, td:nth-child(3)');
             const priceText = priceEl?.textContent?.trim() || '';
 
             // Extract spots/availability
-            const spotsEl = el.querySelector('[class*="spots"], [class*="availability"], .places');
+            const spotsEl = row.querySelector('[class*="spots"], [class*="places"], [class*="availability"]');
             const spotsText = spotsEl?.textContent?.trim() || '';
 
+            // Extract location
+            const locationEl = row.querySelector('[class*="location"], [class*="lieu"], .venue');
+            const location = locationEl?.textContent?.trim() || '';
+
             // Extract age range
-            const ageEl = el.querySelector('[class*="age"], .age-range');
+            const ageEl = row.querySelector('[class*="age"], [class*="clientele"]');
             const ageText = ageEl?.textContent?.trim() || '';
 
-            // Extract link to details
-            const linkEl = el.querySelector('a[href*="activity"], a[href*="event"]') || el.closest('a');
+            // Extract link
+            const linkEl = row.querySelector('a[href*="session"], a[href*="activity"]');
             const detailUrl = linkEl?.getAttribute('href') || '';
-
-            // Extract activity ID from URL or data attribute
-            const activityId = el.dataset?.activityId ||
-              detailUrl.match(/\/(\d+)/)?.[1] ||
-              '';
 
             activities.push({
               name,
-              category,
-              dateText,
-              timeText,
-              location,
+              category: categoryName,
+              schedule,
               priceText,
               spotsText,
+              location,
               ageText,
-              detailUrl,
-              activityId
+              detailUrl
             });
           } catch (e) {
-            // Skip this element
+            // Skip this row
           }
         });
 
+        // Also check for activity details on the page itself
+        const pageTitle = document.querySelector('h1, .activity-title')?.textContent?.trim();
+        const pageDescription = document.querySelector('.description, [class*="description"]')?.textContent?.trim();
+
+        if (pageTitle && activities.length === 0) {
+          // This might be a single activity page
+          const priceEl = document.querySelector('[class*="price"], .cost');
+          const scheduleEl = document.querySelector('[class*="schedule"], .dates');
+          const ageEl = document.querySelector('[class*="age"], .clientele');
+
+          activities.push({
+            name: pageTitle,
+            category: categoryName,
+            description: pageDescription?.substring(0, 500),
+            schedule: scheduleEl?.textContent?.trim() || '',
+            priceText: priceEl?.textContent?.trim() || '',
+            ageText: ageEl?.textContent?.trim() || '',
+            location: '',
+            detailUrl: window.location.href
+          });
+        }
+
         return activities;
-      }, programTitle);
+      }, category.name);
 
       // Process and add activities
       for (const rawActivity of pageActivities) {
-        const activity = this.parseRawActivity(rawActivity, programUrl);
+        const activity = this.parseRawActivity(rawActivity, category.href);
         if (activity) {
           activities.push(activity);
         }
       }
 
-      this.logProgress(`  Found ${activities.length} activities in ${programTitle || 'program'}`);
+      this.logProgress(`  Found ${activities.length} activities in ${category.name}`);
 
     } catch (error) {
-      this.logProgress(`Error extracting from ${programUrl}: ${error.message}`);
+      this.logProgress(`Error extracting from ${category.href}: ${error.message}`);
     }
 
     return activities;
@@ -307,20 +318,17 @@ class AmiliaScraper extends BaseScraper {
       // Parse price
       const cost = this.parsePrice(raw.priceText);
 
-      // Parse dates
-      const { dateStart, dateEnd } = this.parseDates(raw.dateText);
-
-      // Parse time
-      const { startTime, endTime, dayOfWeek } = this.parseTime(raw.timeText, raw.dateText);
+      // Parse dates from schedule
+      const { dateStart, dateEnd, startTime, endTime, dayOfWeek } = this.parseSchedule(raw.schedule);
 
       // Parse age range
-      const { ageMin, ageMax } = this.parseAgeRange(raw.ageText, raw.name);
+      const { ageMin, ageMax } = this.parseAgeRange(raw.ageText, raw.name, raw.category);
 
       // Parse spots
       const { spotsAvailable, totalSpots } = this.parseSpots(raw.spotsText);
 
       // Generate external ID
-      const externalId = raw.activityId || generateStableActivityId({
+      const externalId = generateStableActivityId({
         name: raw.name,
         locationName: raw.location,
         startTime,
@@ -332,7 +340,8 @@ class AmiliaScraper extends BaseScraper {
         externalId,
         name: raw.name,
         category: raw.category || 'Recreation',
-        description: '',
+        description: raw.description || '',
+        schedule: raw.schedule,
         dateStart,
         dateEnd,
         startTime,
@@ -341,9 +350,9 @@ class AmiliaScraper extends BaseScraper {
         cost,
         spotsAvailable,
         totalSpots,
-        locationName: raw.location || this.config.city || 'Unknown',
+        locationName: raw.location || this.config.city || 'Sherbrooke',
         registrationUrl: raw.detailUrl ?
-          (raw.detailUrl.startsWith('http') ? raw.detailUrl : `https://app.amilia.com${raw.detailUrl}`) :
+          (raw.detailUrl.startsWith('http') ? raw.detailUrl : `https://www.qidigo.com${raw.detailUrl}`) :
           sourceUrl,
         ageMin,
         ageMax,
@@ -365,64 +374,31 @@ class AmiliaScraper extends BaseScraper {
     if (/free|gratuit/i.test(priceText)) return 0;
 
     // Extract number from price text
-    const match = priceText.match(/\$?\s*([\d,]+(?:\.\d{2})?)/);
+    const match = priceText.match(/\$?\s*([\d,]+(?:[.,]\d{2})?)/);
     if (match) {
-      return parseFloat(match[1].replace(',', ''));
+      return parseFloat(match[1].replace(',', '.'));
     }
 
     return 0;
   }
 
   /**
-   * Parse date range from text
+   * Parse schedule text into dates and times
    */
-  parseDates(dateText) {
-    const result = { dateStart: null, dateEnd: null };
+  parseSchedule(scheduleText) {
+    const result = {
+      dateStart: null,
+      dateEnd: null,
+      startTime: null,
+      endTime: null,
+      dayOfWeek: []
+    };
 
-    if (!dateText) return result;
+    if (!scheduleText) return result;
 
-    // Common date patterns
-    // "Jan 15 - Mar 20, 2026" or "2026-01-15 - 2026-03-20"
-    const rangeMatch = dateText.match(
-      /(\w+\s+\d{1,2}|\d{4}-\d{2}-\d{2})\s*[-–to]+\s*(\w+\s+\d{1,2},?\s*\d{4}|\d{4}-\d{2}-\d{2})/i
-    );
-
-    if (rangeMatch) {
-      try {
-        result.dateStart = new Date(rangeMatch[1]);
-        result.dateEnd = new Date(rangeMatch[2]);
-      } catch (e) {
-        // Continue with null dates
-      }
-    } else {
-      // Try single date
-      try {
-        const date = new Date(dateText);
-        if (!isNaN(date.getTime())) {
-          result.dateStart = date;
-          result.dateEnd = date;
-        }
-      } catch (e) {
-        // Continue with null dates
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Parse time and day of week from text
-   */
-  parseTime(timeText, dateText) {
-    const result = { startTime: null, endTime: null, dayOfWeek: [] };
-
-    if (!timeText && !dateText) return result;
-
-    const text = `${timeText || ''} ${dateText || ''}`;
-
-    // Extract time range like "9:00 AM - 12:00 PM" or "9h00 - 12h00"
-    const timeMatch = text.match(
-      /(\d{1,2}[h:]\d{2})\s*(?:AM|PM|am|pm)?\s*[-–to]+\s*(\d{1,2}[h:]\d{2})\s*(?:AM|PM|am|pm)?/i
+    // Extract time range like "18h00 - 19h30" or "6:00 PM - 7:30 PM"
+    const timeMatch = scheduleText.match(
+      /(\d{1,2}[h:]\d{2})\s*[-–à]\s*(\d{1,2}[h:]\d{2})/i
     );
 
     if (timeMatch) {
@@ -433,12 +409,26 @@ class AmiliaScraper extends BaseScraper {
     // Extract days of week
     const days = [];
     for (const [dayName, dayNum] of Object.entries(this.dayMap)) {
-      if (new RegExp(dayName, 'i').test(text)) {
+      if (new RegExp(dayName, 'i').test(scheduleText)) {
         days.push(dayNum);
       }
     }
     if (days.length > 0) {
       result.dayOfWeek = [...new Set(days)].sort();
+    }
+
+    // Try to extract date range
+    const dateMatch = scheduleText.match(
+      /(\d{1,2}\s+\w+|\w+\s+\d{1,2})\s*[-–au]+\s*(\d{1,2}\s+\w+\s*\d{4}|\w+\s+\d{1,2},?\s*\d{4})/i
+    );
+
+    if (dateMatch) {
+      try {
+        result.dateStart = new Date(dateMatch[1]);
+        result.dateEnd = new Date(dateMatch[2]);
+      } catch (e) {
+        // Continue with null dates
+      }
     }
 
     return result;
@@ -450,17 +440,12 @@ class AmiliaScraper extends BaseScraper {
   normalizeTime(timeStr) {
     if (!timeStr) return null;
 
-    // Convert "9h00" to "9:00"
+    // Convert "18h00" to "18:00"
     const normalized = timeStr.replace('h', ':');
 
-    // Handle AM/PM
-    const isPM = /pm/i.test(timeStr);
     const match = normalized.match(/(\d{1,2}):(\d{2})/);
-
     if (match) {
-      let hours = parseInt(match[1]);
-      if (isPM && hours < 12) hours += 12;
-      if (!isPM && hours === 12) hours = 0;
+      const hours = parseInt(match[1]);
       return `${hours.toString().padStart(2, '0')}:${match[2]}`;
     }
 
@@ -470,31 +455,30 @@ class AmiliaScraper extends BaseScraper {
   /**
    * Parse age range from text
    */
-  parseAgeRange(ageText, name) {
+  parseAgeRange(ageText, name, category) {
     const result = { ageMin: null, ageMax: null };
-    const text = `${ageText || ''} ${name || ''}`;
+    const text = `${ageText || ''} ${name || ''} ${category || ''}`;
 
-    // Match patterns like "5-12 years", "6 ans et plus", "3 à 5 ans"
-    const rangeMatch = text.match(/(\d+)\s*[-–àto]+\s*(\d+)\s*(?:years?|ans?|yrs?)?/i);
+    // Check for adult-only indicators
+    if (/\bAdulte\b|\bAdult\b|18\+|19\+/i.test(text)) {
+      result.ageMin = 18;
+      result.ageMax = 99;
+      return result;
+    }
+
+    // Match patterns like "5-12 ans", "6 à 12 ans"
+    const rangeMatch = text.match(/(\d+)\s*[-–àto]+\s*(\d+)\s*(?:ans?|years?|yrs?)?/i);
     if (rangeMatch) {
       result.ageMin = parseInt(rangeMatch[1]);
       result.ageMax = parseInt(rangeMatch[2]);
       return result;
     }
 
-    // Match "X years and up" or "X ans et plus"
-    const minMatch = text.match(/(\d+)\s*(?:years?|ans?)?\s*(?:and up|\+|et plus)/i);
+    // Match "X ans et plus" or "X years and up"
+    const minMatch = text.match(/(\d+)\s*(?:ans?|years?)?\s*(?:et plus|\+|and up)/i);
     if (minMatch) {
       result.ageMin = parseInt(minMatch[1]);
-      result.ageMax = 18;
-      return result;
-    }
-
-    // Match "under X" or "moins de X ans"
-    const maxMatch = text.match(/(?:under|moins de)\s*(\d+)/i);
-    if (maxMatch) {
-      result.ageMin = 0;
-      result.ageMax = parseInt(maxMatch[1]);
+      result.ageMax = 99;
       return result;
     }
 
@@ -509,7 +493,7 @@ class AmiliaScraper extends BaseScraper {
 
     if (!spotsText) return result;
 
-    // Match "5/20 spots" or "5 places sur 20"
+    // Match "5/20 places" or "5 sur 20"
     const match = spotsText.match(/(\d+)\s*[/sur]+\s*(\d+)/);
     if (match) {
       result.spotsAvailable = parseInt(match[1]);
@@ -517,7 +501,7 @@ class AmiliaScraper extends BaseScraper {
       return result;
     }
 
-    // Match "5 spots available"
+    // Match "5 places"
     const availMatch = spotsText.match(/(\d+)\s*(?:spots?|places?)/i);
     if (availMatch) {
       result.spotsAvailable = parseInt(availMatch[1]);
@@ -540,12 +524,10 @@ class AmiliaScraper extends BaseScraper {
 
     return activities.map(activity => ({
       ...activity,
-      // Ensure required fields
       externalId: activity.externalId || generateStableActivityId(activity),
       name: activity.name || 'Unknown Activity',
       category: activity.category || 'Recreation',
       cost: activity.cost || 0,
-      // Clean up dates
       dateStart: activity.dateStart instanceof Date && !isNaN(activity.dateStart) ? activity.dateStart : null,
       dateEnd: activity.dateEnd instanceof Date && !isNaN(activity.dateEnd) ? activity.dateEnd : null,
       // Convert day numbers to day names for database
@@ -563,4 +545,4 @@ class AmiliaScraper extends BaseScraper {
   }
 }
 
-module.exports = AmiliaScraper;
+module.exports = QidigoScraper;

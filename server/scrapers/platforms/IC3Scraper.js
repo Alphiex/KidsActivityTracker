@@ -3,16 +3,19 @@ const KidsActivityFilter = require('../utils/KidsActivityFilter');
 const puppeteer = require('puppeteer');
 
 /**
- * Platform scraper for Montreal's IC3 recreation system
- * URL: loisirs.montreal.ca/IC3/
+ * Platform scraper for IC3 recreation systems (Montreal, Gatineau, etc.)
+ * URL: loisirs.montreal.ca/IC3/ or similar
  *
  * Uses Puppeteer to trigger search and capture API responses
- * IC3 API at /api/U5200/public/search/ returns comprehensive activity data
+ * IC3 API at /api/{siteCode}/public/search/ returns comprehensive activity data
  */
 class IC3Scraper extends BaseScraper {
   constructor(config) {
     super(config);
     this.platformName = 'IC3';
+
+    // Site code from config (e.g., U5200 for Montreal, U2010 for Gatineau)
+    this.siteCode = config.scraperConfig?.siteCode || 'U5200';
 
     // Day of week mapping (IC3 uses 1-7 for Monday-Sunday based on API)
     this.dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -83,8 +86,8 @@ class IC3Scraper extends BaseScraper {
         const url = response.url();
         const contentType = response.headers()['content-type'] || '';
 
-        // Check for any U5200 search API response
-        if (url.includes('U5200') && url.includes('search') && contentType.includes('json')) {
+        // Check for any IC3 search API response (uses site code from config)
+        if (url.includes(self.siteCode) && url.includes('search') && contentType.includes('json')) {
           try {
             const text = await response.text();
             const json = JSON.parse(text);
@@ -335,7 +338,7 @@ class IC3Scraper extends BaseScraper {
         totalSpots: activity.totalSpots,
         registrationStatus: activity.registrationStatus,
         locationName: activity.locationName || activity.borough || null,
-        registrationUrl: `${this.config.baseUrl}#/U5200/activity/${activity.rawData?.id}`,
+        registrationUrl: `${this.config.baseUrl}#/${this.siteCode}/activity/${activity.rawData?.id}`,
         rawData: activity.rawData
       };
     });

@@ -8,6 +8,7 @@ const COEScraper = require('../platforms/COEScraper');
 const WebTracScraper = require('../platforms/WebTracScraper');
 const LookNBookScraper = require('../platforms/LookNBookScraper');
 const AmiliaScraper = require('../platforms/AmiliaScraper');
+const QidigoScraper = require('../platforms/QidigoScraper');
 const ExtensionLoader = require('./ExtensionLoader');
 
 /**
@@ -78,6 +79,10 @@ class ScraperFactory {
         scraper = new AmiliaScraper(providerConfig);
         break;
 
+      case 'qidigo':
+        scraper = new QidigoScraper(providerConfig);
+        break;
+
       default:
         throw new Error(`Unsupported platform: ${providerConfig.platform}`);
     }
@@ -132,7 +137,8 @@ class ScraperFactory {
       'coe',
       'webtrac',
       'looknbook',
-      'amilia'
+      'amilia',
+      'qidigo'
     ];
   }
 

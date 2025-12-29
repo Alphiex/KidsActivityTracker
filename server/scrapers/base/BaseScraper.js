@@ -1,5 +1,5 @@
 const { PrismaClient } = require('../../generated/prisma');
-const { mapActivityType } = require('../../utils/activityTypeMapper');
+const { mapActivityType, loadTypesCache } = require('../../utils/activityTypeMapper');
 
 /**
  * Abstract base class for all scrapers in the Kids Activity Tracker system.
@@ -252,6 +252,292 @@ class BaseScraper {
     stats.removed = inactiveResult.count;
 
     console.log(`✅ Database save complete: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} ✗${stats.errors}`);
+
+    return stats;
+  }
+
+  /**
+   * OPTIMIZED: Save activities to database using batch operations
+   * Much faster for large datasets (1000+ activities)
+   * @param {Array} activities - Array of normalized activity objects
+   * @param {String} providerId - Provider ID in database
+   * @returns {Object} - Statistics about the save operation
+   */
+  async saveActivitiesToDatabaseBatch(activities, providerId) {
+    const stats = {
+      created: 0,
+      updated: 0,
+      unchanged: 0,
+      removed: 0,
+      errors: 0,
+      newActivities: [],
+      changedActivities: []
+    };
+
+    console.log(`💾 Batch saving ${activities.length} activities to database...`);
+    const startTime = Date.now();
+
+    // Step 1: Pre-load type cache (one-time DB call)
+    console.log('  📦 Loading activity type cache...');
+    await loadTypesCache();
+
+    // Step 2: Pre-fetch ALL existing activities for this provider (one query)
+    console.log('  📦 Fetching existing activities...');
+    const existingActivities = await this.prisma.activity.findMany({
+      where: { providerId },
+      select: {
+        id: true,
+        externalId: true,
+        name: true,
+        description: true,
+        schedule: true,
+        cost: true,
+        spotsAvailable: true,
+        registrationStatus: true,
+        instructor: true,
+        startTime: true,
+        endTime: true,
+        totalSpots: true,
+        fullDescription: true,
+        activityTypeId: true,
+        activitySubtypeId: true,
+        dateStart: true,
+        dateEnd: true,
+        manuallyEditedFields: true
+      }
+    });
+
+    // Create a map for O(1) lookups
+    const existingMap = new Map();
+    for (const activity of existingActivities) {
+      existingMap.set(activity.externalId, activity);
+    }
+    console.log(`  📊 Found ${existingActivities.length} existing activities`);
+
+    // Step 3: Pre-fetch and cache locations (batch lookup)
+    console.log('  📍 Processing locations...');
+    const uniqueLocationNames = [...new Set(
+      activities
+        .filter(a => a.locationName && !a.locationId)
+        .map(a => a.locationName.replace(/^(the|at|@)\s+/i, '').trim())
+        .filter(name => name)
+    )];
+
+    // Fetch all existing locations in one query
+    const existingLocations = await this.prisma.location.findMany({
+      where: {
+        name: { in: uniqueLocationNames, mode: 'insensitive' }
+      }
+    });
+
+    const locationMap = new Map();
+    for (const loc of existingLocations) {
+      locationMap.set(loc.name.toLowerCase(), loc);
+    }
+
+    // Find locations that need to be created
+    const locationsToCreate = [];
+    for (const name of uniqueLocationNames) {
+      if (!locationMap.has(name.toLowerCase())) {
+        locationsToCreate.push({
+          name: name,
+          city: this.config?.city || 'Unknown',
+          province: this.config?.province || 'BC',
+          country: 'Canada',
+          facility: 'Community Facility'
+        });
+      }
+    }
+
+    // Batch create missing locations
+    if (locationsToCreate.length > 0) {
+      console.log(`  📍 Creating ${locationsToCreate.length} new locations...`);
+      await this.prisma.location.createMany({
+        data: locationsToCreate,
+        skipDuplicates: true
+      });
+
+      // Refresh location map
+      const newLocations = await this.prisma.location.findMany({
+        where: { name: { in: locationsToCreate.map(l => l.name), mode: 'insensitive' } }
+      });
+      for (const loc of newLocations) {
+        locationMap.set(loc.name.toLowerCase(), loc);
+      }
+    }
+
+    // Step 4: Process activities in batches
+    const BATCH_SIZE = 100;
+    const processedActivityIds = [];
+    let processedCount = 0;
+
+    console.log(`  🔄 Processing activities in batches of ${BATCH_SIZE}...`);
+
+    for (let i = 0; i < activities.length; i += BATCH_SIZE) {
+      const batch = activities.slice(i, i + BATCH_SIZE);
+      const toCreate = [];
+      const toUpdate = [];
+      const toUnchange = [];
+
+      for (const activity of batch) {
+        try {
+          // Get activity type mapping (uses cached values)
+          const { activityTypeId, activitySubtypeId } = await mapActivityType(activity);
+
+          // Get location ID from cache
+          let locationId = activity.locationId;
+          if (!locationId && activity.locationName) {
+            const cleanedName = activity.locationName.replace(/^(the|at|@)\s+/i, '').trim();
+            const cachedLocation = locationMap.get(cleanedName.toLowerCase());
+            if (cachedLocation) {
+              locationId = cachedLocation.id;
+            }
+          }
+
+          // Prepare activity data
+          const activityData = this.sanitizeActivityData({
+            ...activity,
+            activityTypeId,
+            activitySubtypeId,
+            locationId
+          });
+
+          // Check if activity exists
+          const existing = existingMap.get(activity.externalId);
+
+          if (existing) {
+            // Filter out manually edited fields
+            const manuallyEditedFields = existing.manuallyEditedFields || [];
+            const filteredData = { ...activityData };
+            for (const field of manuallyEditedFields) {
+              if (field in filteredData) {
+                delete filteredData[field];
+              }
+            }
+
+            // Check for changes
+            const hasChanges = this.detectActivityChanges(existing, filteredData);
+
+            if (hasChanges.changed) {
+              toUpdate.push({
+                id: existing.id,
+                data: {
+                  ...filteredData,
+                  isUpdated: true,
+                  isActive: true,
+                  lastSeenAt: new Date(),
+                  updatedAt: new Date()
+                },
+                changes: hasChanges.changes
+              });
+            } else {
+              toUnchange.push(existing.id);
+            }
+            processedActivityIds.push(existing.id);
+          } else {
+            toCreate.push({
+              ...activityData,
+              providerId,
+              isUpdated: false,
+              isActive: true,
+              lastSeenAt: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing activity ${activity.name}:`, error.message);
+          stats.errors++;
+        }
+      }
+
+      // Execute batch operations using transaction
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // Batch create new activities
+          if (toCreate.length > 0) {
+            const created = await tx.activity.createMany({
+              data: toCreate,
+              skipDuplicates: true
+            });
+            stats.created += created.count;
+          }
+
+          // Batch update changed activities
+          for (const item of toUpdate) {
+            await tx.activity.update({
+              where: { id: item.id },
+              data: item.data
+            });
+            stats.updated++;
+            stats.changedActivities.push({
+              name: item.data.name,
+              changes: item.changes
+            });
+          }
+
+          // Batch update unchanged activities (just timestamps)
+          if (toUnchange.length > 0) {
+            await tx.activity.updateMany({
+              where: { id: { in: toUnchange } },
+              data: {
+                isUpdated: false,
+                isActive: true,
+                lastSeenAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+            stats.unchanged += toUnchange.length;
+          }
+        });
+
+        // Get IDs of newly created activities
+        if (toCreate.length > 0) {
+          const newActivities = await this.prisma.activity.findMany({
+            where: {
+              providerId,
+              externalId: { in: toCreate.map(a => a.externalId) }
+            },
+            select: { id: true, name: true, category: true, subcategory: true, cost: true }
+          });
+          for (const a of newActivities) {
+            processedActivityIds.push(a.id);
+            stats.newActivities.push({
+              name: a.name,
+              category: a.category,
+              subcategory: a.subcategory,
+              cost: a.cost
+            });
+          }
+        }
+      } catch (txError) {
+        console.error(`Transaction error for batch:`, txError.message);
+        stats.errors += batch.length;
+      }
+
+      processedCount += batch.length;
+      if (processedCount % 500 === 0 || processedCount === activities.length) {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`  ⏳ Processed ${processedCount}/${activities.length} (${elapsed}s)`);
+      }
+    }
+
+    // Step 5: Mark activities NOT in this run as inactive
+    const inactiveResult = await this.prisma.activity.updateMany({
+      where: {
+        providerId,
+        id: { notIn: processedActivityIds },
+        isActive: true
+      },
+      data: {
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
+
+    stats.removed = inactiveResult.count;
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`✅ Batch save complete in ${totalTime}s: +${stats.created} ~${stats.updated} =${stats.unchanged} -${stats.removed} ✗${stats.errors}`);
 
     return stats;
   }
