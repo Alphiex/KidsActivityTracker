@@ -1,0 +1,51 @@
+{
+  "id": "aurora-rec",
+  "name": "Town of Aurora Recreation",
+  "code": "aurora",
+  "platform": "activenetwork",
+  "region": "Greater Toronto Area",
+  "city": "Aurora",
+  "province": "Ontario",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/auroraontario",
+  "websiteUrl": "https://www.aurora.ca/en/recreation-and-culture.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/activity/search"
+    ],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list",
+      "days_of_week": "0000000"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 62057,
+    "expectedActivities": 500,
+    "notes": "York Region municipality using ActiveNet for recreation program registration."
+  }
+}

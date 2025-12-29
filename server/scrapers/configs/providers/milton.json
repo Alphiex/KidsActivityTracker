@@ -1,0 +1,49 @@
+{
+  "id": "milton-rec",
+  "name": "Town of Milton Recreation",
+  "code": "milton",
+  "platform": "perfectmind",
+  "region": "Greater Toronto Area",
+  "city": "Milton",
+  "province": "Ontario",
+  "baseUrl": "https://townofmilton.perfectmind.com",
+  "websiteUrl": "https://www.milton.ca/en/recreation-and-leisure.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23453/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true,
+    "initialWaitTime": 10000
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 132979,
+    "expectedActivities": 600,
+    "notes": "Halton Region municipality using PerfectMind widget for recreation registration."
+  }
+}
