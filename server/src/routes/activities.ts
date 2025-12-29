@@ -48,6 +48,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       hideClosedActivities,
       hideFullActivities,
       hideClosedOrFull,
+      // Distance filtering
+      userLat,
+      userLon,
+      radiusKm,
       limit = '50',
       offset = '0',
       sortBy = 'dateStart',
@@ -120,9 +124,13 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       hideClosedActivities: hideClosedActivities === 'true',
       hideFullActivities: hideFullActivities === 'true',
       hideClosedOrFull: hideClosedOrFull === 'true',
+      // Distance filtering - only include if all three are valid
+      userLat: userLat ? parseFloat(userLat as string) : undefined,
+      userLon: userLon ? parseFloat(userLon as string) : undefined,
+      radiusKm: radiusKm ? parseFloat(radiusKm as string) : undefined,
       limit: parseInt(limit as string),
       offset: parseInt(offset as string),
-      sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt',
+      sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance',
       sortOrder: sortOrder as 'asc' | 'desc'
     };
 

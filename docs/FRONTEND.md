@@ -23,6 +23,8 @@ src/
 │   │   └── ActivityCardModern.tsx # Modern styled card
 │   ├── calendar/                  # Calendar components
 │   ├── children/                  # Child profile components
+│   ├── filters/
+│   │   └── DistanceFilterSection.tsx  # Distance filtering UI
 │   ├── HierarchicalSelect/        # Location picker
 │   ├── TopTabNavigation.tsx       # Tab switching
 │   ├── NetworkStatus.tsx          # Connectivity indicator
@@ -36,7 +38,10 @@ src/
 │   ├── onboarding/
 │   │   ├── OnboardingScreenModern.tsx
 │   │   ├── OnboardingAgeScreen.tsx
-│   │   └── OnboardingLocationScreen.tsx
+│   │   ├── OnboardingLocationScreen.tsx
+│   │   └── OnboardingDistanceScreen.tsx  # Distance preferences setup
+│   ├── preferences/
+│   │   └── DistancePreferencesScreen.tsx # Distance settings
 │   ├── DashboardScreenModern.tsx  # Main dashboard
 │   ├── CalendarScreenModernFixed.tsx
 │   ├── FiltersScreen.tsx
@@ -51,6 +56,7 @@ src/
 │   ├── activityService.ts         # Activity operations
 │   ├── childrenService.ts         # Child management
 │   ├── preferencesService.ts      # User preferences
+│   ├── locationService.ts         # GPS & geocoding service
 │   └── calendarExportService.ts   # Calendar export
 │
 ├── store/
@@ -87,6 +93,7 @@ App
 │   ├── Activity Type Preferences
 │   ├── Age Preferences
 │   ├── Location Preferences
+│   ├── Distance Preferences
 │   └── Complete
 │
 └── Main Tabs
@@ -117,6 +124,7 @@ App
         ├── Notification Preferences
         ├── Activity Type Preferences
         ├── Location Preferences
+        ├── Distance Preferences
         └── Legal
 ```
 
@@ -144,6 +152,7 @@ Advanced filtering:
 - Date range picker
 - Days of week selection
 - Location hierarchy (Province > City > Venue)
+- Distance-based filtering (GPS/saved address with radius)
 - Hide closed/full toggles
 
 ### ActivityDetailScreenModern.tsx
@@ -299,6 +308,34 @@ export const activityService = {
 };
 ```
 
+### Location Service
+
+```typescript
+// src/services/locationService.ts
+export const locationService = {
+  // Check location permission status
+  async checkPermission(): Promise<LocationPermissionStatus> { ... },
+
+  // Request location permission from user
+  async requestPermission(): Promise<LocationPermissionStatus> { ... },
+
+  // Get current GPS coordinates
+  async getCurrentLocation(): Promise<Coordinates | null> { ... },
+
+  // Geocode an address to coordinates
+  async geocodeAddress(address: string): Promise<GeocodedAddress | null> { ... },
+
+  // Calculate distance between two points (Haversine formula)
+  calculateDistance(from: Coordinates, to: Coordinates): number { ... }
+};
+```
+
+**Distance Preferences** (stored in MMKV via preferencesService):
+- `distanceFilterEnabled`: boolean - Enable/disable distance filtering
+- `distanceRadiusKm`: number - Search radius (5, 10, 25, 50, 100 km)
+- `locationSource`: 'gps' | 'saved_address' - Location source
+- `savedAddress`: object - Geocoded saved address with coordinates
+
 ## Styling
 
 ### Theme System
@@ -413,5 +450,5 @@ npm run lint -- --fix
 
 ---
 
-**Document Version**: 4.0
+**Document Version**: 4.1
 **Last Updated**: December 2025

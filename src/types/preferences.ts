@@ -37,8 +37,19 @@ export interface UserPreferences {
   // Location preferences
   locations: string[]; // DEPRECATED - kept for migration (location names)
   locationIds: string[]; // NEW - primary storage (location UUIDs)
-  maxDistance?: number; // in km
+  maxDistance?: number; // DEPRECATED - use distanceRadiusKm instead
   preferredLocation?: string; // For onboarding
+
+  // Distance-based filtering preferences
+  distanceFilterEnabled: boolean; // Whether distance filtering is active
+  distanceRadiusKm: number; // Radius in km (5, 10, 25, 50, 100)
+  locationSource: 'gps' | 'saved_address'; // Location source preference
+  savedAddress?: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+  locationPermissionAsked: boolean; // Whether we've asked for location permission
   
   // Age preferences
   ageRanges: {

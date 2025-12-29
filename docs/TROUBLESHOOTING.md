@@ -206,6 +206,54 @@ dispatch(activitiesSlice.actions.clearCache());
 await dispatch(fetchActivities());
 ```
 
+## Location/GPS Issues
+
+### Location Permission Denied
+
+**Problem**: Distance filtering doesn't work because location permission was denied.
+
+**Solutions**:
+1. Go to device Settings > Privacy > Location Services
+2. Find the app and enable location permission
+3. Alternatively, use a saved address instead of GPS
+
+### GPS Location Inaccurate
+
+**Problem**: Activities shown are far from actual location.
+
+**Solutions**:
+1. Ensure device has clear view of sky (GPS works best outdoors)
+2. Try using a saved address instead of GPS
+3. Increase the search radius
+4. Wait a few seconds for GPS to get accurate fix
+
+### Address Geocoding Fails
+
+**Problem**: Saved address cannot be converted to coordinates.
+
+**Solutions**:
+1. Use a more specific address (include city, province)
+2. Try a nearby landmark address
+3. Verify address spelling
+4. Use GPS instead if available
+
+### Distance Filtering Shows No Results
+
+**Problem**: No activities appear when distance filter is enabled.
+
+**Solutions**:
+1. Increase the search radius (try 50km or 100km)
+2. Verify location is within supported cities
+3. Check that location coordinates are valid
+4. Disable distance filter to see all activities
+
+### Simulator Location Issues
+
+**iOS Simulator**:
+1. In Simulator menu: Features > Location > Custom Location
+2. Enter Vancouver coordinates: `49.2827, -123.1207`
+3. Or use: Features > Location > Apple
+
 ## Network/API Issues
 
 ### CORS Errors
@@ -341,5 +389,5 @@ cd ios && pod install && cd ..
 
 ---
 
-**Document Version**: 4.0
+**Document Version**: 4.1
 **Last Updated**: December 2025

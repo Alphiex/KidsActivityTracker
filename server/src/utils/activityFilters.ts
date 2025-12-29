@@ -1,9 +1,14 @@
 import { Prisma } from '../../generated/prisma';
+import { getBoundingBox } from './distanceUtils';
 
 export interface GlobalActivityFilters {
   hideClosedActivities?: boolean;
   hideFullActivities?: boolean;
   hideClosedOrFull?: boolean; // Combined filter to hide activities that are closed OR full
+  // Distance filtering
+  userLat?: number;
+  userLon?: number;
+  radiusKm?: number;
 }
 
 /**
@@ -92,7 +97,36 @@ export function buildActivityWhereClause(
       });
     }
   }
-  
+
+  // Distance filtering - apply bounding box pre-filter
+  if (filters.userLat != null && filters.userLon != null && filters.radiusKm != null) {
+    const boundingBox = getBoundingBox(filters.userLat, filters.userLon, filters.radiusKm);
+    console.log('🔧 [buildActivityWhereClause] Applying distance filter:', {
+      userLat: filters.userLat,
+      userLon: filters.userLon,
+      radiusKm: filters.radiusKm,
+      boundingBox
+    });
+
+    // Add bounding box filter - activities must have coordinates and be within the box
+    andConditions.push({
+      latitude: { not: null },
+      longitude: { not: null }
+    });
+    andConditions.push({
+      latitude: {
+        gte: boundingBox.minLat,
+        lte: boundingBox.maxLat
+      }
+    });
+    andConditions.push({
+      longitude: {
+        gte: boundingBox.minLon,
+        lte: boundingBox.maxLon
+      }
+    });
+  }
+
   // Apply AND conditions if any
   if (andConditions.length > 0) {
     if (where.AND) {
@@ -112,10 +146,21 @@ export function buildActivityWhereClause(
  * Extract global filters from request query parameters
  */
 export function extractGlobalFilters(query: any): GlobalActivityFilters {
-  const filters = {
+  // Parse distance parameters
+  const userLat = query.userLat ? parseFloat(query.userLat) : undefined;
+  const userLon = query.userLon ? parseFloat(query.userLon) : undefined;
+  const radiusKm = query.radiusKm ? parseFloat(query.radiusKm) : undefined;
+
+  const filters: GlobalActivityFilters = {
     hideClosedActivities: query.hideClosedActivities === 'true' || query.hideClosedActivities === true,
     hideFullActivities: query.hideFullActivities === 'true' || query.hideFullActivities === true,
-    hideClosedOrFull: query.hideClosedOrFull === 'true' || query.hideClosedOrFull === true
+    hideClosedOrFull: query.hideClosedOrFull === 'true' || query.hideClosedOrFull === true,
+    // Only include distance params if all three are valid numbers
+    ...(userLat != null && !isNaN(userLat) &&
+        userLon != null && !isNaN(userLon) &&
+        radiusKm != null && !isNaN(radiusKm) && radiusKm > 0
+      ? { userLat, userLon, radiusKm }
+      : {})
   };
 
   console.log('🔧 [extractGlobalFilters] Input query:', query);

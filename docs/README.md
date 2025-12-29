@@ -20,6 +20,7 @@ Kids Activity Tracker helps parents find and organize activities for their child
 ## Features
 
 - **Activity Discovery** - Search and filter activities by age, type, location, cost, and schedule
+- **Distance-Based Search** - Filter activities by proximity using GPS location or saved address with configurable radius (5-100km)
 - **Smart Recommendations** - Personalized suggestions based on child profiles and preferences
 - **Calendar Integration** - Visual scheduling with conflict detection and export capabilities
 - **Child Profiles** - Track multiple children with interests and activity history
@@ -108,5 +109,5 @@ KidsActivityTracker/
 
 ---
 
-**Document Version**: 5.0
+**Document Version**: 5.1
 **Last Updated**: December 2025

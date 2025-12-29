@@ -53,6 +53,7 @@ import PaywallScreen from '../screens/PaywallScreen';
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
 import AgePreferencesScreen from '../screens/preferences/AgePreferencesScreen';
 import LocationPreferencesScreen from '../screens/preferences/LocationPreferencesScreen';
+import DistancePreferencesScreen from '../screens/preferences/DistancePreferencesScreen';
 import BudgetPreferencesScreen from '../screens/preferences/BudgetPreferencesScreen';
 import SchedulePreferencesScreen from '../screens/preferences/SchedulePreferencesScreen';
 import ViewSettingsScreen from '../screens/preferences/ViewSettingsScreen';
@@ -134,6 +135,7 @@ const ProfileStack = () => (
     <Stack.Screen name="ActivityTypePreferences" component={ActivityTypePreferencesScreen} />
     <Stack.Screen name="AgePreferences" component={AgePreferencesScreen} />
     <Stack.Screen name="LocationPreferences" component={LocationPreferencesScreen} />
+    <Stack.Screen name="DistancePreferences" component={DistancePreferencesScreen} />
     <Stack.Screen name="BudgetPreferences" component={BudgetPreferencesScreen} />
     <Stack.Screen name="SchedulePreferences" component={SchedulePreferencesScreen} />
     <Stack.Screen name="ViewSettings" component={ViewSettingsScreen} />

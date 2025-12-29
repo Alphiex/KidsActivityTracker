@@ -25,6 +25,7 @@ import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/Hierarc
 import useSubscription from '../hooks/useSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import { LockedFeature } from '../components/PremiumBadge';
+import DistanceFilterSection from '../components/filters/DistanceFilterSection';
 
 interface ExpandableSection {
   id: string;
@@ -89,6 +90,7 @@ const FiltersScreen = () => {
     { id: 'activityTypes', title: 'Activity Type?', expanded: false },
     { id: 'age', title: 'Age Range?', expanded: false },
     { id: 'locations', title: 'Where?', expanded: false },
+    { id: 'distance', title: 'How Far?', expanded: false },
     { id: 'budget', title: 'Cost?', expanded: false },
     { id: 'schedule', title: 'Day of the Week?', expanded: false },
     { id: 'dates', title: 'When?', expanded: false },
@@ -379,6 +381,11 @@ const FiltersScreen = () => {
         return locationCount > 0
           ? `${locationCount} selected`
           : 'Anywhere';
+      case 'distance':
+        if (!preferences?.distanceFilterEnabled) {
+          return 'Disabled';
+        }
+        return `Within ${preferences.distanceRadiusKm || 25} km`;
       case 'budget':
         const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
         const budgetIsUnlimited = priceRange.max >= 10000;
@@ -416,6 +423,8 @@ const FiltersScreen = () => {
         return 'account-child';
       case 'locations':
         return 'map-marker';
+      case 'distance':
+        return 'map-marker-radius';
       case 'budget':
         return 'currency-usd';
       case 'schedule':
@@ -469,6 +478,8 @@ const FiltersScreen = () => {
         return renderAgeContent();
       case 'locations':
         return renderLocationsContent();
+      case 'distance':
+        return renderDistanceContent();
       case 'budget':
         return renderBudgetContent();
       case 'schedule':
@@ -478,6 +489,21 @@ const FiltersScreen = () => {
       default:
         return null;
     }
+  };
+
+  const renderDistanceContent = () => {
+    if (!preferences) return null;
+
+    return (
+      <DistanceFilterSection
+        preferences={preferences}
+        onUpdatePreferences={updatePreferences}
+        onConfigurePress={() => {
+          // Navigate to distance settings screen
+          (navigation as any).navigate('DistancePreferences');
+        }}
+      />
+    );
   };
 
   const toggleActivityTypeExpand = (typeCode: string) => {

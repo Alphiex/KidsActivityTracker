@@ -28,6 +28,12 @@ class PreferencesService {
       id: `user_${Date.now()}`,
       locations: [], // DEPRECATED - use locationIds
       locationIds: [], // Primary storage for location UUIDs
+      // Distance-based filtering defaults
+      distanceFilterEnabled: false, // Off by default until user enables
+      distanceRadiusKm: 25, // Default 25km radius
+      locationSource: 'gps', // Default to GPS
+      savedAddress: undefined,
+      locationPermissionAsked: false,
       ageRanges: [{ min: 0, max: 18 }],
       priceRange: { min: 0, max: 1000 },
       daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
@@ -83,6 +89,16 @@ class PreferencesService {
             parsed.hideClosedActivities = false;
             parsed.hideFullActivities = false;
           }
+          needsSave = true;
+        }
+
+        // Migration for distance-based filtering fields
+        if (parsed.distanceFilterEnabled === undefined) {
+          console.log('🔄 [PreferencesService] Migrating: Adding distance filtering fields');
+          parsed.distanceFilterEnabled = false;
+          parsed.distanceRadiusKm = 25;
+          parsed.locationSource = 'gps';
+          parsed.locationPermissionAsked = false;
           needsSave = true;
         }
 
@@ -319,5 +335,8 @@ class PreferencesService {
     this.savePreferences();
   }
 }
+
+// Export singleton instance for direct use
+export const preferencesService = PreferencesService.getInstance();
 
 export default PreferencesService;

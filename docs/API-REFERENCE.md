@@ -208,6 +208,19 @@ Search activities with filters.
 | `providerId` | string | Provider UUID |
 | `hideNoSpots` | boolean | Hide full activities |
 | `hideClosed` | boolean | Hide registration closed |
+| `userLat` | number | User latitude for distance filtering |
+| `userLon` | number | User longitude for distance filtering |
+| `radiusKm` | number | Search radius in kilometers (requires userLat/userLon) |
+
+**Distance Filtering**
+
+When `userLat`, `userLon`, and `radiusKm` are provided, activities are filtered by proximity using the Haversine formula. The filter uses a bounding box for efficient initial filtering, then calculates exact distances.
+
+```
+GET /api/v1/activities?userLat=49.2827&userLon=-123.1207&radiusKm=25
+```
+
+Activities with geocoded locations will be sorted by distance when distance filtering is enabled.
 
 **Response** `200 OK`
 ```json
@@ -659,5 +672,5 @@ GET /api/v1/activities?page=2&limit=20
 
 ---
 
-**Document Version**: 5.0
+**Document Version**: 5.1
 **Last Updated**: December 2025

@@ -9,6 +9,7 @@ import { Activity, Filter } from '../types';
 import { API_CONFIG } from '../config/api';
 import { PaginatedResponse, ActivitySearchParams } from '../types/api';
 import * as SecureStore from '../utils/secureStorage';
+import { locationService } from './locationService';
 
 /**
  * Sort activities with featured activities at the top, ordered by tier (gold > silver > bronze)
@@ -98,6 +99,23 @@ class ActivityService {
     console.log('🔍 [ActivityService] Global filter params to send:', params);
     DebugLogger.pref('ActivityService.getGlobalFilterParams', 'Final params to send', params);
     return params;
+  }
+
+  /**
+   * Get distance filter parameters asynchronously
+   * Returns userLat, userLon, radiusKm if distance filtering is enabled and location is available
+   */
+  private async getDistanceParams(): Promise<{ userLat?: number; userLon?: number; radiusKm?: number }> {
+    try {
+      const distanceParams = await locationService.getDistanceFilterParams();
+      if (distanceParams.userLat && distanceParams.userLon && distanceParams.radiusKm) {
+        console.log('📍 [ActivityService] Distance params:', distanceParams);
+        return distanceParams;
+      }
+    } catch (error) {
+      console.warn('[ActivityService] Error getting distance params:', error);
+    }
+    return {};
   }
 
   private constructor() {
@@ -259,7 +277,11 @@ class ActivityService {
 
       // Get global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
-      const params: any = { ...globalFilters };
+
+      // Get distance filter params (async)
+      const distanceParams = await this.getDistanceParams();
+
+      const params: any = { ...globalFilters, ...distanceParams };
 
       // Convert filter to API params - match backend parameter names
       if (filters.ageRange) {
@@ -435,11 +457,15 @@ class ActivityService {
       // Merge with global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
 
+      // Get distance filter params (async)
+      const distanceParams = await this.getDistanceParams();
+
       console.log('📤 [searchActivitiesPaginated] Input params:', params);
       console.log('📤 [searchActivitiesPaginated] Global filters:', globalFilters);
+      console.log('📤 [searchActivitiesPaginated] Distance params:', distanceParams);
 
-      // Convert parameters to match backend API - merge with global filters
-      const apiParams = { ...params, ...globalFilters };
+      // Convert parameters to match backend API - merge with global filters and distance
+      const apiParams = { ...params, ...globalFilters, ...distanceParams };
 
       console.log('📤 [searchActivitiesPaginated] Final API params:', apiParams);
       
@@ -1097,6 +1123,14 @@ class ActivityService {
         }
       }
 
+      // Apply distance filter - sponsors must be within user's radius
+      const distanceParams = await this.getDistanceParams();
+      if (distanceParams.userLat && distanceParams.userLon && distanceParams.radiusKm) {
+        params.userLat = distanceParams.userLat;
+        params.userLon = distanceParams.userLon;
+        params.radiusKm = distanceParams.radiusKm;
+      }
+
       console.log('[SponsorService] Fetching sponsored activities with params:', params);
 
       const response = await this.api.get('/api/v1/sponsors', { params });
@@ -1204,6 +1238,14 @@ class ActivityService {
         if (preferences.dateRange.end) {
           params.endDate = preferences.dateRange.end;
         }
+      }
+
+      // Apply distance filter - sponsors must be within user's radius
+      const distanceParams = await this.getDistanceParams();
+      if (distanceParams.userLat && distanceParams.userLon && distanceParams.radiusKm) {
+        params.userLat = distanceParams.userLat;
+        params.userLon = distanceParams.userLon;
+        params.radiusKm = distanceParams.radiusKm;
       }
 
       console.log('[SponsorService] Fetching paginated sponsored activities with params:', params);

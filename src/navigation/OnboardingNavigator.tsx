@@ -4,6 +4,7 @@ import OnboardingScreenModern from '../screens/OnboardingScreenModern';
 import OnboardingActivityTypesScreen from '../screens/onboarding/OnboardingActivityTypesScreen';
 import OnboardingAgeScreen from '../screens/onboarding/OnboardingAgeScreen';
 import OnboardingLocationScreen from '../screens/onboarding/OnboardingLocationScreen';
+import OnboardingDistanceScreen from '../screens/onboarding/OnboardingDistanceScreen';
 import OnboardingCompleteScreen from '../screens/onboarding/OnboardingCompleteScreen';
 
 export type OnboardingStackParamList = {
@@ -11,6 +12,7 @@ export type OnboardingStackParamList = {
   OnboardingActivityTypes: undefined;
   OnboardingAge: undefined;
   OnboardingLocation: undefined;
+  OnboardingDistance: undefined;
   OnboardingComplete: undefined;
 };
 
@@ -28,6 +30,7 @@ const OnboardingNavigator: React.FC = () => {
       <Stack.Screen name="OnboardingActivityTypes" component={OnboardingActivityTypesScreen} />
       <Stack.Screen name="OnboardingAge" component={OnboardingAgeScreen} />
       <Stack.Screen name="OnboardingLocation" component={OnboardingLocationScreen} />
+      <Stack.Screen name="OnboardingDistance" component={OnboardingDistanceScreen} />
       <Stack.Screen name="OnboardingComplete" component={OnboardingCompleteScreen} />
     </Stack.Navigator>
   );

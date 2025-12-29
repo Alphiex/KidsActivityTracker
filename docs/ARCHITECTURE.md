@@ -95,6 +95,9 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  │    API    │  │   Auth    │  │     Preferences       │  │  │
 │  │  │  Service  │  │  Service  │  │       Service         │  │  │
 │  │  └─────┬─────┘  └───────────┘  └───────────────────────┘  │  │
+│  │  ┌───────────────────────────────────────────────────────┐  │  │
+│  │  │   Location Service (GPS, Geocoding, Distance Calc)    │  │  │
+│  │  └───────────────────────────────────────────────────────┘  │  │
 │  └────────┼──────────────────────────────────────────────────┘  │
 │           │                                                      │
 │  ┌────────▼──────────────────────────────────────────────────┐  │
@@ -153,6 +156,7 @@ App.tsx
 │   │   ├── ActivityTypePreferences
 │   │   ├── AgePreferences
 │   │   ├── LocationPreferences
+│   │   ├── DistancePreferences
 │   │   └── SchedulePreferences
 │   └── MainTabs
 │       ├── Explore (HomeStack)
@@ -171,6 +175,7 @@ App.tsx
 │       └── Profile (ProfileStack)
 │           ├── Settings
 │           ├── Preferences
+│           ├── DistancePreferences
 │           └── Account
 ```
 
@@ -214,6 +219,42 @@ User Search
 ┌──────────────────┐
 │ Mobile App       │
 │ Render list      │
+└──────────────────┘
+```
+
+### Distance Filtering Flow
+
+```
+User enables distance filter
+        │
+        ▼
+┌──────────────────┐
+│ Location Service │
+│ Get GPS or       │
+│ Saved Address    │
+└────────┬─────────┘
+         │ coordinates
+         ▼
+┌──────────────────┐
+│ Activity Service │
+│ Add params:      │
+│ userLat, userLon │
+│ radiusKm         │
+└────────┬─────────┘
+         │ GET /api/v1/activities
+         ▼
+┌──────────────────┐
+│ API Server       │
+│ 1. Bounding box  │
+│ 2. Haversine     │
+│    distance calc │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Activities       │
+│ filtered by      │
+│ proximity        │
 └──────────────────┘
 ```
 
@@ -328,5 +369,5 @@ Database Updated (2,900+ activities)
 
 ---
 
-**Document Version**: 4.0
+**Document Version**: 4.1
 **Last Updated**: December 2025
