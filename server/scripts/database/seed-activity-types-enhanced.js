@@ -1,4 +1,4 @@
-const { PrismaClient } = require('./generated/prisma');
+const { PrismaClient } = require('../../generated/prisma');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -194,16 +194,41 @@ async function main() {
     { code: 'rhythmic-gymnastics', name: 'Rhythmic Gymnastics', activityTypeId: typeMap['gymnastics-movement'], displayOrder: 7 },
     { code: 'other-gymnastics', name: 'Other Gymnastics & Movement', activityTypeId: typeMap['gymnastics-movement'], displayOrder: 99 },
     
-    // Camps - NEW comprehensive list
+    // Camps - Comprehensive list with activity-specific subtypes
+    // Format-based camps
     { code: 'day-camps', name: 'Day Camps', activityTypeId: typeMap['camps'], displayOrder: 1 },
     { code: 'overnight-camps', name: 'Overnight Camps', activityTypeId: typeMap['camps'], displayOrder: 2 },
-    { code: 'sports-camps', name: 'Sports Camps', activityTypeId: typeMap['camps'], displayOrder: 3 },
-    { code: 'arts-camps', name: 'Arts Camps', activityTypeId: typeMap['camps'], displayOrder: 4 },
-    { code: 'stem-camps', name: 'STEM Camps', activityTypeId: typeMap['camps'], displayOrder: 5 },
-    { code: 'adventure-camps', name: 'Adventure Camps', activityTypeId: typeMap['camps'], displayOrder: 6 },
-    { code: 'specialty-camps', name: 'Specialty Camps', activityTypeId: typeMap['camps'], displayOrder: 7 },
-    { code: 'march-break-camps', name: 'March Break Camps', activityTypeId: typeMap['camps'], displayOrder: 8 },
-    { code: 'summer-camps', name: 'Summer Camps', activityTypeId: typeMap['camps'], displayOrder: 9 },
+
+    // Activity-specific camps (mirror main activity types)
+    { code: 'swimming-camps', name: 'Swimming Camps', activityTypeId: typeMap['camps'], displayOrder: 10 },
+    { code: 'team-sports-camps', name: 'Team Sports Camps', activityTypeId: typeMap['camps'], displayOrder: 11 },
+    { code: 'individual-sports-camps', name: 'Individual Sports Camps', activityTypeId: typeMap['camps'], displayOrder: 12 },
+    { code: 'racquet-sports-camps', name: 'Racquet Sports Camps', activityTypeId: typeMap['camps'], displayOrder: 13 },
+    { code: 'dance-camps', name: 'Dance Camps', activityTypeId: typeMap['camps'], displayOrder: 14 },
+    { code: 'music-camps', name: 'Music Camps', activityTypeId: typeMap['camps'], displayOrder: 15 },
+    { code: 'performing-arts-camps', name: 'Performing Arts Camps', activityTypeId: typeMap['camps'], displayOrder: 16 },
+    { code: 'visual-arts-camps', name: 'Visual Arts Camps', activityTypeId: typeMap['camps'], displayOrder: 17 },
+    { code: 'martial-arts-camps', name: 'Martial Arts Camps', activityTypeId: typeMap['camps'], displayOrder: 18 },
+    { code: 'gymnastics-camps', name: 'Gymnastics Camps', activityTypeId: typeMap['camps'], displayOrder: 19 },
+    { code: 'skating-camps', name: 'Skating Camps', activityTypeId: typeMap['camps'], displayOrder: 20 },
+    { code: 'outdoor-adventure-camps', name: 'Outdoor Adventure Camps', activityTypeId: typeMap['camps'], displayOrder: 21 },
+    { code: 'cooking-camps', name: 'Cooking Camps', activityTypeId: typeMap['camps'], displayOrder: 22 },
+    { code: 'language-camps', name: 'Language Camps', activityTypeId: typeMap['camps'], displayOrder: 23 },
+    { code: 'multi-activity-camps', name: 'Multi-Activity Camps', activityTypeId: typeMap['camps'], displayOrder: 24 },
+
+    // Theme-based camps (keep existing)
+    { code: 'sports-camps', name: 'Sports Camps', activityTypeId: typeMap['camps'], displayOrder: 30 },
+    { code: 'arts-camps', name: 'Arts Camps', activityTypeId: typeMap['camps'], displayOrder: 31 },
+    { code: 'stem-camps', name: 'STEM Camps', activityTypeId: typeMap['camps'], displayOrder: 32 },
+    { code: 'adventure-camps', name: 'Adventure Camps', activityTypeId: typeMap['camps'], displayOrder: 33 },
+    { code: 'specialty-camps', name: 'Specialty Camps', activityTypeId: typeMap['camps'], displayOrder: 34 },
+
+    // Seasonal camps
+    { code: 'march-break-camps', name: 'March Break Camps', activityTypeId: typeMap['camps'], displayOrder: 40 },
+    { code: 'summer-camps', name: 'Summer Camps', activityTypeId: typeMap['camps'], displayOrder: 41 },
+    { code: 'winter-camps', name: 'Winter Camps', activityTypeId: typeMap['camps'], displayOrder: 42 },
+
+    // Fallback
     { code: 'other-camps', name: 'Other Camps', activityTypeId: typeMap['camps'], displayOrder: 99 },
     
     // STEM & Education - NEW comprehensive list

@@ -24,7 +24,7 @@ interface SearchParams {
   hideClosedOrFull?: boolean; // Hide activities that are closed OR full
   limit?: number;
   offset?: number;
-  sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt';
+  sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance';
   sortOrder?: 'asc' | 'desc';
   includeInactive?: boolean; // Only for admin use
 }

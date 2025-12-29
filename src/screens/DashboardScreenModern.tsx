@@ -24,6 +24,8 @@ import FavoritesService from '../services/favoritesService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import useFavoriteSubscription from '../hooks/useFavoriteSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
+import { AIRecommendButton } from '../components/ai';
+import LinearGradient from 'react-native-linear-gradient';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
@@ -780,6 +782,30 @@ const DashboardScreenModern = () => {
           </View>
         )}
 
+        {/* AI Recommendations Banner */}
+        <TouchableOpacity
+          style={styles.aiBanner}
+          onPress={() => navigation.navigate('AIRecommendations', {
+            search_intent: 'Find the best activities for my family this weekend'
+          })}
+        >
+          <LinearGradient
+            colors={['#8B5CF6', '#6366F1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.aiBannerGradient}
+          >
+            <View style={styles.aiBannerContent}>
+              <Icon name="auto-fix" size={24} color="#fff" />
+              <View style={styles.aiBannerText}>
+                <Text style={styles.aiBannerTitle}>✨ AI-Powered Recommendations</Text>
+                <Text style={styles.aiBannerSubtitle}>Get personalized picks just for your family</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#fff" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* Recommended Activities Section */}
         <View style={styles.section}>
           <TouchableOpacity
@@ -1007,6 +1033,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#717171',
     fontWeight: '500',
+  },
+  aiBanner: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  aiBannerGradient: {
+    padding: 16,
+  },
+  aiBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  aiBannerText: {
+    flex: 1,
+  },
+  aiBannerTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  aiBannerSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 13,
   },
   section: {
     marginBottom: 30,

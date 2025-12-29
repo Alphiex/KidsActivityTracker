@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import Redis from 'ioredis';
 import { PrismaClient } from '../generated/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { swaggerSpec, swaggerUi } from './swagger/config';
@@ -29,7 +30,12 @@ import adminPartnersRoutes from './routes/adminPartners';
 import partnerPortalRoutes from './routes/partnerPortal';
 import adminRoutes from './routes/admin';
 import adminActivitiesRoutes from './routes/adminActivities';
+import adminMonitoringRoutes from './routes/adminMonitoring';
 import vendorRoutes from './routes/vendor';
+import aiRoutes from './ai/routes';
+
+// Import AI module
+import { initializeAI } from './ai';
 
 // Import services
 import { subscriptionService } from './services/subscriptionService';
@@ -42,6 +48,50 @@ dotenv.config();
 
 // Initialize Prisma
 const prisma = new PrismaClient();
+
+// Initialize Redis for AI caching (optional - gracefully handles unavailability)
+let redis: Redis | null = null;
+try {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  redis = new Redis(redisUrl, {
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times) => {
+      if (times > 3) {
+        console.warn('[Redis] Max retries exceeded, AI caching disabled');
+        return null; // Stop retrying
+      }
+      return Math.min(times * 100, 3000);
+    },
+    lazyConnect: true // Don't connect until first use
+  });
+  
+  redis.on('error', (err) => {
+    console.warn('[Redis] Connection error:', err.message);
+  });
+  
+  redis.on('connect', () => {
+    console.log('[Redis] Connected successfully');
+  });
+} catch (error: any) {
+  console.warn('[Redis] Failed to initialize:', error.message);
+}
+
+// Initialize AI module (if Redis is available and OPENAI_API_KEY is set)
+if (redis && process.env.OPENAI_API_KEY) {
+  try {
+    initializeAI(redis, prisma);
+    console.log('[AI] Module initialized successfully');
+  } catch (error: any) {
+    console.warn('[AI] Failed to initialize:', error.message);
+  }
+} else {
+  if (!process.env.OPENAI_API_KEY) {
+    console.log('[AI] OPENAI_API_KEY not set, AI features disabled');
+  }
+  if (!redis) {
+    console.log('[AI] Redis not available, AI features disabled');
+  }
+}
 
 // Create Express app
 const app = express();
@@ -160,6 +210,9 @@ app.use('/api/v1/sponsors', partnersRoutes);
 // Analytics tracking routes (v1 API)
 app.use('/api/v1/analytics', analyticsRoutes);
 
+// AI routes (v1 API)
+app.use('/api/v1/ai', aiRoutes);
+
 // Subscription management routes
 app.use('/api/subscriptions', subscriptionsRoutes);
 
@@ -176,6 +229,9 @@ app.use('/api/admin/sponsors', adminPartnersRoutes);
 
 // Admin activity management routes
 app.use('/api/admin/activities', adminActivitiesRoutes);
+
+// Admin monitoring routes (system health, scraper status, AI metrics)
+app.use('/api/admin/monitoring', adminMonitoringRoutes);
 
 // Partner self-service portal routes - new naming
 app.use('/api/partner', partnerPortalRoutes);

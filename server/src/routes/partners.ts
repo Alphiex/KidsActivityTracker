@@ -97,13 +97,22 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       limit: parseInt(limit as string)
     };
 
-    const result = await activityService.searchFeaturedActivities(params);
+    // Use searchActivities and filter for featured activities
+    const result = await activityService.searchActivities({
+      ...params,
+      limit: (params.limit || 20) * 3 // Fetch more to account for filtering
+    });
+    
+    // Filter for featured activities only
+    const featuredActivities = (result.activities || [])
+      .filter((a: any) => a.isFeatured)
+      .slice(0, params.limit || 20);
 
     res.json({
       success: true,
-      data: result.activities,
+      data: featuredActivities,
       meta: {
-        total: result.activities.length,
+        total: featuredActivities.length,
         limit: params.limit
       }
     });

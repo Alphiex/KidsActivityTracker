@@ -167,6 +167,86 @@ class EnhancedActivityMapper {
   }
 
   /**
+   * Map camp activities to appropriate camp subtype
+   * Called when "camp" is detected in the activity name
+   */
+  mapCampSubtype(searchText) {
+    // Activity-specific camps (check first - most specific)
+    if (/swim|aqua|water/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Swimming Camps', confidence: 0.95 };
+    }
+    if (/soccer|basketball|hockey|volleyball|baseball|football|lacrosse|team sport/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Team Sports Camps', confidence: 0.95 };
+    }
+    if (/tennis|badminton|squash|pickleball|racquet/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Racquet Sports Camps', confidence: 0.95 };
+    }
+    if (/golf|archery|track|running|cycling/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Individual Sports Camps', confidence: 0.95 };
+    }
+    if (/dance|ballet|jazz|hip hop|tap/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Dance Camps', confidence: 0.95 };
+    }
+    if (/music|piano|guitar|drum|violin|band|orchestra/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Music Camps', confidence: 0.95 };
+    }
+    if (/drama|theatre|theater|acting|improv|perform/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Performing Arts Camps', confidence: 0.95 };
+    }
+    if (/art|paint|draw|pottery|craft|sculpt/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Visual Arts Camps', confidence: 0.95 };
+    }
+    if (/martial|karate|taekwondo|judo|kung fu|boxing|kickbox/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Martial Arts Camps', confidence: 0.95 };
+    }
+    if (/gymnast|tumbl|trampoline|parkour|acro/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Gymnastics Camps', confidence: 0.95 };
+    }
+    if (/skat|ice|roller|figure/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Skating Camps', confidence: 0.95 };
+    }
+    if (/stem|science|tech|coding|robot|engineer/.test(searchText)) {
+      return { type: 'Camps', subtype: 'STEM Camps', confidence: 0.95 };
+    }
+    if (/outdoor|adventure|nature|hiking|climb/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Outdoor Adventure Camps', confidence: 0.95 };
+    }
+    if (/cook|culinary|baking|chef/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Cooking Camps', confidence: 0.95 };
+    }
+    if (/language|french|spanish|mandarin/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Language Camps', confidence: 0.95 };
+    }
+
+    // Seasonal camps
+    if (/march break|spring break/.test(searchText)) {
+      return { type: 'Camps', subtype: 'March Break Camps', confidence: 0.9 };
+    }
+    if (/summer/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Summer Camps', confidence: 0.9 };
+    }
+    if (/winter|christmas|holiday/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Winter Camps', confidence: 0.9 };
+    }
+
+    // Format-based camps
+    if (/overnight|residential|sleepover/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Overnight Camps', confidence: 0.85 };
+    }
+    if (/multi|general|variety|explorer/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Multi-Activity Camps', confidence: 0.85 };
+    }
+
+    // Generic sports fallback
+    if (/sport/.test(searchText)) {
+      return { type: 'Camps', subtype: 'Sports Camps', confidence: 0.8 };
+    }
+
+    // Default camp
+    return { type: 'Camps', subtype: 'Day Camps', confidence: 0.8 };
+  }
+
+  /**
    * Map scraped activity to standardized type and subtype
    */
   mapActivityType(activityName, sectionName = '') {
@@ -175,7 +255,15 @@ class EnhancedActivityMapper {
     }
 
     const searchText = `${activityName} ${sectionName}`.toLowerCase().trim();
-    
+
+    // PRIORITY CHECK: If camp-related keywords found, ALWAYS categorize as Camps
+    // Detects: "camp" in name, OR section/category names that imply camps
+    // (e.g., "March Break", "Spring Break", "PA Day", "PD Day", "Summer Programs")
+    const campPattern = /camp|march break|spring break|pa day|pd day|pro.?d day|holiday program|winter break|christmas break|summer program/i;
+    if (campPattern.test(searchText)) {
+      return this.mapCampSubtype(searchText);
+    }
+
     // Try exact mapping first
     for (const [keyword, mapping] of Object.entries(ACTIVITY_TYPE_MAPPINGS)) {
       if (searchText.includes(keyword)) {

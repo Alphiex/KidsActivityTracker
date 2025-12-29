@@ -15,9 +15,11 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
 import ActivityService from '../services/activityService';
+import aiService from '../services/aiService';
 import { ActivitySearchParams } from '../types/api';
 import { useTheme } from '../contexts/ThemeContext';
 import { API_CONFIG } from '../config/api';
+import { AIRecommendButton } from '../components/ai';
 
 const { width, height } = Dimensions.get('window');
 
@@ -185,6 +187,35 @@ const SearchScreen = () => {
     navigation.navigate('SearchResults' as never, { 
       filters: searchParams,
       searchQuery: searchText 
+    } as never);
+  };
+
+  /**
+   * Handle AI-powered search
+   */
+  const handleAISearch = () => {
+    const filters = {
+      search: searchText || undefined,
+      daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
+      activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
+      costMin: minCost > 0 ? minCost : undefined,
+      costMax: !isUnlimitedCost ? maxCost : undefined,
+      location: selectedCities.length === 1 ? selectedCities[0] : undefined,
+      locations: selectedCities.length > 1 ? selectedCities : undefined,
+      ageMin: minAge > 0 ? minAge : undefined,
+      ageMax: maxAge < 18 ? maxAge : undefined,
+    };
+    
+    // Build a natural language search intent from the filters
+    const searchIntent = aiService.buildSearchIntent({
+      ...filters,
+      dayOfWeek: selectedDays,
+      category: selectedActivityTypes[0],
+    });
+    
+    navigation.navigate('AIRecommendations' as never, { 
+      search_intent: searchText || searchIntent,
+      filters 
     } as never);
   };
 
@@ -592,10 +623,18 @@ const SearchScreen = () => {
             <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Icon name="magnify" size={20} color="#FFFFFF" />
-            <Text style={styles.searchButtonText}>Search</Text>
-          </TouchableOpacity>
+          <View style={styles.searchActions}>
+            <AIRecommendButton 
+              onPress={handleAISearch}
+              variant="outline"
+              label="AI Match"
+            />
+            
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <Icon name="magnify" size={20} color="#FFFFFF" />
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </Animated.View>
@@ -949,6 +988,11 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#222222',
     textDecorationLine: 'underline',
+  },
+  searchActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   searchButton: {
     flexDirection: 'row',

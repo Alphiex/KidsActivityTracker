@@ -1176,3 +1176,49 @@ model PartnerAnalyticsDaily {
   @@index([partnerAccountId])
   @@index([date])
 }
+
+// ============================================
+// ADMIN MONITORING SYSTEM
+// ============================================
+
+// AI usage log for cost tracking and analytics
+model AIUsageLog {
+  id            String   @id @default(uuid())
+  requestId     String   @unique
+  userId        String?
+  model         String   // gpt-4o-mini, gpt-4o, etc.
+  tokensIn      Int
+  tokensOut     Int
+  costUsd       Float
+  cacheHit      Boolean  @default(false)
+  endpoint      String   // recommendations, etc.
+  latencyMs     Int?
+  success       Boolean  @default(true)
+  errorMessage  String?
+  metadata      Json?    // Additional context (filters used, etc.)
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([model])
+  @@index([endpoint])
+}
+
+// In-app notifications for admin portal
+model AdminNotification {
+  id          String    @id @default(uuid())
+  type        String    // scraper_alert, ai_budget, system_health
+  severity    String    // info, warning, critical
+  title       String
+  message     String
+  metadata    Json?     // Additional context (providerId, etc.)
+  isRead      Boolean   @default(false)
+  readBy      String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([isRead, createdAt])
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+}

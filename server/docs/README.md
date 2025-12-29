@@ -2,7 +2,7 @@
 
 ## Overview
 
-Node.js/Express backend API server for the Kids Activity Tracker mobile app. Provides REST APIs for activity management, user authentication, and automated web scraping from recreation centers across BC.
+Node.js/Express backend API server for the Kids Activity Tracker mobile app. Provides REST APIs for activity management, user authentication, and automated web scraping from 79 recreation centers across Canada (100,000+ activities).
 
 ## Tech Stack
 
@@ -101,9 +101,9 @@ if (filters.hideClosedOrFull) {
 ### Database Schema
 
 Key tables:
-- `activities` - Main activity records (1000+ entries)
-- `providers` - Activity providers (NVRC, community centers)
-- `locations` - Physical locations across BC
+- `activities` - Main activity records (100,000+ entries)
+- `providers` - Activity providers (79 municipalities across Canada)
+- `locations` - Physical locations across 10 provinces
 - `activity_types` - Categories and subcategories
 - `users` - User accounts with preferences
 - `favorites` - User saved activities
@@ -255,5 +255,5 @@ gcloud run services describe kids-activity-api --region=us-central1
 
 ---
 
-**Last Updated**: September 2025
+**Last Updated**: December 2025
 **Maintained By**: Development Team

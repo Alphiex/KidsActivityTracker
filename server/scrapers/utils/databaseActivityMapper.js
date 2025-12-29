@@ -96,9 +96,89 @@ class DatabaseActivityMapper {
   }
 
   /**
+   * Check if activity is a camp - MUST BE CALLED FIRST
+   * Returns camp type info if camp-related keywords are found
+   * Detects: "camp" in name, OR section/category names that imply camps
+   * (e.g., "March Break", "Spring Break", "PA Day", "PD Day", "Summer Programs")
+   */
+  checkCampPattern(searchText, name) {
+    // Camp detection pattern - includes section names that imply camps
+    const campPattern = /camp|march break|spring break|pa day|pd day|pro.?d day|holiday program|winter break|christmas break|summer program/i;
+
+    // If no camp-related keywords found, return null (not a camp)
+    if (!campPattern.test(searchText)) {
+      return { typeId: null, subtypeId: null, score: 0 };
+    }
+
+    // This IS a camp - find the Camps type
+    const campType = this.findTypeByName('Camps');
+    if (!campType) {
+      return { typeId: null, subtypeId: null, score: 0 };
+    }
+
+    // Determine camp subtype based on secondary keywords
+    const campSubtypePatterns = [
+      // Activity-specific camps (check first - most specific)
+      { regex: /swim|aqua|water/i, subtypeName: 'Swimming Camps' },
+      { regex: /soccer|basketball|hockey|volleyball|baseball|football|lacrosse|team sport/i, subtypeName: 'Team Sports Camps' },
+      { regex: /tennis|badminton|squash|pickleball|racquet/i, subtypeName: 'Racquet Sports Camps' },
+      { regex: /golf|archery|track|running|cycling/i, subtypeName: 'Individual Sports Camps' },
+      { regex: /dance|ballet|jazz|hip hop|tap/i, subtypeName: 'Dance Camps' },
+      { regex: /music|piano|guitar|drum|violin|band|orchestra/i, subtypeName: 'Music Camps' },
+      { regex: /drama|theatre|theater|acting|improv|perform/i, subtypeName: 'Performing Arts Camps' },
+      { regex: /art|paint|draw|pottery|craft|sculpt/i, subtypeName: 'Visual Arts Camps' },
+      { regex: /martial|karate|taekwondo|judo|kung fu|boxing|kickbox/i, subtypeName: 'Martial Arts Camps' },
+      { regex: /gymnast|tumbl|trampoline|parkour|acro/i, subtypeName: 'Gymnastics Camps' },
+      { regex: /skat|ice|roller|figure/i, subtypeName: 'Skating Camps' },
+      { regex: /outdoor|adventure|nature|hiking|climb/i, subtypeName: 'Outdoor Adventure Camps' },
+      { regex: /cook|culinary|baking|chef/i, subtypeName: 'Cooking Camps' },
+      { regex: /language|french|spanish|mandarin/i, subtypeName: 'Language Camps' },
+      { regex: /stem|science|tech|coding|robot|engineer/i, subtypeName: 'STEM Camps' },
+      // Seasonal camps
+      { regex: /march break|spring break/i, subtypeName: 'March Break Camps' },
+      { regex: /summer/i, subtypeName: 'Summer Camps' },
+      { regex: /winter|christmas|holiday/i, subtypeName: 'Winter Camps' },
+      // Format-based camps
+      { regex: /overnight|residential|sleepover/i, subtypeName: 'Overnight Camps' },
+      { regex: /multi|general|variety|explorer/i, subtypeName: 'Multi-Activity Camps' },
+      // Generic fallbacks
+      { regex: /sport/i, subtypeName: 'Sports Camps' },
+    ];
+
+    let subtypeId = null;
+    for (const pattern of campSubtypePatterns) {
+      if (pattern.regex.test(searchText)) {
+        const subtype = this.findSubtypeByName(campType.id, pattern.subtypeName);
+        if (subtype) {
+          subtypeId = subtype.id;
+          break;
+        }
+      }
+    }
+
+    // Default to Day Camps if no specific subtype matched
+    if (!subtypeId) {
+      const daySubtype = this.findSubtypeByName(campType.id, 'Day Camps');
+      subtypeId = daySubtype ? daySubtype.id : this.findDefaultSubtype(campType.id);
+    }
+
+    return {
+      typeId: campType.id,
+      subtypeId: subtypeId,
+      score: 100 // Highest priority
+    };
+  }
+
+  /**
    * Find the best matching activity type and subtype
    */
   findBestTypeMatch(searchText, name, subcategory) {
+    // PRIORITY 0: Check for camps FIRST - if "camp" is in name, it's ALWAYS a camp
+    const campMatch = this.checkCampPattern(searchText, name);
+    if (campMatch.typeId) {
+      return campMatch;
+    }
+
     let bestMatch = {
       typeId: null,
       subtypeId: null,

@@ -48,6 +48,12 @@ npm run typecheck   # Check for TypeScript errors
 - API endpoint: `https://kids-activity-api-205843686007.us-central1.run.app`
 - Database: PostgreSQL on Google Cloud SQL
 
+## Coverage Statistics (December 2025)
+- **100,000+** activities from **79 cities** across **10 provinces**
+- **11 scraper platforms**: PerfectMind (35), ActiveNetwork (29), Amilia (3), IC3 (2), others
+- **30 critical cities** scraped 3x daily, **43 standard** daily, **5 low** weekly
+- Top cities: Vancouver (10k), Ottawa (7.4k), NVRC (7.4k), Burnaby (6.6k), Toronto (4.8k)
+
 ## Scripts Reference
 
 ### iOS Development

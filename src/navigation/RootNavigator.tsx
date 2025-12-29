@@ -48,6 +48,7 @@ import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
 import FeaturedPartnersScreen from '../screens/FeaturedPartnersScreen';
 import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import AIRecommendationsScreen from '../screens/AIRecommendationsScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -90,6 +91,7 @@ const HomeStack = () => (
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
     <Stack.Screen name="FeaturedPartners" component={FeaturedPartnersScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+    <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
   </Stack.Navigator>
@@ -102,6 +104,7 @@ const SearchStack = () => (
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+    <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
   </Stack.Navigator>
 );
 

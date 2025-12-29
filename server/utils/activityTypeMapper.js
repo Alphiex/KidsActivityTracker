@@ -40,8 +40,44 @@ async function mapActivityType(activity) {
   
   // Mapping rules based on activity patterns
   // IMPORTANT: Order matters - more specific patterns should come first
+  // CAMPS MUST BE FIRST to catch all camp activities before other type patterns match
   const mappingRules = [
-    // Early Development - Check FIRST before other categories to catch toddler/parent programs
+    // CAMPS - MUST BE FIRST to ensure all camp activities are categorized as Camps
+    // Detects: "camp" in name, OR section/category names that imply camps
+    // (e.g., "March Break", "Spring Break", "PA Day", "PD Day", "Summer Programs")
+    { pattern: /camp|march break|spring break|pa day|pd day|pro.?d day|holiday program|winter break|christmas break|summer program/i, typeId: typeCache['camps'],
+      subtypeRules: [
+        // Activity-specific camps (check FIRST - most specific)
+        { pattern: /swim|aqua|water/i, subtypeCode: 'swimming-camps' },
+        { pattern: /soccer|basketball|hockey|volleyball|baseball|football|lacrosse|team sport/i, subtypeCode: 'team-sports-camps' },
+        { pattern: /tennis|badminton|squash|pickleball|racquet/i, subtypeCode: 'racquet-sports-camps' },
+        { pattern: /golf|archery|track|running|cycling/i, subtypeCode: 'individual-sports-camps' },
+        { pattern: /dance|ballet|jazz|hip hop|tap/i, subtypeCode: 'dance-camps' },
+        { pattern: /music|piano|guitar|drum|violin|band|orchestra/i, subtypeCode: 'music-camps' },
+        { pattern: /drama|theatre|theater|acting|improv|perform/i, subtypeCode: 'performing-arts-camps' },
+        { pattern: /art|paint|draw|pottery|craft|sculpt/i, subtypeCode: 'visual-arts-camps' },
+        { pattern: /martial|karate|taekwondo|judo|kung fu|boxing|kickbox/i, subtypeCode: 'martial-arts-camps' },
+        { pattern: /gymnast|tumbl|trampoline|parkour|acro/i, subtypeCode: 'gymnastics-camps' },
+        { pattern: /skat|ice|roller|figure/i, subtypeCode: 'skating-camps' },
+        { pattern: /outdoor|adventure|nature|hiking|climb/i, subtypeCode: 'outdoor-adventure-camps' },
+        { pattern: /cook|culinary|baking|chef/i, subtypeCode: 'cooking-camps' },
+        { pattern: /language|french|spanish|mandarin/i, subtypeCode: 'language-camps' },
+        { pattern: /stem|science|tech|coding|robot|engineer/i, subtypeCode: 'stem-camps' },
+        // Seasonal camps
+        { pattern: /march break|spring break/i, subtypeCode: 'march-break-camps' },
+        { pattern: /summer/i, subtypeCode: 'summer-camps' },
+        { pattern: /winter|christmas|holiday/i, subtypeCode: 'winter-camps' },
+        // Format-based camps
+        { pattern: /overnight|residential|sleepover/i, subtypeCode: 'overnight-camps' },
+        { pattern: /multi|general|variety|explorer/i, subtypeCode: 'multi-activity-camps' },
+        // Generic sports fallback (after specific sports)
+        { pattern: /sport/i, subtypeCode: 'sports-camps' },
+        // Default fallback
+        { pattern: /day|full day|half day/i, subtypeCode: 'day-camps' }
+      ]
+    },
+
+    // Early Development - Check before other categories to catch toddler/parent programs
     { pattern: /toddler|tiny tot|parent.*tot|tot.*parent|learn.*play|play.*learn|early years|parent participation|preschool|baby.*me|me.*baby|kindergym|wiggle|reading|writing|bookworm|story.*time|storytime|literacy/i, typeId: typeCache['early-development'],
       subtypeRules: [
         { pattern: /play/i, subtypeCode: 'play-based-learning' },
@@ -164,17 +200,6 @@ async function mapActivityType(activity) {
         { pattern: /tumbl/i, subtypeCode: 'tumbling' },
         { pattern: /trampoline/i, subtypeCode: 'trampoline' },
         { pattern: /parkour/i, subtypeCode: 'parkour' }
-      ]
-    },
-    
-    // Camps
-    { pattern: /camp|day camp|spring break|summer camp|winter camp|march break/i, typeId: typeCache['camps'],
-      subtypeRules: [
-        { pattern: /day camp|full day/i, subtypeCode: 'day-camps' },
-        { pattern: /overnight|residential/i, subtypeCode: 'overnight' },
-        { pattern: /sport/i, subtypeCode: 'sports-camps' },
-        { pattern: /art/i, subtypeCode: 'arts-camps' },
-        { pattern: /stem|science|tech/i, subtypeCode: 'stem-camps' }
       ]
     },
     

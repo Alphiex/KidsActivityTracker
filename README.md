@@ -8,7 +8,8 @@ Kids Activity Tracker helps parents find, track, and manage recreational activit
 
 ### Key Features
 
-- **Activity Discovery**: Browse 2,900+ activities with smart filtering (age, location, date, cost)
+- **Activity Discovery**: Browse 100,000+ activities with smart filtering (age, location, date, cost)
+- **79 Cities Supported**: Coverage across 10 provinces from coast to coast
 - **Child Profiles**: Manage multiple children with personalized recommendations
 - **Calendar Integration**: Track activities with week/month views and color-coded child assignments
 - **Favorites**: Save and organize activities you're interested in
@@ -71,10 +72,176 @@ npx react-native run-android
 
 | Metric | Value |
 |--------|-------|
-| **Activities** | 2,900+ active |
+| **Activities** | 100,000+ active |
+| **Cities** | 79 municipalities |
+| **Provinces** | 10 (BC, AB, SK, MB, ON, QC, NS, NL) |
 | **Database Tables** | 24 |
 | **API Endpoints** | 60+ |
 | **Response Time** | <200ms (p95) |
+
+---
+
+## Supported Cities
+
+Activities are scraped daily from 79 municipalities across Canada. Data is refreshed multiple times per day for critical cities.
+
+### British Columbia (25 cities)
+
+**Metro Vancouver (18)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| Vancouver | 10,356 | 3x daily |
+| Burnaby | 6,648 | 3x daily |
+| Surrey | 4,017 | 3x daily |
+| Richmond | 4,249 | 3x daily |
+| Coquitlam | 3,513 | 3x daily |
+| North Vancouver (NVRC) | 7,400 | 3x daily |
+| West Vancouver | 4,488 | Daily |
+| Port Coquitlam | 2,169 | Daily |
+| Maple Ridge | 2,094 | Daily |
+| Township of Langley | 2,022 | Daily |
+| Delta | 1,954 | Daily |
+| New Westminster | 1,733 | Daily |
+| City of Langley | 1,712 | Daily |
+| Port Moody | 684 | Daily |
+| Pitt Meadows | 388 | Daily |
+| Abbotsford | 1,901 | Daily |
+| White Rock | 194 | Daily |
+| Bowen Island | 113 | Daily |
+
+**Vancouver Island & Okanagan (7)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| Saanich | 2,002 | Daily |
+| Victoria | 169 | 3x daily |
+| Nanaimo | 470 | Daily |
+| Kelowna | 133 | Daily |
+| Vernon | -- | Daily |
+| Kamloops | 224 | Daily |
+| Prince George | -- | Daily |
+
+### Alberta (4 cities)
+
+| City | Activities | Schedule |
+|------|------------|----------|
+| Edmonton | 3,157 | 3x daily |
+| Calgary | 674 | 3x daily |
+| Airdrie | 436 | Daily |
+| Red Deer | -- | Daily |
+
+### Saskatchewan (2 cities)
+
+| City | Activities | Schedule |
+|------|------------|----------|
+| Regina | 1,178 | 3x daily |
+| Saskatoon | 82 | 3x daily |
+
+### Manitoba (1 city)
+
+| City | Activities | Schedule |
+|------|------------|----------|
+| Winnipeg | -- | 3x daily |
+
+### Ontario (37 cities)
+
+**Greater Toronto Area (13)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| Toronto | 4,797 | 3x daily |
+| Mississauga | 4,687 | 3x daily |
+| Brampton | 3,715 | 3x daily |
+| Richmond Hill | 1,663 | 3x daily |
+| Markham | 382 | 3x daily |
+| Vaughan | 462 | 3x daily |
+| Oakville | 1,007 | 3x daily |
+| Aurora | 736 | Daily |
+| Whitchurch-Stouffville | 419 | Daily |
+| King Township | 140 | Daily |
+| Milton | 26 | Daily |
+| Newmarket | -- | Daily |
+| Georgina | -- | Daily |
+
+**Durham Region (4)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| Whitby | 1,099 | 3x daily |
+| Clarington | 1,089 | Daily |
+| Ajax | 937 | Daily |
+| Pickering | 870 | Daily |
+| Oshawa | 235 | Daily |
+
+**Waterloo Region (3)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| Kitchener | 1,212 | 3x daily |
+| Cambridge | 898 | 3x daily |
+| Waterloo | -- | Daily |
+
+**Southwestern Ontario (5)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| London | 31 | 3x daily |
+| Windsor | -- | 3x daily |
+| Guelph | 922 | Daily |
+| Brantford | 406 | Daily |
+| Chatham-Kent | 99 | Daily |
+
+**Central & Other Ontario (12)**
+| City | Activities | Schedule |
+|------|------------|----------|
+| Ottawa | 7,416 | 3x daily |
+| Hamilton | -- | 3x daily |
+| St. Catharines | 927 | 3x daily |
+| Niagara Falls | 161 | Daily |
+| Barrie | 1,361 | 3x daily |
+| Greater Sudbury | 613 | Daily |
+| Kingston | 201 | Daily |
+| Peterborough | -- | Daily |
+| Thunder Bay | -- | Daily |
+| Burlington | 2 | Daily |
+| Caledon | -- | Daily |
+
+### Quebec (5 cities)
+
+| City | Activities | Schedule |
+|------|------------|----------|
+| Montreal | 575 | 3x daily |
+| Quebec City | 43 | 3x daily |
+| Laval | 20 | Daily |
+| Gatineau | -- | Daily |
+| Sherbrooke | 5 | Daily |
+| Dorval | 17 | Daily |
+
+### Atlantic Canada (2 cities)
+
+| City | Activities | Schedule |
+|------|------------|----------|
+| Halifax | -- | 3x daily |
+| St. John's | 391 | Daily |
+
+### Scraper Platforms
+
+Data is collected using 11 different platform integrations:
+
+| Platform | Cities | Description |
+|----------|--------|-------------|
+| PerfectMind | 35 | Most common rec center platform |
+| ActiveNetwork | 29 | National recreation platform |
+| Amilia | 3 | Quebec-focused platform |
+| Intelligenz | 3 | BC/Ontario platform |
+| IC3 | 2 | Quebec/Ontario platform |
+| LookNBook | 2 | Alberta platform |
+| COE | 1 | Edmonton custom platform |
+| RegProg | 1 | Calgary custom platform |
+| WebTrac | 1 | Saskatoon platform |
+| Qidigo | 1 | Sherbrooke platform |
+| FullCalendar | 1 | Lions Bay custom |
+
+### Scheduling Tiers
+
+- **Critical (30 cities)**: 3x daily scraping (6am, 12pm, 6pm local time)
+- **Standard (43 cities)**: Daily scraping
+- **Low (5 cities)**: Weekly scraping (small municipalities)
 
 ---
 
@@ -277,5 +444,5 @@ MIT License - See LICENSE file for details
 ---
 
 **Version**: 3.0.0
-**Last Updated**: December 2024
+**Last Updated**: December 2025
 **Maintained By**: Mike

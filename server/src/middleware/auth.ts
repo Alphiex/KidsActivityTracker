@@ -132,44 +132,67 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
 /**
  * Rate limiting middleware
+ * Disabled in non-production environments for easier testing
  */
 import rateLimit from 'express-rate-limit';
 
-// General API rate limit
+const isProduction = process.env.NODE_ENV === 'production';
+
+// General API rate limit (disabled in dev/testing)
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  max: isProduction ? 100 : 0, // 0 = disabled
+  message: {
+    success: false,
+    error: 'Too many requests from this IP, please try again later.',
+    retry_after_seconds: 900
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !isProduction, // Skip rate limiting in non-production
 });
 
-// Strict rate limit for auth endpoints
+// Strict rate limit for auth endpoints (disabled in dev/testing)
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 requests per windowMs
-  message: 'Too many authentication attempts, please try again later.',
+  max: isProduction ? 10 : 0,
+  message: {
+    success: false,
+    error: 'Too many authentication attempts, please try again later.',
+    retry_after_seconds: 900
+  },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Don't count successful requests
+  skipSuccessfulRequests: true,
+  skip: () => !isProduction,
 });
 
-// Very strict rate limit for password reset
+// Very strict rate limit for password reset (disabled in dev/testing)
 export const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Limit each IP to 5 requests per hour
-  message: 'Too many password reset attempts, please try again later.',
+  max: isProduction ? 5 : 0,
+  message: {
+    success: false,
+    error: 'Too many password reset attempts, please try again later.',
+    retry_after_seconds: 3600
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !isProduction,
 });
 
-// Email verification rate limit
+// Email verification rate limit (disabled in dev/testing)
 export const emailVerificationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 requests per hour
-  message: 'Too many email verification attempts, please try again later.',
+  max: isProduction ? 10 : 0,
+  message: {
+    success: false,
+    error: 'Too many email verification attempts, please try again later.',
+    retry_after_seconds: 3600
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !isProduction,
 });
 
 /**
