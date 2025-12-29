@@ -21,7 +21,7 @@ class IC3Scraper extends BaseScraper {
     this.dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     // Parallelization settings for large cities (1000+ activities)
-    this.CONCURRENT_REQUESTS = config.scraperConfig?.concurrentRequests || 10;
+    this.CONCURRENT_REQUESTS = config.scraperConfig?.concurrentRequests || 15;
     this.PAGE_SIZE = 20; // IC3 default page size
   }
 

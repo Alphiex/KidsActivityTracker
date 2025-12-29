@@ -158,7 +158,7 @@ class PerfectMindScraper extends BaseScraper {
 
   async extractPerfectMindActivities() {
     const activities = [];
-    const { entryPoints, maxConcurrency = 5 } = this.config.scraperConfig;
+    const { entryPoints, maxConcurrency = 10 } = this.config.scraperConfig;
 
     const entryPoint = entryPoints[0];
     const widgetUrl = entryPoint.startsWith('http')
@@ -1045,6 +1045,7 @@ class PerfectMindScraper extends BaseScraper {
 
   /**
    * Enhance activities with location data by fetching detail pages
+   * Uses browser pool for parallelization when handling 1000+ activities
    * Extracts: latitude, longitude, full address, city, postal code
    * @param {Array} activities - Raw activities
    * @returns {Array} - Activities with complete data
@@ -1067,30 +1068,64 @@ class PerfectMindScraper extends BaseScraper {
 
     this.logProgress(`Enhancing ${activitiesWithUrls.length} activities with detail page data...`);
 
-    let browser;
-    try {
-      browser = await this.launchBrowserWithRetry();
+    // Use browser pool for large datasets (1000+ activities)
+    const browserCount = activitiesWithUrls.length >= 500 ? 3 : 1;
+    const batchSize = activitiesWithUrls.length >= 500 ? 15 : 10; // Larger batches for big datasets
+    const browserRestartInterval = 50; // Restart browser every N pages to prevent timeouts
 
-      const batchSize = 5;
+    this.logProgress(`  Using ${browserCount} browser(s), batch size ${batchSize}`);
+
+    // Initialize browser pool
+    const browsers = [];
+    const pageCounters = [];
+    try {
+      for (let i = 0; i < browserCount; i++) {
+        const browser = await this.launchBrowserWithRetry();
+        browsers.push(browser);
+        pageCounters.push(0);
+      }
+
       let enhanced = 0;
       let withCoords = 0;
       let withDates = 0;
       let withTimes = 0;
 
-      for (let i = 0; i < activitiesWithUrls.length; i += batchSize) {
-        const batch = activitiesWithUrls.slice(i, i + batchSize);
-        const progress = ((i / activitiesWithUrls.length) * 100).toFixed(0);
-        this.logProgress(`  Processing detail batch ${Math.floor(i/batchSize)+1}/${Math.ceil(activitiesWithUrls.length/batchSize)} (${progress}%)`);
+      // Create work queue
+      const queue = activitiesWithUrls.map((a, i) => ({ activity: a, index: i }));
+      const results = new Map();
 
-        const batchResults = await Promise.all(
-          batch.map(async (activity) => {
-            const page = await browser.newPage();
+      // Worker function for each browser
+      const processWithBrowser = async (browserIndex) => {
+        while (queue.length > 0) {
+          // Get next batch of work
+          const workBatch = [];
+          for (let i = 0; i < Math.ceil(batchSize / browserCount) && queue.length > 0; i++) {
+            workBatch.push(queue.shift());
+          }
+          if (workBatch.length === 0) break;
+
+          // Check if browser needs restart
+          if (pageCounters[browserIndex] >= browserRestartInterval) {
+            try {
+              await browsers[browserIndex].close();
+            } catch (e) { /* ignore */ }
+            browsers[browserIndex] = await this.launchBrowserWithRetry();
+            pageCounters[browserIndex] = 0;
+            this.logProgress(`  Browser ${browserIndex + 1} restarted`);
+          }
+
+          const browser = browsers[browserIndex];
+
+          // Process batch
+          const batchResults = await Promise.all(
+            workBatch.map(async ({ activity, index }) => {
+              const page = await browser.newPage();
             try {
               await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
               await page.goto(activity.registrationUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-              // Wait for page to render
-              await new Promise(r => setTimeout(r, 2000));
+              // Wait for page to render (reduced for faster processing)
+              await new Promise(r => setTimeout(r, 1500));
 
               // Extract comprehensive data from the page
               const detailData = await page.evaluate(() => {
@@ -1393,69 +1428,93 @@ class PerfectMindScraper extends BaseScraper {
 
               // Merge data with activity
               return {
-                ...activity,
-                // Location
-                latitude: detailData.latitude || activity.latitude,
-                longitude: detailData.longitude || activity.longitude,
-                city: detailData.city || activity.city,
-                postalCode: detailData.postalCode || activity.postalCode,
-                fullAddress: detailData.fullAddress || activity.fullAddress,
-                locationName: detailData.locationName || activity.location || activity.locationName,
-                // Dates
-                dateStart: parseDate(detailData.dateStartStr) || activity.dateStart,
-                dateEnd: parseDate(detailData.dateEndStr) || activity.dateEnd,
-                // Times
-                startTime: normalizeTime(detailData.startTime) || activity.startTime,
-                endTime: normalizeTime(detailData.endTime) || activity.endTime,
-                // Days
-                dayOfWeek: detailData.dayOfWeek || activity.dayOfWeek || [],
-                // Age
-                ageMin: detailData.ageMin ?? activity.ageMin,
-                ageMax: detailData.ageMax ?? activity.ageMax,
-                // Cost
-                cost: detailData.cost || activity.cost || 0,
-                // Description (short and full)
-                description: detailData.description || activity.description,
-                fullDescription: detailData.fullDescription || activity.fullDescription,
-                // What to Bring
-                whatToBring: detailData.whatToBring || activity.whatToBring,
-                // Prerequisites
-                prerequisites: detailData.prerequisites || activity.prerequisites,
-                hasPrerequisites: detailData.hasPrerequisites || activity.hasPrerequisites || false,
-                // Course Details / Notes
-                courseDetails: detailData.courseDetails || activity.courseDetails,
-                // Contact Info
-                contactInfo: detailData.contactInfo || activity.contactInfo,
-                // Instructor
-                instructor: detailData.instructor || activity.instructor,
-                // Sessions
-                sessionCount: detailData.sessionCount || activity.sessionCount || 0,
-                hasMultipleSessions: (detailData.sessionCount || 0) > 1,
-                spotsAvailable: detailData.spotsAvailable ?? activity.spotsAvailable,
-                // Registration
-                registrationStatus: detailData.registrationStatus || activity.registrationStatus || 'Unknown'
+                index,
+                result: {
+                  ...activity,
+                  // Location
+                  latitude: detailData.latitude || activity.latitude,
+                  longitude: detailData.longitude || activity.longitude,
+                  city: detailData.city || activity.city,
+                  postalCode: detailData.postalCode || activity.postalCode,
+                  fullAddress: detailData.fullAddress || activity.fullAddress,
+                  locationName: detailData.locationName || activity.location || activity.locationName,
+                  // Dates
+                  dateStart: parseDate(detailData.dateStartStr) || activity.dateStart,
+                  dateEnd: parseDate(detailData.dateEndStr) || activity.dateEnd,
+                  // Times
+                  startTime: normalizeTime(detailData.startTime) || activity.startTime,
+                  endTime: normalizeTime(detailData.endTime) || activity.endTime,
+                  // Days
+                  dayOfWeek: detailData.dayOfWeek || activity.dayOfWeek || [],
+                  // Age
+                  ageMin: detailData.ageMin ?? activity.ageMin,
+                  ageMax: detailData.ageMax ?? activity.ageMax,
+                  // Cost
+                  cost: detailData.cost || activity.cost || 0,
+                  // Description (short and full)
+                  description: detailData.description || activity.description,
+                  fullDescription: detailData.fullDescription || activity.fullDescription,
+                  // What to Bring
+                  whatToBring: detailData.whatToBring || activity.whatToBring,
+                  // Prerequisites
+                  prerequisites: detailData.prerequisites || activity.prerequisites,
+                  hasPrerequisites: detailData.hasPrerequisites || activity.hasPrerequisites || false,
+                  // Course Details / Notes
+                  courseDetails: detailData.courseDetails || activity.courseDetails,
+                  // Contact Info
+                  contactInfo: detailData.contactInfo || activity.contactInfo,
+                  // Instructor
+                  instructor: detailData.instructor || activity.instructor,
+                  // Sessions
+                  sessionCount: detailData.sessionCount || activity.sessionCount || 0,
+                  hasMultipleSessions: (detailData.sessionCount || 0) > 1,
+                  spotsAvailable: detailData.spotsAvailable ?? activity.spotsAvailable,
+                  // Registration
+                  registrationStatus: detailData.registrationStatus || activity.registrationStatus || 'Unknown'
+                }
               };
             } catch (error) {
               await page.close();
-              return activity; // Return original on error
+              return { index, result: activity }; // Return original on error
             }
           })
         );
 
-        // Update activities in original array
-        batchResults.forEach(result => {
-          const idx = activities.findIndex(a => a.registrationUrl === result.registrationUrl);
-          if (idx >= 0) {
-            activities[idx] = result;
+          // Store results and update counters
+          for (const { index, result } of batchResults) {
+            results.set(index, result);
             enhanced++;
+            pageCounters[browserIndex]++;
             if (result.latitude) withCoords++;
             if (result.dateStart) withDates++;
             if (result.startTime) withTimes++;
           }
-        });
 
-        // Rate limit
-        await new Promise(r => setTimeout(r, 1000));
+          // Log progress periodically
+          const totalProcessed = results.size;
+          if (totalProcessed % 50 === 0 || totalProcessed === activitiesWithUrls.length) {
+            const pct = ((totalProcessed / activitiesWithUrls.length) * 100).toFixed(0);
+            this.logProgress(`  Progress: ${totalProcessed}/${activitiesWithUrls.length} (${pct}%)`);
+          }
+
+          // Small rate limit between batches (reduced from 1000ms)
+          await new Promise(r => setTimeout(r, 500));
+        }
+      };
+
+      // Run workers in parallel (one per browser)
+      const workers = Array(browserCount).fill(null).map((_, i) => processWithBrowser(i));
+      await Promise.all(workers);
+
+      // Update activities array with results
+      for (let i = 0; i < activitiesWithUrls.length; i++) {
+        const enhanced = results.get(i);
+        if (enhanced) {
+          const idx = activities.findIndex(a => a.registrationUrl === activitiesWithUrls[i].registrationUrl);
+          if (idx >= 0) {
+            activities[idx] = enhanced;
+          }
+        }
       }
 
       this.logProgress(`Detail enhancement complete:`);
@@ -1464,7 +1523,12 @@ class PerfectMindScraper extends BaseScraper {
       this.logProgress(`  - ${withDates} with dates`);
       this.logProgress(`  - ${withTimes} with times`);
     } finally {
-      if (browser) await browser.close();
+      // Close all browsers in the pool
+      for (const browser of browsers) {
+        try {
+          await browser.close();
+        } catch (e) { /* ignore */ }
+      }
     }
 
     return activities;

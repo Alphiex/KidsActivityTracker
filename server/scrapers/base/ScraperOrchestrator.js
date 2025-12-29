@@ -110,8 +110,8 @@ class ScraperOrchestrator {
         console.log(`\n--- Processing ${platform.toUpperCase()} providers (${platformProviders.length}) ---`);
 
         // Run platform providers in parallel (with concurrency limit)
-        // Reduced from 3 to 2 to prevent browser resource exhaustion in Docker
-        const batchSize = 2;
+        // Increased to 3 for better parallelization with 1000+ activities
+        const batchSize = 3;
         for (let i = 0; i < platformProviders.length; i += batchSize) {
           const batch = platformProviders.slice(i, i + batchSize);
           const batchPromises = batch.map(p => this.runSingle(p.code, { dryRun }));
