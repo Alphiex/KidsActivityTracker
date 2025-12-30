@@ -23,8 +23,12 @@ router.get('/', async (req: Request, res: Response) => {
     const includeEmpty = req.query.includeEmpty === 'true';
     console.log('🏙️ [Cities] Global filters:', globalFilters, 'Include empty:', includeEmpty);
 
-    // Get cities with location and activity counts using normalized schema
-    const cities = await prisma.city.findMany({
+    // Build the activity where clause for counting
+    const activityWhereClause = buildActivityWhereClause({ isActive: true }, globalFilters);
+
+    // Use a single efficient query with groupBy to get activity counts per city
+    // This avoids N+1 query problem that was causing connection pool exhaustion
+    const citiesWithCounts = await prisma.city.findMany({
       select: {
         id: true,
         name: true,
@@ -34,6 +38,17 @@ router.get('/', async (req: Request, res: Response) => {
           select: {
             locations: true
           }
+        },
+        locations: {
+          select: {
+            _count: {
+              select: {
+                activities: {
+                  where: activityWhereClause
+                }
+              }
+            }
+          }
         }
       },
       orderBy: {
@@ -41,30 +56,18 @@ router.get('/', async (req: Request, res: Response) => {
       }
     });
 
-    console.log(`🏙️ [Cities] Found ${cities.length} cities in normalized schema`);
+    console.log(`🏙️ [Cities] Found ${citiesWithCounts.length} cities in normalized schema`);
 
-    // Get activity counts per city with global filters
-    const citiesWithActivityCounts = await Promise.all(
-      cities.map(async (city) => {
-        const activityCount = await prisma.activity.count({
-          where: buildActivityWhereClause({
-            location: {
-              cityId: city.id
-            }
-          }, globalFilters)
-        });
-
-        return {
-          city: city.name,
-          province: city.province,
-          venueCount: city._count.locations,
-          activityCount
-        } as CityData;
-      })
-    );
+    // Calculate activity counts by summing location activity counts
+    const citiesData: CityData[] = citiesWithCounts.map(city => ({
+      city: city.name,
+      province: city.province,
+      venueCount: city._count.locations,
+      activityCount: city.locations.reduce((sum, loc) => sum + loc._count.activities, 0)
+    }));
 
     // Filter out cities without names, and optionally filter by activity count
-    let validCities = citiesWithActivityCounts.filter(c => c.city);
+    let validCities = citiesData.filter(c => c.city);
 
     if (!includeEmpty) {
       validCities = validCities.filter(c => c.activityCount > 0);

@@ -47,7 +47,10 @@ export const DEV_CONFIG = {
   
   // Development API endpoints
   DEV_API_URL: 'http://localhost:3000',
-  PROD_API_URL: 'https://kids-activity-api-205843686007.us-central1.run.app',
+  // Custom domain (use once DNS/domain mapping is verified)
+  PROD_API_URL: 'https://api.kidsactivitytracker.ca',
+  // Direct Cloud Run URL (always works as fallback)
+  PROD_API_URL_DIRECT: 'https://kids-activity-api-205843686007.us-central1.run.app',
 };
 
 // Export convenience functions

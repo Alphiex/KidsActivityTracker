@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '../../../generated/prisma';
+import { prisma } from '../../lib/prisma';
 import { verifyToken } from '../../middleware/auth';
 import { vendorService } from '../../services/vendorService';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * @swagger

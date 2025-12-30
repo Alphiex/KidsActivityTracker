@@ -111,6 +111,8 @@ const ALLOWED_WEB_ORIGINS = [
   'http://localhost:8081',
   'https://kidsactivitytracker.com',
   'https://www.kidsactivitytracker.com',
+  'https://kidsactivitytracker.ca',
+  'https://www.kidsactivitytracker.ca',
   // Cloud Run URLs (update after deployment)
   'https://website-205843686007.us-central1.run.app',
 ];

@@ -34,22 +34,26 @@ class AIService {
   async getRecommendations(params: AIRecommendationRequest): Promise<AIRecommendationResponse> {
     try {
       console.log('[AIService] Getting recommendations:', params);
-      
+
+      // AI recommendations can take 15-20 seconds, use longer timeout
       const response = await apiClient.post<AIRecommendationResponse>(
         '/api/v1/ai/recommendations',
         {
           search_intent: params.search_intent,
           filters: params.filters || {},
           include_explanations: params.include_explanations ?? true
-        }
+        },
+        { timeout: 60000 } // 60 second timeout for AI calls
       );
       
       console.log('[AIService] Got recommendations:', {
         count: response.recommendations?.length,
+        activitiesCount: response.activities ? Object.keys(response.activities).length : 0,
         source: response._meta?.source,
-        cached: response._meta?.cached
+        cached: response._meta?.cached,
+        success: response.success
       });
-      
+
       return response;
     } catch (error: any) {
       console.error('[AIService] Error getting recommendations:', error);

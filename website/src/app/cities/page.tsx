@@ -1,3 +1,6 @@
+// Force dynamic rendering to avoid build-time API fetching
+export const dynamic = 'force-dynamic';
+
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { api, City } from '@/lib/api';

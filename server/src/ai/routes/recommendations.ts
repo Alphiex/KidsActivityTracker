@@ -6,6 +6,9 @@ import { AIRecommendationRequest } from '../types/ai.types';
 const router = Router();
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Disable express-rate-limit's strict proxy validation (we configure trust proxy in server.ts)
+const rateLimitValidation = { trustProxy: false, xForwardedForHeader: false };
+
 /**
  * Rate limiter for AI endpoints
  * More restrictive than regular API endpoints due to cost
@@ -25,7 +28,8 @@ const aiRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => !isProduction
+  skip: () => !isProduction,
+  validate: rateLimitValidation,
 });
 
 /**

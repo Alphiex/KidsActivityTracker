@@ -46,49 +46,49 @@ export class AIOrchestrator {
    */
   async getRecommendations(request: AIRecommendationRequest): Promise<AIResponseWithMeta> {
     const startTime = Date.now();
-    
+
     try {
       // 1. Generate cache key
       const cacheKey = this.cache.generateCacheKey(request);
-      
+
       // 2. Check application-level cache
       const cached = await this.cache.getCachedRecommendations(cacheKey);
       if (cached) {
-        return { 
-          ...cached, 
-          source: 'cache', 
-          latency_ms: Date.now() - startTime 
+        return {
+          ...cached,
+          source: 'cache',
+          latency_ms: Date.now() - startTime
         };
       }
-      
+
       // 3. Check daily budget
       const budget = this.checkDailyBudget();
       if (budget.exceeded) {
         console.log('[AI Orchestrator] Daily budget exceeded, using heuristic fallback');
         return this.getHeuristicRecommendations(request, startTime);
       }
-      
+
       // 4. Pre-filter candidates in DB (no LLM cost)
       const candidates = await this.activityService.searchActivities({
         ...request.filters,
         limit: 100, // Get more than we need for ranking
         hideClosedOrFull: true
       });
-      
+
       console.log(`[AI Orchestrator] Found ${candidates.activities?.length || 0} candidates`);
-      
+
       // 5. If simple query with few results, skip LLM
       if (this.isSimpleQuery(request) && (candidates.activities?.length || 0) < 20) {
         console.log('[AI Orchestrator] Simple query with few results, using heuristic');
         return this.getHeuristicRecommendations(request, startTime, candidates.activities);
       }
-      
+
       // 6. Compress context for LLM
       const compressed = compressActivities(
-        candidates.activities || [], 
+        candidates.activities || [],
         parseInt(process.env.AI_MAX_CANDIDATES || '30')
       );
-      
+
       if (compressed.length === 0) {
         return {
           recommendations: [],
@@ -98,17 +98,17 @@ export class AIOrchestrator {
           latency_ms: Date.now() - startTime
         };
       }
-      
+
       // 7. Build family context
-      const familyContext = request.family_context || 
+      const familyContext = request.family_context ||
         await this.buildFamilyContextForRequest(request);
-      
+
       // 8. Select model tier
       const modelSelection = selectModel(request);
       const model = getModelByTier(modelSelection.tier);
-      
+
       console.log(`[AI Orchestrator] Using model: ${modelSelection.model} (${modelSelection.reason})`);
-      
+
       // 9. Invoke LangChain chain
       const result = await invokeRecommendationChain(
         model,
@@ -116,26 +116,36 @@ export class AIOrchestrator {
         compressed,
         familyContext
       );
-      
+
       // 10. Validate and enforce sponsorship policy
       const validated = validateAndSanitize(result, compressed);
-      
-      // 11. Build response with metadata
+
+      // 11. Build activities map (include full data to avoid client fetching each activity)
+      const activitiesMap: Record<string, any> = {};
+      const recommendedIds = new Set(validated.recommendations.map(r => r.activity_id));
+      for (const activity of (candidates.activities || [])) {
+        if (recommendedIds.has(activity.id)) {
+          activitiesMap[activity.id] = activity;
+        }
+      }
+
+      // 12. Build response with metadata
       const response: AIResponseWithMeta = {
         ...validated,
+        activities: activitiesMap,
         source: 'llm',
         model_used: modelSelection.model,
         latency_ms: Date.now() - startTime
       };
-      
-      // 12. Cache result
+
+      // 13. Cache result
       await this.cache.setCachedRecommendations(cacheKey, response);
-      
+
       return response;
-      
+
     } catch (error: any) {
       console.error('[AI Orchestrator] Error:', error.message);
-      
+
       // Fallback to heuristic on any error
       return this.getHeuristicRecommendations(request, startTime);
     }
@@ -200,18 +210,21 @@ export class AIOrchestrator {
       });
       activities = result.activities || [];
     }
-    
+
     // Score and rank activities
     const scored = activities.map((activity, index) => ({
       activity,
       score: this.calculateHeuristicScore(activity, request)
     }));
-    
+
     // Sort by score
     scored.sort((a, b) => b.score - a.score);
-    
+
+    // Take top 15 for recommendations
+    const topScored = scored.slice(0, 15);
+
     // Build recommendations
-    const recommendations = scored.slice(0, 15).map((item, index) => ({
+    const recommendations = topScored.map((item, index) => ({
       activity_id: item.activity.id,
       rank: index + 1,
       is_sponsored: item.activity.isFeatured || false,
@@ -219,9 +232,16 @@ export class AIOrchestrator {
       fit_score: Math.round(item.score),
       warnings: []
     }));
-    
+
+    // Build activities map (include full data to avoid client fetching each activity)
+    const activitiesMap: Record<string, any> = {};
+    for (const item of topScored) {
+      activitiesMap[item.activity.id] = item.activity;
+    }
+
     return {
       recommendations,
+      activities: activitiesMap,
       assumptions: ['Using quick match (heuristic) due to simple query or system constraints'],
       questions: [],
       source: 'heuristic',

@@ -11,17 +11,27 @@ const API_URLS = {
     android: 'http://10.0.2.2:3000',
   }),
   
-  // Production - Google Cloud Run deployment (Kids Activity Tracker project)
-  PRODUCTION: 'https://kids-activity-api-205843686007.us-central1.run.app',
+  // Production - Custom domain (once DNS is verified and mapped)
+  // Use this once domain mapping is complete: 'https://api.kidsactivitytracker.ca'
+  PRODUCTION: 'https://api.kidsactivitytracker.ca',
+  
+  // Fallback - Direct Cloud Run URL (always works)
+  PRODUCTION_DIRECT: 'https://kids-activity-api-205843686007.us-central1.run.app',
 };
 
 // Force local development server
 const FORCE_LOCAL = false; // Use production API
 
+// Use custom domain if available, fallback to direct URL
+// TODO: Switch to PRODUCTION once domain mapping is verified working
+const USE_CUSTOM_DOMAIN = false; // Set to true once domain is fully configured
+
 // API Configuration
 const API_CONFIG = {
-  // Always use production API for now - hardcoded to avoid any issues
-  BASE_URL: 'https://kids-activity-api-205843686007.us-central1.run.app',
+  // Production API URL - uses custom domain when enabled
+  BASE_URL: USE_CUSTOM_DOMAIN 
+    ? API_URLS.PRODUCTION 
+    : API_URLS.PRODUCTION_DIRECT,
   
   // Endpoints
   ENDPOINTS: {

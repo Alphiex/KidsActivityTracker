@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../contexts/ThemeContext';
 import aiService from '../services/aiService';
-import ActivityService from '../services/activityService';
 import { AIRecommendation, AIRecommendationResponse, AISourceType } from '../types/ai';
 import { Activity } from '../types';
 import {
@@ -48,9 +47,9 @@ const AIRecommendationsScreen = () => {
   const [activities, setActivities] = useState<Map<string, Activity>>(new Map());
   const [source, setSource] = useState<AISourceType>('heuristic');
   
-  // Get params from route
+  // Get params from route - use useMemo to prevent new object references on every render
   const searchIntent = route.params?.search_intent || 'Find the best activities for my family';
-  const filters = route.params?.filters || {};
+  const filters = useMemo(() => route.params?.filters || {}, [route.params?.filters]);
   
   /**
    * Fetch AI recommendations
@@ -59,28 +58,41 @@ const AIRecommendationsScreen = () => {
     try {
       if (!isRefresh) setLoading(true);
       setError(null);
-      
+
       // Get AI recommendations
       const result = await aiService.getRecommendations({
         search_intent: searchIntent,
         filters,
         include_explanations: true,
       });
-      
+
       if (!result.success && result.error) {
         setError(result.error);
         return;
       }
-      
+
+      console.log('[AIRecommendationsScreen] Result received:', {
+        success: result.success,
+        recCount: result.recommendations?.length,
+        activitiesCount: result.activities ? Object.keys(result.activities).length : 0,
+        error: result.error,
+      });
+
       setResponse(result);
       setSource(result._meta.source);
-      
-      // Fetch full activity details for each recommendation
-      if (result.recommendations.length > 0) {
-        const activityIds = result.recommendations.map(r => r.activity_id);
-        await fetchActivityDetails(activityIds);
+
+      // Use activities included in response (avoids rate limiting from individual fetches)
+      if (result.activities && Object.keys(result.activities).length > 0) {
+        const activityMap = new Map<string, Activity>();
+        for (const [id, activity] of Object.entries(result.activities)) {
+          activityMap.set(id, activity as Activity);
+        }
+        console.log('[AIRecommendationsScreen] Activities map created with', activityMap.size, 'entries');
+        setActivities(activityMap);
+      } else {
+        console.log('[AIRecommendationsScreen] No activities in response');
       }
-      
+
     } catch (err: any) {
       console.error('[AIRecommendationsScreen] Error:', err);
       setError(err?.message || 'Failed to get recommendations');
@@ -89,28 +101,6 @@ const AIRecommendationsScreen = () => {
       setRefreshing(false);
     }
   }, [searchIntent, filters]);
-  
-  /**
-   * Fetch full activity details
-   */
-  const fetchActivityDetails = async (activityIds: string[]) => {
-    const activityService = ActivityService.getInstance();
-    const activityMap = new Map<string, Activity>();
-    
-    // Fetch each activity (could be optimized with batch API)
-    for (const id of activityIds) {
-      try {
-        const activity = await activityService.getActivityById(id);
-        if (activity) {
-          activityMap.set(id, activity);
-        }
-      } catch (err) {
-        console.warn(`[AIRecommendationsScreen] Failed to fetch activity ${id}`);
-      }
-    }
-    
-    setActivities(activityMap);
-  };
   
   /**
    * Handle pull to refresh

@@ -22,6 +22,8 @@ export interface AIRecommendationResponse {
   recommendations: AIRecommendation[];
   assumptions: string[];
   questions: string[];
+  /** Full activity data keyed by activity_id - avoids needing to fetch each activity */
+  activities?: Record<string, any>;
   _meta: {
     source: 'cache' | 'heuristic' | 'llm';
     model?: string;

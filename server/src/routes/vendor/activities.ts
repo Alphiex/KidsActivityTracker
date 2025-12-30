@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, Prisma } from '../../../generated/prisma';
+import { Prisma } from '../../../generated/prisma';
+import { prisma } from '../../lib/prisma';
 import { requireVendorAuth, requireVendorRole } from '../../middleware/vendorAuth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * @swagger

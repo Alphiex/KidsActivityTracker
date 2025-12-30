@@ -106,6 +106,12 @@ model Activity {
   @@index([latitude, longitude])
   @@index([isFeatured, featuredTier])
   @@index([isFeatured, featuredEndDate])
+
+  // AI recommendation query indexes
+  @@index([isActive, ageMin, ageMax])
+  @@index([isActive, cost])
+  @@index([isActive, dateStart, dateEnd])
+  @@index([isActive, activityTypeId, ageMin, ageMax])
 }
 
 model ActivityHistory {

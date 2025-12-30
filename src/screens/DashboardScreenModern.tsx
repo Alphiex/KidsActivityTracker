@@ -41,6 +41,7 @@ const DashboardScreenModern = () => {
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
+  const isInitialMount = useRef(true);
 
   // Subscription-aware favorites
   const {
@@ -63,8 +64,14 @@ const DashboardScreenModern = () => {
   };
 
   // Reload dashboard data when screen comes into focus (e.g., returning from Filters)
+  // Skip on initial mount since useEffect already loads data
   useFocusEffect(
     useCallback(() => {
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+      }
+
       // Reload the sections that use preferences (includes randomization)
       loadSponsoredActivities();
       loadRecommendedActivities();

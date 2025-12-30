@@ -77,6 +77,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/privacy" className="hover:text-purple-400 transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
                 <Link href="#download" className="hover:text-purple-400 transition-colors">
                   Download App
                 </Link>
@@ -150,7 +155,14 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 mt-8 pt-8 text-sm text-gray-500">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p>&copy; {currentYear} Kids Activity Tracker. All rights reserved.</p>
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+              <p>&copy; {currentYear} Kids Activity Tracker. All rights reserved.</p>
+              <div className="flex items-center gap-4">
+                <Link href="/privacy" className="hover:text-purple-400 transition-colors">
+                  Privacy Policy
+                </Link>
+              </div>
+            </div>
 
             {/* Made in Canada Badge */}
             <div className="flex items-center gap-2 text-gray-400">

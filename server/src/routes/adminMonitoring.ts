@@ -39,70 +39,57 @@ const requireAdmin = async (req: Request, res: Response, next: any) => {
 router.get('/health', verifyToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const startTime = Date.now();
-    const components: any = {};
+    const processUptime = process.uptime();
 
     // Check database
+    let database: any;
     try {
       const dbStart = Date.now();
       await prisma.$queryRaw`SELECT 1`;
-      components.database = {
+      database = {
         status: 'healthy',
         latencyMs: Date.now() - dbStart
       };
     } catch (error) {
-      components.database = { status: 'unhealthy', error: 'Connection failed' };
+      database = { status: 'unhealthy', latencyMs: 0 };
     }
 
-    // Check scraper status (any running or failed in last hour)
-    try {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const [runningJobs, failedLast24h] = await Promise.all([
-        prisma.scrapeJob.count({ where: { status: 'RUNNING' } }),
-        prisma.scraperRun.count({
-          where: {
-            status: 'FAILED',
-            startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-          }
-        })
-      ]);
-      components.scrapers = {
-        status: failedLast24h > 5 ? 'degraded' : 'healthy',
-        activeJobs: runningJobs,
-        failedLast24h
-      };
-    } catch (error) {
-      components.scrapers = { status: 'unknown', error: 'Failed to check' };
-    }
+    // Check Redis (optional - may not be configured)
+    let redis: any = { status: 'disabled' };
+    // Redis check would go here if configured
 
-    // Check AI service (if configured)
-    try {
-      const aiConfigured = !!process.env.OPENAI_API_KEY;
-      components.ai = {
-        status: aiConfigured ? 'healthy' : 'unconfigured',
-        configured: aiConfigured
-      };
-    } catch (error) {
-      components.ai = { status: 'unknown' };
-    }
+    // Check AI service
+    const aiConfigured = !!process.env.OPENAI_API_KEY;
+    const ai = {
+      status: aiConfigured ? 'healthy' : 'disabled',
+      apiKeyConfigured: aiConfigured
+    };
 
-    // Determine overall status
-    const statuses = Object.values(components).map((c: any) => c.status);
-    let overallStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
-    if (statuses.includes('unhealthy')) {
-      overallStatus = 'critical';
-    } else if (statuses.includes('degraded')) {
-      overallStatus = 'degraded';
-    }
+    // Memory stats
+    const memUsage = process.memoryUsage();
+    const memory = {
+      heapUsed: memUsage.heapUsed,
+      heapTotal: memUsage.heapTotal,
+      external: memUsage.external,
+      rss: memUsage.rss
+    };
 
+    // Format uptime
+    const uptimeHours = Math.floor(processUptime / 3600);
+    const uptimeMinutes = Math.floor((processUptime % 3600) / 60);
+    const uptime = {
+      seconds: Math.floor(processUptime),
+      formatted: `${uptimeHours}h ${uptimeMinutes}m`
+    };
+
+    // Return in the format the frontend expects
     res.json({
-      success: true,
-      health: {
-        status: overallStatus,
-        timestamp: new Date().toISOString(),
-        responseTimeMs: Date.now() - startTime,
-        components,
-        version: process.env.npm_package_version || '1.0.0'
-      }
+      database,
+      redis,
+      ai,
+      uptime,
+      memory,
+      timestamp: new Date().toISOString()
     });
   } catch (error: any) {
     console.error('[AdminMonitoring] Health check failed:', error);

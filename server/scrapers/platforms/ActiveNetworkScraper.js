@@ -445,7 +445,9 @@ class ActiveNetworkScraper extends BaseScraper {
    * @returns {Promise<Array>} All activities
    */
   async extractActivitiesViaAPIParallel(page, category, apiUrl, maxAge, searchParams, totalPages, firstPageItems) {
-    const CONCURRENT_REQUESTS = 10; // Number of parallel requests
+    // Reduce concurrency for very large datasets to prevent browser crashes
+    // Toronto has 700+ pages which was causing "Connection closed" errors
+    const CONCURRENT_REQUESTS = totalPages > 500 ? 5 : totalPages > 200 ? 8 : 10;
     const allActivities = [];
     const seenIds = new Set();
 
@@ -524,7 +526,9 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       // Small delay between batches to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Longer delay for very large datasets to prevent memory issues
+      const batchDelay = totalPages > 500 ? 500 : totalPages > 200 ? 300 : 200;
+      await new Promise(resolve => setTimeout(resolve, batchDelay));
     }
 
     this.logProgress(`    Parallel fetch complete: ${allActivities.length} total activities`);

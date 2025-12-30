@@ -1,11 +1,8 @@
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { Serialized } from '@langchain/core/load/serializable';
 import { LLMResult } from '@langchain/core/outputs';
-import { PrismaClient } from '../../../generated/prisma';
+import { prisma } from '../../lib/prisma';
 import { AIRequestMetrics } from '../types/ai.types';
-
-// Prisma client for database persistence
-const prisma = new PrismaClient();
 
 /**
  * Pricing per 1M tokens (as of 2024)

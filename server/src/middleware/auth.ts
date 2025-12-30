@@ -139,10 +139,10 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Disable express-rate-limit's strict proxy validation (we configure trust proxy in server.ts)
 const rateLimitValidation = { trustProxy: false, xForwardedForHeader: false };
 
-// General API rate limit (disabled in dev/testing)
+// General API rate limit (disabled in dev/testing, high limit in production)
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isProduction ? 100 : 0, // 0 = disabled
+  max: isProduction ? 1000 : 0, // 1000 requests per 15 min in production, disabled in dev
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again later.',

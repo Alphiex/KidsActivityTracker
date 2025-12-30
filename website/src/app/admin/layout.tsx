@@ -73,13 +73,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const token = localStorage.getItem('admin_token');
     if (!token && pathname !== '/admin/login') {
       router.push('/admin/login');
-    } else if (token) {
+      return;
+    }
+
+    if (token) {
       setIsAuthenticated(true);
+      setIsLoading(false);
+      // Fetch notifications in background (non-blocking)
       fetchNotifications();
       // Poll for notifications every 30 seconds
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
+
     setIsLoading(false);
   }, [pathname, router, fetchNotifications]);
 

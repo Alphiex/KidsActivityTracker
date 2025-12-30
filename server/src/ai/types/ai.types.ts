@@ -93,6 +93,8 @@ export interface AIResponseWithMeta extends AIResponse {
   source: 'cache' | 'heuristic' | 'llm';
   model_used?: string;
   latency_ms?: number;
+  /** Full activity data keyed by activity_id - avoids client needing to fetch each activity */
+  activities?: Record<string, any>;
 }
 
 /**
