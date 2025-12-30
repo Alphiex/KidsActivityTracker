@@ -88,7 +88,7 @@ const faqs: FAQItem[] = [
   {
     category: 'Account & Privacy',
     question: 'Do I need an account to use the app?',
-    answer: 'You can browse activities without an account. However, creating a free account allows you to save favourite activities, set up personalized alerts for registration openings, and sync your preferences across devices.',
+    answer: 'Yes, a free account is required to use the app. Creating an account allows you to save favourite activities, set up personalized filters for age and location, receive alerts for registration openings, and sync your preferences across devices.',
   },
   {
     category: 'Account & Privacy',
