@@ -1,7 +1,21 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+// Use colorful emojis on iOS, vector icons on Android
+const TabIcon = ({ emoji, iconName, isActive }: { emoji: string; iconName: string; isActive: boolean }) => {
+  if (Platform.OS === 'ios') {
+    return <Text style={styles.iconEmoji}>{emoji}</Text>;
+  }
+  return (
+    <Icon
+      name={iconName}
+      size={28}
+      color={isActive ? '#FF385C' : '#717171'}
+    />
+  );
+};
 
 type TabName = 'Dashboard' | 'Filters' | 'Calendar';
 
@@ -36,11 +50,7 @@ const TopTabNavigation = () => {
         style={styles.topButton}
         onPress={() => navigateToTab('Dashboard')}
       >
-        <Icon
-          name="target"
-          size={28}
-          color={activeTab === 'Dashboard' ? '#FF385C' : '#717171'}
-        />
+        <TabIcon emoji="🎯" iconName="target" isActive={activeTab === 'Dashboard'} />
         <Text style={[
           styles.topButtonText,
           activeTab === 'Dashboard' && styles.activeTabText
@@ -54,11 +64,7 @@ const TopTabNavigation = () => {
         style={styles.topButton}
         onPress={() => navigateToTab('Filters')}
       >
-        <Icon
-          name="magnify"
-          size={28}
-          color={activeTab === 'Filters' ? '#FF385C' : '#717171'}
-        />
+        <TabIcon emoji="🔍" iconName="magnify" isActive={activeTab === 'Filters'} />
         <Text style={[
           styles.topButtonText,
           activeTab === 'Filters' && styles.activeTabText
@@ -72,11 +78,7 @@ const TopTabNavigation = () => {
         style={styles.topButton}
         onPress={() => navigateToTab('Calendar')}
       >
-        <Icon
-          name="calendar-month"
-          size={28}
-          color={activeTab === 'Calendar' ? '#FF385C' : '#717171'}
-        />
+        <TabIcon emoji="📅" iconName="calendar-month" isActive={activeTab === 'Calendar'} />
         <Text style={[
           styles.topButtonText,
           activeTab === 'Calendar' && styles.activeTabText
@@ -104,11 +106,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     position: 'relative',
   },
-  iconContainer: {
+  iconEmoji: {
+    fontSize: 28,
     marginBottom: 4,
     minHeight: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+    lineHeight: 34,
   },
   topButtonText: {
     fontSize: 12,
