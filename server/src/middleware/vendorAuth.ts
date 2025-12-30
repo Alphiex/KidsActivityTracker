@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient, VendorUserRole, VendorStatus } from '../../generated/prisma';
+import { VendorUserRole, VendorStatus } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { verifyToken } from './auth';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Role hierarchy for vendors
 const VENDOR_ROLE_HIERARCHY: Record<VendorUserRole, number> = {
@@ -267,12 +266,16 @@ export const hasMinVendorRole = (userRole: VendorUserRole, minRole: VendorUserRo
  */
 import rateLimit from 'express-rate-limit';
 
+// Disable express-rate-limit's strict proxy validation (we configure trust proxy in server.ts)
+const rateLimitValidation = { trustProxy: false, xForwardedForHeader: false };
+
 export const vendorLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Standard limit for vendor operations
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: rateLimitValidation,
 });
 
 // Stricter rate limit for import uploads
@@ -282,4 +285,5 @@ export const vendorUploadLimiter = rateLimit({
   message: 'Upload limit reached. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: rateLimitValidation,
 });

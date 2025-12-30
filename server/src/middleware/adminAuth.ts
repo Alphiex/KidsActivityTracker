@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient, AdminRole } from '../../generated/prisma';
-
-const prisma = new PrismaClient();
+import { AdminRole } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 
 // Role hierarchy for permission checking
 const ROLE_HIERARCHY: Record<AdminRole, number> = {
@@ -132,12 +131,16 @@ export const hasMinRole = (adminRole: AdminRole, minRole: AdminRole): boolean =>
  */
 import rateLimit from 'express-rate-limit';
 
+// Disable express-rate-limit's strict proxy validation (we configure trust proxy in server.ts)
+const rateLimitValidation = { trustProxy: false, xForwardedForHeader: false };
+
 export const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200, // Higher limit for admin operations
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: rateLimitValidation,
 });
 
 // Common permission constants

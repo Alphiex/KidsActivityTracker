@@ -1,11 +1,9 @@
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { emailService } from '../utils/emailService';
 import { tokenUtils } from '../utils/tokenUtils';
-
-const prisma = new PrismaClient();
 
 // Validate JWT secrets - fail fast in production
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;

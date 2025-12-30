@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { optionalAuth, verifyToken } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Types for analytics tracking
 interface ImpressionEvent {

@@ -1,9 +1,8 @@
-import { PrismaClient, Invitation, User } from '../../generated/prisma';
+import { Invitation, User } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { emailService } from '../utils/emailService';
 import { securityUtils } from '../utils/securityUtils';
-
-const prisma = new PrismaClient();
 
 interface CreateInvitationData {
   senderId: string;

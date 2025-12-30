@@ -1,12 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { verifyToken } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Partner portal JWT secret (separate from user auth)
 const PARTNER_JWT_SECRET = process.env.SPONSOR_JWT_SECRET || process.env.JWT_SECRET || 'partner-secret';

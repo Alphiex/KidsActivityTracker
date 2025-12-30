@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import Redis from 'ioredis';
-import { PrismaClient } from '../generated/prisma';
+// PrismaClient is imported from lib/prisma (shared singleton)
 import { v4 as uuidv4 } from 'uuid';
 import { swaggerSpec, swaggerUi } from './swagger/config';
 
@@ -31,6 +31,7 @@ import partnerPortalRoutes from './routes/partnerPortal';
 import adminRoutes from './routes/admin';
 import adminActivitiesRoutes from './routes/adminActivities';
 import adminMonitoringRoutes from './routes/adminMonitoring';
+import adminNotificationsRoutes from './routes/adminNotifications';
 import vendorRoutes from './routes/vendor';
 import aiRoutes from './ai/routes';
 
@@ -46,8 +47,8 @@ import { apiLimiter, verifyToken, optionalAuth } from './middleware/auth';
 // Load environment variables
 dotenv.config();
 
-// Initialize Prisma
-const prisma = new PrismaClient();
+// Import shared Prisma client (singleton for entire application)
+import { prisma } from './lib/prisma';
 
 // Initialize Redis for AI caching (optional - gracefully handles unavailability)
 let redis: Redis | null = null;
@@ -76,26 +77,24 @@ try {
   console.warn('[Redis] Failed to initialize:', error.message);
 }
 
-// Initialize AI module (if Redis is available and OPENAI_API_KEY is set)
-if (redis && process.env.OPENAI_API_KEY) {
+// Initialize AI module (only requires OPENAI_API_KEY, Redis is optional for caching)
+if (process.env.OPENAI_API_KEY) {
   try {
     initializeAI(redis, prisma);
-    console.log('[AI] Module initialized successfully');
+    console.log('[AI] Module initialized successfully', redis ? '(with Redis caching)' : '(without caching)');
   } catch (error: any) {
     console.warn('[AI] Failed to initialize:', error.message);
   }
 } else {
-  if (!process.env.OPENAI_API_KEY) {
-    console.log('[AI] OPENAI_API_KEY not set, AI features disabled');
-  }
-  if (!redis) {
-    console.log('[AI] Redis not available, AI features disabled');
-  }
+  console.log('[AI] OPENAI_API_KEY not set, AI features disabled');
 }
 
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust proxy for Cloud Run (required for express-rate-limit and correct client IP detection)
+app.set('trust proxy', true);
 
 // Global middleware
 // Security headers (mobile-compatible configuration)
@@ -232,6 +231,9 @@ app.use('/api/admin/activities', adminActivitiesRoutes);
 
 // Admin monitoring routes (system health, scraper status, AI metrics)
 app.use('/api/admin/monitoring', adminMonitoringRoutes);
+
+// Admin notification routes
+app.use('/api/admin/notifications', adminNotificationsRoutes);
 
 // Partner self-service portal routes - new naming
 app.use('/api/partner', partnerPortalRoutes);

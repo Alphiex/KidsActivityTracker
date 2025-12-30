@@ -1,7 +1,6 @@
-import { PrismaClient, Activity, Vendor } from '../../generated/prisma';
+import { Activity, Vendor } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { RawRow } from './fileParserService';
-
-const prisma = new PrismaClient();
 
 // Field mapping configuration
 export interface FieldMapping {

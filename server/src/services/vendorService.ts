@@ -1,8 +1,7 @@
-import { PrismaClient, Vendor, VendorStatus, VendorUserRole } from '../../generated/prisma';
+import { Vendor, VendorStatus, VendorUserRole } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
 
 // Input types
 export interface CreateVendorInput {

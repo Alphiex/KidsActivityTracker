@@ -1,14 +1,12 @@
-import Link from 'next/link';
 import { City } from '@/lib/api';
 
 interface CityCardProps {
   city: City;
-  showLink?: boolean;
 }
 
-export default function CityCard({ city, showLink = true }: CityCardProps) {
-  const Card = (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 card-hover">
+export default function CityCard({ city }: CityCardProps) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{city.name}</h3>
@@ -37,10 +35,4 @@ export default function CityCard({ city, showLink = true }: CityCardProps) {
       </div>
     </div>
   );
-
-  if (showLink) {
-    return <Link href={`/cities/${city.slug}`}>{Card}</Link>;
-  }
-
-  return Card;
 }

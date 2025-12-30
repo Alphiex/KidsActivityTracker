@@ -1,8 +1,7 @@
-import { PrismaClient, ActivityShare, ActivityShareProfile, Child, ChildActivity } from '../../generated/prisma';
+import { ActivityShare, ActivityShareProfile, Child, ChildActivity } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { emailService } from '../utils/emailService';
 import { v4 as uuidv4 } from 'uuid';
-
-const prisma = new PrismaClient();
 
 interface ShareConfiguration {
   sharedWithUserId: string;

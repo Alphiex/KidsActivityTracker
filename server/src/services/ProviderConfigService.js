@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { prisma } = require('../lib/prisma');
 const ScraperFactory = require('../scrapers/base/ScraperFactory');
 
 /**
@@ -6,7 +6,7 @@ const ScraperFactory = require('../scrapers/base/ScraperFactory');
  */
 class ProviderConfigService {
   constructor() {
-    this.prisma = new PrismaClient();
+    this.prisma = prisma;
   }
 
   /**

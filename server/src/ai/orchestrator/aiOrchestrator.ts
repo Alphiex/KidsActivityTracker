@@ -35,9 +35,9 @@ export class AIOrchestrator {
   private activityService: EnhancedActivityService;
   private prisma: PrismaClient;
 
-  constructor(redis: Redis, prisma: PrismaClient) {
+  constructor(redis: Redis | null, prisma: PrismaClient) {
     this.cache = new AICacheService(redis);
-    this.activityService = new EnhancedActivityService();
+    this.activityService = new EnhancedActivityService(prisma);
     this.prisma = prisma;
   }
 

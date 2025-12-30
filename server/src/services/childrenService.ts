@@ -1,8 +1,7 @@
-import { PrismaClient, Child, Prisma } from '../../generated/prisma';
+import { Child, Prisma } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { calculateAge } from '../utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
-
-const prisma = new PrismaClient();
 
 export interface CreateChildInput {
   userId: string;

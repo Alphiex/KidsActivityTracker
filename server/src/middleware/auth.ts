@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { tokenUtils } from '../utils/tokenUtils';
-import { PrismaClient } from '../../generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 // Validate JWT secrets are configured at startup
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
@@ -138,6 +136,9 @@ import rateLimit from 'express-rate-limit';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Disable express-rate-limit's strict proxy validation (we configure trust proxy in server.ts)
+const rateLimitValidation = { trustProxy: false, xForwardedForHeader: false };
+
 // General API rate limit (disabled in dev/testing)
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -150,6 +151,7 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => !isProduction, // Skip rate limiting in non-production
+  validate: rateLimitValidation,
 });
 
 // Strict rate limit for auth endpoints (disabled in dev/testing)
@@ -165,6 +167,7 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   skip: () => !isProduction,
+  validate: rateLimitValidation,
 });
 
 // Very strict rate limit for password reset (disabled in dev/testing)
@@ -179,6 +182,7 @@ export const passwordResetLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => !isProduction,
+  validate: rateLimitValidation,
 });
 
 // Email verification rate limit (disabled in dev/testing)
@@ -193,6 +197,7 @@ export const emailVerificationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => !isProduction,
+  validate: rateLimitValidation,
 });
 
 /**

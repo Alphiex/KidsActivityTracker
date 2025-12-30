@@ -1,8 +1,6 @@
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { tokenUtils } from '../utils/tokenUtils';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 interface SessionData {
   userId: string;

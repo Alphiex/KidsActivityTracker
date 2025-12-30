@@ -1,4 +1,5 @@
-import { PrismaClient, ImportBatch, ImportRow, ImportStatus, ImportRowStatus, ApprovalStatus, Prisma } from '../../generated/prisma';
+import { ImportBatch, ImportRow, ImportStatus, ImportRowStatus, ApprovalStatus, Prisma } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { fileParserService, RawRow } from './fileParserService';
 import { activityImportMapper, FieldMapping, NormalizedActivity, RowValidationResult, FieldValidationError } from './activityImportMapper';
 import { vendorService } from './vendorService';
@@ -10,8 +11,6 @@ interface UploadedFile {
   buffer: Buffer;
   size: number;
 }
-
-const prisma = new PrismaClient();
 
 // Result types
 export interface ValidationResult {

@@ -1,6 +1,5 @@
-import { PrismaClient, SubscriptionPlan, Subscription } from '../../generated/prisma';
-
-const prisma = new PrismaClient();
+import { SubscriptionPlan, Subscription } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 
 // Default free plan limits (fallback if database lookup fails)
 const DEFAULT_FREE_LIMITS: PlanLimits = {

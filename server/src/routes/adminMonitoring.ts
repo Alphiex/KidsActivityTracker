@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { param, query, validationResult } from 'express-validator';
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { verifyToken } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Admin middleware - verify user has admin role
 const requireAdmin = async (req: Request, res: Response, next: any) => {

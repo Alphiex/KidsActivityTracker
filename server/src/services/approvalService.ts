@@ -1,7 +1,6 @@
-import { PrismaClient, ImportBatch, ImportApproval, ApprovalStatus, ImportStatus, Prisma } from '../../generated/prisma';
+import { ImportBatch, ImportApproval, ApprovalStatus, ImportStatus, Prisma } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { importService } from './importService';
-
-const prisma = new PrismaClient();
 
 // Approval queue item
 export interface ApprovalQueueItem {

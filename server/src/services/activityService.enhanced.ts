@@ -1,4 +1,5 @@
 import { PrismaClient, Activity, Prisma } from '../../generated/prisma';
+import { prisma as sharedPrisma } from '../lib/prisma';
 const { convertToActivityTypes } = require('../constants/activityTypes');
 import { buildActivityWhereClause, GlobalActivityFilters } from '../utils/activityFilters';
 
@@ -32,8 +33,8 @@ interface SearchParams {
 export class EnhancedActivityService {
   private prisma: PrismaClient;
 
-  constructor() {
-    this.prisma = new PrismaClient();
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || sharedPrisma;
   }
 
   async searchActivities(params: SearchParams) {

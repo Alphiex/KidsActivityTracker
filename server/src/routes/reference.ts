@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { buildActivityWhereClause, extractGlobalFilters } from '../utils/activityFilters';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * @route   GET /api/v1/reference/activity-types

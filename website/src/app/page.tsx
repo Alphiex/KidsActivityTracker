@@ -1,3 +1,6 @@
+// Force dynamic rendering to avoid build-time API fetching
+export const dynamic = 'force-dynamic';
+
 import Hero from '@/components/Hero';
 import Stats from '@/components/Stats';
 import ActivityShowcase from '@/components/ActivityShowcase';
@@ -17,11 +20,12 @@ interface CitiesData {
 async function getCitiesData(): Promise<CitiesData> {
   try {
     const response = await api.getCities();
-    const activeCities = response.cities.filter((city) => city.isActive);
-    // Sort by activity count and return top 8 for display
-    const displayCities = activeCities
-      .sort((a, b) => b.activityCount - a.activityCount)
-      .slice(0, 8);
+    const activeCities = response.cities.filter((city) => city.isActive && city.activityCount > 0);
+
+    // Randomly shuffle and pick 8 cities for display
+    const shuffled = [...activeCities].sort(() => Math.random() - 0.5);
+    const displayCities = shuffled.slice(0, 8);
+
     return {
       cities: displayCities,
       totalCount: activeCities.length,

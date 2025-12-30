@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // One-time setup endpoint to create test user
 // BLOCKED IN PRODUCTION for security

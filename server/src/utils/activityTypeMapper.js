@@ -1,5 +1,4 @@
-const { PrismaClient } = require('../generated/prisma');
-const prisma = new PrismaClient();
+const { prisma } = require('./prismaClient');
 
 // Cache for activity types and subtypes
 let typeCache = null;

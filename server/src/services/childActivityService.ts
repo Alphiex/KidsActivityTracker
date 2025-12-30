@@ -1,9 +1,8 @@
-import { PrismaClient, ChildActivity, Activity, Prisma } from '../../generated/prisma';
+import { ChildActivity, Activity, Prisma } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { calculateAge, getAgeAppropriateRange, getCalendarDateRange } from '../utils/dateUtils';
 import { childrenService } from './childrenService';
 import { v4 as uuidv4 } from 'uuid';
-
-const prisma = new PrismaClient();
 
 export type ActivityStatus = 'planned' | 'in_progress' | 'completed';
 

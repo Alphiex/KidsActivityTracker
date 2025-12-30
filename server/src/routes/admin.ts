@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '../../generated/prisma';
+import { prisma } from '../lib/prisma';
 import { verifyToken } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * @route   GET /api/admin/profile

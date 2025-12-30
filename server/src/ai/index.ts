@@ -17,11 +17,12 @@ let orchestrator: AIOrchestrator | null = null;
 
 /**
  * Initialize the AI module with required dependencies
+ * Redis is optional - caching will be disabled if not available
  */
-export function initializeAI(redis: Redis, prisma: PrismaClient): AIOrchestrator {
+export function initializeAI(redis: Redis | null, prisma: PrismaClient): AIOrchestrator {
   if (!orchestrator) {
     orchestrator = new AIOrchestrator(redis, prisma);
-    console.log('[AI] Module initialized');
+    console.log('[AI] Module initialized', redis ? 'with caching' : 'without caching');
   }
   return orchestrator;
 }
