@@ -30,53 +30,72 @@ Find Kids Activities Near You
 ### Full Description (4000 character limit)
 
 ```
-Discover 100,000+ activities for kids across 79 cities in Canada!
+Discover 100,000+ activities for kids across 73 cities in 8 Canadian provinces!
 
-Kids Activity Tracker makes it easy for parents to find and manage activities for their children - from swimming lessons to art classes, summer camps to sports programs.
+Kids Activity Tracker is the ultimate app for Canadian parents to find, organize, and manage activities for their children. From swimming lessons to summer camps, art classes to team sports - find it all in one place.
 
-Whether you're looking for after-school programs, weekend classes, or summer camps, we've got you covered with activities from recreation centers, community organizations, and local programs across Canada.
+BROWSE 24 ACTIVITY CATEGORIES:
+- Swimming & Aquatics
+- Team Sports (Soccer, Hockey, Basketball, Baseball)
+- Dance & Movement
+- Visual & Performing Arts
+- Music Lessons
+- Martial Arts
+- Gymnastics
+- Skating & Wheels
+- STEM & Education
+- Day Camps & Summer Camps
+- And many more!
 
 KEY FEATURES:
 
-SMART SEARCH
-Filter activities by your child's age, activity type, location, day of the week, and budget. Find exactly what you're looking for in seconds.
+POWERFUL SMART SEARCH
+Filter by your child's age, activity type, location, day of the week, budget, and distance. Our intelligent filters help you find exactly what you're looking for in seconds.
+
+DISTANCE-BASED DISCOVERY
+Find activities within your preferred radius - from 5km to 100km. Save multiple locations (home, work, school, grandparents) and search from any of them instantly.
 
 MULTIPLE CHILD PROFILES
-Managing activities for more than one child? Create profiles for each of your kids with their ages and interests, and get personalized recommendations for everyone.
-
-CALENDAR INTEGRATION
-Keep track of your family's activity schedule in one place. Add activities to your in-app calendar and export to your favorite calendar app.
+Create personalized profiles for each of your children with their birthdate, interests, allergies, and special needs. Get tailored recommendations that match each child perfectly.
 
 FAMILY SHARING
-Share schedules and favorites with co-parents, grandparents, and caregivers so everyone stays in the loop.
+Share child profiles with co-parents, grandparents, and caregivers. Everyone stays in sync with a shared view of schedules and favorites. Perfect for separated families and busy households.
 
 AI-POWERED RECOMMENDATIONS
-Get personalized activity suggestions based on your children's ages, interests, and your location. Our smart recommendations help you discover new activities your kids will love.
+Tell us what you're looking for in plain English - "Swimming lessons for my 6-year-old on weekends near downtown" - and our AI finds the perfect matches. Get personalized suggestions based on your family's unique needs.
 
-REAL-TIME UPDATES
-See live availability and registration status. Never miss a registration deadline with instant alerts when spots open up.
+CALENDAR & SCHEDULING
+Keep track of your family's activity schedule in one beautiful calendar view. Export to Apple Calendar, Google Calendar, or Outlook with one tap.
 
-LOCATION-BASED DISCOVERY
-Find activities near your home, work, or anywhere you choose. Save multiple addresses for quick searching.
+REAL-TIME AVAILABILITY
+See live registration status and available spots. Get instant alerts when spots open up in activities you're watching - never miss a registration deadline again.
 
-COMPREHENSIVE COVERAGE
-We aggregate activities from recreation centers and community programs across:
-- British Columbia: Vancouver, Burnaby, Surrey, Richmond, Coquitlam, and more
-- Alberta: Calgary, Edmonton, and surrounding areas
-- Ontario: Toronto, Ottawa, Mississauga, Hamilton, and more
-- Quebec: Montreal, Quebec City, Laval, and more
-- And 75+ other cities across Canada!
+COMPREHENSIVE CANADIAN COVERAGE:
+- British Columbia: Vancouver, Burnaby, Surrey, Richmond, Coquitlam, North Vancouver, Victoria, and 18 more cities
+- Ontario: Toronto, Ottawa, Mississauga, Hamilton, London, Kitchener, and 27 more cities
+- Alberta: Calgary, Edmonton, Red Deer, Lethbridge, St. Albert
+- Quebec: Montreal, Quebec City, Laval, Gatineau, Longueuil
+- Plus cities in Manitoba, Saskatchewan, Nova Scotia, and Newfoundland
+
+ACTIVITY DETAILS YOU NEED:
+- Age requirements and skill levels
+- Complete schedules with dates and times
+- Pricing and registration fees
+- Location with maps and directions
+- Available spots and waitlist status
+- Direct links to official registration
 
 PREMIUM FEATURES (Optional Subscription):
-- Unlimited child profiles and saved favorites
-- Calendar export to iCal, Google Calendar, Outlook
-- Instant availability alerts and notifications
+- Unlimited child profiles (free tier: 2)
+- Unlimited saved favorites (free tier: 10)
+- Calendar export to iCal/Google/Outlook
+- Instant availability alerts
 - Advanced filtering options
 - Priority customer support
 
-Perfect for busy parents who want to keep their kids active, engaged, and having fun!
+Perfect for busy Canadian families who want to keep their kids active, engaged, and having fun!
 
-Download Kids Activity Tracker today and start exploring activities in your area.
+Download Kids Activity Tracker today and discover amazing activities in your neighbourhood.
 ```
 
 ---
@@ -99,6 +118,11 @@ Set B (parent focused):
 parenting,kids schedule,family calendar,children activities,after school,camps,classes,local,near me
 ```
 
+Set C (Canadian focused):
+```
+kids Canada,children activities,Toronto camps,Vancouver swimming,Calgary sports,Ottawa classes,family
+```
+
 ---
 
 ## What's New (Version 1.2.1)
@@ -106,14 +130,34 @@ parenting,kids schedule,family calendar,children activities,after school,camps,c
 ```
 NEW IN THIS VERSION:
 
-- Distance-based filtering: Find activities near your location with customizable radius search (5-100km)
-- Location preferences: Save your home, work, and favorite locations for quick filtering
-- Improved activity recommendations powered by AI
-- Enhanced calendar with export functionality
-- Better performance and stability improvements
-- Bug fixes and UI improvements
+DISTANCE-BASED SEARCH
+- Find activities within your preferred radius (5km to 100km)
+- Save multiple locations: home, work, school, grandparents
+- Automatic sorting by distance from your chosen location
 
-We're constantly adding new cities and activities. Thank you for using Kids Activity Tracker!
+ENHANCED AI RECOMMENDATIONS
+- Natural language search: "Soccer for my 8-year-old on Saturdays"
+- Smarter suggestions based on your family's activity history
+- Personalized recommendations for each child
+
+IMPROVED CALENDAR
+- Beautiful new calendar design
+- One-tap export to Apple Calendar, Google, or Outlook
+- Monthly and weekly views
+
+EXPANDED COVERAGE
+- Now covering 73 cities across 8 provinces
+- Over 100,000 activities from recreation centers
+- Daily updates ensure fresh, accurate listings
+
+FAMILY SHARING IMPROVEMENTS
+- Easier invitation flow for co-parents
+- Better sync for shared child profiles
+- View shared favorites across family members
+
+Plus: Performance improvements, bug fixes, and UI polish throughout.
+
+Thank you for using Kids Activity Tracker!
 ```
 
 ---
@@ -121,7 +165,7 @@ We're constantly adding new cities and activities. Thank you for using Kids Acti
 ## Promotional Text (170 characters, can be updated without new submission)
 
 ```
-New! Distance-based search - Find activities within your preferred radius. Plus AI-powered recommendations to discover perfect activities for your kids!
+NEW: Distance-based search finds activities near you! AI-powered recommendations + 100,000 activities across 73 Canadian cities. Start discovering today!
 ```
 
 ---
@@ -156,46 +200,46 @@ https://website-4ev6yi22va-uc.a.run.app/privacy
 | iPhone 14 Plus (6.5") | 1284 x 2778 | Yes |
 | iPhone 8 Plus (5.5") | 1242 x 2208 | Optional |
 
-### Recommended Screenshots (5-8 images)
+### Recommended Screenshots (8 images)
 
 1. **Dashboard/Home**
-   - Caption: "Discover activities for your kids"
-   - Show: Activity cards with age badges, location, cost
+   - Caption: "Discover 100,000+ activities for your kids"
+   - Show: Activity cards with images, age badges, days, times, location
 
 2. **Search with Filters**
    - Caption: "Smart filters find the perfect match"
-   - Show: Filter panel with age, category, day, distance options
+   - Show: Filter panel expanded with age, category, distance, days, budget
 
 3. **Activity Detail**
    - Caption: "All the details in one place"
-   - Show: Full activity details with schedule, cost, registration button
+   - Show: Full activity details with schedule, cost, spots available, register button
 
-4. **Calendar View**
+4. **AI Recommendations**
+   - Caption: "AI finds activities your kids will love"
+   - Show: AI recommendation cards with explanations
+
+5. **Calendar View**
    - Caption: "Manage your family's schedule"
-   - Show: Calendar with activities marked, monthly view
+   - Show: Monthly calendar with activity dots, upcoming list
 
-5. **Child Profiles**
+6. **Child Profiles**
    - Caption: "Personalized for each child"
-   - Show: Child profile with interests and preferences
+   - Show: Child profile with name, age, interests, activity preferences
 
-6. **AI Recommendations**
-   - Caption: "AI-powered suggestions"
-   - Show: Recommendation cards based on preferences
+7. **Distance Filter**
+   - Caption: "Find activities near you"
+   - Show: Distance slider, saved locations, map preview
 
-7. **Favorites**
-   - Caption: "Save activities you love"
-   - Show: Favorites list with quick access
-
-8. **Premium Features**
-   - Caption: "Unlock premium features"
-   - Show: Premium comparison or upgrade screen
+8. **Family Sharing**
+   - Caption: "Share with co-parents & caregivers"
+   - Show: Shared children list, invitation screen
 
 ### Screenshot Tips
-- Use real activity data, not placeholder content
-- Add marketing text overlays highlighting key benefits
+- Use real activity data from Vancouver or Toronto (highest activity counts)
+- Add marketing text overlays with key benefits
 - Ensure text is readable at small sizes
 - Use consistent styling across all screenshots
-- Show the app at its best - popular categories, good data
+- Show diverse activities: swimming, sports, arts, camps
 
 ---
 
@@ -209,19 +253,29 @@ Provide Apple reviewer with test credentials:
 ### Review Notes
 
 ```
-Kids Activity Tracker helps parents find activities for their children from recreation centers across Canada.
+Kids Activity Tracker helps Canadian parents find activities for their children from recreation centers across 73 cities.
 
 KEY POINTS FOR REVIEWERS:
 
-1. CHILD PROFILES: The app allows parents to create profiles for their children. This is used solely for filtering activities by age appropriateness. The parent controls all data.
+1. CHILD PROFILES: Parents create profiles for their children with birthdate, interests, allergies, and special needs. This information is used solely for filtering age-appropriate activities and providing personalized recommendations. Parents control all data.
 
-2. SUBSCRIPTIONS: Premium features are managed through RevenueCat and follow all Apple guidelines. Free tier provides full functionality with some limitations.
+2. FAMILY SHARING: Parents can share child profiles with co-parents, grandparents, and caregivers via email invitation. Recipients can view schedules and favorites. This is designed for family coordination, not social networking.
 
-3. LOCATION: Location is used to show nearby activities. Users can manually enter locations if they decline location access.
+3. AI RECOMMENDATIONS: The app uses AI to parse natural language searches and provide personalized activity recommendations. No personal data is shared with external AI services - recommendations are generated by our backend.
 
-4. ACCOUNT DELETION: Full account deletion is available in Settings > Account > Delete Account. This removes all user data including child profiles.
+4. SUBSCRIPTIONS: Premium features (unlimited profiles, calendar export, alerts) are managed through RevenueCat following all Apple guidelines. Free tier is fully functional with limitations (2 children, 10 favorites).
 
-5. DATA SOURCES: Activity data is aggregated from public recreation center websites. We link to official registration pages.
+5. LOCATION: Location is used to show nearby activities and enable distance filtering. Users can manually enter locations if they decline location access. Saved locations (home, work, etc.) are stored locally.
+
+6. ACCOUNT DELETION: Full account deletion is available in Settings > Account > Delete Account. This permanently removes all user data including child profiles, favorites, and calendar data.
+
+7. DATA SOURCES: Activity data is aggregated from public recreation center websites across Canada. We link directly to official registration pages - we do not process registrations or payments.
+
+8. TESTING THE APP:
+   - Create a child profile to see personalized recommendations
+   - Use the AI search: "Swimming lessons for a 6 year old"
+   - Try distance filter: Set to 10km to see nearby activities
+   - Add activities to favorites and calendar
 
 If you have any questions, please contact: review@kidsactivitytracker.app
 ```
@@ -239,12 +293,30 @@ If you have any questions, please contact: review@kidsactivitytracker.app
 
 **Premium Monthly - $4.99/month**
 ```
-Unlock all premium features including unlimited child profiles, calendar export, instant availability alerts, and advanced filters. Cancel anytime.
+Unlock all premium features:
+• Unlimited child profiles (free: 2)
+• Unlimited saved favorites (free: 10)
+• Calendar export to iCal, Google, Outlook
+• Instant availability alerts
+• Advanced filtering options
+• Priority customer support
+
+Cancel anytime. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.
 ```
 
 **Premium Annual - $39.99/year**
 ```
-Get the best value with our annual plan! Includes all premium features: unlimited child profiles, calendar export, instant alerts, and advanced filters. Save 33% compared to monthly.
+Best value - Save 33%!
+
+Includes all premium features:
+• Unlimited child profiles (free: 2)
+• Unlimited saved favorites (free: 10)
+• Calendar export to iCal, Google, Outlook
+• Instant availability alerts
+• Advanced filtering options
+• Priority customer support
+
+That's just $3.33/month! Cancel anytime. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.
 ```
 
 ---
@@ -300,17 +372,53 @@ We do not use any data for tracking users across apps or websites.
 
 ---
 
+## Feature Highlights for Marketing
+
+### By the Numbers
+- 100,000+ activities
+- 73 cities across 8 provinces
+- 24 activity categories
+- Updated daily
+- 100% Canadian
+
+### Unique Value Propositions
+1. **Only Canadian-focused app** - Built specifically for Canadian families
+2. **AI-powered search** - Natural language queries understood
+3. **Family sharing** - Coordinate with co-parents seamlessly
+4. **Distance filtering** - Find activities near any saved location
+5. **Real-time availability** - Never miss registration deadlines
+
+### Target Audience
+- Parents of children ages 0-18
+- Grandparents and caregivers
+- Separated/divorced parents coordinating schedules
+- New families looking for activities
+- Busy families managing multiple children
+
+---
+
 ## Checklist Before Submission
 
-- [ ] Privacy policy hosted at public URL
-- [ ] Support email/URL configured
+- [x] Privacy policy hosted at public URL
+- [x] Support URL configured (FAQ page)
 - [ ] All screenshots uploaded (6.7" and 6.5" required)
-- [ ] App description proofread
-- [ ] Keywords optimized (100 char limit)
+- [x] App description proofread and updated
+- [x] Keywords optimized (100 char limit)
 - [ ] Age rating questionnaire completed
 - [ ] Privacy questionnaire completed
 - [ ] In-app purchases configured in App Store Connect
 - [ ] RevenueCat products match App Store Connect
 - [ ] Demo account created for reviewer
 - [ ] Build uploaded and processed
-- [ ] Version "What's New" text added
+- [x] Version "What's New" text added
+- [x] Build number incremented (now: 2)
+
+---
+
+## Quick Copy-Paste Reference
+
+**App Name:** Kids Activity Tracker
+**Subtitle:** Find Kids Activities Near You
+**Privacy URL:** https://website-4ev6yi22va-uc.a.run.app/privacy
+**Support URL:** https://website-4ev6yi22va-uc.a.run.app/faq
+**Keywords:** kids activities,children,camps,swimming lessons,sports,classes,family,parenting,schedule,calendar

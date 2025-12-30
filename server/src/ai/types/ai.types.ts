@@ -60,6 +60,7 @@ export interface FamilyPreferences {
   days_of_week?: string[];
   preferred_categories?: string[];
   excluded_categories?: string[];
+  locations?: string[]; // Preferred location/city names
 }
 
 /**
@@ -72,6 +73,7 @@ export interface FamilyContext {
     latitude?: number;
     longitude?: number;
     city?: string;
+    cities?: string[]; // Multiple preferred cities
   };
 }
 

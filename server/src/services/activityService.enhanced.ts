@@ -236,9 +236,15 @@ export class EnhancedActivityService {
     }
 
     // Age range filter
+    // Logic: Find activities that overlap with the requested age range
+    // - ageMin filter: Child must be old enough (activity.ageMin <= child's age)
+    // - ageMax filter: Child must be young enough (activity.ageMax >= child's age)
+    //                  AND activity must accept children this young (activity.ageMin <= ageMax)
     if (ageMin !== undefined || ageMax !== undefined) {
       const andConditions = [];
       if (ageMin !== undefined) {
+        // Activity must accept children at least as young as ageMin
+        // (activity.ageMin <= ageMin means a child of ageMin years is old enough)
         andConditions.push({
           OR: [
             { ageMin: { lte: ageMin } },
@@ -247,10 +253,20 @@ export class EnhancedActivityService {
         });
       }
       if (ageMax !== undefined) {
+        // Activity must accept children as old as ageMax
+        // (activity.ageMax >= ageMax means a child of ageMax years is young enough)
         andConditions.push({
           OR: [
             { ageMax: { gte: ageMax } },
             { ageMax: null }
+          ]
+        });
+        // ALSO: Activity's minimum age must be <= ageMax
+        // (if activity requires age 12+, it shouldn't appear when searching for kids up to 8)
+        andConditions.push({
+          OR: [
+            { ageMin: { lte: ageMax } },
+            { ageMin: null }
           ]
         });
       }
@@ -340,19 +356,17 @@ export class EnhancedActivityService {
     }
 
     // Location filter - use normalized location schema  
-    // IMPORTANT: Only apply location filters when:
-    // 1. User is explicitly searching by location (not activity type/subtype)
-    // 2. OR when getting personalized/recommended results
-    const isLocationBasedSearch = !isActivityTypeSearch && (locations || location);
+    // Apply location filter whenever location is specified (regardless of activity type)
+    const hasLocationFilter = !!(locations || location);
     
     console.log('📍 [ActivityService] Location filter check:', {
       isActivityTypeSearch,
       locations,
       location,
-      isLocationBasedSearch
+      hasLocationFilter
     });
     
-    if (isLocationBasedSearch && locations && locations.length > 0) {
+    if (hasLocationFilter && locations && locations.length > 0) {
       // Check if they are UUIDs (location IDs) or names
       const isLocationId = locations[0] && locations[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
       
@@ -380,7 +394,7 @@ export class EnhancedActivityService {
           where.OR = locationCondition.OR;
         }
       }
-    } else if (isLocationBasedSearch && location) {
+    } else if (hasLocationFilter && location) {
       // Single location by name (backward compatibility) - check both location and city names
       // IMPORTANT: If we already have an OR clause (from search), we need to AND the location filter
       const locationCondition: Prisma.ActivityWhereInput = {

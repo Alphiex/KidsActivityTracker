@@ -316,31 +316,41 @@ class DataNormalizer {
       return isNaN(dateStr.getTime()) ? null : dateStr;
     }
 
-    // Try different date formats
-    const formats = [
-      // ISO format
-      /^\d{4}-\d{2}-\d{2}$/,
-      // US format MM/DD/YYYY
-      /^\d{2}\/\d{2}\/\d{4}$/,
-      // US format MM/DD/YY
-      /^\d{2}\/\d{2}\/\d{2}$/,
-      // Month Day format (e.g., "Sep 15")
-      /^[A-Z][a-z]{2}\s+\d{1,2}$/
-    ];
-
     try {
-      // Handle MM/DD/YY format specifically
-      if (/^\d{2}\/\d{2}\/\d{2}$/.test(dateStr)) {
-        const [month, day, year] = dateStr.split('/');
-        return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
+      // Handle slash-separated date formats: MM/DD/YY, MM/DD/YYYY, DD/MM/YYYY
+      const slashMatch = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (slashMatch) {
+        const first = parseInt(slashMatch[1]);
+        const second = parseInt(slashMatch[2]);
+        let year = parseInt(slashMatch[3]);
+        if (year < 100) year += 2000; // Convert 25 to 2025
+
+        // If first number > 12, it must be DD/MM format (European)
+        if (first > 12) {
+          const day = first;
+          const month = second - 1;
+          return new Date(year, month, day);
+        }
+        // Otherwise assume MM/DD format (North American)
+        const month = first - 1;
+        const day = second;
+        return new Date(year, month, day);
       }
-      
+
+      // Handle ISO format YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+        const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+          return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+        }
+      }
+
       // Handle "Month Day" format by adding current year
       if (/^[A-Z][a-z]{2}\s+\d{1,2}$/.test(dateStr)) {
         const currentYear = new Date().getFullYear();
         return new Date(`${dateStr}, ${currentYear}`);
       }
-      
+
       // Try standard Date parsing
       const parsed = new Date(dateStr);
       return isNaN(parsed.getTime()) ? null : parsed;

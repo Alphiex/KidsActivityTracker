@@ -89,6 +89,7 @@ model Activity {
   favorites              Favorite[]
   vendor                 Vendor?                @relation("VendorActivities", fields: [vendorId], references: [id])
   importRows             ImportRow[]
+  validationResults      ValidationResult[]
 
   @@unique([providerId, externalId])
   @@index([vendorId])
@@ -1230,4 +1231,116 @@ model AdminNotification {
   @@index([type])
   @@index([severity])
   @@index([createdAt])
+}
+
+// ============================================
+// SCRAPER VALIDATION SYSTEM
+// ============================================
+
+// Validation status for individual results
+enum ValidationStatus {
+  PENDING       // Awaiting validation
+  PASSED        // All fields match source
+  FAILED        // Discrepancies found
+  NEEDS_REVIEW  // Requires human review
+  ERROR         // Error during validation (screenshot failed, etc.)
+  SKIPPED       // Skipped (source URL unavailable, etc.)
+}
+
+// A validation run covering multiple activities
+model ValidationRun {
+  id               String             @id @default(uuid())
+
+  // Scope - optional filters for the run
+  providerId       String?            // If null, validates across all providers
+  platform         String?            // Filter by platform (PerfectMind, ActiveNetwork, etc.)
+
+  // Status
+  status           String             @default("pending") // pending, running, completed, failed
+
+  // Counts
+  totalSampled     Int                @default(0)
+  totalValidated   Int                @default(0)
+  passCount        Int                @default(0)
+  failCount        Int                @default(0)
+  needsReviewCount Int                @default(0)
+  errorCount       Int                @default(0)
+
+  // Accuracy metrics
+  overallAccuracy  Float?             // passCount / totalValidated * 100
+  fieldAccuracy    Json?              // Per-field accuracy { name: 98, dates: 85, ... }
+
+  // Timing
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+
+  // Configuration
+  sampleSize       Int                @default(500)
+  samplingMethod   String             @default("proportional") // random, proportional, targeted
+
+  // Cost tracking (Claude API usage)
+  totalApiCost     Float              @default(0)
+
+  // Notes
+  notes            String?
+  triggeredBy      String?            // manual, scheduled, ci
+
+  results          ValidationResult[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([providerId])
+  @@index([platform])
+}
+
+// Individual activity validation result
+model ValidationResult {
+  id              String           @id @default(uuid())
+  validationRunId String
+  activityId      String
+  providerId      String
+
+  // Source information
+  sourceUrl       String?          // URL that was screenshotted
+  screenshotPath  String?          // Local file path to screenshot
+  screenshotUrl   String?          // Cloud storage URL if uploaded
+
+  // Data comparison
+  extractedData   Json?            // Data extracted from screenshot by Claude AI
+  parsedData      Json?            // Our parsed data from database
+  discrepancies   Json?            // List of field differences { field, expected, actual, severity }
+
+  // Validation outcome
+  status          ValidationStatus @default(PENDING)
+  confidenceScore Float?           // Claude's confidence in extraction (0-1)
+  matchScore      Float?           // Overall match percentage (0-100)
+
+  // Per-field results
+  fieldResults    Json?            // { field: { match: bool, expected, actual, severity } }
+
+  // Human review
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  isConfirmed     Boolean          @default(false) // Human confirmed the status
+
+  // Error tracking
+  errorMessage    String?
+  errorDetails    Json?
+
+  // API cost for this validation
+  apiCost         Float            @default(0)
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  run             ValidationRun    @relation(fields: [validationRunId], references: [id], onDelete: Cascade)
+  activity        Activity         @relation(fields: [activityId], references: [id])
+
+  @@unique([validationRunId, activityId])
+  @@index([validationRunId])
+  @@index([activityId])
+  @@index([status])
+  @@index([providerId])
 }

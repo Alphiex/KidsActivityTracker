@@ -49,10 +49,29 @@ export async function buildFamilyContext(
     // Parse user preferences (stored as JSON in preferences field)
     const prefs = parseUserPreferences(user.preferences);
 
+    // Build location from preferences
+    const rawPrefs = typeof user.preferences === 'string' 
+      ? JSON.parse(user.preferences) 
+      : user.preferences || {};
+    
+    const locationData = rawPrefs.locations && rawPrefs.locations.length > 0
+      ? { city: rawPrefs.locations[0], cities: rawPrefs.locations }
+      : rawPrefs.preferredLocation
+        ? { city: rawPrefs.preferredLocation }
+        : undefined;
+
+    console.log('[Context Builder] Built family context:', {
+      childCount: children.length,
+      childAges: children.map(c => c.age),
+      hasLocation: !!locationData,
+      locationCities: locationData?.cities || [],
+      preferredCategories: prefs.preferred_categories || []
+    });
+
     return {
       children,
       preferences: prefs,
-      location: undefined // Could be populated from user's saved locations
+      location: locationData
     };
   } catch (error) {
     console.error('[Context Builder] Error fetching family context:', error);
@@ -90,11 +109,13 @@ function parseUserPreferences(preferences: any): FamilyPreferences {
     : preferences;
 
   return {
-    budget_monthly: prefs.priceRange?.max,
+    budget_monthly: prefs.priceRange?.max || prefs.maxPrice,
     max_distance_km: prefs.maxDistance,
-    days_of_week: prefs.daysOfWeek,
-    preferred_categories: prefs.preferredActivityTypes || prefs.preferredCategories,
-    excluded_categories: prefs.excludedCategories
+    days_of_week: prefs.daysOfWeek || prefs.preferredDays,
+    preferred_categories: prefs.preferredActivityTypes || prefs.preferredCategories || prefs.activityTypes,
+    excluded_categories: prefs.excludedCategories,
+    // Include location preferences
+    locations: prefs.locations || (prefs.preferredLocation ? [prefs.preferredLocation] : undefined)
   };
 }
 

@@ -1,9 +1,10 @@
 /**
  * PaywallScreen - Premium subscription purchase screen
+ * Enhanced with better feature highlighting and visual appeal
  * Supports both RevenueCat UI Paywall and custom paywall
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,8 +14,11 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
@@ -30,28 +34,84 @@ import { revenueCatService, getPaywallResult, PaywallResultType } from '../servi
 import { analyticsService } from '../services/analyticsService';
 import { abTestService, PAYWALL_VARIANTS } from '../services/abTestService';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 type BillingCycle = 'monthly' | 'annual';
 
-interface FeatureItem {
-  name: string;
-  free: string | boolean;
-  premium: string | boolean;
+interface ProFeature {
   icon: string;
+  title: string;
+  description: string;
+  highlight?: boolean;
+  badge?: string;
 }
 
-const FEATURES: FeatureItem[] = [
-  { name: 'Child profiles', free: '2', premium: 'Unlimited', icon: 'account-child' },
-  { name: 'Favorite activities', free: '10', premium: 'Unlimited', icon: 'heart' },
-  { name: 'Family sharing', free: '1 person', premium: 'Unlimited', icon: 'account-group' },
-  { name: 'Advanced filters', free: false, premium: true, icon: 'filter-variant' },
-  { name: 'Calendar export', free: false, premium: true, icon: 'calendar-export' },
-  { name: 'Instant alerts', free: false, premium: true, icon: 'bell-ring' },
-  { name: 'Saved searches', free: false, premium: '10', icon: 'bookmark' },
-  { name: 'Hide closed/full', free: false, premium: true, icon: 'eye-off' },
+// Enhanced Pro features with better descriptions
+const PRO_FEATURES: ProFeature[] = [
+  {
+    icon: 'account-child-circle',
+    title: 'Unlimited Child Profiles',
+    description: 'Track activities for your entire family without limits',
+    highlight: true,
+    badge: 'POPULAR',
+  },
+  {
+    icon: 'heart-multiple',
+    title: 'Unlimited Favorites',
+    description: 'Save all your favorite activities and never miss an enrollment',
+  },
+  {
+    icon: 'account-group',
+    title: 'Family Sharing',
+    description: 'Share your account with grandparents, nannies, and caregivers',
+  },
+  {
+    icon: 'filter-variant-plus',
+    title: 'Advanced Filters',
+    description: 'Find the perfect activity with age, location, price & more',
+    highlight: true,
+  },
+  {
+    icon: 'calendar-export',
+    title: 'Calendar Export',
+    description: 'Sync activities to Google Calendar, Apple Calendar & more',
+  },
+  {
+    icon: 'bell-ring',
+    title: 'Instant Alerts',
+    description: 'Get notified when spots open or new activities match your criteria',
+    badge: 'NEW',
+  },
+  {
+    icon: 'content-save-all',
+    title: 'Saved Searches',
+    description: 'Save your search criteria and find activities faster',
+  },
+  {
+    icon: 'eye-off',
+    title: 'Hide Unavailable',
+    description: 'Automatically hide full or closed activities from results',
+  },
+  {
+    icon: 'star-circle',
+    title: 'Priority Support',
+    description: 'Get faster responses from our dedicated support team',
+  },
 ];
 
-// Configuration: Set to true to use RevenueCat's built-in paywall UI
-const USE_REVENUECAT_PAYWALL = true;
+// Quick comparison features
+const QUICK_COMPARE = [
+  { feature: 'Child profiles', free: '2', pro: 'Unlimited' },
+  { feature: 'Favorite activities', free: '10', pro: 'Unlimited' },
+  { feature: 'Family sharing', free: '1', pro: 'Unlimited' },
+  { feature: 'Saved searches', free: '-', pro: '10+' },
+  { feature: 'Calendar export', free: '-', pro: 'Yes' },
+  { feature: 'Advanced filters', free: '-', pro: 'Yes' },
+  { feature: 'Instant alerts', free: '-', pro: 'Yes' },
+];
+
+// Configuration: Set to false to use custom paywall instead of RevenueCat UI
+const USE_REVENUECAT_PAYWALL = false;
 
 interface PaywallScreenProps {
   route?: {
@@ -78,6 +138,11 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
   const [paywallOpenTime] = useState(Date.now());
   const [showingRevenueCatPaywall, setShowingRevenueCatPaywall] = useState(false);
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
   // Check if we should use RevenueCat UI paywall
   const useRevenueCatUI = route?.params?.useRevenueCatUI ?? USE_REVENUECAT_PAYWALL;
 
@@ -93,6 +158,41 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
   const trialCtaText = PAYWALL_VARIANTS.trial_cta[
     trialCtaVariant as keyof typeof PAYWALL_VARIANTS.trial_cta
   ] || PAYWALL_VARIANTS.trial_cta.control;
+
+  // Start animations on mount
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Pulse animation for CTA button
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseAnimation.start();
+
+    return () => pulseAnimation.stop();
+  }, []);
 
   // If using RevenueCat UI, present it immediately
   useEffect(() => {
@@ -311,23 +411,51 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
     : '$4.17';
   const savingsPercent = Math.round((1 - (4.17 / 5.99)) * 100);
 
-  const renderFeatureValue = (value: string | boolean, isPremium: boolean) => {
-    if (typeof value === 'boolean') {
-      return value ? (
-        <Icon name="check-circle" size={20} color={colors.success} />
-      ) : (
-        <Icon name="close-circle" size={20} color={colors.textSecondary} />
-      );
-    }
-    return (
-      <Text style={[
-        styles.featureValue,
-        { color: isPremium ? colors.primary : colors.text }
-      ]}>
-        {value}
-      </Text>
-    );
-  };
+  // Render feature item
+  const renderFeatureItem = (feature: ProFeature, index: number) => (
+    <Animated.View
+      key={feature.title}
+      style={[
+        styles.featureItem,
+        feature.highlight && styles.featureItemHighlight,
+        {
+          opacity: fadeAnim,
+          transform: [
+            {
+              translateY: slideAnim.interpolate({
+                inputRange: [0, 50],
+                outputRange: [0, 50 + index * 10],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
+      <View style={[styles.featureIconContainer, feature.highlight && styles.featureIconHighlight]}>
+        <Icon
+          name={feature.icon}
+          size={24}
+          color={feature.highlight ? '#FF385C' : colors.primary}
+        />
+      </View>
+      <View style={styles.featureContent}>
+        <View style={styles.featureTitleRow}>
+          <Text style={[styles.featureTitle, { color: colors.text }]}>
+            {feature.title}
+          </Text>
+          {feature.badge && (
+            <View style={[styles.featureBadge, feature.badge === 'NEW' && styles.featureBadgeNew]}>
+              <Text style={styles.featureBadgeText}>{feature.badge}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>
+          {feature.description}
+        </Text>
+      </View>
+      <Icon name="check-circle" size={20} color={colors.success} />
+    </Animated.View>
+  );
 
   if (currentTier === 'premium' && !isTrialing) {
     return (
@@ -338,18 +466,28 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
           </TouchableOpacity>
         </View>
         <View style={styles.alreadyPremiumContainer}>
-          <Icon name="crown" size={64} color={colors.warning} />
+          <LinearGradient
+            colors={['#FF385C', '#FF6B6B']}
+            style={styles.premiumIconGradient}
+          >
+            <Icon name="crown" size={48} color="#FFFFFF" />
+          </LinearGradient>
           <Text style={[styles.alreadyPremiumTitle, { color: colors.text }]}>
             You're Already Pro!
           </Text>
           <Text style={[styles.alreadyPremiumText, { color: colors.textSecondary }]}>
-            You have full access to all features.
+            You have full access to all premium features.
           </Text>
           <TouchableOpacity
-            style={[styles.doneButton, { backgroundColor: colors.primary }]}
+            style={styles.doneButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.doneButtonText}>Done</Text>
+            <LinearGradient
+              colors={['#FF385C', '#FF6B6B']}
+              style={styles.doneButtonGradient}
+            >
+              <Text style={styles.doneButtonText}>Continue</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -369,112 +507,142 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <Icon name="crown" size={48} color={colors.warning} />
-          <Text style={[styles.title, { color: colors.text }]}>
-            {headlineContent.title}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {headlineContent.subtitle}
-          </Text>
-        </View>
-
-        {/* Billing Toggle */}
-        <View style={[styles.billingToggle, { backgroundColor: colors.surfaceVariant }]}>
-          <TouchableOpacity
-            style={[
-              styles.billingOption,
-              billingCycle === 'monthly' && { backgroundColor: colors.surface },
-            ]}
-            onPress={() => handleBillingCycleChange('monthly')}
-          >
-            <Text style={[
-              styles.billingOptionText,
-              { color: billingCycle === 'monthly' ? colors.primary : colors.textSecondary }
-            ]}>
-              Monthly
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.billingOption,
-              billingCycle === 'annual' && { backgroundColor: colors.surface },
-            ]}
-            onPress={() => handleBillingCycleChange('annual')}
-          >
-            <Text style={[
-              styles.billingOptionText,
-              { color: billingCycle === 'annual' ? colors.primary : colors.textSecondary }
-            ]}>
-              Annual
-            </Text>
-            <View style={[styles.savingsBadge, { backgroundColor: colors.success }]}>
-              <Text style={styles.savingsBadgeText}>Save {savingsPercent}%</Text>
+        {/* Hero Section with Gradient */}
+        <LinearGradient
+          colors={isDark ? ['#1a1a2e', '#16213e'] : ['#FFF5F7', '#FFFFFF']}
+          style={styles.heroGradient}
+        >
+          <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
+            <View style={styles.crownContainer}>
+              <LinearGradient
+                colors={['#FF385C', '#FF6B6B']}
+                style={styles.crownGradient}
+              >
+                <Icon name="crown" size={36} color="#FFFFFF" />
+              </LinearGradient>
             </View>
-          </TouchableOpacity>
-        </View>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Upgrade to Pro
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Unlock the full potential of KidsActivityTracker
+            </Text>
+          </Animated.View>
 
-        {/* Price Display */}
-        <View style={[styles.priceCard, { backgroundColor: colors.surface }]}>
-          {billingCycle === 'annual' ? (
-            <>
-              <Text style={[styles.priceAmount, { color: colors.text }]}>{annualPrice}</Text>
-              <Text style={[styles.pricePeriod, { color: colors.textSecondary }]}>per year</Text>
-              <Text style={[styles.priceEquivalent, { color: colors.primary }]}>
-                Just {annualMonthlyEquivalent}/month
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={[styles.priceAmount, { color: colors.text }]}>{monthlyPrice}</Text>
-              <Text style={[styles.pricePeriod, { color: colors.textSecondary }]}>per month</Text>
-            </>
-          )}
-        </View>
-
-        {/* Features Comparison */}
-        <View style={[styles.featuresCard, { backgroundColor: colors.surface }]}>
-          <View style={styles.featuresHeader}>
-            <Text style={[styles.featuresHeaderText, { color: colors.textSecondary }]}>Feature</Text>
-            <Text style={[styles.featuresHeaderText, { color: colors.textSecondary }]}>Free</Text>
-            <Text style={[styles.featuresHeaderText, { color: colors.primary }]}>Pro</Text>
-          </View>
-
-          {FEATURES.map((feature, index) => (
-            <View
-              key={feature.name}
+          {/* Billing Toggle */}
+          <View style={[styles.billingToggle, { backgroundColor: isDark ? '#2a2a3e' : '#F0F0F0' }]}>
+            <TouchableOpacity
               style={[
-                styles.featureRow,
-                index < FEATURES.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }
+                styles.billingOption,
+                billingCycle === 'monthly' && styles.billingOptionActive,
               ]}
+              onPress={() => handleBillingCycleChange('monthly')}
             >
-              <View style={styles.featureNameContainer}>
-                <Icon name={feature.icon} size={18} color={colors.textSecondary} />
-                <Text style={[styles.featureName, { color: colors.text }]}>{feature.name}</Text>
+              <Text style={[
+                styles.billingOptionText,
+                { color: billingCycle === 'monthly' ? '#FF385C' : colors.textSecondary }
+              ]}>
+                Monthly
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.billingOption,
+                billingCycle === 'annual' && styles.billingOptionActive,
+              ]}
+              onPress={() => handleBillingCycleChange('annual')}
+            >
+              <Text style={[
+                styles.billingOptionText,
+                { color: billingCycle === 'annual' ? '#FF385C' : colors.textSecondary }
+              ]}>
+                Annual
+              </Text>
+              <View style={styles.savingsBadge}>
+                <Text style={styles.savingsBadgeText}>SAVE {savingsPercent}%</Text>
               </View>
-              <View style={styles.featureValueContainer}>
-                {renderFeatureValue(feature.free, false)}
-              </View>
-              <View style={styles.featureValueContainer}>
-                {renderFeatureValue(feature.premium, true)}
-              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Price Display */}
+          <View style={styles.priceContainer}>
+            {billingCycle === 'annual' ? (
+              <>
+                <Text style={[styles.priceAmount, { color: colors.text }]}>{annualPrice}</Text>
+                <Text style={[styles.pricePeriod, { color: colors.textSecondary }]}>/year</Text>
+                <View style={styles.priceEquivalentContainer}>
+                  <Text style={[styles.priceEquivalent, { color: '#FF385C' }]}>
+                    Just {annualMonthlyEquivalent}/month
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.priceAmount, { color: colors.text }]}>{monthlyPrice}</Text>
+                <Text style={[styles.pricePeriod, { color: colors.textSecondary }]}>/month</Text>
+              </>
+            )}
+          </View>
+        </LinearGradient>
+
+        {/* Quick Compare Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            What You Get with Pro
+          </Text>
+          <View style={[styles.compareCard, { backgroundColor: isDark ? '#1a1a2e' : '#F8F9FA' }]}>
+            <View style={styles.compareHeader}>
+              <Text style={[styles.compareHeaderText, { color: colors.textSecondary }]}>Feature</Text>
+              <Text style={[styles.compareHeaderText, { color: colors.textSecondary }]}>Free</Text>
+              <Text style={[styles.compareHeaderTextPro]}>Pro</Text>
             </View>
-          ))}
+            {QUICK_COMPARE.map((item, index) => (
+              <View
+                key={item.feature}
+                style={[
+                  styles.compareRow,
+                  index < QUICK_COMPARE.length - 1 && styles.compareRowBorder,
+                ]}
+              >
+                <Text style={[styles.compareFeature, { color: colors.text }]}>{item.feature}</Text>
+                <Text style={[styles.compareFree, { color: colors.textSecondary }]}>{item.free}</Text>
+                <Text style={styles.comparePro}>{item.pro}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        {/* Trial Banner */}
-        {!isTrialing && (
-          <View style={[styles.trialBanner, { backgroundColor: colors.info + '20' }]}>
-            <Icon name="gift" size={24} color={colors.info} />
-            <View style={styles.trialTextContainer}>
-              <Text style={[styles.trialTitle, { color: colors.text }]}>7-Day Free Trial</Text>
-              <Text style={[styles.trialSubtitle, { color: colors.textSecondary }]}>
-                Try all Pro features risk-free
-              </Text>
-            </View>
+        {/* Pro Features Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Pro Features
+          </Text>
+          <View style={styles.featuresContainer}>
+            {PRO_FEATURES.map((feature, index) => renderFeatureItem(feature, index))}
           </View>
-        )}
+        </View>
+
+        {/* Testimonial/Trust Section */}
+        <View style={styles.trustSection}>
+          <View style={styles.trustItem}>
+            <Icon name="shield-check" size={24} color={colors.success} />
+            <Text style={[styles.trustText, { color: colors.textSecondary }]}>
+              Cancel anytime
+            </Text>
+          </View>
+          <View style={styles.trustItem}>
+            <Icon name="lock" size={24} color={colors.success} />
+            <Text style={[styles.trustText, { color: colors.textSecondary }]}>
+              Secure payments
+            </Text>
+          </View>
+          <View style={styles.trustItem}>
+            <Icon name="refresh" size={24} color={colors.success} />
+            <Text style={[styles.trustText, { color: colors.textSecondary }]}>
+              7-day free trial
+            </Text>
+          </View>
+        </View>
 
         {/* Legal Links */}
         <View style={styles.legalContainer}>
@@ -488,33 +656,47 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
         </View>
       </ScrollView>
 
-      {/* Bottom CTA */}
+      {/* Sticky Bottom CTA */}
       <View style={[styles.bottomContainer, { backgroundColor: colors.background }]}>
         {isLoadingOfferings ? (
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#FF385C" />
         ) : (
           <>
-            <TouchableOpacity
-              style={[styles.subscribeButton, { backgroundColor: colors.primary }]}
-              onPress={handlePurchase}
-              disabled={isPurchasing}
-            >
-              {isPurchasing ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.subscribeButtonText}>
-                  {billingCycle === 'annual' ? `Subscribe for ${annualPrice}/year` : `Subscribe for ${monthlyPrice}/month`}
-                </Text>
-              )}
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <TouchableOpacity
+                onPress={handlePurchase}
+                disabled={isPurchasing}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#FF385C', '#FF6B6B']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.subscribeButton}
+                >
+                  {isPurchasing ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Icon name="crown" size={20} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={styles.subscribeButtonText}>
+                        {billingCycle === 'annual'
+                          ? `Start Pro - ${annualPrice}/year`
+                          : `Start Pro - ${monthlyPrice}/month`}
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
 
             {!isTrialing && (
               <TouchableOpacity
-                style={[styles.trialButton, { borderColor: colors.primary }]}
+                style={styles.trialButton}
                 onPress={handleStartTrial}
                 disabled={isPurchasing}
               >
-                <Text style={[styles.trialButtonText, { color: colors.primary }]}>
+                <Text style={styles.trialButtonText}>
                   {trialCtaText}
                 </Text>
               </TouchableOpacity>
@@ -566,130 +748,237 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  heroGradient: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  crownContainer: {
+    marginBottom: 16,
+  },
+  crownGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 12,
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    marginTop: 8,
     textAlign: 'center',
   },
   billingToggle: {
     flexDirection: 'row',
     padding: 4,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 20,
   },
   billingOption: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
+  },
+  billingOptionActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   billingOptionText: {
     fontSize: 16,
     fontWeight: '600',
   },
   savingsBadge: {
+    backgroundColor: '#00C853',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 10,
     marginLeft: 8,
   },
   savingsBadgeText: {
     color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  priceCard: {
-    alignItems: 'center',
-    padding: 24,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  priceAmount: {
-    fontSize: 40,
+    fontSize: 10,
     fontWeight: '700',
   },
+  priceContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  priceAmount: {
+    fontSize: 48,
+    fontWeight: '800',
+  },
   pricePeriod: {
-    fontSize: 16,
+    fontSize: 18,
+    marginLeft: 4,
+    marginTop: 16,
+  },
+  priceEquivalentContainer: {
+    width: '100%',
+    alignItems: 'center',
     marginTop: 4,
   },
   priceEquivalent: {
     fontSize: 14,
     fontWeight: '600',
-    marginTop: 8,
   },
-  featuresCard: {
+  sectionContainer: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  compareCard: {
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    overflow: 'hidden',
   },
-  featuresHeader: {
+  compareHeader: {
     flexDirection: 'row',
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
     marginBottom: 8,
   },
-  featuresHeaderText: {
+  compareHeaderText: {
+    flex: 1,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
-    flex: 1,
-    textAlign: 'center',
   },
-  featureRow: {
+  compareHeaderTextPro: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    color: '#FF385C',
+    textAlign: 'right',
+  },
+  compareRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
   },
-  featureNameContainer: {
-    flex: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
+  compareRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  featureName: {
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  featureValueContainer: {
+  compareFeature: {
     flex: 1,
-    alignItems: 'center',
-  },
-  featureValue: {
     fontSize: 14,
-    fontWeight: '500',
   },
-  trialBanner: {
+  compareFree: {
+    flex: 1,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  comparePro: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF385C',
+    textAlign: 'right',
+  },
+  featuresContainer: {
+    gap: 12,
+  },
+  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
-  trialTextContainer: {
-    marginLeft: 12,
+  featureItemHighlight: {
+    backgroundColor: 'rgba(255,56,92,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,56,92,0.2)',
   },
-  trialTitle: {
+  featureIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,56,92,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  featureIconHighlight: {
+    backgroundColor: 'rgba(255,56,92,0.2)',
+  },
+  featureContent: {
+    flex: 1,
+  },
+  featureTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  featureTitle: {
     fontSize: 16,
     fontWeight: '600',
   },
-  trialSubtitle: {
+  featureBadge: {
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  featureBadgeNew: {
+    backgroundColor: '#00C853',
+  },
+  featureBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  featureDescription: {
     fontSize: 14,
-    marginTop: 2,
+    lineHeight: 20,
+  },
+  trustSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    gap: 24,
+  },
+  trustItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  trustText: {
+    fontSize: 12,
+    textAlign: 'center',
   },
   legalContainer: {
     flexDirection: 'row',
@@ -707,27 +996,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
   subscribeButton: {
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   subscribeButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   trialButton: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 2,
     marginTop: 12,
+    borderWidth: 2,
+    borderColor: '#FF385C',
   },
   trialButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FF385C',
   },
   restoreButton: {
     paddingVertical: 12,
@@ -743,26 +1043,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  premiumIconGradient: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   alreadyPremiumTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    marginTop: 20,
+    marginBottom: 8,
   },
   alreadyPremiumText: {
     fontSize: 16,
-    marginTop: 8,
     textAlign: 'center',
+    marginBottom: 32,
   },
   doneButton: {
-    paddingVertical: 14,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  doneButtonGradient: {
+    paddingVertical: 16,
     paddingHorizontal: 48,
-    borderRadius: 12,
-    marginTop: 32,
+    alignItems: 'center',
   },
   doneButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
 

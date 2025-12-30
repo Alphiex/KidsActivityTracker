@@ -81,10 +81,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
-    // CRITICAL FIX: Don't pass location parameters when doing activity type searches
-    // This prevents location filters from interfering with activity type results
+    // Log activity type search detection for debugging
     const isActivityTypeSearch = !!(activityType || activitySubtype || categories);
-    console.error('🔧 [ROUTE LEVEL FIX] Activity Type Search Detected:', isActivityTypeSearch);
+    console.log('📍 [ROUTE] Activity Type Search:', isActivityTypeSearch, '| Has location:', !!(location || locations));
     
     // Map parameters, supporting both naming conventions
     const params = {
@@ -111,9 +110,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       dayOfWeek: dayOfWeek ? (Array.isArray(dayOfWeek) ? dayOfWeek : [dayOfWeek]) as string[] :
                  day_of_week ? (Array.isArray(day_of_week) ? day_of_week : [day_of_week]) as string[] :
                  days_of_week ? (Array.isArray(days_of_week) ? days_of_week : (days_of_week as string).split(',')) as string[] : undefined,
-      // CRITICAL FIX: Only pass location parameters if NOT doing activity type search
-      location: isActivityTypeSearch ? undefined : location as string,
-      locations: isActivityTypeSearch ? undefined : locations ? (
+      // Always pass location parameters - AND logic with activity type is now supported
+      location: location as string,
+      locations: locations ? (
         Array.isArray(locations) 
           ? locations 
           : typeof locations === 'string' && locations.includes(',')

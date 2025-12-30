@@ -914,14 +914,18 @@ class PerfectMindScraper extends BaseScraper {
             totalSpots = parseInt(spotsMatch[2]);
           }
 
-          if (/waitlist/i.test(rawText)) {
+          // IMPORTANT: Check "closed" and "cancelled" BEFORE "register" because
+          // "Registration is closed" contains "register"
+          if (/registration\s+(is\s+)?closed|cancelled|canceled/i.test(rawText)) {
+            registrationStatus = 'Closed';
+          } else if (/waitlist/i.test(rawText)) {
             registrationStatus = 'Waitlist';
           } else if (/\bfull\b/i.test(rawText) || spotsAvailable === 0) {
             registrationStatus = 'Full';
+          } else if (/\bclosed\b|\bended\b/i.test(rawText)) {
+            registrationStatus = 'Closed';
           } else if (/register|available|sign up|enroll/i.test(rawText)) {
             registrationStatus = 'Open';
-          } else if (/closed|ended|cancelled/i.test(rawText)) {
-            registrationStatus = 'Closed';
           }
 
           // Extract time - comprehensive patterns
@@ -1168,6 +1172,31 @@ class PerfectMindScraper extends BaseScraper {
           if (!val) return null;
           if (val instanceof Date) return val;
           try {
+            // Handle date formats: MM/DD/YY, MM/DD/YYYY, DD/MM/YYYY
+            const slashMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+            if (slashMatch) {
+              const first = parseInt(slashMatch[1]);
+              const second = parseInt(slashMatch[2]);
+              let year = parseInt(slashMatch[3]);
+              if (year < 100) year += 2000; // Convert 25 to 2025
+
+              // If first number > 12, it must be DD/MM format (European)
+              if (first > 12) {
+                const day = first;
+                const month = second - 1;
+                return new Date(year, month, day);
+              }
+              // Otherwise assume MM/DD format (North American)
+              const month = first - 1;
+              const day = second;
+              return new Date(year, month, day);
+            }
+            // Handle ISO format YYYY-MM-DD
+            const isoMatch = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) {
+              return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+            }
+            // Fallback to standard Date parsing
             const date = new Date(val);
             return isNaN(date.getTime()) ? null : date;
           } catch (e) {
@@ -1181,6 +1210,31 @@ class PerfectMindScraper extends BaseScraper {
           if (!val) return null;
           if (val instanceof Date) return val;
           try {
+            // Handle date formats: MM/DD/YY, MM/DD/YYYY, DD/MM/YYYY
+            const slashMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+            if (slashMatch) {
+              const first = parseInt(slashMatch[1]);
+              const second = parseInt(slashMatch[2]);
+              let year = parseInt(slashMatch[3]);
+              if (year < 100) year += 2000; // Convert 25 to 2025
+
+              // If first number > 12, it must be DD/MM format (European)
+              if (first > 12) {
+                const day = first;
+                const month = second - 1;
+                return new Date(year, month, day);
+              }
+              // Otherwise assume MM/DD format (North American)
+              const month = first - 1;
+              const day = second;
+              return new Date(year, month, day);
+            }
+            // Handle ISO format YYYY-MM-DD
+            const isoMatch = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) {
+              return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+            }
+            // Fallback to standard Date parsing
             const date = new Date(val);
             return isNaN(date.getTime()) ? null : date;
           } catch (e) {
@@ -1577,15 +1631,21 @@ class PerfectMindScraper extends BaseScraper {
                 }
 
                 // Determine status from visible text
+                // IMPORTANT: Check "closed" and "cancelled" BEFORE "register" because
+                // "Registration is closed" contains "register"
                 const statusText = pageText.toLowerCase();
-                if (statusText.includes('full') && !statusText.includes('not full')) {
+                if (statusText.includes('registration is closed') || statusText.includes('registration closed')) {
+                  data.registrationStatus = 'Closed';
+                } else if (statusText.includes('cancelled') || statusText.includes('canceled')) {
+                  data.registrationStatus = 'Closed';
+                } else if (statusText.includes('full') && !statusText.includes('not full')) {
                   data.registrationStatus = 'Full';
                 } else if (statusText.includes('waitlist')) {
                   data.registrationStatus = 'Waitlist';
-                } else if (statusText.includes('register') || statusText.includes('available')) {
-                  data.registrationStatus = 'Open';
                 } else if (statusText.includes('closed')) {
                   data.registrationStatus = 'Closed';
+                } else if (statusText.includes('register') || statusText.includes('available') || statusText.includes('sign up')) {
+                  data.registrationStatus = 'Open';
                 }
 
                 return data;

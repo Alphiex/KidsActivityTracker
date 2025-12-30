@@ -1,0 +1,77 @@
+{
+  "id": "st-albert-rec",
+  "name": "City of St. Albert Recreation",
+  "code": "st-albert",
+  "platform": "intelligenz",
+  "region": "Edmonton Metropolitan",
+  "city": "St. Albert",
+  "province": "Alberta",
+  "baseUrl": "https://activity.stalbert.ca",
+  "websiteUrl": "https://stalbert.ca/recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "pathPrefix": "/COSA",
+    "entryPoints": [
+      "/COSA/public/category/browse/A",
+      "/COSA/public/category/browse/R",
+      "/COSA/public/category/browse/ACP",
+      "/COSA/public/category/browse/CAMP",
+      "/COSA/public/category/browse/RU?dosearch=true",
+      "/COSA/public/category/browse/RC?dosearch=true",
+      "/COSA/public/category/browse/RYA?dosearch=true",
+      "/COSA/public/category/browse/RS?dosearch=true",
+      "/COSA/public/category/browse/RDC2?dosearch=true",
+      "/COSA/public/category/browse/SUMCAMP2?dosearch=true"
+    ],
+    "kidsCategories": [
+      {"code": "A", "name": "Aquatics Programs", "ageMin": 0, "ageMax": 18},
+      {"code": "R", "name": "Recreation Programs", "ageMin": 0, "ageMax": 18},
+      {"code": "ACP", "name": "Performing Arts Programs", "ageMin": 0, "ageMax": 18},
+      {"code": "CAMP", "name": "Camps", "ageMin": 4, "ageMax": 17},
+      {"code": "RU", "name": "Preschool 0-6yr", "ageMin": 0, "ageMax": 6},
+      {"code": "RC", "name": "Children's 6-12yr", "ageMin": 6, "ageMax": 12},
+      {"code": "RYA", "name": "Youth 13-17yr", "ageMin": 13, "ageMax": 17},
+      {"code": "RS", "name": "Learn to Skate & Hockey", "ageMin": 3, "ageMax": 18},
+      {"code": "RDC2", "name": "School Break Camps", "ageMin": 4, "ageMax": 14},
+      {"code": "SUMCAMP2", "name": "Recreation Summer Camps", "ageMin": 4, "ageMax": 14}
+    ],
+    "dynamicDiscovery": true,
+    "maxDepth": 3,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 3,
+    "fetchDetailPages": true,
+    "cardSelector": ".card",
+    "activitySelectors": {
+      "title": "h2, h3, .card-title",
+      "id": ".badge:contains('ID')",
+      "price": ".badge:contains('Price')",
+      "spaces": ".badge:contains('Spaces')",
+      "dateFrom": ".badge:contains('From')",
+      "dateTo": ".badge:contains('To')",
+      "scheduleTable": "table"
+    }
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["07:00", "19:00"],
+    "timezone": "America/Edmonton"
+  },
+  "metadata": {
+    "population": 68236,
+    "expectedActivities": 500,
+    "notes": "Second largest city in Edmonton Metropolitan Region. Uses Intelligenz platform at activity.stalbert.ca. Major facility is Servus Place with aquatics, fitness, recreation programs."
+  }
+}

@@ -68,22 +68,38 @@ export class AIOrchestrator {
         return this.getHeuristicRecommendations(request, startTime);
       }
 
-      // 4. Pre-filter candidates in DB (no LLM cost)
+      // 4. Build family context FIRST to get user preferences
+      const familyContext = request.family_context ||
+        await this.buildFamilyContextForRequest(request);
+
+      // 5. Merge user preferences into filters for candidate search
+      const mergedFilters = this.mergePreferencesIntoFilters(request.filters, familyContext);
+      
+      console.log('[AI Orchestrator] Merged filters:', {
+        originalFilters: request.filters,
+        hasLocation: !!mergedFilters.location || !!mergedFilters.locations,
+        location: mergedFilters.location,
+        ageMin: mergedFilters.ageMin,
+        ageMax: mergedFilters.ageMax,
+        categories: mergedFilters.categories
+      });
+
+      // 6. Pre-filter candidates in DB (no LLM cost)
       const candidates = await this.activityService.searchActivities({
-        ...request.filters,
+        ...mergedFilters,
         limit: 100, // Get more than we need for ranking
         hideClosedOrFull: true
       });
 
       console.log(`[AI Orchestrator] Found ${candidates.activities?.length || 0} candidates`);
 
-      // 5. If simple query with few results, skip LLM
+      // 7. If simple query with few results, skip LLM
       if (this.isSimpleQuery(request) && (candidates.activities?.length || 0) < 20) {
         console.log('[AI Orchestrator] Simple query with few results, using heuristic');
-        return this.getHeuristicRecommendations(request, startTime, candidates.activities);
+        return this.getHeuristicRecommendations(request, startTime, candidates.activities, familyContext);
       }
 
-      // 6. Compress context for LLM
+      // 8. Compress context for LLM
       const compressed = compressActivities(
         candidates.activities || [],
         parseInt(process.env.AI_MAX_CANDIDATES || '30')
@@ -92,16 +108,12 @@ export class AIOrchestrator {
       if (compressed.length === 0) {
         return {
           recommendations: [],
-          assumptions: ['No activities found matching your criteria'],
+          assumptions: ['No activities found matching your criteria. Check your location preferences.'],
           questions: [],
           source: 'heuristic',
           latency_ms: Date.now() - startTime
         };
       }
-
-      // 7. Build family context
-      const familyContext = request.family_context ||
-        await this.buildFamilyContextForRequest(request);
 
       // 8. Select model tier
       const modelSelection = selectModel(request);
@@ -176,13 +188,70 @@ export class AIOrchestrator {
     // If user is logged in, fetch their family context
     if (request.user_id) {
       const context = await buildFamilyContext(request.user_id, this.prisma);
-      if (context.children.length > 0) {
+      if (context.children.length > 0 || context.location || context.preferences.preferred_categories?.length) {
         return context;
       }
     }
     
     // Otherwise, build from filters
     return buildContextFromFilters(request.filters);
+  }
+
+  /**
+   * Merge user preferences from family context into search filters
+   * User preferences are used as defaults, but explicit filters take priority
+   */
+  private mergePreferencesIntoFilters(
+    filters: any,
+    familyContext: FamilyContext
+  ): any {
+    const merged = { ...filters };
+    const prefs = familyContext.preferences;
+    const children = familyContext.children;
+
+    // Location: Use family context location if no filter specified
+    if (!merged.location && !merged.locations) {
+      if (familyContext.location?.cities && familyContext.location.cities.length > 0) {
+        merged.locations = familyContext.location.cities;
+        console.log('[AI Orchestrator] Applied user location preferences:', merged.locations);
+      } else if (familyContext.location?.city) {
+        merged.location = familyContext.location.city;
+        console.log('[AI Orchestrator] Applied user location preference:', merged.location);
+      }
+    }
+
+    // Age: Calculate from children if no age filter specified
+    if (merged.ageMin === undefined && merged.ageMax === undefined && children.length > 0) {
+      const ages = children.map(c => c.age);
+      const minAge = Math.min(...ages);
+      const maxAge = Math.max(...ages);
+      // Expand range slightly to include appropriate activities
+      merged.ageMin = Math.max(0, minAge - 1);
+      merged.ageMax = Math.min(18, maxAge + 1);
+      console.log('[AI Orchestrator] Applied child age range:', { ageMin: merged.ageMin, ageMax: merged.ageMax, children: ages });
+    }
+
+    // Activity types: Use preferences if no category filter specified
+    if (!merged.categories && !merged.activityType && prefs.preferred_categories?.length) {
+      // Don't restrict to categories - just use them for ranking in LLM
+      // This allows discovery of new activity types
+      console.log('[AI Orchestrator] User preferred categories (for ranking):', prefs.preferred_categories);
+    }
+
+    // Days of week: Use preferences if no filter specified
+    if (!merged.dayOfWeek && prefs.days_of_week?.length) {
+      merged.dayOfWeek = prefs.days_of_week;
+      console.log('[AI Orchestrator] Applied preferred days:', merged.dayOfWeek);
+    }
+
+    // Budget: Use preferences if no cost filter specified  
+    if (merged.costMax === undefined && prefs.budget_monthly) {
+      // Convert monthly budget to per-activity estimate (assume ~4 activities/month)
+      merged.costMax = Math.round(prefs.budget_monthly / 4);
+      console.log('[AI Orchestrator] Applied budget preference:', merged.costMax);
+    }
+
+    return merged;
   }
 
   /**
@@ -199,12 +268,17 @@ export class AIOrchestrator {
   private async getHeuristicRecommendations(
     request: AIRecommendationRequest,
     startTime: number,
-    activities?: any[]
+    activities?: any[],
+    familyContext?: FamilyContext
   ): Promise<AIResponseWithMeta> {
     // Fetch activities if not provided
     if (!activities) {
+      // Build family context if not provided
+      const context = familyContext || await this.buildFamilyContextForRequest(request);
+      const mergedFilters = this.mergePreferencesIntoFilters(request.filters, context);
+      
       const result = await this.activityService.searchActivities({
-        ...request.filters,
+        ...mergedFilters,
         limit: 30,
         hideClosedOrFull: true
       });

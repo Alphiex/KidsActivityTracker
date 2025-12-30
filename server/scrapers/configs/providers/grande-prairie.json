@@ -1,0 +1,66 @@
+{
+  "id": "grande-prairie-rec",
+  "name": "City of Grande Prairie Recreation",
+  "code": "grande-prairie",
+  "platform": "perfectmind",
+  "region": "Northern Alberta",
+  "city": "Grande Prairie",
+  "province": "Alberta",
+  "baseUrl": "https://cityofgrandeprairie.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/24683/Clients/BookMe4?widgetId=12a738c9-3caf-4e13-845c-a35be71a1061"
+    ],
+    "widgetId": "12a738c9-3caf-4e13-845c-a35be71a1061",
+    "sections": [
+      "Parent and Tot",
+      "Preschool Levels",
+      "Rookie, Ranger, Star",
+      "Swimmer Levels",
+      "Swim Assessments",
+      "Arts and Hobbies",
+      "Cooking Classes",
+      "Early Learning",
+      "Music Classes",
+      "PD Days",
+      "Spring Break Camps",
+      "Winter Day Camps",
+      "Babysitting Course",
+      "Figure Skating",
+      "Learn to Play Sports",
+      "Learn to Skate Programs",
+      "Parented Play",
+      "Playcare"
+    ],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 60,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 500
+    },
+    "timeout": 60000,
+    "retries": 2,
+    "maxConcurrency": 5,
+    "browserPoolSize": 3,
+    "batchesPerBrowser": 5,
+    "fetchDetailPages": false,
+    "incrementalSave": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["07:00", "19:00"],
+    "timezone": "America/Edmonton"
+  },
+  "metadata": {
+    "population": 64523,
+    "expectedActivities": 400,
+    "notes": "Largest city in northwestern Alberta. Major regional recreation hub in the Peace River region."
+  }
+}

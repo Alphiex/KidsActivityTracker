@@ -1,0 +1,62 @@
+{
+  "id": "kawartha-lakes-rec",
+  "name": "City of Kawartha Lakes Recreation",
+  "code": "kawartha-lakes",
+  "platform": "perfectmind",
+  "region": "Central Ontario",
+  "city": "Kawartha Lakes",
+  "province": "Ontario",
+  "baseUrl": "https://kawarthalakes.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/24060/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "sections": [
+      "Parent and Tot Programs",
+      "Preschool Programs",
+      "School Age Programs",
+      "Lifesaving and Leadership",
+      "Children",
+      "Youth",
+      "Camps",
+      "March Break Camp",
+      "Summer Camps",
+      "Skating",
+      "Parent and Tot",
+      "Youth Shinny",
+      "Music",
+      "Children's Programs"
+    ],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 60,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 500
+    },
+    "timeout": 60000,
+    "retries": 2,
+    "maxConcurrency": 5,
+    "browserPoolSize": 3,
+    "batchesPerBrowser": 5,
+    "fetchDetailPages": false,
+    "incrementalSave": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["07:00", "19:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 75423,
+    "expectedActivities": 400,
+    "notes": "Municipality in central Ontario covering City of Lindsay and surrounding area. Two main facilities: Forbert Memorial Pool and Lindsay Recreation Complex."
+  }
+}
