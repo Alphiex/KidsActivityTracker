@@ -1,0 +1,51 @@
+{
+  "id": "halifax-rec",
+  "name": "Halifax Regional Municipality Recreation",
+  "code": "halifax",
+  "platform": "perfectmind",
+  "region": "Nova Scotia",
+  "city": "Halifax",
+  "baseUrl": "https://halifaxregionalmunicipality.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/36011/Clients/BookMe4?widgetId=3f07f18c-dc16-42f3-a48e-3a7c1712e185"
+    ],
+    "widgetId": "3f07f18c-dc16-42f3-a48e-3a7c1712e185",
+    "sections": [
+      "Children",
+      "Youth",
+      "Preschool",
+      "Family",
+      "Camps",
+      "Aquatics",
+      "Sports"
+    ],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["07:00", "13:00", "19:00"],
+    "timezone": "America/Halifax"
+  },
+  "metadata": {
+    "population": 439819,
+    "expectedActivities": 1000,
+    "notes": "Largest city in Atlantic Canada"
+  }
+}

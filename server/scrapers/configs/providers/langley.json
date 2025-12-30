@@ -1,0 +1,47 @@
+{
+  "id": "langley-township-rec",
+  "name": "Township of Langley Recreation",
+  "code": "langley",
+  "platform": "perfectmind",
+  "region": "Metro Vancouver",
+  "city": "Langley",
+  "baseUrl": "https://tol.perfectmind.com",
+  "websiteUrl": "https://www.tol.ca/en/parks-recreation/recreation-registration.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23784/Clients/BookMe4?widgetId=df98a38c-79f7-42e3-9f36-173f79124113&embed=False&redirectedFromEmbededMode=False"
+    ],
+    "widgetId": "df98a38c-79f7-42e3-9f36-173f79124113",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 145933,
+    "expectedActivities": 700,
+    "notes": "Large township with multiple community centers"
+  }
+}

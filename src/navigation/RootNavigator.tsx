@@ -48,6 +48,7 @@ import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
 import FeaturedPartnersScreen from '../screens/FeaturedPartnersScreen';
 import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import AIRecommendationsScreen from '../screens/AIRecommendationsScreen';
 
 // Import Preference Screens
@@ -100,6 +101,7 @@ const HomeStack = () => (
 const SearchStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="SearchMain" component={SearchScreen} />
+    <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     <Stack.Screen name="Filter" component={FilterScreen as any} />
     <Stack.Screen name="ActivityList" component={ActivityListScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
@@ -370,6 +372,11 @@ const RootNavigator = () => {
               <Stack.Screen
                 name="Paywall"
                 component={PaywallScreen}
+                options={{ presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name="CustomerCenter"
+                component={CustomerCenterScreen}
                 options={{ presentation: 'modal' }}
               />
             </>

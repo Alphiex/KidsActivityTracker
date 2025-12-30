@@ -1,0 +1,49 @@
+{
+  "id": "burlington-rec",
+  "name": "City of Burlington Recreation",
+  "code": "burlington",
+  "platform": "perfectmind",
+  "region": "Golden Horseshoe",
+  "city": "Burlington",
+  "province": "Ontario",
+  "baseUrl": "https://cityofburlington.perfectmind.com",
+  "websiteUrl": "https://www.burlington.ca/en/recreation-and-parks.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/22818/Clients/BookMe4?widgetId=828f4654-64a0-4dcc-8e93-da528b2d081a"
+    ],
+    "widgetId": "828f4654-64a0-4dcc-8e93-da528b2d081a",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true,
+    "initialWaitTime": 10000
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 186948,
+    "expectedActivities": 1000,
+    "notes": "Ontario Golden Horseshoe city with PerfectMind widget. Kids programs under Youth 0-18 category."
+  }
+}

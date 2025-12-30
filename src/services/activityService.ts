@@ -535,6 +535,14 @@ class ActivityService {
       
       console.log('🚀 [searchActivitiesPaginated] Making API call to:', API_CONFIG.ENDPOINTS.ACTIVITIES);
       console.log('🚀 [searchActivitiesPaginated] With params:', JSON.stringify(apiParams, null, 2));
+      console.log('🔍 [searchActivitiesPaginated] SEARCH PARAM VALUE:', apiParams.search);
+
+      // Build full URL for debugging
+      const queryString = Object.entries(apiParams)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+        .join('&');
+      console.log('🌐 [searchActivitiesPaginated] Full URL would be:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ACTIVITIES}?${queryString}`);
 
       DebugLogger.api('searchActivitiesPaginated', 'Making API call', {
         url: API_CONFIG.ENDPOINTS.ACTIVITIES,

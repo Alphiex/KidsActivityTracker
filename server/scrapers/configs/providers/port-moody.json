@@ -1,0 +1,46 @@
+{
+  "id": "port-moody-rec",
+  "name": "City of Port Moody Recreation",
+  "code": "portmoody",
+  "platform": "perfectmind",
+  "region": "Metro Vancouver",
+  "city": "Port Moody",
+  "baseUrl": "https://cityofportmoody.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/Contacts/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "06:45",
+      "18:45"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 33535,
+    "expectedActivities": 300,
+    "notes": "Part of Tri-Cities, quality community programs"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "oshawa-rec",
+  "name": "City of Oshawa Recreation",
+  "code": "oshawa",
+  "platform": "intelligenz",
+  "region": "Durham Region",
+  "city": "Oshawa",
+  "province": "Ontario",
+  "baseUrl": "https://register.oshawa.ca",
+  "websiteUrl": "https://www.oshawa.ca/en/recreation-and-culture.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/OSHAWA/public/category/browse/PROGRAMREG"
+    ],
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "kidsCategoryPatterns": [
+      "Swimming",
+      "Camp",
+      "Family & Parented",
+      "Preschool, Child, Youth"
+    ],
+    "kidsCategories": [
+      {"code": "SWIM", "name": "Swimming", "ageMin": 0, "ageMax": 18},
+      {"code": "CAMP", "name": "Camp", "ageMin": 4, "ageMax": 14},
+      {"code": "FAMILYPARENTED", "name": "Family & Parented", "ageMin": 0, "ageMax": 5},
+      {"code": "PRESCHOOL", "name": "Preschool, Child, Youth", "ageMin": 0, "ageMax": 18},
+      {"code": "CHILD", "name": "Child", "ageMin": 5, "ageMax": 12},
+      {"code": "YOUTH", "name": "Youth", "ageMin": 10, "ageMax": 18}
+    ],
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 3,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 175383,
+    "expectedActivities": 600,
+    "notes": "Durham Region city using Intelligenz Solutions platform (activeOshawa Online). Categories include Swimming, Camp, Family & Parented, Preschool/Child/Youth."
+  }
+}

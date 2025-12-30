@@ -1,0 +1,43 @@
+{
+  "id": "regina-rec",
+  "name": "City of Regina Recreation",
+  "code": "regina",
+  "platform": "activenetwork",
+  "region": "Saskatchewan",
+  "city": "Regina",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/regina",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["07:00", "13:00", "19:00"],
+    "timezone": "America/Regina"
+  },
+  "metadata": {
+    "population": 226404,
+    "expectedActivities": 600,
+    "notes": "Capital of Saskatchewan"
+  }
+}

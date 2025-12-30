@@ -1,0 +1,46 @@
+{
+  "id": "whitby-recreation",
+  "name": "Town of Whitby Recreation",
+  "code": "whitby",
+  "platform": "activenetwork",
+  "region": "Durham Region",
+  "province": "ON",
+  "city": "Whitby",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/whitby",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "days_of_week": "0000000",
+      "activity_select_param": 2,
+      "locale": "en-US",
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["06:00", "12:00", "18:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 138501,
+    "expectedActivities": 700,
+    "notes": "Durham Region municipality east of Toronto"
+  }
+}

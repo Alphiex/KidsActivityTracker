@@ -1,0 +1,49 @@
+{
+  "id": "surrey-rec",
+  "name": "City of Surrey Parks, Recreation & Culture",
+  "code": "surrey",
+  "platform": "perfectmind",
+  "region": "Metro Vancouver",
+  "city": "Surrey",
+  "baseUrl": "https://cityofsurrey.perfectmind.com",
+  "websiteUrl": "https://www.surrey.ca/parks-recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23615/Clients/BookMe4?widgetId=b4059e75-9755-401f-a7b5-d7c75361420d"
+    ],
+    "widgetId": "b4059e75-9755-401f-a7b5-d7c75361420d",
+    "dynamicDiscovery": true,
+    "initialWaitTime": 15000,
+    "waitForSelector": "a.bm-category-calendar-link.enabled",
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 120000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "high",
+    "frequency": "2x-daily",
+    "times": [
+      "06:30",
+      "18:30"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 568322,
+    "expectedActivities": 2000,
+    "notes": "Largest city in Metro Vancouver by area, major recreation programs"
+  }
+}

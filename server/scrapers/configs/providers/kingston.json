@@ -1,0 +1,49 @@
+{
+  "id": "kingston-rec",
+  "name": "City of Kingston Recreation",
+  "code": "kingston",
+  "platform": "perfectmind",
+  "region": "Eastern Ontario",
+  "city": "Kingston",
+  "province": "Ontario",
+  "baseUrl": "https://cityofkingston.perfectmind.com",
+  "websiteUrl": "https://www.cityofkingston.ca/residents/recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/Contacts/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true,
+    "initialWaitTime": 10000
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 136685,
+    "expectedActivities": 500,
+    "notes": "Eastern Ontario city using PerfectMind widget for recreation program registration."
+  }
+}

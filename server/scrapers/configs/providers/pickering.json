@@ -1,0 +1,43 @@
+{
+  "id": "pickering-rec",
+  "name": "City of Pickering Recreation",
+  "code": "pickering",
+  "platform": "activenetwork",
+  "region": "Durham Region",
+  "city": "Pickering",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/cityofpickering",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["08:00", "16:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 99186,
+    "expectedActivities": 300,
+    "notes": "City in Durham Region, east of Toronto"
+  }
+}

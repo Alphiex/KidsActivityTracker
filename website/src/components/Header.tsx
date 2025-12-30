@@ -3,9 +3,16 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Hide header on admin and vendor dashboard pages (they have their own navigation)
+  if (pathname.startsWith('/admin') || pathname.startsWith('/vendor/dashboard')) {
+    return null;
+  }
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">

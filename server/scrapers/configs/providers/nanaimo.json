@@ -1,0 +1,39 @@
+{
+  "id": "nanaimo-rec",
+  "name": "City of Nanaimo Recreation",
+  "code": "nanaimo",
+  "platform": "perfectmind",
+  "region": "Vancouver Island",
+  "city": "Nanaimo",
+  "baseUrl": "https://cityofnanaimo.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": ["/23733/Clients/BookMe4?widgetId=9ffdc6c6-dfd5-45f4-9745-def901d20e55"],
+    "widgetId": "9ffdc6c6-dfd5-45f4-9745-def901d20e55",
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["08:00", "16:00"],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 99863,
+    "expectedActivities": 300,
+    "notes": "City on Vancouver Island, BC"
+  }
+}

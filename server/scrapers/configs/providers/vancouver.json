@@ -1,0 +1,43 @@
+{
+  "id": "vancouver-parks",
+  "name": "City of Vancouver Parks & Recreation",
+  "code": "vancouver",
+  "platform": "activenetwork",
+  "region": "Metro Vancouver",
+  "city": "Vancouver",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/vancouver",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["06:00", "12:00", "18:00"],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 675218,
+    "expectedActivities": 1500,
+    "notes": "Largest city in the region, high activity volume"
+  }
+}

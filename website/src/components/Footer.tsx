@@ -3,10 +3,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [cityCount, setCityCount] = useState<string>('50+');
+  const pathname = usePathname();
+
+  // Hide footer on admin and vendor dashboard pages (they have their own layout)
+  const shouldHide = pathname.startsWith('/admin') || pathname.startsWith('/vendor/dashboard');
 
   useEffect(() => {
     // Fetch city count for footer
@@ -33,6 +38,10 @@ export default function Footer() {
     };
     fetchCityCount();
   }, []);
+
+  if (shouldHide) {
+    return null;
+  }
 
   return (
     <footer className="bg-gray-900 text-gray-300">

@@ -1,7 +1,30 @@
 import { MMKV } from 'react-native-mmkv';
 import { UserPreferences, FilterPreset } from '../types/preferences';
 
-const storage = new MMKV();
+// Lazy initialization to avoid JSI issues on Android
+let _storage: MMKV | null = null;
+let _storageInitAttempted = false;
+
+const getStorage = (): MMKV | null => {
+  if (_storage) return _storage;
+
+  if (_storageInitAttempted) return null; // Don't retry if already failed
+
+  try {
+    _storage = new MMKV();
+    return _storage;
+  } catch (error) {
+    _storageInitAttempted = true;
+    console.warn('[PreferencesService] MMKV initialization failed, will use defaults:', error);
+    return null;
+  }
+};
+
+// Reset storage init flag (for retry after JSI becomes available)
+export const resetStorageInit = () => {
+  _storageInitAttempted = false;
+  _storage = null;
+};
 
 const PREFERENCES_KEY = 'user_preferences';
 const FILTER_PRESETS_KEY = 'filter_presets';
@@ -71,7 +94,8 @@ class PreferencesService {
 
   private loadPreferences() {
     try {
-      const stored = storage.getString(PREFERENCES_KEY);
+      const storage = getStorage();
+      const stored = storage?.getString(PREFERENCES_KEY);
       console.log('🔄 [PreferencesService] Loading preferences, stored exists:', !!stored);
 
       if (stored) {
@@ -128,7 +152,10 @@ class PreferencesService {
     try {
       if (this.preferences) {
         this.preferences.updatedAt = new Date().toISOString();
-        storage.set(PREFERENCES_KEY, JSON.stringify(this.preferences));
+        const storage = getStorage();
+        if (storage) {
+          storage.set(PREFERENCES_KEY, JSON.stringify(this.preferences));
+        }
       }
     } catch (error) {
       console.error('Error saving preferences:', error);
@@ -216,7 +243,8 @@ class PreferencesService {
   // Filter presets
   private loadFilterPresets() {
     try {
-      const stored = storage.getString(FILTER_PRESETS_KEY);
+      const storage = getStorage();
+      const stored = storage?.getString(FILTER_PRESETS_KEY);
       if (stored) {
         this.filterPresets = JSON.parse(stored);
       } else {
@@ -231,7 +259,10 @@ class PreferencesService {
 
   private saveFilterPresets() {
     try {
-      storage.set(FILTER_PRESETS_KEY, JSON.stringify(this.filterPresets));
+      const storage = getStorage();
+      if (storage) {
+        storage.set(FILTER_PRESETS_KEY, JSON.stringify(this.filterPresets));
+      }
     } catch (error) {
       console.error('Error saving filter presets:', error);
     }
@@ -336,7 +367,26 @@ class PreferencesService {
   }
 }
 
-// Export singleton instance for direct use
-export const preferencesService = PreferencesService.getInstance();
+// Export getter function to avoid eager initialization on Android (JSI issue)
+export const getPreferencesService = () => PreferencesService.getInstance();
+
+// Keep backward compatibility - only creates instance when accessed
+export const preferencesService = {
+  get instance() { return PreferencesService.getInstance(); },
+  getPreferences: () => PreferencesService.getInstance().getPreferences(),
+  updatePreferences: (updates: Partial<UserPreferences>) => PreferencesService.getInstance().updatePreferences(updates),
+  addLocation: (location: string) => PreferencesService.getInstance().addLocation(location),
+  removeLocation: (location: string) => PreferencesService.getInstance().removeLocation(location),
+  addAgeRange: (min: number, max: number) => PreferencesService.getInstance().addAgeRange(min, max),
+  removeAgeRange: (index: number) => PreferencesService.getInstance().removeAgeRange(index),
+  toggleCategory: (category: string, preferred: boolean) => PreferencesService.getInstance().toggleCategory(category, preferred),
+  getFilterPresets: () => PreferencesService.getInstance().getFilterPresets(),
+  saveFilterPreset: (preset: FilterPreset) => PreferencesService.getInstance().saveFilterPreset(preset),
+  deleteFilterPreset: (id: string) => PreferencesService.getInstance().deleteFilterPreset(id),
+  matchesPreferences: (activity: any) => PreferencesService.getInstance().matchesPreferences(activity),
+  shouldNotifyForActivity: (activity: any) => PreferencesService.getInstance().shouldNotifyForActivity(activity),
+  resetPreferences: () => PreferencesService.getInstance().resetPreferences(),
+  completeOnboarding: () => PreferencesService.getInstance().completeOnboarding(),
+};
 
 export default PreferencesService;

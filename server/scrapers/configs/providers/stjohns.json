@@ -1,0 +1,51 @@
+{
+  "id": "stjohns-rec",
+  "name": "City of St. John's Recreation",
+  "code": "stjohns",
+  "platform": "activenetwork",
+  "region": "Newfoundland",
+  "city": "St. John's",
+  "province": "Newfoundland and Labrador",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/recconnect",
+  "websiteUrl": "https://www.stjohns.ca/en/recreation-culture.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/activity/search"
+    ],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list",
+      "days_of_week": "0000000"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": false
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/St_Johns"
+  },
+  "metadata": {
+    "population": 110525,
+    "expectedActivities": 300,
+    "notes": "Provincial capital using ActiveNet (RecConnect) for recreation program registration."
+  }
+}

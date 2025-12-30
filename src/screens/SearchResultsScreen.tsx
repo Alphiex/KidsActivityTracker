@@ -67,13 +67,17 @@ const SearchResultsScreen = () => {
   const loadInitialResults = async () => {
     try {
       setLoading(true);
-      console.log('Searching with filters:', filters);
+      console.log('🔍 [SearchResultsScreen] loadInitialResults called');
+      console.log('🔍 [SearchResultsScreen] filters received:', JSON.stringify(filters, null, 2));
+      console.log('🔍 [SearchResultsScreen] searchQuery received:', searchQuery);
       
       const searchParams = {
         ...filters,
         limit: 20,
         offset: 0,
       };
+      
+      console.log('🔍 [SearchResultsScreen] searchParams to API:', JSON.stringify(searchParams, null, 2));
       
       const results = await activityService.searchActivitiesPaginated(searchParams);
       

@@ -1,0 +1,51 @@
+{
+  "id": "saanich-rec",
+  "name": "District of Saanich Recreation",
+  "code": "saanich",
+  "platform": "activenetwork",
+  "region": "Greater Victoria",
+  "city": "Saanich",
+  "province": "British Columbia",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/saanich",
+  "websiteUrl": "https://www.saanich.ca/EN/main/parks-recreation-community/recreation.html",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/activity/search"
+    ],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list",
+      "days_of_week": "0000000"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": false
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 117735,
+    "expectedActivities": 400,
+    "notes": "Victoria suburb using ActiveNet for recreation program registration."
+  }
+}

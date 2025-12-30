@@ -1,0 +1,104 @@
+{
+  "platform": "activenetwork",
+  "displayName": "Active Network / Active Communities",
+  "urlPatterns": [
+    "activecommunities.com",
+    "apm.activecommunities.com"
+  ],
+  "defaultConfig": {
+    "type": "search",
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "headless": true
+  },
+  "selectors": {
+    "activityItem": [
+      ".activity-item",
+      ".activity-listing",
+      ".program-item",
+      "tr.activity-row",
+      ".search-result-item",
+      ".an-search-result"
+    ],
+    "activityName": [
+      ".activity-name",
+      ".program-title",
+      "h3.title",
+      "h4.title",
+      ".activity-title",
+      "a.activity-link"
+    ],
+    "price": [
+      ".activity-price",
+      ".price",
+      ".cost",
+      ".fee"
+    ],
+    "schedule": [
+      ".activity-schedule",
+      ".schedule",
+      ".time-info"
+    ],
+    "location": [
+      ".activity-location",
+      ".location",
+      ".facility"
+    ],
+    "availability": [
+      ".availability-status",
+      ".spots-remaining",
+      ".register-button"
+    ],
+    "pagination": {
+      "nextButton": [
+        "a[aria-label='Next']",
+        ".next-page",
+        ".pagination-next",
+        "[data-page='next']"
+      ],
+      "pageNumbers": ".pagination a"
+    }
+  },
+  "fieldMapping": {
+    "name": "name",
+    "externalId": "activityId",
+    "category": "category",
+    "subcategory": "subcategory",
+    "description": "description",
+    "schedule": "schedule",
+    "cost": "cost",
+    "registrationUrl": "registrationUrl",
+    "locationName": "location",
+    "ageMin": "ageRange.min",
+    "ageMax": "ageRange.max",
+    "registrationStatus": "availability",
+    "dateStart": "dateStart",
+    "dateEnd": "dateEnd"
+  },
+  "categoryKeywords": {
+    "aquatics": ["swim", "aquatic", "pool", "water", "diving"],
+    "arts": ["art", "craft", "pottery", "painting", "drawing"],
+    "dance": ["dance", "ballet", "hip hop", "jazz"],
+    "music": ["music", "piano", "guitar", "violin", "singing"],
+    "sports": ["soccer", "basketball", "tennis", "baseball", "hockey"],
+    "camps": ["camp", "summer", "spring break", "pro-d", "holiday"],
+    "fitness": ["fitness", "gym", "yoga", "workout"],
+    "skating": ["skate", "skating", "ice", "figure"],
+    "gymnastics": ["gymnastic", "tumbling", "parkour"]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "lions-bay-rec",
+  "name": "Lions Bay Community Recreation",
+  "code": "lionsbay",
+  "platform": "fullcalendar",
+  "region": "Metro Vancouver",
+  "city": "Lions Bay",
+  "baseUrl": "https://www.lionsbay.ca",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "calendar",
+    "calendarType": "fullcalendar",
+    "entryPoints": [
+      "/community/community-groups-events-activities/community-calendar"
+    ],
+    "monthsToScrape": 6,
+    "fetchDetails": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "low",
+    "frequency": "weekly",
+    "times": [
+      "06:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 1334,
+    "expectedActivities": 50,
+    "notes": "Small community with limited programs. Uses CivicWeb/FullCalendar."
+  }
+}

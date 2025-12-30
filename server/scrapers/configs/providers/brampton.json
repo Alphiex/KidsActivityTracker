@@ -1,0 +1,51 @@
+{
+  "id": "brampton-rec",
+  "name": "City of Brampton Recreation",
+  "code": "brampton",
+  "platform": "perfectmind",
+  "region": "Greater Toronto Area",
+  "city": "Brampton",
+  "baseUrl": "https://cityofbrampton.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23782/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "sections": [
+      "Children",
+      "Youth",
+      "Preschool",
+      "Family",
+      "Camps",
+      "Swimming",
+      "Skating"
+    ],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["06:00", "12:00", "18:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 656480,
+    "expectedActivities": 1500,
+    "notes": "Fourth largest city in Ontario"
+  }
+}

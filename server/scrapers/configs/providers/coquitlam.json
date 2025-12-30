@@ -1,0 +1,47 @@
+{
+  "id": "coquitlam-rec",
+  "name": "City of Coquitlam Parks & Recreation",
+  "code": "coquitlam",
+  "platform": "perfectmind",
+  "region": "Metro Vancouver",
+  "city": "Coquitlam",
+  "baseUrl": "https://cityofcoquitlam.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23902/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": [
+      "06:30",
+      "12:30",
+      "18:30"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 148625,
+    "expectedActivities": 900,
+    "notes": "Large Tri-Cities municipality with extensive facilities"
+  }
+}

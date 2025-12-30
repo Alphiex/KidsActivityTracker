@@ -1,0 +1,50 @@
+{
+  "id": "waterloo-rec",
+  "name": "City of Waterloo Recreation",
+  "code": "waterloo",
+  "platform": "activenetwork",
+  "region": "Waterloo Region",
+  "city": "Waterloo",
+  "province": "Ontario",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/activewaterloo",
+  "websiteUrl": "https://www.waterloo.ca/en/things-to-do/recreation-programs-and-activities.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/activity/search"
+    ],
+    "searchParams": {
+      "activity_select_param": 2,
+      "viewMode": "list",
+      "days_of_week": "0000000"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": false
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 121436,
+    "expectedActivities": 500,
+    "notes": "Waterloo Region city using ActiveNet for recreation program registration."
+  }
+}

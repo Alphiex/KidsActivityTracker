@@ -1,0 +1,49 @@
+{
+  "id": "greater-sudbury-rec",
+  "name": "City of Greater Sudbury Leisure Services",
+  "code": "greater-sudbury",
+  "platform": "perfectmind",
+  "region": "Northern Ontario",
+  "city": "Greater Sudbury",
+  "province": "Ontario",
+  "baseUrl": "https://cityofgreatersudbury.perfectmind.com",
+  "websiteUrl": "https://www.greatersudbury.ca/play/",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/24585/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true,
+    "initialWaitTime": 10000
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 166004,
+    "expectedActivities": 800,
+    "notes": "Northern Ontario regional municipality with 100+ facilities including arenas, pools, and community centres."
+  }
+}

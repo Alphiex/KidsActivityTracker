@@ -1,0 +1,51 @@
+{
+  "id": "ajax-rec",
+  "name": "Town of Ajax Recreation",
+  "code": "ajax",
+  "platform": "activenetwork",
+  "region": "Greater Toronto Area",
+  "city": "Ajax",
+  "province": "Ontario",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/ajax",
+  "websiteUrl": "https://www.ajax.ca/en/play-and-learn.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/activity/search"
+    ],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list",
+      "days_of_week": "0000000"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 126666,
+    "expectedActivities": 400,
+    "notes": "GTA suburb using ActiveNet for recreation program registration."
+  }
+}

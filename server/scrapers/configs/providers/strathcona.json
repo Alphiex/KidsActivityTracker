@@ -1,0 +1,38 @@
+{
+  "id": "strathcona-rec",
+  "name": "Strathcona County Recreation",
+  "code": "strathcona",
+  "platform": "looknbook",
+  "region": "Edmonton Metro",
+  "city": "Strathcona County",
+  "baseUrl": "https://reconline.strathcona.ca",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "looknbook",
+    "entryPoints": ["/STRATHCONA/public/category/courses"],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["08:00", "16:00"],
+    "timezone": "America/Edmonton"
+  },
+  "metadata": {
+    "population": 98381,
+    "expectedActivities": 350,
+    "notes": "Specialized municipality east of Edmonton, Alberta"
+  }
+}

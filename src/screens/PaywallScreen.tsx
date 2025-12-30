@@ -1,6 +1,6 @@
 /**
  * PaywallScreen - Premium subscription purchase screen
- * Shows plan comparison and handles purchases via RevenueCat
+ * Supports both RevenueCat UI Paywall and custom paywall
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -26,7 +26,7 @@ import {
   fetchSubscription,
   startTrial,
 } from '../store/slices/subscriptionSlice';
-import { revenueCatService } from '../services/revenueCatService';
+import { revenueCatService, getPaywallResult, PaywallResultType } from '../services/revenueCatService';
 import { analyticsService } from '../services/analyticsService';
 import { abTestService, PAYWALL_VARIANTS } from '../services/abTestService';
 
@@ -50,7 +50,18 @@ const FEATURES: FeatureItem[] = [
   { name: 'Hide closed/full', free: false, premium: true, icon: 'eye-off' },
 ];
 
-const PaywallScreen: React.FC = () => {
+// Configuration: Set to true to use RevenueCat's built-in paywall UI
+const USE_REVENUECAT_PAYWALL = true;
+
+interface PaywallScreenProps {
+  route?: {
+    params?: {
+      useRevenueCatUI?: boolean;
+    };
+  };
+}
+
+const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { colors, isDark } = useTheme();
@@ -65,6 +76,10 @@ const PaywallScreen: React.FC = () => {
   const [isLoadingOfferings, setIsLoadingOfferings] = useState(true);
   const [isRestoring, setIsRestoring] = useState(false);
   const [paywallOpenTime] = useState(Date.now());
+  const [showingRevenueCatPaywall, setShowingRevenueCatPaywall] = useState(false);
+
+  // Check if we should use RevenueCat UI paywall
+  const useRevenueCatUI = route?.params?.useRevenueCatUI ?? USE_REVENUECAT_PAYWALL;
 
   // A/B test variants
   const headlineVariant = abTestService.getVariant('paywall_headline');
@@ -79,11 +94,72 @@ const PaywallScreen: React.FC = () => {
     trialCtaVariant as keyof typeof PAYWALL_VARIANTS.trial_cta
   ] || PAYWALL_VARIANTS.trial_cta.control;
 
-  // Track paywall view on mount
+  // If using RevenueCat UI, present it immediately
   useEffect(() => {
-    analyticsService.trackPaywallViewed('paywall_screen', headlineVariant);
-    loadOfferings();
-  }, [headlineVariant]);
+    if (useRevenueCatUI && !showingRevenueCatPaywall) {
+      presentRevenueCatPaywall();
+    }
+  }, [useRevenueCatUI]);
+
+  // Track paywall view on mount (for custom paywall)
+  useEffect(() => {
+    if (!useRevenueCatUI) {
+      analyticsService.trackPaywallViewed('paywall_screen', headlineVariant);
+      loadOfferings();
+    }
+  }, [headlineVariant, useRevenueCatUI]);
+
+  /**
+   * Present RevenueCat's native paywall UI
+   */
+  const presentRevenueCatPaywall = async () => {
+    try {
+      setShowingRevenueCatPaywall(true);
+      analyticsService.trackPaywallViewed('revenuecat_paywall', 'native');
+
+      const result = await revenueCatService.presentPaywall();
+      const PAYWALL_RESULT = getPaywallResult();
+
+      console.log('[Paywall] RevenueCat paywall result:', result);
+
+      // Handle result using string comparison for compatibility
+      if (result === PAYWALL_RESULT?.PURCHASED || result === 'PURCHASED') {
+        analyticsService.trackPurchaseCompleted('revenuecat_paywall', 0, 'USD', isTrialing);
+        await dispatch(fetchSubscription());
+        Alert.alert(
+          'Welcome to Pro!',
+          'Your subscription is now active. Enjoy all premium features!',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else if (result === PAYWALL_RESULT?.RESTORED || result === 'RESTORED') {
+        analyticsService.trackRestoreCompleted(true);
+        await dispatch(fetchSubscription());
+        Alert.alert(
+          'Purchases Restored',
+          'Your subscription has been restored!',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else if (result === PAYWALL_RESULT?.CANCELLED || result === 'CANCELLED') {
+        analyticsService.trackPurchaseCancelled('revenuecat_paywall');
+        navigation.goBack();
+      } else if (result === PAYWALL_RESULT?.ERROR || result === 'ERROR') {
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+        navigation.goBack();
+      } else if (result === PAYWALL_RESULT?.NOT_PRESENTED || result === 'NOT_PRESENTED') {
+        // User already has entitlement
+        navigation.goBack();
+      } else {
+        // Unknown result, just go back
+        navigation.goBack();
+      }
+    } catch (error: any) {
+      console.error('[Paywall] RevenueCat paywall error:', error);
+      Alert.alert('Error', error.message || 'Unable to show subscription options');
+      navigation.goBack();
+    } finally {
+      setShowingRevenueCatPaywall(false);
+    }
+  };
 
   // Track billing cycle changes
   const handleBillingCycleChange = (cycle: BillingCycle) => {
@@ -137,7 +213,7 @@ const PaywallScreen: React.FC = () => {
       );
 
       Alert.alert(
-        'Welcome to Premium!',
+        'Welcome to Pro!',
         'Your subscription is now active. Enjoy all premium features!',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
@@ -180,7 +256,8 @@ const PaywallScreen: React.FC = () => {
       const customerInfo = await revenueCatService.restorePurchases();
       await dispatch(fetchSubscription());
 
-      if (customerInfo?.entitlements?.active?.premium) {
+      const hasPro = revenueCatService.isPro();
+      if (hasPro) {
         analyticsService.trackRestoreCompleted(true);
         Alert.alert(
           'Purchases Restored',
@@ -212,6 +289,20 @@ const PaywallScreen: React.FC = () => {
     analyticsService.trackPaywallDismissed('paywall_screen', timeSpent);
     navigation.goBack();
   };
+
+  // If using RevenueCat UI, show loading while presenting
+  if (useRevenueCatUI) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading subscription options...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const monthlyPrice = offerings?.current?.monthly?.product?.priceString || '$5.99';
   const annualPrice = offerings?.current?.annual?.product?.priceString || '$49.99';
@@ -249,7 +340,7 @@ const PaywallScreen: React.FC = () => {
         <View style={styles.alreadyPremiumContainer}>
           <Icon name="crown" size={64} color={colors.warning} />
           <Text style={[styles.alreadyPremiumTitle, { color: colors.text }]}>
-            You're Already Premium!
+            You're Already Pro!
           </Text>
           <Text style={[styles.alreadyPremiumText, { color: colors.textSecondary }]}>
             You have full access to all features.
@@ -347,7 +438,7 @@ const PaywallScreen: React.FC = () => {
           <View style={styles.featuresHeader}>
             <Text style={[styles.featuresHeaderText, { color: colors.textSecondary }]}>Feature</Text>
             <Text style={[styles.featuresHeaderText, { color: colors.textSecondary }]}>Free</Text>
-            <Text style={[styles.featuresHeaderText, { color: colors.primary }]}>Premium</Text>
+            <Text style={[styles.featuresHeaderText, { color: colors.primary }]}>Pro</Text>
           </View>
 
           {FEATURES.map((feature, index) => (
@@ -379,7 +470,7 @@ const PaywallScreen: React.FC = () => {
             <View style={styles.trialTextContainer}>
               <Text style={[styles.trialTitle, { color: colors.text }]}>7-Day Free Trial</Text>
               <Text style={[styles.trialSubtitle, { color: colors.textSecondary }]}>
-                Try all premium features risk-free
+                Try all Pro features risk-free
               </Text>
             </View>
           </View>
@@ -452,6 +543,15 @@ const PaywallScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
   },
   header: {
     flexDirection: 'row',

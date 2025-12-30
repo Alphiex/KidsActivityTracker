@@ -1,0 +1,57 @@
+{
+  "id": "pitt-meadows-rec",
+  "name": "City of Pitt Meadows Recreation",
+  "code": "pittmeadows",
+  "platform": "intelligenz",
+  "region": "Metro Vancouver",
+  "city": "Pitt Meadows",
+  "baseUrl": "https://www.pittfitandfun.ca",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "formBased": true,
+    "entryPoints": [
+      "/copm/public/category/browse/Search"
+    ],
+    "searchConfig": {
+      "courseTypes": [
+        "Youth Programs",
+        "Children's Programs",
+        "Aquatics",
+        "Sports",
+        "Arts & Culture",
+        "Camps",
+        "Dance",
+        "Music",
+        "Fitness"
+      ],
+      "submitAfterSelection": true
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "low",
+    "frequency": "1x-daily",
+    "times": [
+      "07:15"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 19146,
+    "expectedActivities": 300,
+    "notes": "Smaller city using Intelligenz Solutions platform. Well-maintained recreation programs."
+  }
+}

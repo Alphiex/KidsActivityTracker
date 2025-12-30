@@ -1,0 +1,44 @@
+{
+  "id": "port-coquitlam-rec",
+  "name": "City of Port Coquitlam Recreation",
+  "code": "portcoquitlam",
+  "platform": "activenetwork",
+  "region": "Metro Vancouver",
+  "city": "Port Coquitlam",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/cityofportcoquitlam",
+  "websiteUrl": "https://www.portcoquitlam.ca/recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["07:00", "19:00"],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 61498,
+    "expectedActivities": 1500,
+    "notes": "Part of Tri-Cities with Coquitlam and Port Moody"
+  }
+}

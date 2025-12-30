@@ -1,0 +1,40 @@
+{
+  "id": "quebec-city-rec",
+  "name": "Ville de Québec Loisirs",
+  "code": "quebec-city",
+  "platform": "amilia",
+  "region": "Quebec",
+  "city": "Quebec City",
+  "province": "QC",
+  "baseUrl": "https://app.amilia.com/store/fr/ville-de-quebec1/shop/programs",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "programs",
+    "entryPoints": ["/shop/programs"],
+    "language": "fr",
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "2x-daily",
+    "times": ["06:00", "18:00"],
+    "timezone": "America/Montreal"
+  },
+  "metadata": {
+    "population": 549459,
+    "expectedActivities": 500,
+    "notes": "Capital of Quebec province"
+  }
+}

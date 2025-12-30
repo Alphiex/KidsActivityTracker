@@ -44,6 +44,7 @@
     "react-native-maps": "^2.0.0-beta.15",
     "react-native-mmkv": "^2.12.2",
     "react-native-purchases": "^9.6.12",
+    "react-native-purchases-ui": "^9.6.12",
     "react-native-reanimated": "^3.19.0",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.13.1",

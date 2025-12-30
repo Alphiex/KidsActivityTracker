@@ -3,6 +3,7 @@ import { VendorUserRole, VendorStatus } from '../../generated/prisma';
 import { prisma } from '../lib/prisma';
 import { verifyToken } from './auth';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 // Role hierarchy for vendors
 const VENDOR_ROLE_HIERARCHY: Record<VendorUserRole, number> = {
@@ -10,6 +11,8 @@ const VENDOR_ROLE_HIERARCHY: Record<VendorUserRole, number> = {
   'ADMIN': 2,
   'OWNER': 3,
 };
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Extend Express Request to include vendor context
 declare global {
@@ -88,12 +91,13 @@ export const requireVendorApiKey = () => {
 
 /**
  * Middleware to verify vendor user session
- * Used for user-based/session access (vendor portal UI)
+ * Supports both:
+ * 1. Direct vendor login (vendor JWT with vendorId)
+ * 2. User-based vendor access (user JWT + VendorUser membership)
  */
 export const requireVendorAuth = (minRole?: VendorUserRole) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // First verify the user token using existing auth
       const authHeader = req.headers.authorization;
 
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -103,108 +107,174 @@ export const requireVendorAuth = (minRole?: VendorUserRole) => {
         });
       }
 
-      // Use the existing verifyToken middleware logic
-      // but we'll need to check vendor membership too
       const token = authHeader.split(' ')[1];
 
-      // Decode and verify token (reusing existing logic)
-      const jwt = await import('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
-
-      // Get user
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        select: { id: true, email: true, name: true },
-      });
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          error: 'User not found'
-        });
-      }
-
-      // Check vendor ID from query/params or header
-      const vendorId = req.params.vendorId || req.query.vendorId || req.headers['x-vendor-id'];
-
-      if (!vendorId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Vendor ID is required'
-        });
-      }
-
-      // Check if user is a member of the vendor
-      const vendorUser = await prisma.vendorUser.findUnique({
-        where: {
-          vendorId_userId: {
-            vendorId: vendorId as string,
-            userId: user.id,
-          },
-        },
-        include: {
-          vendor: true,
-        },
-      });
-
-      if (!vendorUser) {
-        return res.status(403).json({
-          success: false,
-          error: 'You are not a member of this vendor organization'
-        });
-      }
-
-      // Check vendor status
-      if (vendorUser.vendor.status !== 'ACTIVE') {
-        return res.status(403).json({
-          success: false,
-          error: `Vendor account is ${vendorUser.vendor.status.toLowerCase()}`
-        });
-      }
-
-      // Check role hierarchy if minRole specified
-      if (minRole && VENDOR_ROLE_HIERARCHY[vendorUser.role] < VENDOR_ROLE_HIERARCHY[minRole]) {
-        return res.status(403).json({
-          success: false,
-          error: `This action requires at least ${minRole} role`
-        });
-      }
-
-      // Attach user and vendor context to request
-      req.user = {
-        id: user.id,
-        email: user.email,
-      };
-
-      req.vendor = {
-        id: vendorUser.vendor.id,
-        code: vendorUser.vendor.code,
-        name: vendorUser.vendor.name,
-        status: vendorUser.vendor.status,
-        providerId: vendorUser.vendor.providerId,
-      };
-
-      req.vendorUser = {
-        id: vendorUser.id,
-        userId: vendorUser.userId,
-        vendorId: vendorUser.vendorId,
-        role: vendorUser.role,
-      };
-
-      next();
-    } catch (error: any) {
-      if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({
-          success: false,
-          error: 'Token expired'
-        });
-      }
-      if (error.name === 'JsonWebTokenError') {
+      // Decode token to check type
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (error: any) {
+        if (error.name === 'TokenExpiredError') {
+          return res.status(401).json({
+            success: false,
+            error: 'Token expired'
+          });
+        }
         return res.status(401).json({
           success: false,
           error: 'Invalid token'
         });
       }
+
+      // Check if this is a direct vendor token
+      if (decoded.type === 'vendor' && decoded.vendorId) {
+        // Direct vendor login - verify vendor ID matches
+        const vendorId = req.params.vendorId || decoded.vendorId;
+
+        // Ensure the token's vendorId matches the requested vendorId
+        if (req.params.vendorId && req.params.vendorId !== decoded.vendorId) {
+          return res.status(403).json({
+            success: false,
+            error: 'Access denied - vendor mismatch'
+          });
+        }
+
+        // Get vendor
+        const vendor = await prisma.vendor.findUnique({
+          where: { id: vendorId },
+        });
+
+        if (!vendor) {
+          return res.status(404).json({
+            success: false,
+            error: 'Vendor not found'
+          });
+        }
+
+        // Check vendor status - allow PENDING for new vendors
+        if (vendor.status !== 'ACTIVE' && vendor.status !== 'PENDING') {
+          return res.status(403).json({
+            success: false,
+            error: `Vendor account is ${vendor.status.toLowerCase()}`
+          });
+        }
+
+        // Direct vendor login gets OWNER role
+        req.vendor = {
+          id: vendor.id,
+          code: vendor.code,
+          name: vendor.name,
+          status: vendor.status,
+          providerId: vendor.providerId,
+        };
+
+        // Set a virtual vendorUser with OWNER role for direct login
+        req.vendorUser = {
+          id: 'direct-login',
+          userId: 'direct-login',
+          vendorId: vendor.id,
+          role: 'OWNER',
+        };
+
+        // Set user context for compatibility
+        req.user = {
+          id: 'vendor-' + vendor.id,
+          email: vendor.email,
+        };
+
+        return next();
+      }
+
+      // User-based vendor access (legacy flow)
+      if (decoded.id) {
+        // Get user
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.id },
+          select: { id: true, email: true, name: true },
+        });
+
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'User not found'
+          });
+        }
+
+        // Check vendor ID from query/params or header
+        const vendorId = req.params.vendorId || req.query.vendorId || req.headers['x-vendor-id'];
+
+        if (!vendorId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Vendor ID is required'
+          });
+        }
+
+        // Check if user is a member of the vendor
+        const vendorUser = await prisma.vendorUser.findUnique({
+          where: {
+            vendorId_userId: {
+              vendorId: vendorId as string,
+              userId: user.id,
+            },
+          },
+          include: {
+            vendor: true,
+          },
+        });
+
+        if (!vendorUser) {
+          return res.status(403).json({
+            success: false,
+            error: 'You are not a member of this vendor organization'
+          });
+        }
+
+        // Check vendor status
+        if (vendorUser.vendor.status !== 'ACTIVE') {
+          return res.status(403).json({
+            success: false,
+            error: `Vendor account is ${vendorUser.vendor.status.toLowerCase()}`
+          });
+        }
+
+        // Check role hierarchy if minRole specified
+        if (minRole && VENDOR_ROLE_HIERARCHY[vendorUser.role] < VENDOR_ROLE_HIERARCHY[minRole]) {
+          return res.status(403).json({
+            success: false,
+            error: `This action requires at least ${minRole} role`
+          });
+        }
+
+        // Attach user and vendor context to request
+        req.user = {
+          id: user.id,
+          email: user.email,
+        };
+
+        req.vendor = {
+          id: vendorUser.vendor.id,
+          code: vendorUser.vendor.code,
+          name: vendorUser.vendor.name,
+          status: vendorUser.vendor.status,
+          providerId: vendorUser.vendor.providerId,
+        };
+
+        req.vendorUser = {
+          id: vendorUser.id,
+          userId: vendorUser.userId,
+          vendorId: vendorUser.vendorId,
+          role: vendorUser.role,
+        };
+
+        return next();
+      }
+
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token format'
+      });
+    } catch (error: any) {
       console.error('Vendor auth error:', error);
       return res.status(500).json({
         success: false,

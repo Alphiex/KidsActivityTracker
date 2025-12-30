@@ -1,0 +1,86 @@
+{
+  "platform": "intelligenz",
+  "displayName": "Intelligenz Solutions",
+  "urlPatterns": [
+    "pittfitandfun.ca",
+    "/copm/public/"
+  ],
+  "defaultConfig": {
+    "type": "search",
+    "formBased": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "headless": true
+  },
+  "selectors": {
+    "searchForm": "#searchForm, form[action*='Search']",
+    "courseTypeSelect": "#courseType, select[name='courseType']",
+    "ageSelect": "#age, select[name='age']",
+    "daySelect": "#day, select[name='day']",
+    "venueSelect": "#venue, select[name='venue']",
+    "submitButton": "input[type='submit'], button[type='submit']",
+    "resultsContainer": ".search-results, .course-list, #results",
+    "activityRow": [
+      ".course-row",
+      ".activity-row",
+      "tr.course",
+      ".result-item"
+    ],
+    "activityName": ".course-name, .activity-title, td:first-child",
+    "courseId": ".course-id, .course-number",
+    "price": ".price, .fee, .cost",
+    "schedule": ".schedule, .time, .days",
+    "location": ".venue, .location, .facility",
+    "dates": ".dates, .start-date",
+    "availability": ".status, .availability, .openings",
+    "pagination": {
+      "nextButton": ".next, a:contains('Next')",
+      "pageNumbers": ".pagination a"
+    }
+  },
+  "searchOptions": {
+    "courseTypes": [
+      "Youth Programs",
+      "Children's Programs",
+      "Aquatics",
+      "Sports",
+      "Arts",
+      "Camps",
+      "Dance",
+      "Music"
+    ],
+    "ageGroups": [
+      "0-2",
+      "3-5",
+      "6-8",
+      "9-12",
+      "13-17"
+    ]
+  },
+  "fieldMapping": {
+    "name": "name",
+    "externalId": "courseId",
+    "category": "courseType",
+    "subcategory": "subcategory",
+    "description": "description",
+    "schedule": "schedule",
+    "cost": "price",
+    "registrationUrl": "registrationUrl",
+    "locationName": "venue",
+    "ageMin": "ageRange.min",
+    "ageMax": "ageRange.max",
+    "registrationStatus": "availability",
+    "dateStart": "startDate",
+    "dateEnd": "endDate"
+  }
+}

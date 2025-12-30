@@ -184,6 +184,9 @@ const SearchScreen = () => {
       hideFullActivities: true,
     };
 
+    console.log('🔍 [SearchScreen] handleSearch called with searchText:', searchText);
+    console.log('🔍 [SearchScreen] Search params being passed:', JSON.stringify(searchParams, null, 2));
+
     navigation.navigate('SearchResults' as never, { 
       filters: searchParams,
       searchQuery: searchText 

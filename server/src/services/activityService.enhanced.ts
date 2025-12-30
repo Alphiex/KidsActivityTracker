@@ -345,12 +345,14 @@ export class EnhancedActivityService {
     // 2. OR when getting personalized/recommended results
     const isLocationBasedSearch = !isActivityTypeSearch && (locations || location);
     
-    console.error('❌❌❌ CRITICAL DEBUG - isActivityTypeSearch:', isActivityTypeSearch);
-    console.error('❌❌❌ CRITICAL DEBUG - locations:', locations);  
-    console.error('❌❌❌ CRITICAL DEBUG - isLocationBasedSearch:', isLocationBasedSearch);
+    console.log('📍 [ActivityService] Location filter check:', {
+      isActivityTypeSearch,
+      locations,
+      location,
+      isLocationBasedSearch
+    });
     
     if (isLocationBasedSearch && locations && locations.length > 0) {
-      console.error('❌❌❌ APPLYING LOCATION FILTER - THIS SHOULD NOT HAPPEN FOR ACTIVITY TYPE SEARCHES!');
       // Check if they are UUIDs (location IDs) or names
       const isLocationId = locations[0] && locations[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
       
@@ -359,19 +361,45 @@ export class EnhancedActivityService {
         where.locationId = { in: locations };
       } else {
         // Filter by location names OR city names (since users might pass either)
-        // Note: Location.city is a string field, not a relation
-        where.OR = [
-          { location: { name: { in: locations } } }, // Direct location name match
-          { location: { city: { in: locations, mode: 'insensitive' } } } // City name match (city is a string field)
-        ];
+        // IMPORTANT: If we already have an OR clause (from search), we need to AND the location filter
+        const locationCondition: Prisma.ActivityWhereInput = {
+          OR: [
+            { location: { is: { name: { in: locations } } } }, // Direct location name match
+            { location: { is: { city: { in: locations, mode: 'insensitive' } } } } // City name match (city is a string field)
+          ]
+        };
+        
+        if (where.OR) {
+          // We have a search OR clause - combine with AND
+          const searchCondition = { OR: where.OR };
+          delete where.OR;
+          where.AND = where.AND || [];
+          (where.AND as Prisma.ActivityWhereInput[]).push(searchCondition, locationCondition);
+          console.log('📍 [ActivityService] Combined search + location with AND');
+        } else {
+          where.OR = locationCondition.OR;
+        }
       }
     } else if (isLocationBasedSearch && location) {
       // Single location by name (backward compatibility) - check both location and city names
-      // Note: Location.city is a string field, not a relation
-      where.OR = [
-        { location: { name: { contains: location, mode: 'insensitive' } } },
-        { location: { city: { contains: location, mode: 'insensitive' } } }
-      ];
+      // IMPORTANT: If we already have an OR clause (from search), we need to AND the location filter
+      const locationCondition: Prisma.ActivityWhereInput = {
+        OR: [
+          { location: { is: { name: { contains: location, mode: 'insensitive' } } } },
+          { location: { is: { city: { contains: location, mode: 'insensitive' } } } }
+        ]
+      };
+      
+      if (where.OR) {
+        // We have a search OR clause - combine with AND
+        const searchCondition = { OR: where.OR };
+        delete where.OR;
+        where.AND = where.AND || [];
+        (where.AND as Prisma.ActivityWhereInput[]).push(searchCondition, locationCondition);
+        console.log('📍 [ActivityService] Combined search + single location with AND');
+      } else {
+        where.OR = locationCondition.OR;
+      }
     }
 
     // Provider filter

@@ -19,11 +19,27 @@ const generateEncryptionKey = (): string => {
   return compositeKey;
 };
 
-// Use MMKV for secure storage with device-specific encryption key
-const storage = new MMKV({
-  id: 'secure-storage',
-  encryptionKey: generateEncryptionKey(),
-});
+// Lazy initialization to avoid JSI issues on Android
+let _storage: MMKV | null = null;
+let _storageInitAttempted = false;
+
+const getStorage = (): MMKV | null => {
+  if (_storage) return _storage;
+
+  if (_storageInitAttempted) return null;
+
+  try {
+    _storage = new MMKV({
+      id: 'secure-storage',
+      encryptionKey: generateEncryptionKey(),
+    });
+    return _storage;
+  } catch (error) {
+    _storageInitAttempted = true;
+    console.warn('[SecureStorage] MMKV initialization failed:', error);
+    return null;
+  }
+};
 
 const STORAGE_KEYS = {
   ACCESS_TOKEN: '@auth_access_token',
@@ -43,6 +59,11 @@ export interface AuthTokens {
 // Token management
 export const setTokens = async (tokens: AuthTokens): Promise<void> => {
   try {
+    const storage = getStorage();
+    if (!storage) {
+      console.warn('[SecureStorage] Storage not available, tokens not persisted');
+      return;
+    }
     storage.set(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken);
     storage.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
 
@@ -60,6 +81,9 @@ export const setTokens = async (tokens: AuthTokens): Promise<void> => {
 
 export const getTokens = async (): Promise<AuthTokens | null> => {
   try {
+    const storage = getStorage();
+    if (!storage) return null;
+
     const accessToken = storage.getString(STORAGE_KEYS.ACCESS_TOKEN);
     const refreshToken = storage.getString(STORAGE_KEYS.REFRESH_TOKEN);
     const accessTokenExpiry = storage.getString(STORAGE_KEYS.ACCESS_TOKEN_EXPIRY);
@@ -83,7 +107,8 @@ export const getTokens = async (): Promise<AuthTokens | null> => {
 
 export const getAccessToken = async (): Promise<string | null> => {
   try {
-    return storage.getString(STORAGE_KEYS.ACCESS_TOKEN) || null;
+    const storage = getStorage();
+    return storage?.getString(STORAGE_KEYS.ACCESS_TOKEN) || null;
   } catch (error) {
     secureError('Error retrieving access token:', error);
     return null;
@@ -92,6 +117,8 @@ export const getAccessToken = async (): Promise<string | null> => {
 
 export const clearTokens = async (): Promise<void> => {
   try {
+    const storage = getStorage();
+    if (!storage) return;
     storage.delete(STORAGE_KEYS.ACCESS_TOKEN);
     storage.delete(STORAGE_KEYS.REFRESH_TOKEN);
     storage.delete(STORAGE_KEYS.ACCESS_TOKEN_EXPIRY);
@@ -105,7 +132,10 @@ export const clearTokens = async (): Promise<void> => {
 // User data management
 export const setUserData = async (userData: any): Promise<void> => {
   try {
-    storage.set(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
+    const storage = getStorage();
+    if (storage) {
+      storage.set(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
+    }
   } catch (error) {
     secureError('Error storing user data:', error);
     throw error;
@@ -114,7 +144,8 @@ export const setUserData = async (userData: any): Promise<void> => {
 
 export const getUserData = async (): Promise<any | null> => {
   try {
-    const userDataString = storage.getString(STORAGE_KEYS.USER_DATA);
+    const storage = getStorage();
+    const userDataString = storage?.getString(STORAGE_KEYS.USER_DATA);
     return userDataString ? JSON.parse(userDataString) : null;
   } catch (error) {
     secureError('Error retrieving user data:', error);
@@ -124,7 +155,10 @@ export const getUserData = async (): Promise<any | null> => {
 
 export const clearUserData = async (): Promise<void> => {
   try {
-    storage.delete(STORAGE_KEYS.USER_DATA);
+    const storage = getStorage();
+    if (storage) {
+      storage.delete(STORAGE_KEYS.USER_DATA);
+    }
   } catch (error) {
     secureError('Error clearing user data:', error);
     throw error;

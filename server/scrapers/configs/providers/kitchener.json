@@ -1,0 +1,45 @@
+{
+  "id": "kitchener-rec",
+  "name": "City of Kitchener Recreation",
+  "code": "kitchener",
+  "platform": "activenetwork",
+  "region": "Waterloo Region",
+  "city": "Kitchener",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/activekitchener",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "locale": "en-US",
+      "activity_select_param": 2,
+      "date_after": "2025-01-01",
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["06:00", "12:00", "18:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 256885,
+    "expectedActivities": 800,
+    "notes": "Part of Tri-Cities with Waterloo and Cambridge"
+  }
+}

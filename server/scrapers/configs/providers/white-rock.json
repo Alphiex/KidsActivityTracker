@@ -1,0 +1,46 @@
+{
+  "id": "white-rock-rec",
+  "name": "City of White Rock Recreation",
+  "code": "whiterock",
+  "platform": "perfectmind",
+  "region": "Metro Vancouver",
+  "city": "White Rock",
+  "baseUrl": "https://cityofwhiterock.perfectmind.com",
+  "websiteUrl": "https://www.whiterockcity.ca/recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23697/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "low",
+    "frequency": "1x-daily",
+    "times": [
+      "07:30"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 21939,
+    "expectedActivities": 100,
+    "notes": "Beach city south of Surrey. Small city with limited kids programs - many categories disabled seasonally."
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "vernon-rec",
+  "name": "City of Vernon Recreation",
+  "code": "vernon",
+  "platform": "perfectmind",
+  "region": "Okanagan",
+  "city": "Vernon",
+  "province": "British Columbia",
+  "baseUrl": "https://vernonrecreation.perfectmind.com",
+  "websiteUrl": "https://www.vernon.ca/parks-recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23695/Clients/BookMe4?widgetId=0ec6a652-cfad-4782-a7dd-cd900aba03a7"
+    ],
+    "widgetId": "0ec6a652-cfad-4782-a7dd-cd900aba03a7",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true,
+    "initialWaitTime": 10000
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 44600,
+    "expectedActivities": 300,
+    "notes": "Okanagan city using PerfectMind widget for recreation program registration."
+  }
+}

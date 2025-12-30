@@ -1,0 +1,46 @@
+{
+  "id": "thunderbay-rec",
+  "name": "City of Thunder Bay Recreation",
+  "code": "thunderbay",
+  "platform": "perfectmind",
+  "region": "Northwestern Ontario",
+  "city": "Thunder Bay",
+  "province": "Ontario",
+  "baseUrl": "https://cityofthunderbay.perfectmind.com",
+  "websiteUrl": "https://www.thunderbay.ca/en/recreation.aspx",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/24559/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Thunder_Bay"
+  },
+  "metadata": {
+    "population": 110172,
+    "expectedActivities": 300,
+    "notes": "Northwestern Ontario city using PerfectMind for recreation program registration."
+  }
+}

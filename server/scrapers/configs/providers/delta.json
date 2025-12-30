@@ -1,0 +1,47 @@
+{
+  "id": "delta-rec",
+  "name": "City of Delta Parks & Recreation",
+  "code": "delta",
+  "platform": "perfectmind",
+  "region": "Metro Vancouver",
+  "city": "Delta",
+  "baseUrl": "https://cityofdelta.perfectmind.com",
+  "websiteUrl": "https://www.delta.ca/parks-recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/24140/Clients/BookMe4?widgetId=83ce4775-1cd3-4f8f-8189-768fa00e599a"
+    ],
+    "widgetId": "83ce4775-1cd3-4f8f-8189-768fa00e599a",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 108455,
+    "expectedActivities": 1000,
+    "notes": "South of the Fraser River, multiple community centers"
+  }
+}

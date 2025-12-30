@@ -1,0 +1,47 @@
+{
+  "id": "abbotsford-rec",
+  "name": "City of Abbotsford Parks, Recreation & Culture",
+  "code": "abbotsford",
+  "platform": "perfectmind",
+  "region": "Fraser Valley",
+  "city": "Abbotsford",
+  "baseUrl": "https://abbotsford.perfectmind.com",
+  "websiteUrl": "https://www.abbotsford.ca/activities-search-results",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/23852/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "dynamicDiscovery": true,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "maxConcurrency": 5,
+    "fetchDetailPages": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 153524,
+    "expectedActivities": 800,
+    "notes": "Fraser Valley city with embedded PerfectMind widget via Drupal"
+  }
+}

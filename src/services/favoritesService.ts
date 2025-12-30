@@ -1,7 +1,24 @@
 import { MMKV } from 'react-native-mmkv';
 import { Activity } from '../types';
 
-const storage = new MMKV();
+// Lazy initialization to avoid JSI issues on Android
+let _storage: MMKV | null = null;
+let _storageInitAttempted = false;
+
+const getStorage = (): MMKV | null => {
+  if (_storage) return _storage;
+
+  if (_storageInitAttempted) return null;
+
+  try {
+    _storage = new MMKV();
+    return _storage;
+  } catch (error) {
+    _storageInitAttempted = true;
+    console.warn('[FavoritesService] MMKV initialization failed:', error);
+    return null;
+  }
+};
 
 const FAVORITES_KEY = 'user_favorites';
 const CAPACITY_ALERTS_KEY = 'capacity_alerts';
@@ -40,7 +57,8 @@ class FavoritesService {
 
   private loadFavorites() {
     try {
-      const stored = storage.getString(FAVORITES_KEY);
+      const storage = getStorage();
+      const stored = storage?.getString(FAVORITES_KEY);
       if (stored) {
         this.favorites = JSON.parse(stored);
       }
@@ -52,7 +70,10 @@ class FavoritesService {
 
   private saveFavorites() {
     try {
-      storage.set(FAVORITES_KEY, JSON.stringify(this.favorites));
+      const storage = getStorage();
+      if (storage) {
+        storage.set(FAVORITES_KEY, JSON.stringify(this.favorites));
+      }
     } catch (error) {
       console.error('Error saving favorites:', error);
     }
@@ -60,7 +81,8 @@ class FavoritesService {
 
   private loadCapacityAlerts() {
     try {
-      const stored = storage.getString(CAPACITY_ALERTS_KEY);
+      const storage = getStorage();
+      const stored = storage?.getString(CAPACITY_ALERTS_KEY);
       if (stored) {
         this.capacityAlerts = JSON.parse(stored);
       }
@@ -72,7 +94,10 @@ class FavoritesService {
 
   private saveCapacityAlerts() {
     try {
-      storage.set(CAPACITY_ALERTS_KEY, JSON.stringify(this.capacityAlerts));
+      const storage = getStorage();
+      if (storage) {
+        storage.set(CAPACITY_ALERTS_KEY, JSON.stringify(this.capacityAlerts));
+      }
     } catch (error) {
       console.error('Error saving capacity alerts:', error);
     }

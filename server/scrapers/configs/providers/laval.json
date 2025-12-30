@@ -1,0 +1,40 @@
+{
+  "id": "laval-rec",
+  "name": "Ville de Laval Inscriptions",
+  "code": "laval",
+  "platform": "amilia",
+  "region": "Greater Montreal",
+  "city": "Laval",
+  "province": "QC",
+  "baseUrl": "https://app.amilia.com/store/fr/ville-de-laval-inscriptions/shop/programs",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "programs",
+    "entryPoints": ["/shop/programs"],
+    "language": "fr",
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 2,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "daily",
+    "times": ["06:00"],
+    "timezone": "America/Montreal"
+  },
+  "metadata": {
+    "population": 438000,
+    "expectedActivities": 400,
+    "notes": "Third largest city in Quebec, on Île Jésus"
+  }
+}

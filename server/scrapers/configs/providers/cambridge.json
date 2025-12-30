@@ -1,0 +1,45 @@
+{
+  "id": "cambridge-recreation",
+  "name": "City of Cambridge Recreation",
+  "code": "cambridge",
+  "platform": "activenetwork",
+  "region": "Waterloo Region",
+  "province": "ON",
+  "city": "Cambridge",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/cambridgeont",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "days_of_week": "0000000",
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "critical",
+    "frequency": "3x-daily",
+    "times": ["06:00", "12:00", "18:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 138479,
+    "expectedActivities": 700,
+    "notes": "Part of Waterloo Region tri-cities, southwest of Toronto"
+  }
+}

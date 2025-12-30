@@ -30,6 +30,44 @@ When asked to run the app on iOS simulator, ALWAYS use one of these methods:
 - iPhone 16: `6558E69E-75D4-4088-B42B-DBD7F5FDFAFA`
 - iPhone 16 Plus: `86E8B2CB-2E1B-4621-9A20-78549BDFB0F9`
 
+## Android Emulator Configuration
+
+### Running on Android
+When asked to run the app on Android emulator:
+
+1. **Start the emulator** (if not running):
+   ```bash
+   JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_SDK_ROOT=/opt/homebrew/share/android-commandlinetools \
+   /opt/homebrew/share/android-commandlinetools/emulator/emulator -avd Pixel_7_API_34 &
+   ```
+
+2. **Build and run the app**:
+   ```bash
+   JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_SDK_ROOT=/opt/homebrew/share/android-commandlinetools \
+   npx react-native run-android
+   ```
+
+### Available Android Emulators
+- Pixel 7 API 34: `Pixel_7_API_34` (PRIMARY - Android 14)
+
+### Android-Specific Fixes Applied
+The following fixes were applied for Android compatibility:
+
+1. **MMKV Lazy Initialization**: MMKV storage is lazily initialized with error handling to avoid JSI timing issues on Android. Files affected:
+   - `src/services/preferencesService.ts`
+   - `src/services/favoritesService.ts`
+   - `src/utils/secureStorage.ts`
+   - `App.tsx`
+
+2. **RevenueCat UI Lazy Loading**: The `react-native-purchases-ui` module is dynamically loaded to prevent linking errors on Android. File affected:
+   - `src/services/revenueCatService.ts`
+
+### Android Environment Variables
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+export ANDROID_SDK_ROOT=/opt/homebrew/share/android-commandlinetools
+```
+
 ## Code Quality Rules
 
 ### Before Committing Code
@@ -78,10 +116,19 @@ node scripts/database/check-database.js   # Verify database
 ```
 
 ## Development Workflow
+
+### iOS Development
 1. Start Metro bundler: `npx react-native start --reset-cache`
 2. Run iOS app: `./scripts/ios/run-simulator.sh`
 3. If network issues occur, restart Metro and rebuild
 4. For physical device testing, use Xcode or `npx react-native run-ios --device`
+
+### Android Development
+1. Start Metro bundler: `npx react-native start --reset-cache`
+2. Start Android emulator (see Android Emulator Configuration above)
+3. Run Android app: `JAVA_HOME=/opt/homebrew/opt/openjdk@17 npx react-native run-android`
+4. Use `adb shell am force-stop com.kidsactivitytracker` to force stop the app
+5. Use `adb shell am start -n com.kidsactivitytracker/.MainActivity` to restart
 
 ## Project Structure
 ```

@@ -1,0 +1,44 @@
+{
+  "id": "bowen-island-rec",
+  "name": "Bowen Island Community Recreation",
+  "code": "bowenisland",
+  "platform": "activenetwork",
+  "region": "Metro Vancouver",
+  "city": "Bowen Island",
+  "baseUrl": "https://anc.ca.apm.activecommunities.com/bowencommunityrec",
+  "websiteUrl": "https://www.bowenisland.ca/recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": ["/activity/search"],
+    "searchParams": {
+      "onlineSiteId": 0,
+      "activity_select_param": 2,
+      "viewMode": "list"
+    },
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "fetchDetailPages": true,
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3
+  },
+  "schedule": {
+    "tier": "low",
+    "frequency": "1x-daily",
+    "times": ["08:00"],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 4256,
+    "expectedActivities": 100,
+    "notes": "Small island community accessible by ferry from Horseshoe Bay"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "platform": "perfectmind",
+  "displayName": "PerfectMind Recreation Management",
+  "urlPatterns": [
+    "perfectmind.com",
+    ".perfectmind.com"
+  ],
+  "defaultConfig": {
+    "type": "widget",
+    "sections": [
+      "Early Years: Parent Participation",
+      "Early Years: On My Own",
+      "School Age",
+      "Youth",
+      "All Ages & Family",
+      "Aquatics",
+      "Sports",
+      "Arts",
+      "Camps"
+    ],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 60000,
+    "retries": 3,
+    "headless": true,
+    "maxConcurrency": 5
+  },
+  "selectors": {
+    "activityRow": ".bm-group-item-row",
+    "activityName": ".bm-group-item-name",
+    "courseId": ".bm-group-item-course-id",
+    "price": ".bm-group-item-price",
+    "dates": ".bm-group-item-dates",
+    "schedule": ".bm-group-item-schedule",
+    "location": ".bm-group-item-location",
+    "availability": ".bm-group-item-availability",
+    "spotsRemaining": ".bm-group-item-spots",
+    "showMore": [
+      "a:contains('Show')",
+      "button:contains('Show')",
+      ".show-more",
+      ".expand-all"
+    ],
+    "groupTitle": ".bm-group-title-row",
+    "sectionHeader": ".bm-category-header"
+  },
+  "widgetConfig": {
+    "widgetIdParam": "widgetId",
+    "embedParam": "embed",
+    "bookMe4Path": "/Clients/BookMe4"
+  },
+  "fieldMapping": {
+    "name": "name",
+    "externalId": "courseId",
+    "category": "section",
+    "subcategory": "activityType",
+    "description": "description",
+    "fullDescription": "fullDescription",
+    "schedule": "schedule",
+    "cost": "price",
+    "spotsAvailable": "spotsAvailable",
+    "totalSpots": "totalSpots",
+    "registrationStatus": "availability",
+    "registrationUrl": "registrationUrl",
+    "locationName": "location",
+    "instructor": "instructor",
+    "startTime": "startTime",
+    "endTime": "endTime",
+    "daysOfWeek": "daysOfWeek",
+    "ageMin": "ageRange.min",
+    "ageMax": "ageRange.max",
+    "dateStart": "dateStart",
+    "dateEnd": "dateEnd"
+  },
+  "sectionToCategory": {
+    "Early Years: Parent Participation": "early-years",
+    "Early Years: On My Own": "early-years",
+    "School Age": "school-age",
+    "Youth": "youth",
+    "All Ages & Family": "family",
+    "Aquatics": "aquatics",
+    "Sports": "sports",
+    "Arts": "arts",
+    "Camps": "camps"
+  }
+}
