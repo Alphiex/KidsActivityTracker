@@ -6,7 +6,12 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -195,8 +200,8 @@ const ActivityListScreen = () => {
     loadActivities(true);
   };
 
-  const renderActivity = ({ item }: { item: Activity }) => (
-    <ActivityCard 
+  const renderActivity = ({ item, index }: { item: Activity; index: number }) => (
+    <ActivityCard
       activity={item}
       onPress={() => {
         // Convert Date objects to ISO strings to avoid non-serializable warning
@@ -209,6 +214,10 @@ const ActivityListScreen = () => {
           scrapedAt: safeToISOString(item.scrapedAt),
         };
         navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
+      }}
+      containerStyle={{
+        width: CARD_WIDTH,
+        marginRight: index % 2 === 0 ? CARD_GAP : 0,
       }}
     />
   );
@@ -272,6 +281,8 @@ const ActivityListScreen = () => {
         data={activities}
         renderItem={renderActivity}
         keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={activities.length > 1 ? styles.columnWrapper : undefined}
         ListHeaderComponent={renderHeader}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -332,7 +343,11 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   listContent: {
+    paddingHorizontal: 16,
     paddingBottom: 20,
+  },
+  columnWrapper: {
+    justifyContent: 'flex-start',
   },
   loadingText: {
     fontSize: 16,

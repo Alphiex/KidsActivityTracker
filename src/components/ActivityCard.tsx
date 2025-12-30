@@ -37,6 +37,8 @@ interface ActivityCardProps {
   // Subscription limit checking for favorites
   canAddFavorite?: boolean;
   onFavoriteLimitReached?: () => void;
+  // Custom container style for grid layouts
+  containerStyle?: any;
 }
 
 const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -47,6 +49,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   variant = 'default',
   canAddFavorite = true,
   onFavoriteLimitReached,
+  containerStyle,
 }) => {
   const favoritesService = FavoritesService.getInstance();
   // Use external state if provided, otherwise manage internally
@@ -275,8 +278,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   };
 
   return (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: colors.cardBackground }]}
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.cardBackground }, containerStyle]}
       onPress={() => {
         console.log('ActivityCard pressed:', activity.name);
         console.log('onPress function exists:', !!onPress);

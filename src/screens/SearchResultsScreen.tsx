@@ -8,8 +8,12 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  ScrollView,
+  Dimensions,
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
@@ -281,15 +285,19 @@ const SearchResultsScreen = () => {
         <FlatList
           data={activities}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.activityCardContainer}>
-              <ActivityCard
-                activity={item}
-                onPress={() => handleActivityPress(item)}
-                isFavorite={favoriteIds.has(item.id)}
-                onFavoritePress={() => toggleFavorite(item)}
-              />
-            </View>
+          numColumns={2}
+          columnWrapperStyle={activities.length > 1 ? styles.columnWrapper : undefined}
+          renderItem={({ item, index }) => (
+            <ActivityCard
+              activity={item}
+              onPress={() => handleActivityPress(item)}
+              isFavorite={favoriteIds.has(item.id)}
+              onFavoritePress={() => toggleFavorite(item)}
+              containerStyle={{
+                width: CARD_WIDTH,
+                marginRight: index % 2 === 0 ? CARD_GAP : 0,
+              }}
+            />
           )}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -390,11 +398,11 @@ const styles = StyleSheet.create({
     color: '#222222',
   },
   listContent: {
+    paddingHorizontal: 16,
     paddingBottom: 20,
   },
-  activityCardContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  columnWrapper: {
+    justifyContent: 'flex-start',
   },
   loadingFooter: {
     paddingVertical: 20,

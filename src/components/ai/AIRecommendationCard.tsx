@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { AIRecommendation, AISourceType } from '../../types/ai';
 import { Activity } from '../../types';
-import AISourceBadge from './AISourceBadge';
 import { OptimizedActivityImage } from '../OptimizedActivityImage';
+import { getActivityImageByKey } from '../../assets/images';
+import { getActivityImageKey } from '../../utils/activityHelpers';
+import { formatActivityPrice } from '../../utils/formatters';
+import { Colors, Theme } from '../../theme';
 
 interface AIRecommendationCardProps {
   recommendation: AIRecommendation;
@@ -13,109 +17,224 @@ interface AIRecommendationCardProps {
   source: AISourceType;
   onPress?: () => void;
   showExplanation?: boolean;
+  containerStyle?: any;
 }
 
 /**
  * Activity card enhanced with AI recommendation explanation
- * Shows "why" reasons and fit score
+ * Matches the style of the regular ActivityCard with "why" reasons
  */
 const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   recommendation,
   activity,
   source,
   onPress,
-  showExplanation = true
+  showExplanation = true,
+  containerStyle,
 }) => {
-  const { colors } = useTheme();
-  
-  // Format fit score as percentage
-  const fitScoreLabel = recommendation.fit_score >= 90 
-    ? 'Excellent Match' 
-    : recommendation.fit_score >= 70 
-      ? 'Good Match' 
-      : 'Possible Match';
-  
+  const { colors, isDark } = useTheme();
+
+  // Format fit score as label
+  const fitScoreLabel = recommendation.fit_score >= 90
+    ? 'Excellent Match'
+    : recommendation.fit_score >= 70
+      ? 'Great Match'
+      : 'Good Match';
+
+  const fitScoreColor = recommendation.fit_score >= 90
+    ? '#10B981'
+    : recommendation.fit_score >= 70
+      ? '#3B82F6'
+      : '#6B7280';
+
+  // Get image source for activity
+  const getImageSource = () => {
+    const activityType = Array.isArray(activity.activityType)
+      ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+      : (activity.activityType as any)?.name;
+
+    return getActivityImageByKey(getActivityImageKey(
+      activity.category || activityType || '',
+      activity.subcategory,
+      activity.name
+    ));
+  };
+
+  // Format date range
+  const formatDateRange = () => {
+    if (!activity.dateRange?.start && !activity.dateRange?.end) return null;
+
+    const formatDate = (date: Date | string) => {
+      const d = new Date(date);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const start = activity.dateRange?.start ? formatDate(activity.dateRange.start) : '';
+    const end = activity.dateRange?.end ? formatDate(activity.dateRange.end) : '';
+
+    if (start && end) {
+      const today = new Date();
+      const startDate = new Date(activity.dateRange.start);
+      const endDate = new Date(activity.dateRange.end);
+
+      if (startDate <= today && endDate >= today) {
+        return `In Progress`;
+      }
+      return `${start} - ${end}`;
+    }
+    return start || end;
+  };
+
+  // Format time display
+  const formatTime = () => {
+    if (activity.startTime || activity.endTime) {
+      return `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
+    }
+    return null;
+  };
+
+  // Get location name
+  const getLocation = () => {
+    if (typeof activity.location === 'string') return activity.location;
+    return activity.location?.name || activity.locationName || null;
+  };
+
   return (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: colors.surface }]}
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.cardBackground }, containerStyle]}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.9}
     >
-      {/* Rank badge */}
-      <View style={[styles.rankBadge, { backgroundColor: colors.primary }]}>
-        <Text style={styles.rankText}>#{recommendation.rank}</Text>
-      </View>
-      
-      {/* Sponsored label */}
-      {recommendation.is_sponsored && (
-        <View style={[styles.sponsoredBadge, { backgroundColor: '#F59E0B20' }]}>
-          <Text style={styles.sponsoredText}>Sponsored</Text>
+      {/* Image Section */}
+      <View style={styles.imageContainer}>
+        <OptimizedActivityImage
+          source={getImageSource()}
+          style={styles.image}
+          resizeMode="cover"
+          containerStyle={styles.imageContainer}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.7)']}
+          style={styles.imageGradient}
+        />
+
+        {/* Rank Badge */}
+        <View style={[styles.rankBadge, { backgroundColor: colors.primary }]}>
+          <Text style={styles.rankText}>#{recommendation.rank}</Text>
         </View>
-      )}
-      
+
+        {/* Sponsored Badge */}
+        {recommendation.is_sponsored && (
+          <View style={styles.sponsoredBadge}>
+            <Icon name="star" size={10} color="#F59E0B" />
+            <Text style={styles.sponsoredText}>Sponsored</Text>
+          </View>
+        )}
+
+        {/* Price Overlay */}
+        <View style={styles.imageOverlay}>
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceText}>{formatActivityPrice(activity.cost)}</Text>
+            {activity.cost !== null && activity.cost !== undefined && activity.cost > 0 && (
+              <Text style={styles.priceLabel}>per child</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Fit Score Badge */}
+        <View style={[styles.fitBadge, { backgroundColor: fitScoreColor }]}>
+          <Icon name="star" size={12} color="#fff" />
+          <Text style={styles.fitText}>{fitScoreLabel}</Text>
+        </View>
+      </View>
+
+      {/* Content Section */}
       <View style={styles.content}>
-        {/* Activity image */}
-        <View style={styles.imageContainer}>
-          <OptimizedActivityImage
-            activity={activity}
-            style={styles.image}
-          />
-        </View>
-        
-        {/* Activity info */}
-        <View style={styles.info}>
-          <View style={styles.header}>
-            <Text 
-              style={[styles.title, { color: colors.text }]} 
-              numberOfLines={2}
-            >
-              {activity.name}
-            </Text>
-            <AISourceBadge source={source} compact />
-          </View>
-          
-          {/* Provider name */}
-          {activity.provider?.name && (
-            <Text 
-              style={[styles.provider, { color: colors.textSecondary }]}
-              numberOfLines={1}
-            >
-              {activity.provider.name}
-            </Text>
-          )}
-          
-          {/* Price and fit score */}
-          <View style={styles.metaRow}>
-            <Text style={[styles.price, { color: colors.primary }]}>
-              {activity.cost === 0 ? 'Free' : `$${activity.cost}`}
-            </Text>
-            
-            <View style={styles.fitScore}>
-              <Icon 
-                name="star" 
-                size={14} 
-                color={recommendation.fit_score >= 70 ? '#10B981' : colors.textSecondary} 
-              />
-              <Text 
-                style={[
-                  styles.fitScoreText, 
-                  { color: recommendation.fit_score >= 70 ? '#10B981' : colors.textSecondary }
-                ]}
-              >
-                {fitScoreLabel}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      
-      {/* Why section */}
-      {showExplanation && recommendation.why && recommendation.why.length > 0 && (
-        <View style={[styles.whySection, { borderTopColor: colors.border }]}>
-          <Text style={[styles.whyTitle, { color: colors.textSecondary }]}>
-            Why this matches:
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+          {activity.name}
+        </Text>
+
+        {/* Provider */}
+        {activity.provider && (
+          <Text style={[styles.provider, { color: colors.textSecondary }]} numberOfLines={1}>
+            {typeof activity.provider === 'string' ? activity.provider : (activity.provider as any)?.name}
           </Text>
-          {recommendation.why.map((reason, index) => (
+        )}
+
+        {/* Location */}
+        {getLocation() && (
+          <View style={styles.infoRow}>
+            <Icon name="map-marker" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]} numberOfLines={1}>
+              {getLocation()}
+            </Text>
+          </View>
+        )}
+
+        {/* Date Range */}
+        {formatDateRange() && (
+          <View style={[styles.infoRow, styles.dateRow]}>
+            <Icon name="calendar-range" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, styles.dateText, { color: colors.text }]}>
+              {formatDateRange()}
+            </Text>
+          </View>
+        )}
+
+        {/* Time */}
+        {formatTime() && (
+          <View style={[styles.infoRow, styles.timeRow]}>
+            <Icon name="clock-outline" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, styles.timeText, { color: colors.text }]}>
+              {formatTime()}
+            </Text>
+          </View>
+        )}
+
+        {/* Age Range */}
+        <View style={styles.infoRow}>
+          <Icon name="account-child" size={16} color={Colors.primary} />
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+            Ages {activity.ageRange?.min ?? activity.ageMin ?? 0} - {activity.ageRange?.max ?? activity.ageMax ?? 18} years
+          </Text>
+        </View>
+
+        {/* Spots Available */}
+        {activity.spotsAvailable !== null && activity.spotsAvailable !== undefined && (
+          <View style={styles.spotsContainer}>
+            {activity.spotsAvailable === 0 ? (
+              <View style={styles.fullBadge}>
+                <Text style={styles.fullText}>FULL</Text>
+              </View>
+            ) : activity.spotsAvailable <= 5 ? (
+              <View style={styles.limitedBadge}>
+                <Icon name="alert-circle" size={14} color={Colors.warning} />
+                <Text style={styles.limitedText}>
+                  Only {activity.spotsAvailable} {activity.spotsAvailable === 1 ? 'spot' : 'spots'} left!
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.availableBadge}>
+                <Icon name="check-circle" size={14} color={Colors.success} />
+                <Text style={styles.availableText}>
+                  {activity.spotsAvailable} spots available
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Why This Matches Section */}
+      {showExplanation && recommendation.why && recommendation.why.length > 0 && (
+        <View style={[styles.whySection, { borderTopColor: colors.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#F0FDF4' }]}>
+          <View style={styles.whyHeader}>
+            <Icon name="lightbulb-outline" size={16} color="#10B981" />
+            <Text style={[styles.whyTitle, { color: '#10B981' }]}>
+              Why this matches:
+            </Text>
+          </View>
+          {recommendation.why.slice(0, 3).map((reason, index) => (
             <View key={index} style={styles.whyItem}>
               <Icon name="check-circle" size={14} color="#10B981" />
               <Text style={[styles.whyText, { color: colors.text }]}>
@@ -125,14 +244,14 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
           ))}
         </View>
       )}
-      
+
       {/* Warnings */}
       {recommendation.warnings && recommendation.warnings.length > 0 && (
-        <View style={[styles.warningsSection, { borderTopColor: colors.border }]}>
+        <View style={[styles.warningsSection, { borderTopColor: colors.border, backgroundColor: '#FEF3C7' }]}>
           {recommendation.warnings.map((warning, index) => (
             <View key={index} style={styles.warningItem}>
               <Icon name="alert-circle" size={14} color="#F59E0B" />
-              <Text style={[styles.warningText, { color: '#F59E0B' }]}>
+              <Text style={styles.warningText}>
                 {warning}
               </Text>
             </View>
@@ -145,112 +264,210 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    marginBottom: Theme.spacing.md,
+    ...Theme.shadows.md,
     overflow: 'hidden',
+    elevation: 4,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 180,
+    backgroundColor: '#f5f5f5',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  imageGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 100,
   },
   rankBadge: {
     position: 'absolute',
     top: 12,
     left: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 12,
     zIndex: 1,
   },
   rankText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   sponsoredBadge: {
     position: 'absolute',
     top: 12,
-    right: 12,
+    left: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
+    borderRadius: 10,
+    gap: 4,
   },
   sponsoredText: {
     color: '#F59E0B',
     fontSize: 10,
     fontWeight: '600',
   },
-  content: {
+  fitBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     flexDirection: 'row',
-    padding: 12,
-    paddingTop: 40, // Space for rank badge
-    gap: 12,
-  },
-  imageContainer: {
-    width: 80,
-    height: 80,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 12,
-    overflow: 'hidden',
+    gap: 4,
   },
-  image: {
-    width: '100%',
-    height: '100%',
+  fitText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  info: {
-    flex: 1,
-    justifyContent: 'center',
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: Theme.spacing.md,
   },
-  header: {
-    flexDirection: 'row',
+  priceContainer: {
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
+  },
+  priceText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.white,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: Colors.white,
+    opacity: 0.9,
+  },
+  content: {
+    padding: Theme.spacing.md,
   },
   title: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+    lineHeight: 24,
   },
   provider: {
     fontSize: 13,
-    marginTop: 4,
+    marginBottom: 8,
   },
-  metaRow: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  infoText: {
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
+  },
+  dateRow: {
+    backgroundColor: Colors.secondary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginHorizontal: -4,
+    marginBottom: 8,
+  },
+  dateText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  timeRow: {
+    backgroundColor: Colors.primary + '10',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginHorizontal: -4,
+    marginBottom: 8,
+  },
+  timeText: {
+    fontWeight: '600',
+    fontSize: 13,
+    color: Colors.primary,
+  },
+  spotsContainer: {
     marginTop: 8,
   },
-  price: {
-    fontSize: 15,
-    fontWeight: '700',
+  fullBadge: {
+    backgroundColor: Colors.error + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
-  fitScore: {
+  fullText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.error,
+  },
+  limitedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.warning + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
     gap: 4,
   },
-  fitScoreText: {
+  limitedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.warning,
+  },
+  availableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.success + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  availableText: {
     fontSize: 12,
     fontWeight: '500',
+    color: Colors.success,
   },
   whySection: {
     padding: 12,
-    paddingTop: 8,
     borderTopWidth: 1,
+  },
+  whyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
     gap: 6,
   },
   whyTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: '700',
   },
   whyItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 4,
     gap: 8,
   },
   whyText: {
@@ -260,9 +477,7 @@ const styles = StyleSheet.create({
   },
   warningsSection: {
     padding: 12,
-    paddingTop: 8,
     borderTopWidth: 1,
-    gap: 4,
   },
   warningItem: {
     flexDirection: 'row',
@@ -273,6 +488,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 16,
+    color: '#92400E',
   },
 });
 

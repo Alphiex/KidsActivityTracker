@@ -22,6 +22,8 @@ import FavoritesService from '../services/favoritesService';
 import { useAppSelector } from '../store';
 
 const { width, height } = Dimensions.get('window');
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - 32 - CARD_GAP) / 2; // 16px padding on each side, gap between cards
 
 type RouteParams = {
   UnifiedResults: {
@@ -112,7 +114,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
       recommended: {
         title: 'Recommended for You',
         subtitle: 'Personalized based on your preferences',
-        icon: 'star',
+        icon: '',
         image: placeholderImages.recommended,
         description: 'Hand-picked activities we think you\'ll love',
       },
@@ -294,7 +296,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
     }
   };
 
-  const renderActivity = ({ item }: { item: Activity }) => {
+  const renderActivity = ({ item, index }: { item: Activity; index: number }) => {
     if (!item || !item.id) return null;
     const isFavorite = favoriteIds.has(item.id);
     return (
@@ -304,6 +306,10 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
+        containerStyle={{
+          width: CARD_WIDTH,
+          marginRight: index % 2 === 0 ? CARD_GAP : 0,
+        }}
       />
     );
   };
@@ -322,9 +328,11 @@ const UnifiedResultsScreenTest: React.FC = () => {
             </View>
           </TouchableOpacity>
           <View style={styles.heroContent}>
-            <View style={[styles.iconBadge, config.isFavorites && styles.favoritesIconBadge]}>
-              <Icon name={config.icon || 'tag'} size={24} color={config.isFavorites ? '#FF385C' : 'white'} />
-            </View>
+            {config.icon ? (
+              <View style={[styles.iconBadge, config.isFavorites && styles.favoritesIconBadge]}>
+                <Icon name={config.icon} size={24} color={config.isFavorites ? '#FF385C' : 'white'} />
+              </View>
+            ) : null}
             <Text style={styles.heroTitle}>{String(config.title || '')}</Text>
             <Text style={styles.heroSubtitle}>{String(config.subtitle || '')}</Text>
           </View>
@@ -383,6 +391,9 @@ const UnifiedResultsScreenTest: React.FC = () => {
         data={activities}
         renderItem={renderActivity}
         keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        contentContainerStyle={styles.listContent}
+        columnWrapperStyle={styles.columnWrapper}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         onEndReached={handleLoadMore}
@@ -409,6 +420,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: ModernColors.background,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  columnWrapper: {
+    justifyContent: 'flex-start',
   },
   headerContainer: {
     marginBottom: ModernSpacing.lg,
