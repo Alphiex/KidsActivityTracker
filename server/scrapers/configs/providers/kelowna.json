@@ -1,0 +1,101 @@
+{
+  "id": "kelowna-rec",
+  "name": "City of Kelowna Active Living & Culture",
+  "code": "kelowna",
+  "platform": "intelligenz",
+  "region": "Okanagan",
+  "city": "Kelowna",
+  "province": "British Columbia",
+  "baseUrl": "https://rec.kelowna.ca",
+  "websiteUrl": "https://www.kelowna.ca/recreation",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "entryPoints": [
+      "/registration/public/category/browse/ARTWINTER6UNER",
+      "/registration/public/category/browse/EARLYCAMPS25",
+      "/registration/public/category/browse/C6UWinterCooking",
+      "/registration/public/category/browse/C6UWinterDance",
+      "/registration/public/category/browse/PlayschoolProgramsW2026",
+      "/registration/public/category/browse/C6UWinterSports",
+      "/registration/public/category/browse/C6upWinterArtScience",
+      "/registration/public/category/browse/Babysitting6Up",
+      "/registration/public/category/browse/Cookingw2022",
+      "/registration/public/category/browse/MARTIALARTSWINTER2022",
+      "/registration/public/category/browse/C6UpWinterMusic",
+      "/registration/public/category/browse/C6UpWinterSports",
+      "/registration/public/category/browse/C6UpSpringBreakCamps",
+      "/registration/public/category/browse/SouthKelownaWinter",
+      "/registration/public/category/browse/COOKINGTEENSWINTER",
+      "/registration/public/category/browse/DANCETEENSWINTER",
+      "/registration/public/category/browse/SPORTSTEENSWINTER",
+      "/registration/public/category/browse/AquaRedCrossWinter",
+      "/registration/public/category/browse/WINTERSWIMPARENTTOT",
+      "/registration/public/category/browse/AquaPreschoolWinter",
+      "/registration/public/category/browse/PPWDWinter"
+    ],
+    "kidsCategories": [
+      {"code": "ARTWINTER6UNER", "name": "Art (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
+      {"code": "EARLYCAMPS25", "name": "Camps", "ageMin": 0, "ageMax": 12},
+      {"code": "C6UWinterCooking", "name": "Cooking (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
+      {"code": "C6UWinterDance", "name": "Dance (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
+      {"code": "PlayschoolProgramsW2026", "name": "Playschool and Child Care", "ageMin": 0, "ageMax": 6},
+      {"code": "C6UWinterSports", "name": "Sports (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
+      {"code": "C6upWinterArtScience", "name": "Art & Science (Kids 6+)", "ageMin": 6, "ageMax": 12},
+      {"code": "Babysitting6Up", "name": "Babysitting", "ageMin": 10, "ageMax": 16},
+      {"code": "Cookingw2022", "name": "Cooking (Kids 6+)", "ageMin": 6, "ageMax": 12},
+      {"code": "MARTIALARTSWINTER2022", "name": "Martial Arts", "ageMin": 6, "ageMax": 18},
+      {"code": "C6UpWinterMusic", "name": "Music (Kids 6+)", "ageMin": 6, "ageMax": 12},
+      {"code": "C6UpWinterSports", "name": "Sports (Kids 6+)", "ageMin": 6, "ageMax": 12},
+      {"code": "C6UpSpringBreakCamps", "name": "Spring Break Camps", "ageMin": 6, "ageMax": 12},
+      {"code": "SouthKelownaWinter", "name": "South Kelowna Programs", "ageMin": 0, "ageMax": 18},
+      {"code": "COOKINGTEENSWINTER", "name": "Cooking (Teens)", "ageMin": 13, "ageMax": 18},
+      {"code": "DANCETEENSWINTER", "name": "Dance (Teens)", "ageMin": 13, "ageMax": 18},
+      {"code": "SPORTSTEENSWINTER", "name": "Sports (Teens)", "ageMin": 13, "ageMax": 18},
+      {"code": "AquaRedCrossWinter", "name": "Red Cross Swim Lessons", "ageMin": 0, "ageMax": 18},
+      {"code": "WINTERSWIMPARENTTOT", "name": "Parent & Tot Swimming", "ageMin": 0, "ageMax": 4},
+      {"code": "AquaPreschoolWinter", "name": "Preschool Swimming", "ageMin": 3, "ageMax": 6},
+      {"code": "PPWDWinter", "name": "Adaptive Programs", "ageMin": 0, "ageMax": 18}
+    ],
+    "dynamicDiscovery": true,
+    "maxDepth": 4,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 20,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 3000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 3,
+    "fetchDetailPages": true,
+    "cardSelector": ".card",
+    "activitySelectors": {
+      "title": "h2, h3, .card-title",
+      "id": ".badge:contains('ID')",
+      "price": ".badge:contains('Price')",
+      "spaces": ".badge:contains('Spaces')",
+      "dateFrom": ".badge:contains('From')",
+      "dateTo": ".badge:contains('To')",
+      "scheduleTable": "table"
+    }
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": [
+      "07:00",
+      "19:00"
+    ],
+    "timezone": "America/Vancouver"
+  },
+  "metadata": {
+    "population": 144576,
+    "expectedActivities": 500,
+    "notes": "Okanagan city using Intelligenz platform variant. Rich data with ID, Price, Spaces, Dates, Schedule table (Day/Start/End/Instructor/Location/Venue). Categories change seasonally (Winter/Summer)."
+  }
+}

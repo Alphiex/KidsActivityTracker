@@ -74,6 +74,7 @@ verify*.js
 !app.json
 !jest.config.json
 !babel.config.json
+!server/scrapers/configs/**/*.json
 
 *.csv
 *.sql
