@@ -91,13 +91,30 @@ class PerfectMindScraper extends BaseScraper {
       this.validateConfig();
       const provider = await this.getOrCreateProvider();
 
+      // Check if incremental save is enabled (for large datasets that might crash)
+      const incrementalSave = this.config.scraperConfig.incrementalSave === true;
+
+      if (incrementalSave) {
+        // Pass provider to enable saving after each batch
+        this.currentProviderId = provider.id;
+        this.totalStats = { created: 0, updated: 0, unchanged: 0, errors: 0 };
+      }
+
       const rawActivities = await this.extractPerfectMindActivities();
 
       // Enhance activities with location data from detail pages
       const enhancedActivities = await this.enhanceWithLocationData(rawActivities);
 
       const normalizedActivities = await this.normalizeActivities(enhancedActivities);
-      const stats = await this.saveActivitiesToDatabase(normalizedActivities, provider.id);
+
+      // For incremental save, activities were already saved during extraction
+      let stats;
+      if (incrementalSave) {
+        stats = this.totalStats;
+        this.logProgress(`Incremental save completed: ${stats.created} created, ${stats.updated} updated`);
+      } else {
+        stats = await this.saveActivitiesToDatabase(normalizedActivities, provider.id);
+      }
 
       const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
       const report = this.generateReport(stats, duration);
@@ -202,14 +219,31 @@ class PerfectMindScraper extends BaseScraper {
 
         const batchResults = await Promise.allSettled(batchPromises);
 
+        const batchActivities = [];
         batchResults.forEach((result, idx) => {
           if (result.status === 'fulfilled' && result.value.length > 0) {
             activities.push(...result.value);
+            batchActivities.push(...result.value);
             this.logProgress(`  ✅ ${batch[idx].text} (${batch[idx].section}): ${result.value.length} activities`);
           } else if (result.status === 'rejected') {
             this.logProgress(`  ❌ ${batch[idx].text}: ${result.reason}`);
           }
         });
+
+        // Incremental save: save activities after each batch to prevent data loss
+        if (this.currentProviderId && batchActivities.length > 0) {
+          try {
+            const normalized = await this.normalizeActivities(batchActivities);
+            const batchStats = await this.saveActivitiesToDatabase(normalized, this.currentProviderId);
+            this.totalStats.created += batchStats.created;
+            this.totalStats.updated += batchStats.updated;
+            this.totalStats.unchanged += batchStats.unchanged;
+            this.totalStats.errors += batchStats.errors;
+            this.logProgress(`  💾 Saved batch: ${batchStats.created} new, ${batchStats.updated} updated`);
+          } catch (saveError) {
+            this.logProgress(`  ⚠️ Batch save failed: ${saveError.message}`);
+          }
+        }
       }
     } finally {
       // Always close the shared browser

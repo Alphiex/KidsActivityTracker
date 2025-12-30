@@ -28,14 +28,15 @@
       "maxAge": 18
     },
     "rateLimits": {
-      "requestsPerMinute": 20,
-      "concurrentRequests": 2,
-      "delayBetweenPages": 3000
+      "requestsPerMinute": 30,
+      "concurrentRequests": 1,
+      "delayBetweenPages": 1000
     },
-    "timeout": 120000,
+    "timeout": 60000,
     "retries": 2,
-    "maxConcurrency": 2,
-    "fetchDetailPages": true
+    "maxConcurrency": 3,
+    "fetchDetailPages": false,
+    "incrementalSave": true
   },
   "schedule": {
     "tier": "critical",
