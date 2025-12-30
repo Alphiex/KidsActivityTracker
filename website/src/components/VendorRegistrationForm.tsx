@@ -1,23 +1,30 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { register } from '@/lib/vendorApi';
 
 interface FormData {
   organizationName: string;
-  code: string;
   email: string;
+  password: string;
+  confirmPassword: string;
+  name: string;
+  phone: string;
   website: string;
-  contactName: string;
 }
 
 export default function VendorRegistrationForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     organizationName: '',
-    code: '',
     email: '',
+    password: '',
+    confirmPassword: '',
+    name: '',
+    phone: '',
     website: '',
-    contactName: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -26,16 +33,6 @@ export default function VendorRegistrationForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Auto-generate code from organization name
-    if (name === 'organizationName') {
-      const code = value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, '-')
-        .substring(0, 30);
-      setFormData((prev) => ({ ...prev, code }));
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,14 +41,52 @@ export default function VendorRegistrationForm() {
     setSubmitStatus('idle');
     setErrorMessage('');
 
-    // Note: The actual registration requires user authentication first
-    // For now, we show a message guiding them to download the app
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage('Passwords do not match');
+      setSubmitStatus('error');
+      setIsSubmitting(false);
+      return;
+    }
 
-    // Simulate a brief delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Validate password strength
+    if (formData.password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long');
+      setSubmitStatus('error');
+      setIsSubmitting(false);
+      return;
+    }
 
-    setSubmitStatus('success');
-    setIsSubmitting(false);
+    try {
+      const response = await register({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        organizationName: formData.organizationName,
+        phone: formData.phone || undefined,
+        website: formData.website || undefined,
+      });
+
+      if (response.success || response.token) {
+        // Auto-login after registration
+        if (response.token) {
+          localStorage.setItem('vendor_token', response.token);
+          localStorage.setItem('vendor_id', response.vendor.id);
+          localStorage.setItem('vendor_name', response.vendor.organizationName || response.vendor.name);
+          router.push('/vendor/dashboard');
+        } else {
+          setSubmitStatus('success');
+        }
+      } else {
+        setErrorMessage(response.message || 'Registration failed. Please try again.');
+        setSubmitStatus('error');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Registration failed. Please try again.');
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitStatus === 'success') {
@@ -62,51 +97,19 @@ export default function VendorRegistrationForm() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Registration Request Received!</h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Registration Successful!</h3>
         <p className="text-gray-600 mb-6">
-          Thank you for your interest in listing your activities. Here&apos;s what happens next:
+          Your vendor account has been created. You can now log in to access the vendor portal.
         </p>
-        <div className="bg-white rounded-xl p-6 text-left mb-6">
-          <ol className="space-y-4">
-            <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-sm font-medium text-purple-600">1</span>
-              <div>
-                <p className="font-medium text-gray-900">Download the app</p>
-                <p className="text-sm text-gray-500">Create an account in the Kids Activity Tracker app</p>
-              </div>
-            </li>
-            <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-sm font-medium text-purple-600">2</span>
-              <div>
-                <p className="font-medium text-gray-900">Contact our team</p>
-                <p className="text-sm text-gray-500">Email vendors@kidsactivitytracker.com with your account email</p>
-              </div>
-            </li>
-            <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-sm font-medium text-purple-600">3</span>
-              <div>
-                <p className="font-medium text-gray-900">Get verified</p>
-                <p className="text-sm text-gray-500">We&apos;ll verify your organization and enable vendor access</p>
-              </div>
-            </li>
-            <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-sm font-medium text-purple-600">4</span>
-              <div>
-                <p className="font-medium text-gray-900">Start uploading</p>
-                <p className="text-sm text-gray-500">Upload your activities via CSV/Excel through the vendor portal</p>
-              </div>
-            </li>
-          </ol>
-        </div>
-        <a
-          href="mailto:vendors@kidsactivitytracker.com"
-          className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
+        <Link
+          href="/vendor/login"
+          className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
         >
-          Contact vendors@kidsactivitytracker.com
+          Go to Login
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-        </a>
+        </Link>
       </div>
     );
   }
@@ -126,35 +129,31 @@ export default function VendorRegistrationForm() {
           onChange={handleChange}
           required
           placeholder="e.g., Vancouver Swim Club"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
         />
       </div>
 
-      {/* Vendor Code */}
+      {/* Contact Name */}
       <div>
-        <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
-          Vendor Code <span className="text-red-500">*</span>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+          Contact Name <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
-          id="code"
-          name="code"
-          value={formData.code}
+          id="name"
+          name="name"
+          value={formData.name}
           onChange={handleChange}
           required
-          placeholder="e.g., vancouver-swim-club"
-          pattern="[a-z0-9\-]+"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          placeholder="John Smith"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
         />
-        <p className="mt-1 text-sm text-gray-500">
-          Lowercase letters, numbers, and hyphens only. This will be your unique identifier.
-        </p>
       </div>
 
       {/* Email */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-          Organization Email <span className="text-red-500">*</span>
+          Email Address <span className="text-red-500">*</span>
         </label>
         <input
           type="email"
@@ -164,7 +163,59 @@ export default function VendorRegistrationForm() {
           onChange={handleChange}
           required
           placeholder="info@yourorganization.com"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+        />
+      </div>
+
+      {/* Password */}
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          Password <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          value={formData.password}
+          onChange={handleChange}
+          required
+          minLength={8}
+          placeholder="At least 8 characters"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+        />
+      </div>
+
+      {/* Confirm Password */}
+      <div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+          Confirm Password <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          id="confirmPassword"
+          name="confirmPassword"
+          value={formData.confirmPassword}
+          onChange={handleChange}
+          required
+          minLength={8}
+          placeholder="Confirm your password"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+        />
+      </div>
+
+      {/* Phone */}
+      <div>
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+          Phone Number (Optional)
+        </label>
+        <input
+          type="tel"
+          id="phone"
+          name="phone"
+          value={formData.phone}
+          onChange={handleChange}
+          placeholder="(604) 555-0123"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
         />
       </div>
 
@@ -180,23 +231,7 @@ export default function VendorRegistrationForm() {
           value={formData.website}
           onChange={handleChange}
           placeholder="https://www.yourorganization.com"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-        />
-      </div>
-
-      {/* Contact Name */}
-      <div>
-        <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-2">
-          Primary Contact Name (Optional)
-        </label>
-        <input
-          type="text"
-          id="contactName"
-          name="contactName"
-          value={formData.contactName}
-          onChange={handleChange}
-          placeholder="John Smith"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
         />
       </div>
 
@@ -211,7 +246,7 @@ export default function VendorRegistrationForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-4 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <span className="flex items-center justify-center gap-2">
@@ -219,17 +254,17 @@ export default function VendorRegistrationForm() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Submitting...
+            Creating Account...
           </span>
         ) : (
-          'Submit Registration'
+          'Create Vendor Account'
         )}
       </button>
 
       {/* Already have account */}
       <p className="text-center text-sm text-gray-600">
-        Already registered?{' '}
-        <Link href="/vendor/login" className="text-purple-600 hover:text-purple-700 font-medium">
+        Already have an account?{' '}
+        <Link href="/vendor/login" className="text-blue-600 hover:text-blue-700 font-medium">
           Login to vendor portal
         </Link>
       </p>

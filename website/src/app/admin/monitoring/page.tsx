@@ -88,7 +88,7 @@ export default function MonitoringDashboard() {
         {/* System Health Card */}
         <Link
           href="/admin/monitoring/system"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow min-w-0"
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">System Health</h2>
@@ -127,7 +127,7 @@ export default function MonitoringDashboard() {
         {/* Scrapers Card */}
         <Link
           href="/admin/monitoring/scrapers"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow min-w-0"
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Scrapers</h2>
@@ -174,7 +174,7 @@ export default function MonitoringDashboard() {
         {/* AI Metrics Card */}
         <Link
           href="/admin/monitoring/ai"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow min-w-0"
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">AI Usage</h2>

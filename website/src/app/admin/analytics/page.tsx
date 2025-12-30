@@ -91,28 +91,28 @@ export default function AnalyticsPage() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <div className="text-sm font-medium text-gray-500">Total Partners</div>
           <div className="text-3xl font-bold text-gray-900 mt-2">
             {overview?.totalPartners ?? 0}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <div className="text-sm font-medium text-gray-500">Active Partners</div>
           <div className="text-3xl font-bold text-green-600 mt-2">
             {overview?.activePartners ?? 0}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <div className="text-sm font-medium text-gray-500">Impressions (30 days)</div>
           <div className="text-3xl font-bold text-blue-600 mt-2">
             {(overview?.last30Days.impressions ?? 0).toLocaleString()}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <div className="text-sm font-medium text-gray-500">Click-Through Rate</div>
           <div className="text-3xl font-bold text-purple-600 mt-2">
             {overview?.last30Days.ctr ?? '0.00'}%
@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
 
       {/* Clicks Card */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Last 30 Days</h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -147,7 +147,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Top Partners */}
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Partners</h2>
           {overview?.topPartners && overview.topPartners.length > 0 ? (
             <div className="space-y-3">

@@ -122,7 +122,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-200 ease-in-out ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -173,9 +173,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       )}
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 min-h-screen flex flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center h-16 px-4 bg-white border-b border-gray-200 lg:px-6">
+        <header className="sticky top-0 z-30 flex items-center h-16 px-4 bg-white border-b border-gray-200 lg:px-6 shrink-0">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 -ml-2 text-gray-500 hover:text-gray-900 lg:hidden"
@@ -284,8 +284,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
-          {children}
+        <main className="flex-1 p-4 lg:p-6 overflow-x-hidden">
+          <div className="max-w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>
