@@ -3,18 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-// Use colorful emojis on iOS, vector icons on Android
+// Use colorful emojis by default, vector icons as fallback
 const TabIcon = ({ emoji, iconName, isActive }: { emoji: string; iconName: string; isActive: boolean }) => {
-  if (Platform.OS === 'ios') {
-    return <Text style={styles.iconEmoji}>{emoji}</Text>;
-  }
-  return (
-    <Icon
-      name={iconName}
-      size={28}
-      color={isActive ? '#FF385C' : '#717171'}
-    />
-  );
+  // Emojis work on both iOS and modern Android - use them for the colorful look
+  return <Text style={styles.iconEmoji}>{emoji}</Text>;
 };
 
 type TabName = 'Dashboard' | 'Filters' | 'Calendar';
