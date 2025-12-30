@@ -192,43 +192,76 @@ class PerfectMindScraper extends BaseScraper {
 
     this.logProgress(`Found ${activityLinks.length} activity links to process`);
 
-    // Launch a SINGLE shared browser for all link extractions
-    // This prevents resource exhaustion from launching too many browsers
-    let sharedBrowser;
-    try {
-      sharedBrowser = await this.launchBrowserWithRetry();
-    } catch (error) {
-      this.logProgress(`Failed to launch browser after retries: ${error.message}`);
-      throw error;
+    // Use browser pool for parallelization (multiple browsers, not tabs)
+    const browserPoolSize = this.config.scraperConfig.browserPoolSize || 3;
+    const batchesPerBrowser = this.config.scraperConfig.batchesPerBrowser || 5;
+
+    this.logProgress(`Using browser pool: ${browserPoolSize} browsers, restart every ${batchesPerBrowser} batches`);
+
+    // Create batches
+    const batches = [];
+    for (let i = 0; i < activityLinks.length; i += maxConcurrency) {
+      batches.push(activityLinks.slice(i, i + maxConcurrency));
     }
 
-    try {
-      // Process in batches using the shared browser
-      const batches = [];
-      for (let i = 0; i < activityLinks.length; i += maxConcurrency) {
-        batches.push(activityLinks.slice(i, i + maxConcurrency));
-      }
+    // Process with browser pool
+    const browserPool = [];
+    const browserBatchCounts = [];
 
+    // Initialize browser pool
+    for (let i = 0; i < browserPoolSize; i++) {
+      try {
+        const browser = await this.launchBrowserWithRetry();
+        browserPool.push(browser);
+        browserBatchCounts.push(0);
+      } catch (error) {
+        this.logProgress(`Failed to launch browser ${i + 1}: ${error.message}`);
+      }
+    }
+
+    if (browserPool.length === 0) {
+      throw new Error('Failed to launch any browsers');
+    }
+
+    this.logProgress(`Launched ${browserPool.length} browsers for parallel processing`);
+
+    try {
+      // Process batches using round-robin browser assignment
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
         const batch = batches[batchIndex];
-        this.logProgress(`Processing batch ${batchIndex + 1}/${batches.length}`);
+        const browserIndex = batchIndex % browserPool.length;
 
-        const batchPromises = batch.map(link =>
-          this.extractActivitiesFromLink(widgetUrl, link, sharedBrowser)
-        );
+        this.logProgress(`Processing batch ${batchIndex + 1}/${batches.length} (browser ${browserIndex + 1})`);
 
-        const batchResults = await Promise.allSettled(batchPromises);
-
-        const batchActivities = [];
-        batchResults.forEach((result, idx) => {
-          if (result.status === 'fulfilled' && result.value.length > 0) {
-            activities.push(...result.value);
-            batchActivities.push(...result.value);
-            this.logProgress(`  ✅ ${batch[idx].text} (${batch[idx].section}): ${result.value.length} activities`);
-          } else if (result.status === 'rejected') {
-            this.logProgress(`  ❌ ${batch[idx].text}: ${result.reason}`);
+        // Check if browser needs restart (memory management)
+        browserBatchCounts[browserIndex]++;
+        if (browserBatchCounts[browserIndex] >= batchesPerBrowser) {
+          try {
+            await browserPool[browserIndex].close();
+            browserPool[browserIndex] = await this.launchBrowserWithRetry();
+            browserBatchCounts[browserIndex] = 0;
+            this.logProgress(`  🔄 Restarted browser ${browserIndex + 1} for memory management`);
+          } catch (error) {
+            this.logProgress(`  ⚠️ Failed to restart browser: ${error.message}`);
           }
-        });
+        }
+
+        const currentBrowser = browserPool[browserIndex];
+
+        // Process batch items sequentially within the batch to avoid tab overload
+        const batchActivities = [];
+        for (const link of batch) {
+          try {
+            const linkActivities = await this.extractActivitiesFromLink(widgetUrl, link, currentBrowser);
+            if (linkActivities.length > 0) {
+              activities.push(...linkActivities);
+              batchActivities.push(...linkActivities);
+              this.logProgress(`  ✅ ${link.text} (${link.section}): ${linkActivities.length} activities`);
+            }
+          } catch (error) {
+            this.logProgress(`  ❌ ${link.text}: ${error.message}`);
+          }
+        }
 
         // Incremental save: save activities after each batch to prevent data loss
         if (this.currentProviderId && batchActivities.length > 0) {
@@ -246,9 +279,11 @@ class PerfectMindScraper extends BaseScraper {
         }
       }
     } finally {
-      // Always close the shared browser
-      if (sharedBrowser) {
-        await sharedBrowser.close();
+      // Close all browsers in pool
+      for (const browser of browserPool) {
+        try {
+          await browser.close();
+        } catch (e) { /* ignore */ }
       }
     }
 
@@ -1202,6 +1237,15 @@ class PerfectMindScraper extends BaseScraper {
 
     if (!fetchDetails) {
       this.logProgress('Detail page fetching disabled, skipping enhancement');
+      return activities;
+    }
+
+    // Skip detail fetching for very large datasets (>5000 activities)
+    // These cause browser crashes and timeouts - the extracted data is sufficient
+    const maxActivitiesForDetails = this.config.scraperConfig.maxActivitiesForDetails || 5000;
+    if (activities.length > maxActivitiesForDetails) {
+      this.logProgress(`Skipping detail fetching for ${activities.length} activities (threshold: ${maxActivitiesForDetails})`);
+      this.logProgress('Extracted data is sufficient for large datasets');
       return activities;
     }
 
