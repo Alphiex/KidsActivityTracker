@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type TabName = 'Dashboard' | 'Filters' | 'Calendar';
 
@@ -35,7 +36,11 @@ const TopTabNavigation = () => {
         style={styles.topButton}
         onPress={() => navigateToTab('Dashboard')}
       >
-        <Text style={styles.iconEmoji}>🎯</Text>
+        <Icon
+          name="target"
+          size={28}
+          color={activeTab === 'Dashboard' ? '#FF385C' : '#717171'}
+        />
         <Text style={[
           styles.topButtonText,
           activeTab === 'Dashboard' && styles.activeTabText
@@ -49,7 +54,11 @@ const TopTabNavigation = () => {
         style={styles.topButton}
         onPress={() => navigateToTab('Filters')}
       >
-        <Text style={styles.iconEmoji}>🔍</Text>
+        <Icon
+          name="magnify"
+          size={28}
+          color={activeTab === 'Filters' ? '#FF385C' : '#717171'}
+        />
         <Text style={[
           styles.topButtonText,
           activeTab === 'Filters' && styles.activeTabText
@@ -63,7 +72,11 @@ const TopTabNavigation = () => {
         style={styles.topButton}
         onPress={() => navigateToTab('Calendar')}
       >
-        <Text style={styles.iconEmoji}>📅</Text>
+        <Icon
+          name="calendar-month"
+          size={28}
+          color={activeTab === 'Calendar' ? '#FF385C' : '#717171'}
+        />
         <Text style={[
           styles.topButtonText,
           activeTab === 'Calendar' && styles.activeTabText
@@ -91,11 +104,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     position: 'relative',
   },
-  iconEmoji: {
-    fontSize: 28,
+  iconContainer: {
     marginBottom: 4,
     minHeight: 30,
-    lineHeight: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   topButtonText: {
     fontSize: 12,

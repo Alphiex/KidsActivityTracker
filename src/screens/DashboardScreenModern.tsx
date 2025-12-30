@@ -805,7 +805,7 @@ const DashboardScreenModern = () => {
             <View style={styles.aiBannerContent}>
               <Icon name="auto-fix" size={24} color="#fff" />
               <View style={styles.aiBannerText}>
-                <Text style={styles.aiBannerTitle}>✨ AI-Powered Recommendations</Text>
+                <Text style={styles.aiBannerTitle}>AI-Powered Recommendations</Text>
                 <Text style={styles.aiBannerSubtitle}>Get personalized picks just for your family</Text>
               </View>
               <Icon name="chevron-right" size={20} color="#fff" />

@@ -482,7 +482,7 @@ const SettingsScreen = () => {
           {APP_CONFIG.name} v{APP_CONFIG.version}
         </Text>
         <Text style={[styles.footerSubtext, { color: colors.textSecondary }]}>
-          Made with ❤️ for busy parents
+          Made with love for busy parents
         </Text>
       </View>
     </ScrollView>

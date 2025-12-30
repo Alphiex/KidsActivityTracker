@@ -16,11 +16,11 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 const { width: screenWidth } = Dimensions.get('window');
 
 const ageGroups = [
-  { id: 'toddler', label: 'Toddler', range: '1-3 years', icon: 'baby-face-outline' },
+  { id: 'toddler', label: 'Toddler', range: '1-3 years', icon: 'baby-carriage' },
   { id: 'preschool', label: 'Preschool', range: '3-5 years', icon: 'human-child' },
-  { id: 'elementary', label: 'Elementary', range: '6-10 years', icon: 'account' },
-  { id: 'preteen', label: 'Pre-teen', range: '11-13 years', icon: 'account-outline' },
-  { id: 'teen', label: 'Teen', range: '14-17 years', icon: 'account-star' },
+  { id: 'elementary', label: 'Elementary', range: '6-10 years', icon: 'human-male-child' },
+  { id: 'preteen', label: 'Pre-teen', range: '11-13 years', icon: 'account' },
+  { id: 'teen', label: 'Teen', range: '14-17 years', icon: 'account-group' },
 ];
 
 type NavigationProp = StackNavigationProp<OnboardingStackParamList, 'OnboardingAge'>;
@@ -137,13 +137,11 @@ const OnboardingAgeScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.nextButton, selectedAges.length === 0 && styles.nextButtonDisabled]}
+          style={styles.nextButton}
           onPress={handleNext}
           activeOpacity={0.8}
         >
-          <Text style={styles.nextButtonText}>
-            {selectedAges.length === 0 ? 'Skip for now' : 'Continue'}
-          </Text>
+          <Text style={styles.nextButtonText}>Continue</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

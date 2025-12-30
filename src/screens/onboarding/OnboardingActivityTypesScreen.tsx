@@ -35,7 +35,8 @@ const OnboardingActivityTypesScreen: React.FC = () => {
 
   const loadActivityTypes = async () => {
     try {
-      const types = await activityService.getActivityTypesWithCounts();
+      // Pass false to disable global filters during onboarding - user hasn't set preferences yet
+      const types = await activityService.getActivityTypesWithCounts(false);
       const sortedTypes = types.sort((a, b) => (b.activityCount || 0) - (a.activityCount || 0));
       setActivityTypes(sortedTypes);
     } catch (error) {
@@ -122,12 +123,12 @@ const OnboardingActivityTypesScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.nextButton, selectedTypes.length === 0 && styles.nextButtonDisabled]}
+          style={styles.nextButton}
           onPress={handleNext}
           activeOpacity={0.8}
         >
           <Text style={styles.nextButtonText}>
-            {selectedTypes.length === 0 ? 'Skip for now' : `Continue (${selectedTypes.length} selected)`}
+            {selectedTypes.length > 0 ? `Continue (${selectedTypes.length} selected)` : 'Continue'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -1,0 +1,99 @@
+{
+  "id": "lethbridge-rec",
+  "name": "City of Lethbridge Recreation Excellence",
+  "code": "lethbridge",
+  "platform": "intelligenz",
+  "region": "Southern Alberta",
+  "city": "Lethbridge",
+  "province": "Alberta",
+  "baseUrl": "https://aquatics.lethbridge.ca",
+  "websiteUrl": "https://myrecentrelethbridge.com/programs/",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "search",
+    "pathPrefix": "/RECEX",
+    "entryPoints": [
+      "/RECEX/public/category/browse/SSPPARENTTOT",
+      "/RECEX/public/category/browse/SSPPRESCHOOL",
+      "/RECEX/public/category/browse/SSPSWIMKIDS1-4",
+      "/RECEX/public/category/browse/SSPSWIMKIDS5-10",
+      "/RECEX/public/category/browse/AQ1SSPCNDSWMPTRL",
+      "/RECEX/public/category/browse/SSPADVANCED",
+      "/RECEX/public/category/browse/JLC",
+      "/RECEX/public/category/browse/NSPPARENTTOT",
+      "/RECEX/public/category/browse/NSPPRESCHOOL",
+      "/RECEX/public/category/browse/NSPSWIMKIDS1-4",
+      "/RECEX/public/category/browse/NSPSWIMKIDS5-10",
+      "/RECEX/public/category/browse/HOPPARENTTOT",
+      "/RECEX/public/category/browse/HOPPRESCHOOL",
+      "/RECEX/public/category/browse/HOPSWIMKIDS1-4",
+      "/RECEX/public/category/browse/HOPSWIMKIDS5-10",
+      "/RECEX/public/category/browse/HOPCNDPTRLLSSNS",
+      "/RECEX/public/category/browse/AQ1SWMR56",
+      "/RECEX/public/category/browse/AQ1FSPCNDPTRL"
+    ],
+    "kidsCategories": [
+      {"code": "SSPPARENTTOT", "name": "Parent & Tot - Stan Siwik", "ageMin": 0, "ageMax": 3, "location": "Stan Siwik Pool"},
+      {"code": "SSPPRESCHOOL", "name": "Preschool - Stan Siwik", "ageMin": 3, "ageMax": 5, "location": "Stan Siwik Pool"},
+      {"code": "SSPSWIMKIDS1-4", "name": "Swimmer 1-4 - Stan Siwik", "ageMin": 6, "ageMax": 15, "location": "Stan Siwik Pool"},
+      {"code": "SSPSWIMKIDS5-10", "name": "Swimmer 5-10 - Stan Siwik", "ageMin": 6, "ageMax": 15, "location": "Stan Siwik Pool"},
+      {"code": "AQ1SSPCNDSWMPTRL", "name": "Canadian Swim Patrol - Stan Siwik", "ageMin": 12, "ageMax": 15, "location": "Stan Siwik Pool"},
+      {"code": "SSPADVANCED", "name": "Advanced - Stan Siwik", "ageMin": 10, "ageMax": 18, "location": "Stan Siwik Pool"},
+      {"code": "JLC", "name": "Junior Lifeguard Club", "ageMin": 8, "ageMax": 15, "location": "Various"},
+      {"code": "NSPPARENTTOT", "name": "Parent & Tot - Nicholas Sheran", "ageMin": 0, "ageMax": 3, "location": "Nicholas Sheran Pool"},
+      {"code": "NSPPRESCHOOL", "name": "Preschool - Nicholas Sheran", "ageMin": 3, "ageMax": 5, "location": "Nicholas Sheran Pool"},
+      {"code": "NSPSWIMKIDS1-4", "name": "Swimmer 1-4 - Nicholas Sheran", "ageMin": 6, "ageMax": 15, "location": "Nicholas Sheran Pool"},
+      {"code": "NSPSWIMKIDS5-10", "name": "Swimmer 5-10 - Nicholas Sheran", "ageMin": 6, "ageMax": 15, "location": "Nicholas Sheran Pool"},
+      {"code": "HOPPARENTTOT", "name": "Parent & Tot - Henderson", "ageMin": 0, "ageMax": 3, "location": "Henderson Pool"},
+      {"code": "HOPPRESCHOOL", "name": "Preschool - Henderson", "ageMin": 3, "ageMax": 5, "location": "Henderson Pool"},
+      {"code": "HOPSWIMKIDS1-4", "name": "Swimmer 1-4 - Henderson", "ageMin": 6, "ageMax": 15, "location": "Henderson Pool"},
+      {"code": "HOPSWIMKIDS5-10", "name": "Swimmer 5-10 - Henderson", "ageMin": 6, "ageMax": 15, "location": "Henderson Pool"},
+      {"code": "HOPCNDPTRLLSSNS", "name": "Canadian Swim Patrol - Henderson", "ageMin": 12, "ageMax": 15, "location": "Henderson Pool"},
+      {"code": "AQ1SWMR56", "name": "Swimmer 5-6 - Fritz Sick", "ageMin": 6, "ageMax": 15, "location": "Fritz Sick Pool"},
+      {"code": "AQ1FSPCNDPTRL", "name": "Canadian Swim Patrol - Fritz Sick", "ageMin": 12, "ageMax": 15, "location": "Fritz Sick Pool"}
+    ],
+    "dynamicDiscovery": true,
+    "maxDepth": 3,
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18
+    },
+    "rateLimits": {
+      "requestsPerMinute": 30,
+      "concurrentRequests": 3,
+      "delayBetweenPages": 2000
+    },
+    "timeout": 90000,
+    "retries": 3,
+    "maxConcurrency": 3,
+    "fetchDetailPages": true,
+    "cardSelector": ".card",
+    "activitySelectors": {
+      "title": "h2, h3, .card-title",
+      "id": ".badge:contains('ID'), [class*='id']",
+      "price": ".badge:contains('Price'), [class*='price']",
+      "spaces": ".badge:contains('Spaces'), [class*='spaces']",
+      "dateFrom": ".badge:contains('From'), [class*='from']",
+      "dateTo": ".badge:contains('To'), [class*='to']",
+      "scheduleTable": "table"
+    },
+    "locations": [
+      {"code": "SSP", "name": "Stan Siwik Pool", "address": "1901 15 Ave N, Lethbridge, AB"},
+      {"code": "NSP", "name": "Nicholas Sheran Pool", "address": "401 Laval Blvd W, Lethbridge, AB"},
+      {"code": "FSP", "name": "Fritz Sick Pool", "address": "420 11 St S, Lethbridge, AB"},
+      {"code": "HOP", "name": "Henderson Pool", "address": "2710 Parkside Dr S, Lethbridge, AB"}
+    ]
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["07:00", "19:00"],
+    "timezone": "America/Edmonton"
+  },
+  "metadata": {
+    "population": 101482,
+    "expectedActivities": 300,
+    "notes": "Fourth largest city in Alberta. Uses Recreation Excellence (Intelligenz) platform at aquatics.lethbridge.ca. Four pools with swimming lessons for all ages. Rich data includes ID, Price, Spaces, Dates, Schedule tables."
+  }
+}
