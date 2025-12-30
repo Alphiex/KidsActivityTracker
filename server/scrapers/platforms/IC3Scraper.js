@@ -106,8 +106,11 @@ class IC3Scraper extends BaseScraper {
       });
 
       // Navigate to main page - use networkidle2 (allows 2 ongoing connections) for Angular SPAs
-      this.logProgress(`Loading IC3 page: ${this.config.baseUrl}`);
-      await page.goto(this.config.baseUrl, {
+      // Use entryPoint URL if available, otherwise construct from baseUrl and siteCode
+      const entryUrl = this.config.scraperConfig?.entryPoints?.[0]
+        || `${this.config.baseUrl}/#/${this.siteCode}`;
+      this.logProgress(`Loading IC3 page: ${entryUrl}`);
+      await page.goto(entryUrl, {
         waitUntil: 'networkidle2',
         timeout: 120000
       });

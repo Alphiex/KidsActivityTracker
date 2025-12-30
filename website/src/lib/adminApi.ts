@@ -27,6 +27,12 @@ async function fetchWithAuth(endpoint: string, options: FetchOptions = {}) {
   });
 
   if (!response.ok) {
+    // Handle expired/invalid token - redirect to login
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token');
+      window.location.href = '/admin/login';
+      throw new Error('Session expired. Please log in again.');
+    }
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
     throw new Error(error.message || error.error || 'Request failed');
   }
@@ -113,7 +119,23 @@ export interface ScraperStats {
 }
 
 export async function getScraperStats(): Promise<ScraperStats> {
-  return fetchWithAuth('/api/admin/monitoring/scrapers/stats');
+  const response = await fetchWithAuth('/api/admin/monitoring/scrapers/stats');
+
+  // Transform backend response to expected format
+  const stats = response.stats || response;
+  return {
+    summary: {
+      totalProviders: stats.providers?.total ?? 0,
+      activeProviders: stats.providers?.active ?? 0,
+      totalActivities: stats.activities?.total ?? 0,
+      avgExecutionTimeMs: stats.averages?.executionTimeMs ?? 0,
+      successRate: parseFloat(stats.runs?.successRate ?? '100') / 100,
+      lastRunTime: null, // Not provided by current API
+    },
+    byPlatform: [], // Not provided by current API
+    recentRuns: [], // Fetched separately via getScraperRuns
+    alerts: [], // Fetched separately
+  };
 }
 
 export interface ScraperRun {
@@ -229,7 +251,47 @@ export interface AIMetrics {
 }
 
 export async function getAIMetrics(): Promise<AIMetrics> {
-  return fetchWithAuth('/api/admin/monitoring/ai/metrics');
+  const response = await fetchWithAuth('/api/admin/monitoring/ai/metrics');
+
+  // Transform backend response to expected format
+  const metrics = response.metrics || response;
+  return {
+    today: {
+      requests: metrics.today?.requests ?? 0,
+      cost_usd: parseFloat(metrics.today?.costUsd ?? '0'),
+      tokens_in: metrics.today?.tokensIn ?? 0,
+      tokens_out: metrics.today?.tokensOut ?? 0,
+      cache_hits: 0, // Not in current API
+      errors: 0, // Not in current API
+    },
+    budget: {
+      remaining_usd: parseFloat(metrics.budget?.remainingUsd ?? '0'),
+      exceeded: parseFloat(metrics.budget?.percentUsed ?? '0') >= 100,
+      daily_limit_usd: metrics.budget?.dailyLimitUsd ?? 10,
+      spent_today_usd: parseFloat(metrics.budget?.spentTodayUsd ?? '0'),
+    },
+    byModel: (metrics.byModel || []).map((m: any) => ({
+      model: m.model,
+      requests: m.requests ?? 0,
+      cost_usd: parseFloat(m.costUsd ?? '0'),
+      tokens_in: 0,
+      tokens_out: 0,
+    })),
+    byEndpoint: [],
+    recent: (metrics.recentRequests || []).map((r: any) => ({
+      id: r.id,
+      requestId: r.id,
+      userId: null,
+      model: r.model,
+      tokensIn: r.tokensIn ?? 0,
+      tokensOut: r.tokensOut ?? 0,
+      costUsd: parseFloat(r.costUsd ?? '0'),
+      endpoint: r.endpoint ?? '',
+      latencyMs: r.latencyMs,
+      success: r.success ?? true,
+      createdAt: r.createdAt,
+    })),
+  };
 }
 
 export interface AIHistoryEntry {

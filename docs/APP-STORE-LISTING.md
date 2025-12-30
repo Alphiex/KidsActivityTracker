@@ -129,20 +129,20 @@ New! Distance-based search - Find activities within your preferred radius. Plus 
 ## Support URL
 
 ```
-https://kidsactivitytracker.app/support
+https://website-4ev6yi22va-uc.a.run.app/faq
 ```
 
-**Note:** Create this page or use an email: support@kidsactivitytracker.app
+**Alternative:** Use email support@kidsactivitytracker.com
 
 ---
 
 ## Privacy Policy URL
 
 ```
-https://kidsactivitytracker.app/privacy
+https://website-4ev6yi22va-uc.a.run.app/privacy
 ```
 
-**Note:** Host the privacy policy at `docs/PRIVACY-POLICY.md` content at this URL
+**Status:** LIVE - Privacy policy page is deployed and accessible
 
 ---
 
