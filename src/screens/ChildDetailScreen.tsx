@@ -11,6 +11,7 @@ import {
   Alert,
   SectionList,
   Image,
+  Share,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -336,6 +337,19 @@ const ChildDetailScreen: React.FC = () => {
     const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
     const imageSource = getActivityImageByKey(imageKey);
 
+    const handleShare = async () => {
+      try {
+        const message = `Check out this activity: ${activityName}${location ? ` at ${location}` : ''}`;
+
+        await Share.share({
+          message,
+          title: activityName,
+        });
+      } catch (error) {
+        console.error('Error sharing activity:', error);
+      }
+    };
+
     return (
       <TouchableOpacity
         style={styles.activityCard}
@@ -353,20 +367,28 @@ const ChildDetailScreen: React.FC = () => {
             </Text>
           </View>
 
-          {/* Favorite Button - Top Right */}
-          <TouchableOpacity
-            style={[
-              styles.favoriteButton,
-              favorites.has(item.id) && styles.favoriteButtonActive
-            ]}
-            onPress={() => handleToggleFavorite(item)}
-          >
-            <Icon
-              name={favorites.has(item.id) ? 'heart' : 'heart-outline'}
-              size={24}
-              color={favorites.has(item.id) ? ModernColors.primary : '#FFF'}
-            />
-          </TouchableOpacity>
+          {/* Action buttons row - favorites, share, calendar */}
+          <View style={[
+            styles.actionButtonsRow,
+            favorites.has(item.id) && styles.actionButtonsRowActive
+          ]}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleToggleFavorite(item)}
+            >
+              <Icon
+                name={favorites.has(item.id) ? 'heart' : 'heart-outline'}
+                size={16}
+                color={favorites.has(item.id) ? ModernColors.primary : '#FFF'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+              <Icon name="share-variant" size={16} color={favorites.has(item.id) ? '#666' : '#FFF'} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Icon name="calendar-plus" size={16} color={favorites.has(item.id) ? '#666' : '#FFF'} />
+            </TouchableOpacity>
+          </View>
 
           {/* Delete Button - Bottom Right */}
           {!isShared && (
@@ -635,19 +657,21 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     flex: 1,
   },
-  favoriteButton: {
+  actionButtonsRow: {
     position: 'absolute',
     top: 8,
     right: 8,
+    flexDirection: 'row',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 14,
+    padding: 3,
   },
-  favoriteButtonActive: {
+  actionButtonsRowActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  },
+  actionButton: {
+    padding: 5,
+    marginHorizontal: 1,
   },
   deleteButtonOverlay: {
     position: 'absolute',

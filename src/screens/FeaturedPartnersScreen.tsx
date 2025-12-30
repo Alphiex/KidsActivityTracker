@@ -10,6 +10,7 @@ import {
   Image,
   Dimensions,
   RefreshControl,
+  Share,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -164,6 +165,23 @@ const FeaturedPartnersScreen: React.FC = () => {
       ageText = `Ages ${activity.ageMin}+`;
     }
 
+    const handleShare = async () => {
+      try {
+        const locationName = typeof activity.location === 'string'
+          ? activity.location
+          : activity.location?.name || activity.locationName || '';
+
+        const message = `Check out this activity: ${activity.name}${locationName ? ` at ${locationName}` : ''}`;
+
+        await Share.share({
+          message,
+          title: activity.name,
+        });
+      } catch (error) {
+        console.error('Error sharing activity:', error);
+      }
+    };
+
     return (
       <TouchableOpacity
         style={styles.card}
@@ -181,20 +199,28 @@ const FeaturedPartnersScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Heart icon for favorites */}
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              toggleFavorite(activity);
-            }}
-          >
-            <Icon
-              name={isFavorite ? "heart" : "heart-outline"}
-              size={20}
-              color={isFavorite ? "#FF385C" : "#FFF"}
-            />
-          </TouchableOpacity>
+          {/* Action buttons row - favorites, share, calendar */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                toggleFavorite(activity);
+              }}
+            >
+              <Icon
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={16}
+                color={isFavorite ? "#FF385C" : "#FFF"}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+              <Icon name="share-variant" size={16} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Icon name="calendar-plus" size={16} color="#FFF" />
+            </TouchableOpacity>
+          </View>
 
           {/* Price overlay */}
           <View style={styles.priceOverlay}>
@@ -406,16 +432,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFF',
   },
-  favoriteButton: {
+  actionButtonsRow: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 14,
+    padding: 3,
+  },
+  actionButton: {
+    padding: 5,
+    marginHorizontal: 1,
   },
   priceOverlay: {
     position: 'absolute',

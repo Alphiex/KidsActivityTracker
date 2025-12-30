@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Share,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -277,6 +278,23 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     return Colors.success;
   };
 
+  const handleShare = async () => {
+    try {
+      const locationName = typeof activity.location === 'string'
+        ? activity.location
+        : activity.location?.name || activity.locationName || '';
+
+      const message = `Check out this activity: ${activity.name}${locationName ? ` at ${locationName}` : ''}`;
+
+      await Share.share({
+        message,
+        title: activity.name,
+      });
+    } catch (error) {
+      console.error('Error sharing activity:', error);
+    }
+  };
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.cardBackground }, containerStyle]}
@@ -320,38 +338,47 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             {activity.cost !== null && activity.cost !== undefined && activity.cost > 0 && <Text style={styles.priceLabel}>per child</Text>}
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => {
-            console.log('Toggling favorite for activity:', activity.id, activity.name);
-            console.log('Current favorite status:', isFavorite);
+        {/* Action buttons row - favorites, share, calendar */}
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            onPress={() => {
+              console.log('Toggling favorite for activity:', activity.id, activity.name);
+              console.log('Current favorite status:', isFavorite);
 
-            // If trying to add (not remove), check subscription limit
-            if (!isFavorite && !canAddFavorite) {
-              console.log('Favorite limit reached, showing upgrade prompt');
-              if (onFavoriteLimitReached) {
-                onFavoriteLimitReached();
+              // If trying to add (not remove), check subscription limit
+              if (!isFavorite && !canAddFavorite) {
+                console.log('Favorite limit reached, showing upgrade prompt');
+                if (onFavoriteLimitReached) {
+                  onFavoriteLimitReached();
+                }
+                return;
               }
-              return;
-            }
 
-            if (onFavoritePress) {
-              // Use external handler if provided
-              onFavoritePress();
-            } else {
-              // Use internal handler
-              favoritesService.toggleFavorite(activity);
-              setInternalIsFavorite(!internalIsFavorite);
-            }
-            console.log('New favorite status:', !isFavorite);
-          }}
-          style={styles.favoriteButton}
-        >
-          <Icon
-            name={isFavorite ? 'heart' : 'heart-outline'}
-            size={24}
-            color={isFavorite ? '#FF6B6B' : '#FFF'}
-          />
-        </TouchableOpacity>
+              if (onFavoritePress) {
+                // Use external handler if provided
+                onFavoritePress();
+              } else {
+                // Use internal handler
+                favoritesService.toggleFavorite(activity);
+                setInternalIsFavorite(!internalIsFavorite);
+              }
+              console.log('New favorite status:', !isFavorite);
+            }}
+            style={styles.actionButton}
+          >
+            <Icon
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={18}
+              color={isFavorite ? '#FF6B6B' : '#FFF'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+            <Icon name="share-variant" size={18} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton}>
+            <Icon name="calendar-plus" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <View style={styles.content}>
@@ -535,23 +562,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
         {/* Show registered children status */}
         {registeredChildIds.length > 0 && (
-          <ChildActivityStatus 
-            activityId={activity.id} 
+          <ChildActivityStatus
+            activityId={activity.id}
             compact={true}
           />
         )}
-      </View>
-      
-      {/* New: Quick Action Buttons */}
-      <View style={[styles.quickActions, { 
-        backgroundColor: isDark ? 'rgba(50, 50, 50, 0.95)' : 'rgba(255, 255, 255, 0.95)' 
-      }]}>
-        <TouchableOpacity style={styles.quickActionButton}>
-          <Icon name="share-variant" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickActionButton}>
-          <Icon name="calendar-plus" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -605,18 +620,23 @@ const styles = StyleSheet.create({
     color: Colors.white,
     opacity: 0.9,
   },
-  favoriteButton: {
+  actionButtonsRow: {
     position: 'absolute',
     top: Theme.spacing.sm,
     right: Theme.spacing.sm,
+    flexDirection: 'row',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: Theme.borderRadius.round,
-    padding: 10,
+    borderRadius: 16,
+    padding: 4,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  actionButton: {
+    padding: 6,
+    marginHorizontal: 2,
   },
   featuredBadge: {
     position: 'absolute',
@@ -828,24 +848,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: Theme.spacing.xs,
-  },
-  quickActions: {
-    position: 'absolute',
-    bottom: 15,
-    right: 15,
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 4,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  quickActionButton: {
-    padding: 8,
-    marginHorizontal: 2,
   },
 });
 
