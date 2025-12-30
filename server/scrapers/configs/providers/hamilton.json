@@ -14,14 +14,22 @@
     ],
     "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
     "sections": [
-      "Children",
-      "Youth",
-      "Preschool",
-      "Family",
-      "Camps",
+      "Child Programs (6-8 years)",
+      "Child Programs (9-12 years)",
+      "Camp and School Break Programs",
+      "March Break Camp",
+      "PA Day Camp",
+      "Summer Camp",
+      "Adapted and Inclusive Programs",
+      "Arts, Dance, Music and Science",
+      "Sports",
       "Aquatics",
-      "Sports"
+      "Swimming",
+      "Learn to Swim"
     ],
+    "browserPoolSize": 3,
+    "batchesPerBrowser": 5,
+    "incrementalSave": true,
     "ageFilter": {
       "enabled": true,
       "minAge": 0,

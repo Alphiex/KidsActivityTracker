@@ -1,0 +1,67 @@
+{
+  "id": "sarnia-rec",
+  "name": "City of Sarnia Recreation",
+  "code": "sarnia",
+  "platform": "perfectmind",
+  "region": "Southwestern Ontario",
+  "city": "Sarnia",
+  "province": "Ontario",
+  "baseUrl": "https://sarnia.perfectmind.com",
+  "isActive": true,
+  "scraperConfig": {
+    "type": "widget",
+    "entryPoints": [
+      "/25643/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
+    "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
+    "sections": [
+      "Family Skate",
+      "Parent-Tot Skate",
+      "Music Lessons",
+      "Music Groups",
+      "Language Lessons",
+      "Arts, Crafts & Hobbies",
+      "Book Club",
+      "Crafts",
+      "Drawing",
+      "Painting",
+      "Sports Leagues & Lessons",
+      "Basketball",
+      "Hockey",
+      "Tennis & Badminton",
+      "Volleyball",
+      "Pickleball",
+      "Dancing Classes",
+      "Day Trips"
+    ],
+    "ageFilter": {
+      "enabled": true,
+      "minAge": 0,
+      "maxAge": 18,
+      "includeNoAgeInfo": true
+    },
+    "rateLimits": {
+      "requestsPerMinute": 60,
+      "concurrentRequests": 5,
+      "delayBetweenPages": 500
+    },
+    "timeout": 60000,
+    "retries": 2,
+    "maxConcurrency": 5,
+    "browserPoolSize": 3,
+    "batchesPerBrowser": 5,
+    "fetchDetailPages": false,
+    "incrementalSave": true
+  },
+  "schedule": {
+    "tier": "standard",
+    "frequency": "2x-daily",
+    "times": ["07:00", "19:00"],
+    "timezone": "America/Toronto"
+  },
+  "metadata": {
+    "population": 72047,
+    "expectedActivities": 350,
+    "notes": "City on Lake Huron in Southwestern Ontario. Uses standard PerfectMind recreation registration system."
+  }
+}
