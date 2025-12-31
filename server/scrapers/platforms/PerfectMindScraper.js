@@ -1182,6 +1182,38 @@ class PerfectMindScraper extends BaseScraper {
           this.config
         );
 
+        // Post-process: Fix date format inconsistency when dateStart > dateEnd
+        // This happens when DD/MM dates are independently parsed - one as MM/DD, one as DD/MM
+        // e.g., "10/01/2026 - 14/03/2026" where 10 is parsed as October, but 14 must be day
+        if (normalizedActivity.dateStart && normalizedActivity.dateEnd &&
+            normalizedActivity.dateStart > normalizedActivity.dateEnd) {
+          // Try re-parsing both dates as DD/MM format
+          const startStr = rawActivity.dateStartStr || rawActivity.dateStart;
+          const endStr = rawActivity.dateEndStr || rawActivity.dateEnd;
+
+          if (typeof startStr === 'string' && typeof endStr === 'string') {
+            const parseAsDDMM = (str) => {
+              const match = String(str).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+              if (match) {
+                const day = parseInt(match[1]);
+                const month = parseInt(match[2]) - 1;
+                let year = parseInt(match[3]);
+                if (year < 100) year += 2000;
+                return new Date(year, month, day);
+              }
+              return null;
+            };
+
+            const ddmmStart = parseAsDDMM(startStr);
+            const ddmmEnd = parseAsDDMM(endStr);
+
+            if (ddmmStart && ddmmEnd && ddmmStart <= ddmmEnd) {
+              normalizedActivity.dateStart = ddmmStart;
+              normalizedActivity.dateEnd = ddmmEnd;
+            }
+          }
+        }
+
         const validation = this.validateActivityData(normalizedActivity);
         if (validation.isValid) {
           normalized.push(normalizedActivity);
