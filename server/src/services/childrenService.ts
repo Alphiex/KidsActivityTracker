@@ -654,6 +654,222 @@ export class ChildrenService {
 
     return count > 0;
   }
+
+  // ============= Skill Progression Tracking =============
+
+  /**
+   * Get all skill progress for a child
+   */
+  async getChildSkillProgress(childId: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    return await prisma.childSkillProgress.findMany({
+      where: { childId },
+      orderBy: [
+        { activitiesCompleted: 'desc' },
+        { updatedAt: 'desc' }
+      ]
+    });
+  }
+
+  /**
+   * Get specific skill progress by category
+   */
+  async getChildSkillByCategory(childId: string, skillCategory: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    return await prisma.childSkillProgress.findUnique({
+      where: {
+        childId_skillCategory: { childId, skillCategory }
+      }
+    });
+  }
+
+  /**
+   * Update or create skill progress
+   */
+  async updateChildSkillProgress(
+    childId: string,
+    userId: string,
+    data: {
+      skillCategory: string;
+      currentLevel?: string;
+      activityName?: string;
+      hoursToAdd?: number;
+      notes?: string;
+      achievement?: string;
+    }
+  ) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    const existing = await prisma.childSkillProgress.findUnique({
+      where: {
+        childId_skillCategory: { childId, skillCategory: data.skillCategory }
+      }
+    });
+
+    if (existing) {
+      // Update existing
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+
+      if (data.currentLevel) updateData.currentLevel = data.currentLevel;
+      if (data.notes) updateData.notes = data.notes;
+      if (data.hoursToAdd) updateData.totalHours = existing.totalHours + data.hoursToAdd;
+      if (data.activityName) {
+        updateData.lastActivityName = data.activityName;
+        updateData.lastActivityDate = new Date();
+        updateData.activitiesCompleted = existing.activitiesCompleted + 1;
+      }
+      if (data.achievement) {
+        updateData.achievements = [...existing.achievements, data.achievement];
+      }
+
+      return await prisma.childSkillProgress.update({
+        where: { id: existing.id },
+        data: updateData
+      });
+    } else {
+      // Create new
+      return await prisma.childSkillProgress.create({
+        data: {
+          childId,
+          skillCategory: data.skillCategory,
+          currentLevel: data.currentLevel || 'beginner',
+          totalHours: data.hoursToAdd || 0,
+          lastActivityName: data.activityName,
+          lastActivityDate: data.activityName ? new Date() : null,
+          activitiesCompleted: data.activityName ? 1 : 0,
+          notes: data.notes,
+          achievements: data.achievement ? [data.achievement] : []
+        }
+      });
+    }
+  }
+
+  /**
+   * Log activity completion and update skill progress
+   */
+  async logActivityCompletion(
+    childId: string,
+    userId: string,
+    data: {
+      activityId?: string;
+      activityName: string;
+      skillCategory: string;
+      hoursSpent: number;
+      levelUp?: boolean;
+      notes?: string;
+    }
+  ) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    const existing = await prisma.childSkillProgress.findUnique({
+      where: {
+        childId_skillCategory: { childId, skillCategory: data.skillCategory }
+      }
+    });
+
+    // Determine new level if level up requested
+    const getLevelUp = (currentLevel: string) => {
+      const levels = ['beginner', 'intermediate', 'advanced', 'expert'];
+      const currentIndex = levels.indexOf(currentLevel);
+      if (currentIndex < levels.length - 1) {
+        return levels[currentIndex + 1];
+      }
+      return currentLevel;
+    };
+
+    if (existing) {
+      const updateData: any = {
+        activitiesCompleted: existing.activitiesCompleted + 1,
+        totalHours: existing.totalHours + data.hoursSpent,
+        lastActivityName: data.activityName,
+        lastActivityDate: new Date(),
+        updatedAt: new Date()
+      };
+
+      if (data.levelUp) {
+        updateData.currentLevel = getLevelUp(existing.currentLevel);
+        updateData.achievements = [...existing.achievements, `Leveled up to ${updateData.currentLevel}!`];
+      }
+
+      if (data.notes) {
+        updateData.notes = data.notes;
+      }
+
+      return await prisma.childSkillProgress.update({
+        where: { id: existing.id },
+        data: updateData
+      });
+    } else {
+      // Create new skill progress
+      return await prisma.childSkillProgress.create({
+        data: {
+          childId,
+          skillCategory: data.skillCategory,
+          currentLevel: data.levelUp ? 'intermediate' : 'beginner',
+          totalHours: data.hoursSpent,
+          lastActivityName: data.activityName,
+          lastActivityDate: new Date(),
+          activitiesCompleted: 1,
+          notes: data.notes,
+          achievements: data.levelUp ? ['Started learning!', 'Leveled up to intermediate!'] : ['Started learning!']
+        }
+      });
+    }
+  }
+
+  /**
+   * Delete skill progress
+   */
+  async deleteChildSkillProgress(childId: string, skillCategory: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    await prisma.childSkillProgress.delete({
+      where: {
+        childId_skillCategory: { childId, skillCategory }
+      }
+    });
+
+    return true;
+  }
 }
 
 export const childrenService = new ChildrenService();

@@ -30,6 +30,7 @@ type ChildrenStackParamList = {
   AddEditChild: { childId?: string };
   ChildProfile: { childId: string };
   ChildActivityHistory: { childId: string; childName: string };
+  ChildProgress: { child: { id: string; name: string; dateOfBirth: string } };
 };
 
 type NavigationProp = StackNavigationProp<ChildrenStackParamList, 'ChildProfile'>;
@@ -190,7 +191,7 @@ const ChildProfileScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Activity History Button */}
+        {/* Activity History & Skill Progress Buttons */}
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={styles.actionButton}
@@ -201,6 +202,21 @@ const ChildProfileScreen: React.FC = () => {
           >
             <Icon name="history" size={24} color="#2196F3" />
             <Text style={styles.actionButtonText}>View Activity History</Text>
+            <Icon name="chevron-right" size={24} color="#999" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonProgress]}
+            onPress={() => navigation.navigate('ChildProgress', { 
+              child: {
+                id: child.id,
+                name: child.name,
+                dateOfBirth: child.dateOfBirth.toISOString()
+              }
+            })}
+          >
+            <Icon name="chart-line" size={24} color="#8B5CF6" />
+            <Text style={styles.actionButtonText}>View Skill Progress</Text>
             <Icon name="chevron-right" size={24} color="#999" />
           </TouchableOpacity>
         </View>
@@ -394,6 +410,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
     marginLeft: 12,
+  },
+  actionButtonProgress: {
+    marginTop: 12,
   },
 });
 

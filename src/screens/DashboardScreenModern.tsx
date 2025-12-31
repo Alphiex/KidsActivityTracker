@@ -820,15 +820,25 @@ const DashboardScreenModern = () => {
       {/* Fixed Header with Search */}
       <View style={styles.fixedHeader}>
         {/* Search Bar */}
-        <TouchableOpacity
-          style={styles.searchBar}
-          onPress={() => handleNavigate('SearchMain')}
-        >
-          <View style={styles.searchContent}>
-            <Icon name="magnify" size={20} color="#717171" />
-            <Text style={styles.searchText}>Search Activities</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.searchRow}>
+          <TouchableOpacity
+            style={styles.searchBar}
+            onPress={() => handleNavigate('SearchMain')}
+          >
+            <View style={styles.searchContent}>
+              <Icon name="magnify" size={20} color="#717171" />
+              <Text style={styles.searchText}>Search Activities</Text>
+            </View>
+          </TouchableOpacity>
+          
+          {/* Map Button */}
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={() => handleNavigate('MapSearch')}
+          >
+            <Icon name="map" size={22} color="#FF385C" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Scrollable Content */}
@@ -1121,11 +1131,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 10,
   },
-  searchBar: {
-    backgroundColor: '#F7F7F7',
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 20,
     marginTop: 10,
     marginBottom: 10,
+    gap: 10,
+  },
+  searchBar: {
+    flex: 1,
+    backgroundColor: '#F7F7F7',
     padding: 15,
     borderRadius: 30,
     borderWidth: 1,
@@ -1137,6 +1153,21 @@ const styles = StyleSheet.create({
     elevation: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  mapButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   searchContent: {
     flexDirection: 'row',

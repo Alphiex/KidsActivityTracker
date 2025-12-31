@@ -68,6 +68,7 @@ class PreferencesService {
       preferredCategories: [], // DEPRECATED - use preferredActivityTypes
       preferredActivityTypes: [],
       preferredSubtypes: [],
+      environmentFilter: 'all', // 'all', 'indoor', 'outdoor'
       excludedCategories: [],
       notifications: {
         enabled: true,

@@ -88,6 +88,7 @@ const FiltersScreen = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [sections, setSections] = useState<ExpandableSection[]>([
     { id: 'activityTypes', title: 'Activity Type?', expanded: false },
+    { id: 'environment', title: 'Indoor or Outdoor?', expanded: false },
     { id: 'age', title: 'Age Range?', expanded: false },
     { id: 'locations', title: 'Where?', expanded: false },
     { id: 'distance', title: 'How Far?', expanded: false },
@@ -372,6 +373,11 @@ const FiltersScreen = () => {
         return selectedTypes.length > 0
           ? `${selectedTypes.length} selected`
           : 'All types';
+      case 'environment':
+        const envFilter = preferences?.environmentFilter || 'all';
+        if (envFilter === 'indoor') return 'Indoor only';
+        if (envFilter === 'outdoor') return 'Outdoor only';
+        return 'All activities';
       case 'age':
         const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
         return `${ageRange.min} - ${ageRange.max} years`;
@@ -419,6 +425,8 @@ const FiltersScreen = () => {
     switch (sectionId) {
       case 'activityTypes':
         return 'soccer';
+      case 'environment':
+        return 'weather-sunny';
       case 'age':
         return 'account-child';
       case 'locations':
@@ -474,6 +482,8 @@ const FiltersScreen = () => {
     switch (section.id) {
       case 'activityTypes':
         return renderActivityTypesContent();
+      case 'environment':
+        return renderEnvironmentContent();
       case 'age':
         return renderAgeContent();
       case 'locations':
@@ -489,6 +499,66 @@ const FiltersScreen = () => {
       default:
         return null;
     }
+  };
+
+  const renderEnvironmentContent = () => {
+    if (!preferences) return null;
+
+    const currentEnv = preferences.environmentFilter || 'all';
+    
+    const environmentOptions = [
+      { 
+        value: 'all', 
+        label: 'All Activities', 
+        description: 'Show both indoor and outdoor activities',
+        icon: 'earth' 
+      },
+      { 
+        value: 'indoor', 
+        label: 'Indoor Only', 
+        description: 'Swimming pools, gyms, studios, rinks',
+        icon: 'home-roof' 
+      },
+      { 
+        value: 'outdoor', 
+        label: 'Outdoor Only', 
+        description: 'Parks, fields, nature, adventure',
+        icon: 'pine-tree' 
+      },
+    ];
+
+    return (
+      <View style={styles.sectionContent}>
+        <Text style={styles.helperText}>
+          Filter activities by whether they take place indoors or outdoors
+        </Text>
+        <View style={{ marginTop: 12 }}>
+          {environmentOptions.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.dateOption,
+                currentEnv === option.value && styles.dateOptionSelected
+              ]}
+              onPress={() => updatePreferences({ environmentFilter: option.value as 'all' | 'indoor' | 'outdoor' })}
+            >
+              <View style={styles.dateOptionContent}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Icon name={option.icon} size={20} color={currentEnv === option.value ? '#FF385C' : '#6B7280'} style={{ marginRight: 10 }} />
+                  <Text style={styles.dateOptionTitle}>{option.label}</Text>
+                </View>
+                <Text style={styles.dateOptionDescription}>
+                  {option.description}
+                </Text>
+              </View>
+              <View style={[styles.radio, currentEnv === option.value && styles.radioActive]}>
+                {currentEnv === option.value && <View style={styles.radioInner} />}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
   };
 
   const renderDistanceContent = () => {
@@ -1339,6 +1409,82 @@ const FiltersScreen = () => {
         />
       </View>
 
+      {/* Quick Filter Chips */}
+      <View style={styles.quickFiltersContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickFiltersContent}
+        >
+          <TouchableOpacity 
+            style={[
+              styles.quickFilterChip,
+              preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(new Date().toLocaleDateString('en-US', { weekday: 'long' })) && styles.quickFilterChipActive
+            ]}
+            onPress={() => {
+              const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+              updatePreferences({ daysOfWeek: [today] });
+            }}
+          >
+            <Icon name="calendar-today" size={16} color={preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(new Date().toLocaleDateString('en-US', { weekday: 'long' })) ? '#FFF' : '#6B7280'} />
+            <Text style={[styles.quickFilterChipText, preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(new Date().toLocaleDateString('en-US', { weekday: 'long' })) && styles.quickFilterChipTextActive]}>Today</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[
+              styles.quickFilterChip,
+              preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday') && styles.quickFilterChipActive
+            ]}
+            onPress={() => {
+              updatePreferences({ daysOfWeek: ['Saturday', 'Sunday'] });
+            }}
+          >
+            <Icon name="calendar-weekend" size={16} color={preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday') ? '#FFF' : '#6B7280'} />
+            <Text style={[styles.quickFilterChipText, preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday') && styles.quickFilterChipTextActive]}>Weekend</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[
+              styles.quickFilterChip,
+              preferences?.priceRange?.max === 0 && styles.quickFilterChipActive
+            ]}
+            onPress={() => {
+              updatePreferences({ priceRange: { min: 0, max: 0 } });
+            }}
+          >
+            <Icon name="gift-outline" size={16} color={preferences?.priceRange?.max === 0 ? '#FFF' : '#6B7280'} />
+            <Text style={[styles.quickFilterChipText, preferences?.priceRange?.max === 0 && styles.quickFilterChipTextActive]}>Free</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[
+              styles.quickFilterChip,
+              preferences?.priceRange?.max === 50 && styles.quickFilterChipActive
+            ]}
+            onPress={() => {
+              updatePreferences({ priceRange: { min: 0, max: 50 } });
+            }}
+          >
+            <Icon name="currency-usd" size={16} color={preferences?.priceRange?.max === 50 ? '#FFF' : '#6B7280'} />
+            <Text style={[styles.quickFilterChipText, preferences?.priceRange?.max === 50 && styles.quickFilterChipTextActive]}>Under $50</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickFilterChipReset}
+            onPress={() => {
+              updatePreferences({ 
+                daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                priceRange: { min: 0, max: 1000 },
+                environmentFilter: 'all',
+              });
+            }}
+          >
+            <Icon name="refresh" size={16} color="#FF385C" />
+            <Text style={styles.quickFilterChipResetText}>Reset</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
       {/* Scrollable Content */}
       <Animated.ScrollView 
         ref={scrollViewRef}
@@ -1404,6 +1550,57 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#717171',
+  },
+  quickFiltersContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+  },
+  quickFiltersContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  quickFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginRight: 8,
+    gap: 6,
+  },
+  quickFilterChipActive: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  quickFilterChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  quickFilterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  quickFilterChipReset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginRight: 8,
+    gap: 6,
+  },
+  quickFilterChipResetText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF385C',
   },
   topButtonsContainer: {
     flexDirection: 'row',

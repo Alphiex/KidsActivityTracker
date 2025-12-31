@@ -82,6 +82,9 @@ export interface UserPreferences {
   preferredActivityTypes: string[];
   preferredSubtypes: string[]; // Activity subtype codes
   
+  // Environment preference (indoor/outdoor)
+  environmentFilter: 'all' | 'indoor' | 'outdoor'; // Filter by activity environment
+  
   // Notification preferences
   notifications: {
     enabled: boolean;

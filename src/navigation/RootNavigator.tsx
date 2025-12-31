@@ -8,7 +8,7 @@ import { Colors } from '../theme';
 import PreferencesService from '../services/preferencesService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '../store';
-import { loadStoredAuth } from '../store/slices/authSlice';
+import { loadAuthState } from '../store/slices/authSlice';
 import { fetchSubscription } from '../store/slices/subscriptionSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 import { pushNotificationService } from '../services/pushNotificationService';
@@ -53,6 +53,7 @@ import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import AIRecommendationsScreen from '../screens/AIRecommendationsScreen';
 import WeeklyPlannerScreen from '../screens/WeeklyPlannerScreen';
 import WaitingListScreen from '../screens/WaitingListScreen';
+import MapSearchScreen from '../screens/MapSearchScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -97,6 +98,7 @@ const HomeStack = () => (
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
     <Stack.Screen name="WeeklyPlanner" component={WeeklyPlannerScreen} />
+    <Stack.Screen name="MapSearch" component={MapSearchScreen} />
     <Stack.Screen name="WaitingList" component={WaitingListScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
@@ -306,13 +308,12 @@ const RootNavigator = () => {
   const initializeApp = async () => {
     console.log('Initializing app...');
     try {
-      // Check authentication status (will auto-login in dev mode)
-      const authResult = await dispatch(loadStoredAuth());
+      // Check Firebase authentication status
+      const authResult = await dispatch(loadAuthState());
 
-      // If user is authenticated, fetch their subscription
+      // If user is authenticated, subscription is already fetched by loadAuthState
       if (authResult.payload) {
-        console.log('User authenticated, fetching subscription...');
-        dispatch(fetchSubscription());
+        console.log('User authenticated via Firebase');
       }
 
       // Check onboarding status

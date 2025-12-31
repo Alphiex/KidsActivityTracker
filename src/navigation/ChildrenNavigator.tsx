@@ -4,12 +4,14 @@ import ChildrenListScreen from '../screens/children/ChildrenListScreen';
 import AddEditChildScreen from '../screens/children/AddEditChildScreen';
 import ChildProfileScreen from '../screens/children/ChildProfileScreen';
 import ChildActivityHistoryScreen from '../screens/children/ChildActivityHistoryScreen';
+import ChildProgressScreen from '../screens/children/ChildProgressScreen';
 
 export type ChildrenStackParamList = {
   ChildrenList: undefined;
   AddEditChild: { childId?: string };
   ChildProfile: { childId: string };
   ChildActivityHistory: { childId: string; childName: string };
+  ChildProgress: { child: { id: string; name: string; dateOfBirth: string } };
 };
 
 const Stack = createStackNavigator<ChildrenStackParamList>();
@@ -49,6 +51,13 @@ const ChildrenNavigator: React.FC = () => {
         component={ChildActivityHistoryScreen}
         options={{
           title: 'Activity History',
+        }}
+      />
+      <Stack.Screen
+        name="ChildProgress"
+        component={ChildProgressScreen}
+        options={{
+          title: 'Skill Progress',
         }}
       />
     </Stack.Navigator>

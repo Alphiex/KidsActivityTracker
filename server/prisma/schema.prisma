@@ -247,8 +247,30 @@ model Child {
   profiles        ActivityShareProfile[]
   user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   childActivities ChildActivity[]
+  skillProgress   ChildSkillProgress[]
 
   @@index([userId])
+}
+
+// Skill progression tracking for children
+model ChildSkillProgress {
+  id                  String    @id @default(uuid())
+  childId             String
+  skillCategory       String    // "swimming", "skating", "music", "martial-arts", etc.
+  currentLevel        String    @default("beginner") // "beginner", "intermediate", "advanced", "expert"
+  activitiesCompleted Int       @default(0)
+  totalHours          Float     @default(0) // Estimated hours in this skill
+  lastActivityDate    DateTime?
+  lastActivityName    String?
+  notes               String?
+  achievements        String[]  @default([]) // Badges/achievements earned
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  child               Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@unique([childId, skillCategory])
+  @@index([childId])
+  @@index([skillCategory])
 }
 
 model ChildActivity {

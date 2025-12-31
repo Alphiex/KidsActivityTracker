@@ -449,6 +449,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           </Text>
         </View>
 
+        {/* Provider Badge */}
+        {activity.provider && (
+          <View style={styles.providerRow}>
+            <Icon name="domain" size={14} color="#6B7280" />
+            <Text style={styles.providerText} numberOfLines={1}>
+              {activity.provider}
+            </Text>
+          </View>
+        )}
+
         {activity.dateRange && (
           <View style={[styles.infoRow, styles.dateRangeRow]}>
             <Icon name="calendar-range" size={16} color={Colors.primary} />
@@ -741,6 +751,19 @@ const styles = StyleSheet.create({
     ...Theme.typography.bodySmall,
     marginLeft: Theme.spacing.sm,
     flex: 1,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.xs,
+    paddingVertical: 2,
+  },
+  providerText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 6,
+    flex: 1,
+    fontWeight: '500',
   },
   dateRangeRow: {
     backgroundColor: Colors.secondary + '15',

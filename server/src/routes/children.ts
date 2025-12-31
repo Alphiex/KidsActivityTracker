@@ -547,4 +547,149 @@ router.get('/activities/:activityId/assigned', verifyToken, async (req: Request,
   }
 });
 
+// ============= Skill Progression Tracking =============
+
+// Get all skill progress for a child
+router.get('/:childId/skills', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const skills = await childrenService.getChildSkillProgress(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      skills
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get specific skill progress for a child
+router.get('/:childId/skills/:skillCategory', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const skill = await childrenService.getChildSkillByCategory(
+      req.params.childId,
+      req.params.skillCategory,
+      req.user!.id
+    );
+
+    if (!skill) {
+      return res.status(404).json({
+        success: false,
+        error: 'Skill progress not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      skill
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update or create skill progress for a child
+router.post('/:childId/skills', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { skillCategory, currentLevel, activityName, hoursToAdd, notes, achievement } = req.body;
+
+    if (!skillCategory) {
+      return res.status(400).json({
+        success: false,
+        error: 'Skill category is required'
+      });
+    }
+
+    const skill = await childrenService.updateChildSkillProgress(
+      req.params.childId,
+      req.user!.id,
+      {
+        skillCategory,
+        currentLevel,
+        activityName,
+        hoursToAdd,
+        notes,
+        achievement
+      }
+    );
+
+    res.json({
+      success: true,
+      skill
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Log activity completion and update skill progress
+router.post('/:childId/skills/log-completion', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { activityId, activityName, skillCategory, hoursSpent, levelUp, notes } = req.body;
+
+    if (!skillCategory) {
+      return res.status(400).json({
+        success: false,
+        error: 'Skill category is required'
+      });
+    }
+
+    const skill = await childrenService.logActivityCompletion(
+      req.params.childId,
+      req.user!.id,
+      {
+        activityId,
+        activityName,
+        skillCategory,
+        hoursSpent: hoursSpent || 1,
+        levelUp,
+        notes
+      }
+    );
+
+    res.json({
+      success: true,
+      skill
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete skill progress for a child
+router.delete('/:childId/skills/:skillCategory', verifyToken, async (req: Request, res: Response) => {
+  try {
+    await childrenService.deleteChildSkillProgress(
+      req.params.childId,
+      req.params.skillCategory,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      message: 'Skill progress deleted'
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
