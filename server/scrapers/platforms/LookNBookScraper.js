@@ -211,6 +211,9 @@ class LookNBookScraper extends BaseScraper {
     const $ = cheerio.load(html);
     const activities = [];
 
+    // Bogus entries to skip (navigation elements, not real courses)
+    const bogusEntries = ['browser unsupported', 'search', 'results', 'home', 'login', 'register', 'menu'];
+
     // Find all course cards - they're typically in divs or sections with course info
     // Pattern 1: h4 title followed by course details
     $('h4').each((index, element) => {
@@ -220,15 +223,18 @@ class LookNBookScraper extends BaseScraper {
 
         if (!title) return;
 
+        // Skip bogus navigation entries
+        if (bogusEntries.includes(title.toLowerCase())) return;
+
         // Get the parent container that holds all course info
         const $container = $title.parent();
         const containerText = $container.text();
 
-        // Extract ID
+        // Extract ID - skip if no real course ID found
         const idMatch = containerText.match(/ID:\s*(\d+)/);
-        const externalId = idMatch ? idMatch[1] : null;
+        if (!idMatch) return; // Skip entries without a real course ID
 
-        if (!externalId) return; // Skip if no ID found
+        const externalId = idMatch[1];
 
         // Extract Price
         const priceMatch = containerText.match(/Price:\s*\$?([\d,.]+)/);
@@ -327,7 +333,7 @@ class LookNBookScraper extends BaseScraper {
       }
 
       const date = new Date(year, month, day);
-      return date.toISOString().split('T')[0];
+      return date.toISOString();
     } catch (error) {
       return null;
     }
