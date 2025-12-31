@@ -1084,6 +1084,51 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       function extractAgeRange(text) {
+        // Helper to parse age strings like "5y 11m 4w" or "5 yrs" to years
+        const parseAgeToYears = (ageStr) => {
+          if (!ageStr) return null;
+          // Handle "Xy Ym Ww" format (e.g., "5y 11m 4w")
+          const complexMatch = ageStr.match(/(\d+)y(?:\s*(\d+)m)?(?:\s*(\d+)w)?/i);
+          if (complexMatch) {
+            const years = parseInt(complexMatch[1]) || 0;
+            const months = parseInt(complexMatch[2]) || 0;
+            // Round up: 5y 11m = 6 years for max, 5 years for min
+            return years + (months > 6 ? 1 : 0);
+          }
+          // Handle simple "X yrs" or "X years" or just "X"
+          const simpleMatch = ageStr.match(/(\d+)/);
+          return simpleMatch ? parseInt(simpleMatch[1]) : null;
+        };
+
+        // Pattern 1: "Age at least X but less than Y" (St. John's style)
+        const atLeastMatch = text.match(/Age\s+at\s+least\s+([\d\w\s]+?)\s+but\s+less\s+than\s+([\d\w\s]+)/i);
+        if (atLeastMatch) {
+          const min = parseAgeToYears(atLeastMatch[1]);
+          const max = parseAgeToYears(atLeastMatch[2]);
+          if (min !== null || max !== null) {
+            return { min: min || 0, max: max || 99 };
+          }
+        }
+
+        // Pattern 2: "Age less than X" (max only)
+        const lessThanMatch = text.match(/Age\s+less\s+than\s+([\d\w\s]+?)(?:\s|\/|$)/i);
+        if (lessThanMatch) {
+          const max = parseAgeToYears(lessThanMatch[1]);
+          if (max !== null && max < 99) {
+            return { min: 0, max };
+          }
+        }
+
+        // Pattern 3: "Age at least X" (min only)
+        const atLeastOnlyMatch = text.match(/Age\s+at\s+least\s+([\d\w\s]+?)(?:\s+yrs|\s|\/|$)/i);
+        if (atLeastOnlyMatch && !atLeastMatch) {
+          const min = parseAgeToYears(atLeastOnlyMatch[1]);
+          if (min !== null) {
+            return { min, max: 99 };
+          }
+        }
+
+        // Original patterns as fallback
         const agePatterns = [
           /(\d+)\s*(?:to|-|–)\s*(\d+)\s*(?:yrs?|years?)/i,
           /(\d+)\s*(?:yrs?|years?)\s*\+/i,
@@ -1558,6 +1603,39 @@ class ActiveNetworkScraper extends BaseScraper {
       }
 
       function extractAgeRange(text) {
+        // Helper to parse age strings like "5y 11m 4w" or "5 yrs" to years
+        const parseAgeToYears = (ageStr) => {
+          if (!ageStr) return null;
+          // Handle "Xy Ym Ww" format (e.g., "5y 11m 4w")
+          const complexMatch = ageStr.match(/(\d+)y(?:\s*(\d+)m)?(?:\s*(\d+)w)?/i);
+          if (complexMatch) {
+            const years = parseInt(complexMatch[1]) || 0;
+            const months = parseInt(complexMatch[2]) || 0;
+            return years + (months > 6 ? 1 : 0);
+          }
+          const simpleMatch = ageStr.match(/(\d+)/);
+          return simpleMatch ? parseInt(simpleMatch[1]) : null;
+        };
+
+        // Pattern 1: "Age at least X but less than Y" (St. John's style)
+        const atLeastMatch = text.match(/Age\s+at\s+least\s+([\d\w\s]+?)\s+but\s+less\s+than\s+([\d\w\s]+)/i);
+        if (atLeastMatch) {
+          const min = parseAgeToYears(atLeastMatch[1]);
+          const max = parseAgeToYears(atLeastMatch[2]);
+          if (min !== null || max !== null) {
+            return { min: min || 0, max: max || 99 };
+          }
+        }
+
+        // Pattern 2: "Age less than X" (max only)
+        const lessThanMatch = text.match(/Age\s+less\s+than\s+([\d\w\s]+?)(?:\s|\/|$)/i);
+        if (lessThanMatch) {
+          const max = parseAgeToYears(lessThanMatch[1]);
+          if (max !== null && max < 99) {
+            return { min: 0, max };
+          }
+        }
+
         // ActiveNet shows ages like "5 yrs +" or "6-12 yrs"
         const agePatterns = [
           /(\d+)\s*(?:to|-|–)\s*(\d+)\s*(?:yrs?|years?)/i,

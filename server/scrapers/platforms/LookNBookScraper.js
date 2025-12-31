@@ -486,12 +486,28 @@ class LookNBookScraper extends BaseScraper {
 
     // Pattern: "X-Y yrs" or "X-Y years" or "(Xyr-Yyr)" or "(XY-XY)"
     const patterns = [
+      // "6-12-yrs" format (with dash before yrs) - Red Deer uses this
+      /(\d+)-(\d+)-yrs?/i,
+      // Standard "6-12 yrs" or "6-12yrs"
       /(\d+)\s*-\s*(\d+)\s*(?:yrs?|years?)/i,
+      // "(6Y-12Y)" or "(6yr-12yr)" - Strathcona format
       /\((\d+)\s*[yY](?:r|rs|ears?)?\s*-\s*(\d+)\s*[yY](?:r|rs|ears?)?\)/,
+      // "(9-99Y)" - range with Y suffix (Strathcona)
+      /\((\d+)-(\d+)Y\)/i,
+      // "ages 6-12" or "age 6-12"
       /ages?\s*(\d+)\s*-\s*(\d+)/i,
+      // "6 yrs and up" or "6+ yrs"
       /(\d+)\s*(?:yrs?|years?)\s*(?:and\s+(?:up|older|\+))/i,
       /(\d+)\+\s*(?:yrs?|years?)/i,
     ];
+
+    // First check for single-age patterns with Y suffix (50Y+, 18Y+)
+    const singleAgeMatch = title.match(/\((\d+)Y\+?\)/i);
+    if (singleAgeMatch) {
+      result.ageMin = parseInt(singleAgeMatch[1], 10);
+      result.ageMax = 99;
+      return result;
+    }
 
     for (const pattern of patterns) {
       const match = title.match(pattern);
@@ -504,8 +520,11 @@ class LookNBookScraper extends BaseScraper {
 
     // Check for specific age group keywords
     if (!result.ageMin) {
-      if (/toddler|infant/i.test(title)) {
+      if (/baby|infant/i.test(title)) {
         result.ageMin = 0;
+        result.ageMax = 2;
+      } else if (/toddler/i.test(title)) {
+        result.ageMin = 1;
         result.ageMax = 3;
       } else if (/preschool/i.test(title)) {
         result.ageMin = 3;

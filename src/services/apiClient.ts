@@ -33,15 +33,19 @@ class ApiClient {
       async (config) => {
         try {
           // Get Firebase ID token (automatically refreshes if needed)
-          const token = await firebaseAuthService.getIdToken();
-          console.log('[API] Request to:', config.url, 'token present:', !!token);
+          // Use a timeout to prevent blocking on token fetch
+          const tokenPromise = firebaseAuthService.getIdToken();
+          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+
+          const token = await Promise.race([tokenPromise, timeoutPromise]);
+
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-          } else {
-            console.warn('[API] No access token found for request:', config.url);
           }
+          // Don't warn for missing token - many endpoints are public
         } catch (error) {
-          console.error('[API] Error getting token:', error);
+          // Don't block request if token fetch fails
+          console.warn('[API] Token fetch failed, continuing without auth:', error);
         }
         return config;
       },

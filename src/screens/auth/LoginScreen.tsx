@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,8 @@ const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  const passwordInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     dispatch(clearError());
@@ -187,6 +189,8 @@ const LoginScreen: React.FC = () => {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordInputRef.current?.focus()}
                 />
               </View>
               {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
@@ -197,6 +201,7 @@ const LoginScreen: React.FC = () => {
               <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
                 <Icon name="lock-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
+                  ref={passwordInputRef}
                   style={styles.input}
                   placeholder="Password"
                   placeholderTextColor="#9CA3AF"
@@ -205,6 +210,8 @@ const LoginScreen: React.FC = () => {
                   onBlur={() => validatePassword(password)}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={handleEmailLogin}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}

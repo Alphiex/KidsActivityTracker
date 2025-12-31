@@ -89,16 +89,28 @@ const DashboardScreenModern = () => {
         return;
       }
 
-      // Reload the sections that use preferences (includes randomization)
-      loadSponsoredActivities();
-      loadRecommendedActivities();
-      loadBudgetFriendlyActivities();
-      loadNewActivities();
+      // Reload all dashboard data when returning to the screen
+      const reloadData = async () => {
+        console.log('[Dashboard] Reloading data on focus...');
+        try {
+          await Promise.all([
+            loadSponsoredActivities(),
+            loadRecommendedActivities(),
+            loadBudgetFriendlyActivities(),
+            loadNewActivities(),
+          ]);
+          console.log('[Dashboard] Data reload complete');
+        } catch (error) {
+          console.error('[Dashboard] Error reloading data:', error);
+        }
+      };
+
+      reloadData();
 
       return () => {
         // Cleanup if needed
       };
-    }, [])
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   useEffect(() => {
