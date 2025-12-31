@@ -340,6 +340,21 @@ const styles = StyleSheet.create({
     color: ModernColors.textSecondary,
     marginTop: 2,
   },
+  upgradeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFB800' + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  upgradeHintText: {
+    fontSize: 11,
+    color: '#B38600',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
   headerRight: {
     width: 40,
     alignItems: 'flex-end',

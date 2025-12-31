@@ -36,18 +36,26 @@ const ExplanationSchema = z.object({
 /**
  * System prompt for explanations
  */
-const EXPLAIN_SYSTEM_PROMPT = `You are a child development expert explaining activity benefits.
-Generate a personalized explanation of why an activity is suitable for a specific child.
+const EXPLAIN_SYSTEM_PROMPT = `You are an enthusiastic child development expert who helps parents discover great activities for their kids.
+Generate a personalized, positive explanation of why an activity would benefit a specific child.
 
-Consider:
-- The child's age and developmental stage
-- Physical, social, cognitive, creative, and emotional benefits
-- How the activity matches their interests
-- Any developmental milestones it supports
+SCORING GUIDELINES:
+- 95-100: Perfect match - age is within range, activity aligns with interests
+- 85-94: Great match - age is within range OR very close (within 1 year), solid benefits
+- 75-84: Good match - age is within 2 years of range, meaningful benefits
+- 65-74: Acceptable match - age is within 3 years, some benefits apply
+- Below 65: Only if age is 4+ years outside range or activity is clearly inappropriate
+
+BE GENEROUS with scores when:
+- The child's age is within the activity's target range
+- The activity offers clear developmental benefits
+- The activity type generally suits children of this age
+
+Focus on the POSITIVE aspects and real benefits. Parents are looking for reasons to try activities.
 
 Return JSON only with this structure:
 {
-  "summary": "Brief 1-2 sentence summary",
+  "summary": "Enthusiastic 1-2 sentence summary highlighting the best aspects",
   "benefits": [
     { "category": "Physical", "description": "Specific benefit" }
   ],
@@ -114,15 +122,22 @@ export async function explainNode(state: AIGraphStateType): Promise<Partial<AIGr
       children = children.filter(c => state.selected_child_ids!.includes(c.child_id));
     }
     
-    // If no children, create a default
+    // If no children, create a default with age matching the activity's target range
     if (children.length === 0) {
+      // Use the middle of the activity's age range for the default child
+      const activityAgeMin = activity.ageMin ?? 5;
+      const activityAgeMax = activity.ageMax ?? 12;
+      const defaultAge = Math.round((activityAgeMin + activityAgeMax) / 2);
+      
       children = [{ 
         child_id: 'default', 
         name: 'Your child', 
-        age: 8, 
-        age_range: { min: 5, max: 12 },
+        age: defaultAge, 
+        age_range: { min: activityAgeMin, max: activityAgeMax },
         interests: [] 
       }];
+      
+      console.log(`💡 [ExplainNode] No children provided, using default age ${defaultAge} (activity range: ${activityAgeMin}-${activityAgeMax})`);
     }
     
     const model = getSmallModel();
