@@ -2140,8 +2140,8 @@ class ActiveNetworkScraper extends BaseScraper {
                 // Age
                 ageMin: finalAgeMin,
                 ageMax: finalAgeMax,
-                // Cost
-                cost: detailData.cost || activity.cost || 0,
+                // Cost (use ?? to preserve $0 for free activities, null for unknown)
+                cost: detailData.cost ?? activity.cost ?? null,
                 // Description (short and full)
                 description: detailData.description || activity.description,
                 fullDescription: detailData.fullDescription || activity.fullDescription,

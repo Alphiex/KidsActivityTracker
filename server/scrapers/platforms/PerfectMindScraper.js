@@ -1802,7 +1802,7 @@ class PerfectMindScraper extends BaseScraper {
                   ageMin: detailData.ageMin ?? activity.ageMin,
                   ageMax: detailData.ageMax ?? activity.ageMax,
                   // Cost
-                  cost: detailData.cost || activity.cost || 0,
+                  cost: detailData.cost ?? activity.cost ?? null,
                   // Description (short and full)
                   description: detailData.description || activity.description,
                   fullDescription: detailData.fullDescription || activity.fullDescription,

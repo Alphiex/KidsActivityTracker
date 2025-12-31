@@ -148,11 +148,15 @@ class AmiliaScraper extends BaseScraper {
       // Get all program links
       const programLinks = await page.evaluate(() => {
         const links = [];
-        // Find program cards/links
-        const programElements = document.querySelectorAll('a[href*="/shop/programs/"]');
+        // Find program cards/links - include French URL patterns
+        const programElements = document.querySelectorAll(
+          'a[href*="/shop/programs/"], a[href*="/boutique/programmes/"], ' +
+          '.program-card a, .programme-card a, [class*="program"] a, [class*="programme"] a, ' +
+          '.category-card a, .categorie-card a'
+        );
         programElements.forEach(el => {
           const href = el.getAttribute('href');
-          const title = el.textContent?.trim() || el.querySelector('h2, h3, h4, .title')?.textContent?.trim();
+          const title = el.textContent?.trim() || el.querySelector('h2, h3, h4, .title, .titre')?.textContent?.trim();
           if (href && !links.some(l => l.href === href)) {
             links.push({ href, title });
           }
@@ -213,10 +217,12 @@ class AmiliaScraper extends BaseScraper {
       const pageActivities = await page.evaluate((category) => {
         const activities = [];
 
-        // Look for activity cards/rows
+        // Look for activity cards/rows - include French/Amilia-specific selectors
         const activityElements = document.querySelectorAll(
-          '.activity-card, .event-card, [class*="activity"], [class*="event"], ' +
-          '.list-group-item, .table tbody tr, [data-activity-id]'
+          '.activity-card, .event-card, .session-card, .seance-card, ' +
+          '[class*="activity"], [class*="event"], [class*="session"], [class*="seance"], ' +
+          '[class*="activite"], [class*="cours"], [class*="atelier"], ' +
+          '.list-group-item, .table tbody tr, [data-activity-id], [data-session-id]'
         );
 
         activityElements.forEach(el => {
@@ -235,8 +241,8 @@ class AmiliaScraper extends BaseScraper {
             const timeEl = el.querySelector('[class*="time"], .schedule, td:nth-child(3)');
             const timeText = timeEl?.textContent?.trim() || '';
 
-            // Extract location
-            const locationEl = el.querySelector('[class*="location"], .venue, .place, td:nth-child(4)');
+            // Extract location - include French selectors
+            const locationEl = el.querySelector('[class*="location"], [class*="lieu"], .venue, .place, .etablissement, .endroit, td:nth-child(4)');
             const location = locationEl?.textContent?.trim() || '';
 
             // Extract price
@@ -542,7 +548,7 @@ class AmiliaScraper extends BaseScraper {
       externalId: activity.externalId || generateStableActivityId(activity),
       name: activity.name || 'Unknown Activity',
       category: activity.category || 'Recreation',
-      cost: activity.cost || 0,
+      cost: activity.cost ?? null,
       // Clean up dates
       dateStart: activity.dateStart instanceof Date && !isNaN(activity.dateStart) ? activity.dateStart : null,
       dateEnd: activity.dateEnd instanceof Date && !isNaN(activity.dateEnd) ? activity.dateEnd : null,

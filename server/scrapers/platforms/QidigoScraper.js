@@ -525,7 +525,7 @@ class QidigoScraper extends BaseScraper {
       externalId: activity.externalId || generateStableActivityId(activity),
       name: activity.name || 'Unknown Activity',
       category: activity.category || 'Recreation',
-      cost: activity.cost || 0,
+      cost: activity.cost ?? null,
       dateStart: activity.dateStart instanceof Date && !isNaN(activity.dateStart) ? activity.dateStart : null,
       dateEnd: activity.dateEnd instanceof Date && !isNaN(activity.dateEnd) ? activity.dateEnd : null,
       // Convert day numbers to day names for database
