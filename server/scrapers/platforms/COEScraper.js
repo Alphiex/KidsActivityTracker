@@ -736,6 +736,15 @@ class COEScraper extends BaseScraper {
               }
             }
 
+            // Extract waitlist availability from detail page
+            // Pattern: "Waitlist Available</label></td>....<td>....Yes" or similar
+            const waitlistMatch = cleanHtml.match(/Waitlist\s*Available[^<]*<\/(?:label|td)>[^<]*<td[^>]*>\s*(Yes|No|Available)/i);
+            if (waitlistMatch) {
+              const waitlistValue = waitlistMatch[1].toLowerCase();
+              activity.waitlistAvailable = (waitlistValue === 'yes' || waitlistValue === 'available');
+              wasEnriched = true;
+            }
+
             if (wasEnriched) enriched++;
           }
 
@@ -786,10 +795,14 @@ class COEScraper extends BaseScraper {
       const dayOfWeek = activity.dayOfWeek ? [activity.dayOfWeek] : [];
 
       // Determine registration status
+      // Check for waitlist availability when spots = 0
       let registrationStatus = 'Unknown';
       if (activity.spotsAvailable !== null) {
         if (activity.spotsAvailable > 0) {
           registrationStatus = 'Open';
+        } else if (activity.waitlistAvailable === true) {
+          // Full but waitlist is available
+          registrationStatus = 'Waitlist';
         } else {
           registrationStatus = 'Full';
         }

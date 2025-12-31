@@ -1927,6 +1927,8 @@ class ActiveNetworkScraper extends BaseScraper {
                   { pattern: /Waiting\s*List/i, status: 'Waitlist' },
                   { pattern: /\bFull\b/i, status: 'Full' },
                   { pattern: /Register\s*Now/i, status: 'Open' },
+                  { pattern: /Enroll\s*Now/i, status: 'Open' },  // West Vancouver uses "Enroll Now"
+                  { pattern: /\d+\s*openings?\s*remaining/i, status: 'Open' },  // "3 openings remaining"
                   { pattern: /Open\s*for\s*Registration/i, status: 'Open' },
                   { pattern: /Registration\s*Closed/i, status: 'Closed' },
                   { pattern: /Cancelled/i, status: 'Cancelled' }
