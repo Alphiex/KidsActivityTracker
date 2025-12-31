@@ -23,6 +23,7 @@ interface SearchParams {
   hideClosedActivities?: boolean; // Hide activities that are closed for registration
   hideFullActivities?: boolean; // Hide activities with no spots available
   hideClosedOrFull?: boolean; // Hide activities that are closed OR full
+  hasCoordinates?: boolean; // Only return activities with lat/lng for map view
   limit?: number;
   offset?: number;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability';
@@ -59,6 +60,7 @@ export class EnhancedActivityService {
       hideClosedActivities = false,
       hideFullActivities = false,
       hideClosedOrFull = false,
+      hasCoordinates = false,
       limit = 50,
       offset = 0,
       sortBy = 'availability', // Default to availability-first random ordering
@@ -98,6 +100,12 @@ export class EnhancedActivityService {
       where.isActive = true;
     }
     // When includeInactive is true, we don't filter by isActive at all
+
+    // Map view filter - only return activities with coordinates
+    if (hasCoordinates) {
+      where.latitude = { not: null };
+      where.longitude = { not: null };
+    }
 
     // Text search
     if (search) {

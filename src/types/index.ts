@@ -213,6 +213,7 @@ export interface Filter {
   subcategory?: string;
   hideClosedActivities?: boolean;
   hideFullActivities?: boolean;
+  hasCoordinates?: boolean; // Only return activities with lat/lng for map view
   limit?: number;
   offset?: number;
   sortBy?: string;

@@ -1799,11 +1799,33 @@ class PerfectMindScraper extends BaseScraper {
                   }
                 }
 
-                // === INSTRUCTOR ===
-                const instructorMatch = pageHtml.match(/["']Instructor["']\s*:\s*["']([^"']+)["']/i) ||
-                                        pageText.match(/Instructor[:\s]+([^\n]+)/i);
-                if (instructorMatch) {
-                  data.instructor = instructorMatch[1].trim();
+                // === INSTRUCTOR / SUPERVISOR / COACH ===
+                // Try multiple field names as different sites use different terminology
+                const instructorPatterns = [
+                  // JSON format in HTML
+                  /["']Instructor["']\s*:\s*["']([^"']+)["']/i,
+                  /["']Supervisor["']\s*:\s*["']([^"']+)["']/i,
+                  /["']Coach["']\s*:\s*["']([^"']+)["']/i,
+                  /["']Leader["']\s*:\s*["']([^"']+)["']/i,
+                  // Text patterns
+                  /Instructor[:\s]+([^\n]+)/i,
+                  /Supervisor[:\s]+([^\n]+)/i,
+                  /Coach[:\s]+([^\n]+)/i,
+                  /Leader[:\s]+([^\n]+)/i,
+                  /Facilitator[:\s]+([^\n]+)/i,
+                  /Teacher[:\s]+([^\n]+)/i
+                ];
+                for (const pattern of instructorPatterns) {
+                  const match = pageHtml.match(pattern) || pageText.match(pattern);
+                  if (match && match[1].trim()) {
+                    // Skip generic values like "TBD", "Staff", location names
+                    const value = match[1].trim();
+                    if (!/^(TBD|TBA|Staff|N\/A)$/i.test(value) &&
+                        !/Recreation\s*Centre|Community\s*Centre|Civic\s*Centre/i.test(value)) {
+                      data.instructor = value;
+                      break;
+                    }
+                  }
                 }
 
                 // === COURSE ID ===
@@ -1928,6 +1950,15 @@ class PerfectMindScraper extends BaseScraper {
               // Parse dates using smart DD/MM vs MM/DD detection
               const parsedDates = parseDatePair(detailData.dateStartStr, detailData.dateEndStr);
 
+              // Determine final registration status and spots
+              const finalStatus = detailData.registrationStatus || activity.registrationStatus || 'Unknown';
+
+              // Override spotsAvailable based on status - if Full/Waitlist, spots should be 0
+              let finalSpotsAvailable = detailData.spotsAvailable ?? activity.spotsAvailable;
+              if (finalStatus === 'Full' || finalStatus === 'Waitlist' || finalStatus === 'Closed') {
+                finalSpotsAvailable = 0;
+              }
+
               // Merge data with activity
               return {
                 index,
@@ -1967,14 +1998,14 @@ class PerfectMindScraper extends BaseScraper {
                   courseDetails: detailData.courseDetails || activity.courseDetails,
                   // Contact Info
                   contactInfo: detailData.contactInfo || activity.contactInfo,
-                  // Instructor
+                  // Instructor / Supervisor / Coach
                   instructor: detailData.instructor || activity.instructor,
                   // Sessions
                   sessionCount: detailData.sessionCount || activity.sessionCount || 0,
                   hasMultipleSessions: (detailData.sessionCount || 0) > 1,
-                  spotsAvailable: detailData.spotsAvailable ?? activity.spotsAvailable,
-                  // Registration
-                  registrationStatus: detailData.registrationStatus || activity.registrationStatus || 'Unknown'
+                  // Registration Status and Availability
+                  spotsAvailable: finalSpotsAvailable,
+                  registrationStatus: finalStatus
                 }
               };
             } catch (error) {

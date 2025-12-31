@@ -1999,6 +1999,29 @@ class ActiveNetworkScraper extends BaseScraper {
               // Wait for page content to fully render (reduced for faster processing)
               await new Promise(r => setTimeout(r, 2000));
 
+              // === CLICK "VIEW FEE DETAILS" BUTTON IF PRESENT ===
+              // Many ActiveNetwork sites hide the actual cost behind this button
+              try {
+                const feeDetailsButton = await page.$('a[href*="fee"], button:has-text("fee details"), .fee-details-link, [data-action="view-fees"]');
+                if (!feeDetailsButton) {
+                  // Try text-based selector
+                  const buttons = await page.$$('a, button');
+                  for (const btn of buttons) {
+                    const text = await btn.evaluate(el => el.textContent?.toLowerCase() || '');
+                    if (text.includes('view fee') || text.includes('fee details')) {
+                      await btn.click();
+                      await new Promise(r => setTimeout(r, 1500)); // Wait for fee modal/content
+                      break;
+                    }
+                  }
+                } else {
+                  await feeDetailsButton.click();
+                  await new Promise(r => setTimeout(r, 1500));
+                }
+              } catch (feeErr) {
+                // Fee details button not found or click failed - continue with extraction
+              }
+
               // Extract comprehensive data from Active Network detail page
               const detailData = await page.evaluate(() => {
                 const data = {};
@@ -2182,10 +2205,28 @@ class ActiveNetworkScraper extends BaseScraper {
                   }
                 }
 
-                // === INSTRUCTOR ===
-                const instructorMatch = pageText.match(/Instructor\s*\n\s*([^\n]+)/);
-                if (instructorMatch) {
-                  data.instructor = instructorMatch[1].trim();
+                // === INSTRUCTOR / SUPERVISOR / COACH ===
+                // Try multiple field names as different sites use different terminology
+                const instructorPatterns = [
+                  /Instructor\s*\n\s*([^\n]+)/i,
+                  /Supervisor\s*\n\s*([^\n]+)/i,
+                  /Coach\s*\n\s*([^\n]+)/i,
+                  /Leader\s*\n\s*([^\n]+)/i,
+                  /Facilitator\s*\n\s*([^\n]+)/i,
+                  /Teacher\s*\n\s*([^\n]+)/i,
+                  /Staff\s*\n\s*([^\n]+)/i
+                ];
+                for (const pattern of instructorPatterns) {
+                  const match = pageText.match(pattern);
+                  if (match && match[1].trim()) {
+                    // Skip generic values like "TBD", "Staff", location names
+                    const value = match[1].trim();
+                    if (!/^(TBD|TBA|Staff|N\/A)$/i.test(value) &&
+                        !/Recreation\s*Centre|Community\s*Centre|Civic\s*Centre/i.test(value)) {
+                      data.instructor = value;
+                      break;
+                    }
+                  }
                 }
 
                 // === NUMBER OF SESSIONS ===
@@ -2219,9 +2260,31 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === REGISTRATION DATES ===
-                const regDateMatch = pageText.match(/Registration\s*dates?\s*\n?\s*From\s+([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4}\s*\d{1,2}:\d{2}\s*(?:AM|PM))/i);
-                if (regDateMatch) {
-                  data.registrationDateStr = regDateMatch[1];
+                // Format 1: "Registration dates" section with multiple user types
+                // "Members 18 Nov 2025 9:00 PM to 4 Jan 2026 6:00 AM"
+                const regDatePatterns = [
+                  // "DD Mon YYYY H:MM AM/PM to DD Mon YYYY H:MM AM/PM" (Ottawa format)
+                  /(?:Members?|Residents?|Non-members?|Public)\s*(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))\s*to\s*(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i,
+                  // "From Mon DD, YYYY H:MM AM" format
+                  /Registration\s*dates?\s*\n?\s*From\s+([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4}\s*\d{1,2}:\d{2}\s*(?:AM|PM))/i,
+                  // "Registration: Mon DD - Mon DD, YYYY"
+                  /Registration[:\s]+([A-Z][a-z]{2}\s+\d{1,2})\s*[-–]\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i,
+                  // Simple "Registration opens Mon DD, YYYY"
+                  /Registration\s+opens?\s*:?\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i
+                ];
+
+                for (const pattern of regDatePatterns) {
+                  const match = pageText.match(pattern);
+                  if (match) {
+                    if (match[2]) {
+                      // Has both start and end date
+                      data.registrationStartDateStr = match[1];
+                      data.registrationEndDateStr = match[2];
+                    } else {
+                      data.registrationDateStr = match[1];
+                    }
+                    break;
+                  }
                 }
 
                 // === COORDINATES FROM MAP ===
@@ -2375,6 +2438,17 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
               }
 
+              // Determine final registration status and spots
+              const finalStatus = detailData.registrationStatus || activity.registrationStatus || 'Unknown';
+
+              // Override spotsAvailable based on status - if Full/Waitlist, spots should be 0
+              let finalSpotsAvailable = activity.spotsAvailable;
+              if (finalStatus === 'Full' || finalStatus === 'Waitlist' || finalStatus === 'Closed') {
+                finalSpotsAvailable = 0;
+              } else if (finalStatus === 'Open' && finalSpotsAvailable === null) {
+                // Keep null if unknown, but mark as Open
+              }
+
               // Merge detail data with activity
               return {
                 ...activity,
@@ -2409,14 +2483,17 @@ class ActiveNetworkScraper extends BaseScraper {
                 courseDetails: detailData.courseDetails || activity.courseDetails,
                 // Contact Info
                 contactInfo: detailData.contactInfo || activity.contactInfo,
-                // Instructor
+                // Instructor / Supervisor / Coach
                 instructor: detailData.instructor || activity.instructor,
                 // Sessions
                 sessionCount: detailData.sessionCount || activity.sessionCount || 0,
                 hasMultipleSessions: (detailData.sessionCount || 0) > 1,
-                // Registration
-                registrationStatus: detailData.registrationStatus || activity.registrationStatus || 'Unknown',
-                registrationDate: parseDate(detailData.registrationDateStr) || activity.registrationDate
+                // Registration Status and Availability
+                registrationStatus: finalStatus,
+                spotsAvailable: finalSpotsAvailable,
+                // Registration Dates (when registration opens/closes)
+                registrationDate: parseDate(detailData.registrationStartDateStr) || parseDate(detailData.registrationDateStr) || activity.registrationDate,
+                registrationEndDate: parseDate(detailData.registrationEndDateStr) || activity.registrationEndDate
               };
             } catch (error) {
               await page.close();

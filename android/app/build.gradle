@@ -88,6 +88,18 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        
+        // Google Maps API Key - read from local.properties or environment
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.withReader('UTF-8') { reader ->
+                localProperties.load(reader)
+            }
+        }
+        def googleMapsApiKey = localProperties.getProperty('GOOGLE_MAPS_API_KEY') 
+            ?: System.getenv('GOOGLE_MAPS_API_KEY') ?: ''
+        manifestPlaceholders = [GOOGLE_MAPS_API_KEY: googleMapsApiKey]
     }
     signingConfigs {
         debug {

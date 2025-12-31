@@ -1,0 +1,8 @@
+// Configuration file for KidsActivityTracker
+// For local development, create Config.local.xcconfig with your API keys
+
+// Include local config if it exists (file is gitignored)
+#include? "Config.local.xcconfig"
+
+// Default empty value if not set locally or in CI
+GOOGLE_MAPS_API_KEY = $(GOOGLE_MAPS_API_KEY)

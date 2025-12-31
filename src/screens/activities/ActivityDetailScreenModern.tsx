@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import LinearGradient from 'react-native-linear-gradient';
 import { Activity } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -259,6 +259,18 @@ const ActivityDetailScreenModern = () => {
     });
   };
 
+  const formatDateRange = (startDate: Date, endDate: Date): string => {
+    // Check if dates are the same (single-day activity)
+    const isSameDay = startDate.getFullYear() === endDate.getFullYear() &&
+                      startDate.getMonth() === endDate.getMonth() &&
+                      startDate.getDate() === endDate.getDate();
+
+    if (isSameDay) {
+      return formatDate(startDate);
+    }
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  };
+
   const getDayOfWeek = () => {
     // First check if schedule field contains day information
     if (activity.schedule) {
@@ -314,9 +326,11 @@ const ActivityDetailScreenModern = () => {
     return null;
   };
 
-  const getAgeRange = () => {
+  const getAgeRange = (): string | null => {
     // First check if we have proper ageRange data from API
-    if (activity.ageRange && activity.ageRange.min !== undefined && activity.ageRange.max !== undefined) {
+    if (activity.ageRange &&
+        activity.ageRange.min !== undefined && activity.ageRange.min !== null &&
+        activity.ageRange.max !== undefined && activity.ageRange.max !== null) {
       // Check for "All Ages" pattern (0-99 or similar wide range)
       if (activity.ageRange.min === 0 && activity.ageRange.max >= 99) {
         return 'All Ages';
@@ -329,6 +343,10 @@ const ActivityDetailScreenModern = () => {
           return parsedAge;
         }
       }
+      // If min equals max, show single age
+      if (activity.ageRange.min === activity.ageRange.max) {
+        return `${activity.ageRange.min} yrs`;
+      }
       return `${activity.ageRange.min}-${activity.ageRange.max} yrs`;
     }
 
@@ -338,8 +356,8 @@ const ActivityDetailScreenModern = () => {
       return parsedAge;
     }
 
-    // Last resort fallback
-    return '0-18 yrs';
+    // Return null if no valid age data found
+    return null;
   };
 
   const parseAgeFromText = (): string | null => {
@@ -551,8 +569,8 @@ const ActivityDetailScreenModern = () => {
                   <Text style={styles.detailLabel}>Dates</Text>
                   <Text style={styles.detailValue}>
                     {activity.dates || (activity.dateRange ?
-                      `${formatDate(activity.dateRange.start)} - ${formatDate(activity.dateRange.end)}` :
-                      'Sep 2 - Sep 23')}
+                      formatDateRange(activity.dateRange.start, activity.dateRange.end) :
+                      'Date TBD')}
                   </Text>
                 </View>
               </View>
@@ -585,15 +603,17 @@ const ActivityDetailScreenModern = () => {
 
             {/* Ages and Cost Row */}
             <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
-                <Icon name="account-child" size={20} color={ModernColors.primary} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Ages</Text>
-                  <Text style={styles.detailValue}>
-                    {getAgeRange()}
-                  </Text>
+              {getAgeRange() && (
+                <View style={styles.detailItem}>
+                  <Icon name="account-child" size={20} color={ModernColors.primary} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Ages</Text>
+                    <Text style={styles.detailValue}>
+                      {getAgeRange()}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
               <View style={styles.detailItem}>
                 <Icon name="cash" size={20} color={ModernColors.primary} />
@@ -763,6 +783,7 @@ const ActivityDetailScreenModern = () => {
                 <MapView
                   ref={mapRef}
                   style={styles.map}
+                  provider={PROVIDER_GOOGLE}
                   initialRegion={{
                     latitude: mapLat,
                     longitude: mapLng,

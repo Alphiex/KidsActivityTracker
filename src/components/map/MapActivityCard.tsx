@@ -10,13 +10,15 @@ import { getActivityImageKey } from '../../utils/activityHelpers';
 interface MapActivityCardProps {
   activity: Activity;
   onPress: () => void;
-  onClose: () => void;
+  onClose?: () => void;
+  showCloseButton?: boolean;
 }
 
 const MapActivityCard: React.FC<MapActivityCardProps> = ({
   activity,
   onPress,
   onClose,
+  showCloseButton = false,
 }) => {
   const getImageKey = () => {
     const category = activity.category || (
@@ -29,9 +31,11 @@ const MapActivityCard: React.FC<MapActivityCardProps> = ({
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Icon name="close" size={18} color="#666" />
-      </TouchableOpacity>
+      {showCloseButton && onClose && (
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Icon name="close" size={18} color="#666" />
+        </TouchableOpacity>
+      )}
       
       <View style={styles.imageContainer}>
         <Image

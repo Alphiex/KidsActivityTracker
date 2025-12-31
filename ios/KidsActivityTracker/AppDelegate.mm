@@ -5,11 +5,20 @@
 #import <Firebase.h>
 #import <UserNotifications/UserNotifications.h>
 #import <FirebaseMessaging/FirebaseMessaging.h>
+#import <GoogleMaps/GoogleMaps.h>
 
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+  // Initialize Google Maps - API key should be set in environment or Info.plist
+  NSString *googleMapsApiKey = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"GOOGLE_MAPS_API_KEY"];
+  if (googleMapsApiKey && googleMapsApiKey.length > 0) {
+    [GMSServices provideAPIKey:googleMapsApiKey];
+  } else {
+    NSLog(@"Warning: GOOGLE_MAPS_API_KEY not found in Info.plist");
+  }
+
   // Initialize Firebase
   if ([FIRApp defaultApp] == nil) {
     [FIRApp configure];

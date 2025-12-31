@@ -306,6 +306,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kidsactivitytracker.app;
+				GOOGLE_MAPS_API_KEY = AIzaSyA2ihLRhU3zvg4F0SQCuFgDJvLr2B7HmHg;
 				PRODUCT_NAME = KidsActivityTracker;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
@@ -332,6 +333,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kidsactivitytracker.app;
+				GOOGLE_MAPS_API_KEY = AIzaSyA2ihLRhU3zvg4F0SQCuFgDJvLr2B7HmHg;
 				PRODUCT_NAME = KidsActivityTracker;
 				VERSIONING_SYSTEM = "apple-generic";
 			};

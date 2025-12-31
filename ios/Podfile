@@ -35,6 +35,10 @@ end
 target 'KidsActivityTracker' do
   config = use_native_modules!
 
+  # Google Maps for react-native-maps (required for Android parity)
+  pod 'GoogleMaps', '~> 7.4'
+  pod 'Google-Maps-iOS-Utils', '~> 4.2'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

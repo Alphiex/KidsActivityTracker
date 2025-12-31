@@ -52,6 +52,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       userLat,
       userLon,
       radiusKm,
+      // Map filtering - only return activities with coordinates
+      hasCoordinates,
       limit = '50',
       offset = '0',
       sortBy = 'availability', // Default: availability-first random ordering
@@ -128,6 +130,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       userLat: userLat ? parseFloat(userLat as string) : undefined,
       userLon: userLon ? parseFloat(userLon as string) : undefined,
       radiusKm: radiusKm ? parseFloat(radiusKm as string) : undefined,
+      // Map filtering - only return activities with coordinates
+      hasCoordinates: hasCoordinates === 'true',
       limit: parseInt(limit as string),
       offset: parseInt(offset as string),
       sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability',

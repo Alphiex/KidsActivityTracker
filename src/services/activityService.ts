@@ -351,6 +351,11 @@ class ActivityService {
       // Add limit - use filter limit or default to 50
       params.limit = filters.limit || 50;
 
+      // Add hasCoordinates filter for map view
+      if (filters.hasCoordinates === true) {
+        params.hasCoordinates = true;
+      }
+
       console.log('Searching activities with params:', params);
       console.log('Full URL will be:', this.api.defaults.baseURL + API_CONFIG.ENDPOINTS.ACTIVITIES);
 
