@@ -12,7 +12,7 @@ PostgreSQL database schema and operations for Kids Activity Tracker.
 | **IP Address** | 34.42.149.102 |
 | **Database Name** | `kidsactivity` |
 | **ORM** | Prisma 6.x |
-| **Total Tables** | 31 |
+| **Total Tables** | 35 |
 
 ## Connection
 
@@ -458,6 +458,77 @@ User assignments to test variants.
 | identifierType | String | user_id/device_id |
 | variant | String | Assigned variant |
 | assignedAt | DateTime | Assignment time |
+
+### Notification Domain (4 tables)
+
+#### EmailNotificationLog
+Tracks all email notifications sent to users.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| userId | UUID | FK to User |
+| type | String | daily_digest, weekly_digest, capacity_alert, price_drop, spots_available |
+| activityIds | String[] | Activities included in notification |
+| sentAt | DateTime | When notification was sent |
+| emailTo | String | Recipient email address |
+| status | String | sent, failed, bounced |
+| errorMessage | String? | Error details if failed |
+
+**Indexes**:
+- `(userId)` - User notification history
+- `(sentAt)` - Time-based queries
+- `(type)` - Notification type filtering
+- `(userId, type, sentAt)` - Deduplication checks
+
+#### ActivitySnapshot
+Captures activity state for change detection.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| activityId | UUID | FK to Activity |
+| spotsAvailable | Int? | Spots at snapshot time |
+| cost | Float? | Price at snapshot time |
+| capturedAt | DateTime | When snapshot was taken |
+
+**Indexes**:
+- `(activityId)` - Activity snapshots
+- `(capturedAt)` - Time-based queries
+- `(activityId, capturedAt)` - Historical lookups
+
+#### UnsubscribeToken
+One-click unsubscribe tokens from email links.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| userId | UUID | FK to User |
+| token | String | Unique token (UUID) |
+| type | String | all, daily_digest, weekly_digest, capacity_alerts, price_drops |
+| createdAt | DateTime | Token creation time |
+| expiresAt | DateTime? | Token expiration (30 days) |
+| usedAt | DateTime? | When token was used |
+
+**Indexes**:
+- `(token)` - Token lookup (unique)
+- `(userId)` - User's tokens
+
+#### WaitlistEntry
+Users waiting for activity spots to open.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| userId | UUID | FK to User |
+| activityId | UUID | FK to Activity |
+| createdAt | DateTime | When joined waitlist |
+| notifiedAt | DateTime? | When notified of availability |
+
+**Indexes**:
+- `(userId, activityId)` - Unique constraint
+- `(activityId)` - Activity waitlist queries
+- `(userId)` - User's waitlist
 
 ## Common Queries
 

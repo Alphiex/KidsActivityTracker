@@ -91,6 +91,10 @@ model Activity {
   importRows             ImportRow[]
   validationResults      ValidationResult[]
 
+  // Email notification system
+  snapshots              ActivitySnapshot[]
+  waitlistEntries        WaitlistEntry[]
+
   @@unique([providerId, externalId])
   @@index([vendorId])
   @@index([vendorId, externalId])
@@ -478,6 +482,11 @@ model User {
   adminProfile        AdminUser?
   vendorMemberships   VendorUser[]
   importBatches       ImportBatch[]
+
+  // Email notification system
+  emailNotificationLogs EmailNotificationLog[]
+  unsubscribeTokens     UnsubscribeToken[]
+  waitlistEntries       WaitlistEntry[]
 
   @@index([email])
 }
@@ -1231,6 +1240,72 @@ model AdminNotification {
   @@index([type])
   @@index([severity])
   @@index([createdAt])
+}
+
+// ============================================
+// EMAIL NOTIFICATION SYSTEM
+// ============================================
+
+// Log of all email notifications sent to users
+model EmailNotificationLog {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String   // "daily_digest", "weekly_digest", "capacity_alert", "price_drop", "spots_available"
+  activityIds  String[] // Activities included in this notification
+  sentAt       DateTime @default(now())
+  emailTo      String
+  status       String   @default("sent") // "sent", "failed", "bounced"
+  errorMessage String?
+
+  @@index([userId])
+  @@index([sentAt])
+  @@index([type])
+  @@index([userId, type, sentAt])
+}
+
+// Snapshot of activity state for change detection
+model ActivitySnapshot {
+  id             String   @id @default(uuid())
+  activityId     String
+  activity       Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  spotsAvailable Int?
+  cost           Float?
+  capturedAt     DateTime @default(now())
+
+  @@index([activityId])
+  @@index([capturedAt])
+  @@index([activityId, capturedAt])
+}
+
+// Tokens for one-click email unsubscribe links
+model UnsubscribeToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  type      String    // "all", "daily_digest", "weekly_digest", "capacity_alerts", "price_drops"
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  usedAt    DateTime?
+
+  @@index([token])
+  @@index([userId])
+}
+
+// Waitlist for users wanting alerts when full activities have spots
+model WaitlistEntry {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityId String
+  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  notifiedAt DateTime?
+
+  @@unique([userId, activityId])
+  @@index([activityId])
+  @@index([userId])
 }
 
 // ============================================

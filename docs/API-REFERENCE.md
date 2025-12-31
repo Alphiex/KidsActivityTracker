@@ -586,6 +586,198 @@ Remove from favorites. **Requires authentication**.
 
 ---
 
+## Notification Endpoints
+
+Email notification system for activity alerts, digests, and waitlist notifications.
+
+### GET /api/notifications/preferences
+
+Get user's notification preferences. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "preferences": {
+    "enabled": true,
+    "newActivities": true,
+    "dailyDigest": false,
+    "weeklyDigest": true,
+    "favoriteCapacity": true,
+    "capacityThreshold": 3,
+    "priceDrops": true,
+    "spotsAvailable": true,
+    "quietHoursStart": "22:00",
+    "quietHoursEnd": "07:00"
+  }
+}
+```
+
+### PUT /api/notifications/preferences
+
+Update notification preferences. **Requires authentication**.
+
+**Request**
+```json
+{
+  "enabled": true,
+  "dailyDigest": true,
+  "capacityThreshold": 5
+}
+```
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Notification preferences updated",
+  "preferences": { ... }
+}
+```
+
+### GET /api/notifications/history
+
+Get notification history. **Requires authentication**.
+
+**Query Parameters**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | number | Max results (default: 20, max: 100) |
+| `offset` | number | Pagination offset |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "notifications": [
+    {
+      "id": "uuid",
+      "type": "daily_digest",
+      "activityCount": 5,
+      "sentAt": "2025-01-15T07:00:00Z",
+      "status": "sent"
+    }
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "hasMore": true
+  }
+}
+```
+
+### POST /api/notifications/test
+
+Send a test notification email. Rate limited to 1 per hour. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Test notification sent! Check your email."
+}
+```
+
+### Waitlist Endpoints
+
+### GET /api/notifications/waitlist
+
+Get user's waitlist entries. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "waitlist": [
+    {
+      "id": "uuid",
+      "activityId": "uuid",
+      "activity": {
+        "id": "uuid",
+        "name": "Swimming Lessons",
+        "provider": "Vancouver Parks",
+        "spotsAvailable": 0,
+        "cost": 75.00
+      },
+      "joinedAt": "2025-01-10T10:00:00Z",
+      "notifiedAt": null
+    }
+  ]
+}
+```
+
+### POST /api/notifications/waitlist/:activityId
+
+Join waitlist for a full activity. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Added to waitlist",
+  "waitlistEntry": {
+    "id": "uuid",
+    "activityId": "uuid",
+    "activityName": "Swimming Lessons",
+    "joinedAt": "2025-01-15T10:00:00Z"
+  }
+}
+```
+
+### DELETE /api/notifications/waitlist/:activityId
+
+Leave waitlist for an activity. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Removed from waitlist"
+}
+```
+
+### Unsubscribe Endpoints
+
+### GET /api/notifications/unsubscribe/:token
+
+Validate unsubscribe token (from email links). **Public**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "type": "daily_digest",
+  "typeDescription": "daily activity digest emails",
+  "userEmail": "user@example.com"
+}
+```
+
+### POST /api/notifications/unsubscribe/:token
+
+Process unsubscribe request. **Public**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Successfully unsubscribed from daily digest"
+}
+```
+
+### POST /api/notifications/unsubscribe-all
+
+Quick unsubscribe from all notifications. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Successfully unsubscribed from all email notifications"
+}
+```
+
+---
+
 ## Sharing Endpoints
 
 ### POST /api/invitations

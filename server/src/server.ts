@@ -24,6 +24,7 @@ import categoriesRoutes from './routes/categories';
 import locationsRoutes from './routes/locations';
 import partnersRoutes from './routes/partners';
 import subscriptionsRoutes from './routes/subscriptions';
+import notificationsRoutes from './routes/notifications';
 import webhooksRoutes from './routes/webhooks';
 import analyticsRoutes from './routes/analytics';
 import adminPartnersRoutes from './routes/adminPartners';
@@ -216,6 +217,9 @@ app.use('/api/v1/ai', aiRoutes);
 
 // Subscription management routes
 app.use('/api/subscriptions', subscriptionsRoutes);
+
+// User notification management routes (email digests, waitlist, unsubscribe)
+app.use('/api/notifications', notificationsRoutes);
 
 // Webhook routes (RevenueCat, Stripe)
 app.use('/api/webhooks', webhooksRoutes);

@@ -4,18 +4,19 @@ A comprehensive mobile application for discovering, tracking, and managing child
 
 ## Overview
 
-Kids Activity Tracker helps parents find and organize activities for their children by aggregating program data from municipal recreation departments and community centers across 43 Canadian cities. The app features intelligent filtering, personalized recommendations, calendar integration, and family sharing capabilities.
+Kids Activity Tracker helps parents find and organize activities for their children by aggregating program data from municipal recreation departments and community centers across 81 Canadian cities in 8 provinces. The app features intelligent filtering, personalized recommendations, calendar integration, and family sharing capabilities.
 
 ## Key Statistics
 
 | Metric | Value |
 |--------|-------|
-| Active Activities | 2,900+ |
-| Supported Cities | 43 |
-| Scraper Platforms | 9 |
-| Activity Categories | 9 |
+| Active Activities | 112,000+ |
+| Supported Cities | 81 |
+| Provinces Covered | 8 |
+| Activity Locations | 3,980+ |
+| Active Providers | 79 |
 | API Endpoints | 75+ |
-| Database Tables | 31 |
+| Database Tables | 35+ |
 
 ## Features
 
@@ -26,6 +27,7 @@ Kids Activity Tracker helps parents find and organize activities for their child
 - **Child Profiles** - Track multiple children with interests and activity history
 - **Family Sharing** - Share activity plans with co-parents and caregivers
 - **Real-time Updates** - Daily automated scraping keeps activity data fresh
+- **Email Notifications** - Daily/weekly digests, capacity alerts, price drop notifications, and waitlist alerts
 - **Freemium Model** - Free tier with limits, premium subscription for power users
 
 ## Technology Stack
@@ -60,14 +62,19 @@ cd server && npm run dev
 | [Getting Started](GETTING-STARTED.md) | Development setup and workflow |
 | [API Reference](API-REFERENCE.md) | Backend API documentation |
 | [Database](DATABASE.md) | Schema and data models |
-| [Scrapers](SCRAPERS.md) | Web scraping system |
-| [Supported Cities](SUPPORTED-CITIES.md) | Coverage by region |
+| [Scrapers](SCRAPERS.md) | Web scraping and validation system |
+| [Supported Cities](SUPPORTED-CITIES.md) | Coverage by region (81 cities, 8 provinces) |
 | [Frontend](FRONTEND.md) | React Native app guide |
 | [Deployment](DEPLOYMENT.md) | Cloud deployment procedures |
 | [Security](SECURITY.md) | Security practices |
 | [Subscriptions](SUBSCRIPTIONS.md) | Subscription system, purchase flow, auditing |
 | [Subscription Setup](SUBSCRIPTION_SETUP.md) | RevenueCat & App Store/Play Store configuration |
 | [Featured Partners](FEATURED-PARTNERS.md) | Partner system for activity providers with analytics |
+| [Privacy Policy](PRIVACY-POLICY.md) | User privacy and data handling |
+| [App Store Listing](APP-STORE-LISTING.md) | App Store metadata and screenshots |
+| [Filter Testing](FILTER-TESTING-CHECKLIST.md) | QA checklist for search filters |
+| [UI Search Testing](UI-SEARCH-TESTING-CHECKLIST.md) | UI testing procedures |
+| [Screenshot Guide](SCREENSHOT-GUIDE.md) | App Store screenshot guidelines |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and solutions |
 
 ## Project Structure
@@ -76,18 +83,25 @@ cd server && npm run dev
 KidsActivityTracker/
 ├── src/                    # React Native frontend
 │   ├── components/         # Reusable UI components
-│   ├── screens/            # Screen components (45+)
+│   ├── screens/            # Screen components (50+)
+│   │   └── onboarding/     # Onboarding flow screens
 │   ├── services/           # API and business logic
 │   └── store/              # Redux state management
 ├── server/                 # Node.js backend
 │   ├── src/                # Express API server
+│   │   └── ai/             # AI recommendation system
 │   ├── scrapers/           # Web scraping system
+│   │   ├── platforms/      # Platform-specific scrapers
+│   │   ├── configs/        # Provider configurations
+│   │   └── validation/     # Claude Vision validation
 │   └── prisma/             # Database schema
 ├── scripts/                # Build and deployment scripts
 │   ├── ios/                # iOS build/run scripts
 │   ├── deployment/         # Deploy scripts
-│   └── database/           # Database scripts
-└── docs/                   # Documentation
+│   ├── database/           # Database scripts
+│   └── maintenance/        # Data maintenance scripts
+├── website/                # Marketing website
+└── docs/                   # Documentation (20+ files)
 ```
 
 ## Key URLs

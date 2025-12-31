@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import PreferencesService from '../services/preferencesService';
+import NotificationService, { NotificationPreferences } from '../services/notificationService';
 
 const ModernColors = {
   primary: '#FF385C',
@@ -26,82 +28,136 @@ const ModernColors = {
 const NotificationPreferencesScreenModern = () => {
   const navigation = useNavigation();
   const preferencesService = PreferencesService.getInstance();
-  const [preferences, setPreferences] = useState(preferencesService.getPreferences());
+  const notificationService = NotificationService.getInstance();
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const [notificationSettings, setNotificationSettings] = useState({
-    newActivities: preferences.notifications?.newActivities ?? true,
-    priceDrops: preferences.notifications?.priceDrops ?? true,
-    spotsAvailable: preferences.notifications?.spotsAvailable ?? true,
-    reminders: preferences.notifications?.reminders ?? true,
-    weeklyDigest: preferences.notifications?.weeklyDigest ?? false,
-    instantAlerts: true,
-    capacityAlerts: {
-      threeSpotsLeft: true,
-      twoSpotsLeft: true,
-      oneSpotLeft: true,
-      fullAlert: false,
-    },
-    priceAlerts: {
-      anyDrop: false,
-      threshold: 20,
-    },
-    quietHours: {
-      enabled: true,
-      startHour: 21,
-      endHour: 8,
-    },
+    enabled: false,
+    newActivities: true,
+    dailyDigest: false,
+    priceDrops: true,
+    spotsAvailable: true,
+    reminders: true,
+    weeklyDigest: false,
+    favoriteCapacity: true,
+    capacityThreshold: 3,
+    quietHoursEnabled: true,
+    quietHoursStart: 21,
+    quietHoursEnd: 8,
   });
 
-  const updateNotificationSetting = (key: string, value: boolean) => {
-    const updatedSettings = {
-      ...notificationSettings,
+  // Load preferences from server on mount
+  useFocusEffect(
+    useCallback(() => {
+      loadPreferences();
+    }, [])
+  );
+
+  const loadPreferences = async () => {
+    setIsLoading(true);
+    try {
+      const serverPrefs = await notificationService.getPreferences();
+
+      // Parse quiet hours from string format
+      let quietHoursStart = 21;
+      let quietHoursEnd = 8;
+      if (serverPrefs.quietHoursStart) {
+        const [hour] = serverPrefs.quietHoursStart.split(':');
+        quietHoursStart = parseInt(hour, 10);
+      }
+      if (serverPrefs.quietHoursEnd) {
+        const [hour] = serverPrefs.quietHoursEnd.split(':');
+        quietHoursEnd = parseInt(hour, 10);
+      }
+
+      setNotificationSettings({
+        enabled: serverPrefs.enabled ?? false,
+        newActivities: serverPrefs.newActivities ?? true,
+        dailyDigest: serverPrefs.dailyDigest ?? false,
+        priceDrops: serverPrefs.priceDrops ?? true,
+        spotsAvailable: serverPrefs.spotsAvailable ?? true,
+        reminders: serverPrefs.reminders ?? true,
+        weeklyDigest: serverPrefs.weeklyDigest ?? false,
+        favoriteCapacity: serverPrefs.favoriteCapacity ?? true,
+        capacityThreshold: serverPrefs.capacityThreshold ?? 3,
+        quietHoursEnabled: !!(serverPrefs.quietHoursStart && serverPrefs.quietHoursEnd),
+        quietHoursStart,
+        quietHoursEnd,
+      });
+    } catch (error) {
+      console.error('Failed to load notification preferences:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const savePreferences = async () => {
+    setIsSaving(true);
+    try {
+      const quietHoursStart = notificationSettings.quietHoursEnabled
+        ? `${String(notificationSettings.quietHoursStart).padStart(2, '0')}:00`
+        : undefined;
+      const quietHoursEnd = notificationSettings.quietHoursEnabled
+        ? `${String(notificationSettings.quietHoursEnd).padStart(2, '0')}:00`
+        : undefined;
+
+      await notificationService.updatePreferences({
+        enabled: notificationSettings.enabled,
+        newActivities: notificationSettings.newActivities,
+        dailyDigest: notificationSettings.dailyDigest,
+        priceDrops: notificationSettings.priceDrops,
+        spotsAvailable: notificationSettings.spotsAvailable,
+        weeklyDigest: notificationSettings.weeklyDigest,
+        favoriteCapacity: notificationSettings.favoriteCapacity,
+        capacityThreshold: notificationSettings.capacityThreshold,
+        quietHoursStart,
+        quietHoursEnd,
+      });
+
+      // Also update local preferences
+      const localPrefs = preferencesService.getPreferences();
+      preferencesService.updatePreferences({
+        ...localPrefs,
+        notifications: {
+          ...localPrefs.notifications,
+          enabled: notificationSettings.enabled,
+          newActivities: notificationSettings.newActivities,
+          priceDrops: notificationSettings.priceDrops,
+          weeklyDigest: notificationSettings.weeklyDigest,
+          favoriteCapacity: notificationSettings.favoriteCapacity,
+          capacityThreshold: notificationSettings.capacityThreshold,
+          spotsAvailable: notificationSettings.spotsAvailable,
+          reminders: notificationSettings.reminders,
+        },
+      });
+
+      setHasChanges(false);
+      Alert.alert('Success', 'Notification preferences saved');
+    } catch (error) {
+      console.error('Failed to save notification preferences:', error);
+      Alert.alert('Error', 'Failed to save preferences. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateSetting = (key: string, value: any) => {
+    setNotificationSettings(prev => ({
+      ...prev,
       [key]: value,
-    };
-    setNotificationSettings(updatedSettings);
-
-    // Update preferences service
-    const updatedPreferences = {
-      ...preferences,
-      notifications: {
-        ...preferences.notifications,
-        [key]: value,
-      },
-    };
-    preferencesService.updatePreferences(updatedPreferences);
-    setPreferences(updatedPreferences);
+    }));
+    setHasChanges(true);
   };
 
-  const updateCapacityAlert = (type: string, value: boolean) => {
-    const updatedSettings = {
-      ...notificationSettings,
-      capacityAlerts: {
-        ...notificationSettings.capacityAlerts,
-        [type]: value,
-      },
-    };
-    setNotificationSettings(updatedSettings);
-  };
-
-  const updatePriceAlert = (key: string, value: any) => {
-    const updatedSettings = {
-      ...notificationSettings,
-      priceAlerts: {
-        ...notificationSettings.priceAlerts,
-        [key]: value,
-      },
-    };
-    setNotificationSettings(updatedSettings);
-  };
-
-  const updateQuietHours = (key: string, value: any) => {
-    const updatedSettings = {
-      ...notificationSettings,
-      quietHours: {
-        ...notificationSettings.quietHours,
-        [key]: value,
-      },
-    };
-    setNotificationSettings(updatedSettings);
+  const sendTestNotification = async () => {
+    const result = await notificationService.sendTestNotification();
+    Alert.alert(
+      result.success ? 'Success' : 'Note',
+      result.message
+    );
   };
 
   const NotificationSection = ({
@@ -128,22 +184,24 @@ const NotificationPreferencesScreenModern = () => {
     subtitle,
     value,
     onToggle,
+    disabled,
   }: {
     icon?: string;
     title: string;
     subtitle?: string;
     value: boolean;
     onToggle: (value: boolean) => void;
+    disabled?: boolean;
   }) => (
-    <View style={styles.toggleItem}>
+    <View style={[styles.toggleItem, disabled && styles.toggleDisabled]}>
       <View style={styles.toggleLeft}>
         {icon && (
           <View style={styles.iconContainer}>
-            <Icon name={icon} size={20} color={ModernColors.text} />
+            <Icon name={icon} size={20} color={disabled ? ModernColors.textLight : ModernColors.text} />
           </View>
         )}
         <View style={styles.toggleContent}>
-          <Text style={styles.toggleTitle}>{title}</Text>
+          <Text style={[styles.toggleTitle, disabled && styles.textDisabled]}>{title}</Text>
           {subtitle && <Text style={styles.toggleSubtitle}>{subtitle}</Text>}
         </View>
       </View>
@@ -153,9 +211,31 @@ const NotificationPreferencesScreenModern = () => {
         trackColor={{ false: '#E0E0E0', true: ModernColors.primary }}
         thumbColor={value ? '#FFFFFF' : '#F4F4F4'}
         ios_backgroundColor="#E0E0E0"
+        disabled={disabled}
       />
     </View>
   );
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-left" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={ModernColors.primary} />
+          <Text style={styles.loadingText}>Loading preferences...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,21 +247,59 @@ const NotificationPreferencesScreenModern = () => {
           <Icon name="arrow-left" size={24} color={ModernColors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={styles.headerSpacer} />
+        {hasChanges ? (
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={savePreferences}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color={ModernColors.primary} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Main Notifications */}
+        {/* Master Toggle */}
         <NotificationSection
-          title="Push Notifications"
-          description="Stay updated with the latest activities"
+          title="Email Notifications"
+          description="Enable email notifications to stay updated"
+        >
+          <NotificationToggle
+            icon="email-check-outline"
+            title="Enable Email Notifications"
+            subtitle="Receive activity updates via email"
+            value={notificationSettings.enabled}
+            onToggle={(value) => updateSetting('enabled', value)}
+          />
+        </NotificationSection>
+
+        {/* Push Notifications */}
+        <NotificationSection
+          title="Notification Types"
+          description="Choose what you want to be notified about"
         >
           <NotificationToggle
             icon="bell-outline"
             title="New Activities"
             subtitle="Get notified when new activities match your preferences"
             value={notificationSettings.newActivities}
-            onToggle={(value) => updateNotificationSetting('newActivities', value)}
+            onToggle={(value) => updateSetting('newActivities', value)}
+            disabled={!notificationSettings.enabled}
+          />
+          <View style={styles.divider} />
+          <NotificationToggle
+            icon="calendar-today"
+            title="Daily Digest"
+            subtitle="Receive a daily summary of new activities"
+            value={notificationSettings.dailyDigest}
+            onToggle={(value) => updateSetting('dailyDigest', value)}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
@@ -189,7 +307,8 @@ const NotificationPreferencesScreenModern = () => {
             title="Price Drops"
             subtitle="Alert when activities reduce their prices"
             value={notificationSettings.priceDrops}
-            onToggle={(value) => updateNotificationSetting('priceDrops', value)}
+            onToggle={(value) => updateSetting('priceDrops', value)}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
@@ -197,79 +316,57 @@ const NotificationPreferencesScreenModern = () => {
             title="Spots Available"
             subtitle="Know when spots open up in waitlisted activities"
             value={notificationSettings.spotsAvailable}
-            onToggle={(value) => updateNotificationSetting('spotsAvailable', value)}
+            onToggle={(value) => updateSetting('spotsAvailable', value)}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
-            icon="clock-outline"
-            title="Reminders"
-            subtitle="Get reminded about upcoming registration deadlines"
-            value={notificationSettings.reminders}
-            onToggle={(value) => updateNotificationSetting('reminders', value)}
+            icon="calendar-week"
+            title="Weekly Digest"
+            subtitle="Summary of activities and updates every week"
+            value={notificationSettings.weeklyDigest}
+            onToggle={(value) => updateSetting('weeklyDigest', value)}
+            disabled={!notificationSettings.enabled}
           />
         </NotificationSection>
 
         {/* Capacity Alerts */}
         <NotificationSection
           title="Capacity Alerts"
-          description="Be notified when activities are filling up"
+          description="Be notified when saved activities are filling up"
         >
           <NotificationToggle
-            title="3 spots left"
-            value={notificationSettings.capacityAlerts.threeSpotsLeft}
-            onToggle={(value) => updateCapacityAlert('threeSpotsLeft', value)}
+            icon="alert-circle-outline"
+            title="Enable Capacity Alerts"
+            subtitle="Get notified when favorites are almost full"
+            value={notificationSettings.favoriteCapacity}
+            onToggle={(value) => updateSetting('favoriteCapacity', value)}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
-          <NotificationToggle
-            title="2 spots left"
-            value={notificationSettings.capacityAlerts.twoSpotsLeft}
-            onToggle={(value) => updateCapacityAlert('twoSpotsLeft', value)}
-          />
-          <View style={styles.divider} />
-          <NotificationToggle
-            title="1 spot left"
-            value={notificationSettings.capacityAlerts.oneSpotLeft}
-            onToggle={(value) => updateCapacityAlert('oneSpotLeft', value)}
-          />
-          <View style={styles.divider} />
-          <NotificationToggle
-            title="Activity full"
-            value={notificationSettings.capacityAlerts.fullAlert}
-            onToggle={(value) => updateCapacityAlert('fullAlert', value)}
-          />
-        </NotificationSection>
-
-        {/* Price Alerts */}
-        <NotificationSection
-          title="Price Alerts"
-          description="Customize how you want to be notified about price changes"
-        >
-          <NotificationToggle
-            title="Any price drop"
-            subtitle="Alert for any price reduction"
-            value={notificationSettings.priceAlerts.anyDrop}
-            onToggle={(value) => updatePriceAlert('anyDrop', value)}
-          />
-          <View style={styles.divider} />
-          <View style={styles.thresholdContainer}>
-            <Text style={styles.thresholdLabel}>Alert when price drops by</Text>
+          <View style={[styles.thresholdContainer, (!notificationSettings.enabled || !notificationSettings.favoriteCapacity) && styles.toggleDisabled]}>
+            <Text style={[styles.thresholdLabel, (!notificationSettings.enabled || !notificationSettings.favoriteCapacity) && styles.textDisabled]}>
+              Alert when spots remaining:
+            </Text>
             <TouchableOpacity
               style={styles.thresholdPicker}
+              disabled={!notificationSettings.enabled || !notificationSettings.favoriteCapacity}
               onPress={() => {
                 Alert.alert(
-                  'Price Drop Threshold',
-                  'Select minimum percentage drop',
+                  'Capacity Threshold',
+                  'Alert when this many spots are left',
                   [
-                    { text: '10%', onPress: () => updatePriceAlert('threshold', 10) },
-                    { text: '20%', onPress: () => updatePriceAlert('threshold', 20) },
-                    { text: '30%', onPress: () => updatePriceAlert('threshold', 30) },
+                    { text: '1 spot', onPress: () => updateSetting('capacityThreshold', 1) },
+                    { text: '2 spots', onPress: () => updateSetting('capacityThreshold', 2) },
+                    { text: '3 spots', onPress: () => updateSetting('capacityThreshold', 3) },
+                    { text: '5 spots', onPress: () => updateSetting('capacityThreshold', 5) },
                     { text: 'Cancel', style: 'cancel' },
                   ]
                 );
               }}
             >
               <Text style={styles.thresholdValue}>
-                {notificationSettings.priceAlerts.threshold}%
+                {notificationSettings.capacityThreshold} {notificationSettings.capacityThreshold === 1 ? 'spot' : 'spots'}
               </Text>
               <Icon name="chevron-down" size={20} color={ModernColors.textLight} />
             </TouchableOpacity>
@@ -283,12 +380,13 @@ const NotificationPreferencesScreenModern = () => {
         >
           <NotificationToggle
             icon="moon-waning-crescent"
-            title="Enable quiet hours"
+            title="Enable Quiet Hours"
             subtitle="Silence notifications during sleep"
-            value={notificationSettings.quietHours.enabled}
-            onToggle={(value) => updateQuietHours('enabled', value)}
+            value={notificationSettings.quietHoursEnabled}
+            onToggle={(value) => updateSetting('quietHoursEnabled', value)}
+            disabled={!notificationSettings.enabled}
           />
-          {notificationSettings.quietHours.enabled && (
+          {notificationSettings.quietHoursEnabled && notificationSettings.enabled && (
             <>
               <View style={styles.divider} />
               <View style={styles.timeRangeContainer}>
@@ -301,19 +399,19 @@ const NotificationPreferencesScreenModern = () => {
                         'Start Time',
                         'Select quiet hours start',
                         [
-                          { text: '8 PM', onPress: () => updateQuietHours('startHour', 20) },
-                          { text: '9 PM', onPress: () => updateQuietHours('startHour', 21) },
-                          { text: '10 PM', onPress: () => updateQuietHours('startHour', 22) },
-                          { text: '11 PM', onPress: () => updateQuietHours('startHour', 23) },
+                          { text: '8 PM', onPress: () => updateSetting('quietHoursStart', 20) },
+                          { text: '9 PM', onPress: () => updateSetting('quietHoursStart', 21) },
+                          { text: '10 PM', onPress: () => updateSetting('quietHoursStart', 22) },
+                          { text: '11 PM', onPress: () => updateSetting('quietHoursStart', 23) },
                           { text: 'Cancel', style: 'cancel' },
                         ]
                       );
                     }}
                   >
                     <Text style={styles.timeValue}>
-                      {notificationSettings.quietHours.startHour > 12
-                        ? `${notificationSettings.quietHours.startHour - 12} PM`
-                        : `${notificationSettings.quietHours.startHour} AM`}
+                      {notificationSettings.quietHoursStart > 12
+                        ? `${notificationSettings.quietHoursStart - 12} PM`
+                        : `${notificationSettings.quietHoursStart} AM`}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -326,17 +424,17 @@ const NotificationPreferencesScreenModern = () => {
                         'End Time',
                         'Select quiet hours end',
                         [
-                          { text: '6 AM', onPress: () => updateQuietHours('endHour', 6) },
-                          { text: '7 AM', onPress: () => updateQuietHours('endHour', 7) },
-                          { text: '8 AM', onPress: () => updateQuietHours('endHour', 8) },
-                          { text: '9 AM', onPress: () => updateQuietHours('endHour', 9) },
+                          { text: '6 AM', onPress: () => updateSetting('quietHoursEnd', 6) },
+                          { text: '7 AM', onPress: () => updateSetting('quietHoursEnd', 7) },
+                          { text: '8 AM', onPress: () => updateSetting('quietHoursEnd', 8) },
+                          { text: '9 AM', onPress: () => updateSetting('quietHoursEnd', 9) },
                           { text: 'Cancel', style: 'cancel' },
                         ]
                       );
                     }}
                   >
                     <Text style={styles.timeValue}>
-                      {notificationSettings.quietHours.endHour} AM
+                      {notificationSettings.quietHoursEnd} AM
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -345,19 +443,23 @@ const NotificationPreferencesScreenModern = () => {
           )}
         </NotificationSection>
 
-        {/* Email Notifications */}
-        <NotificationSection
-          title="Email Notifications"
-          description="Receive updates via email"
-        >
-          <NotificationToggle
-            icon="email-outline"
-            title="Weekly digest"
-            subtitle="Summary of activities and updates every week"
-            value={notificationSettings.weeklyDigest}
-            onToggle={(value) => updateNotificationSetting('weeklyDigest', value)}
-          />
-        </NotificationSection>
+        {/* Test Notification */}
+        {notificationSettings.enabled && (
+          <View style={styles.testSection}>
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={sendTestNotification}
+            >
+              <Icon name="send-outline" size={20} color={ModernColors.primary} />
+              <Text style={styles.testButtonText}>Send Test Email</Text>
+            </TouchableOpacity>
+            <Text style={styles.testHint}>
+              Sends a sample daily digest to your email
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -389,7 +491,26 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
   },
   headerSpacer: {
-    width: 32,
+    width: 60,
+  },
+  saveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: ModernColors.textLight,
   },
   section: {
     marginTop: 24,
@@ -420,6 +541,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     backgroundColor: ModernColors.background,
+  },
+  toggleDisabled: {
+    opacity: 0.5,
+  },
+  textDisabled: {
+    color: ModernColors.textLight,
   },
   toggleLeft: {
     flexDirection: 'row',
@@ -504,6 +631,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: ModernColors.text,
     fontWeight: '500',
+  },
+  testSection: {
+    marginTop: 32,
+    marginHorizontal: 20,
+    alignItems: 'center',
+  },
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.primary,
+  },
+  testButtonText: {
+    fontSize: 16,
+    color: ModernColors.primary,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  testHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: ModernColors.textLight,
+  },
+  bottomPadding: {
+    height: 40,
   },
 });
 

@@ -609,6 +609,463 @@ export class EmailService {
   }
 
   /**
+   * Send daily digest email with new activities matching user preferences
+   */
+  async sendDailyDigest(
+    user: { name: string; email: string },
+    activities: Array<{
+      id: string;
+      name: string;
+      description?: string | null;
+      cost?: number;
+      spotsAvailable?: number | null;
+      dayOfWeek?: string[];
+      startTime?: string | null;
+      endTime?: string | null;
+      ageMin?: number | null;
+      ageMax?: number | null;
+      registrationUrl?: string | null;
+      provider?: { name: string } | null;
+      location?: { name: string; city: string } | null;
+    }>,
+    unsubscribeUrl: string
+  ): Promise<void> {
+    const activityCardsHtml = activities.slice(0, 10).map(activity => {
+      const price = activity.cost ? `$${activity.cost.toFixed(2)}` : 'Free';
+      const spots = activity.spotsAvailable !== null && activity.spotsAvailable !== undefined
+        ? `${activity.spotsAvailable} spots left`
+        : '';
+      const days = activity.dayOfWeek?.join(', ') || '';
+      const time = activity.startTime && activity.endTime
+        ? `${activity.startTime} - ${activity.endTime}`
+        : activity.startTime || '';
+      const ages = activity.ageMin !== null && activity.ageMax !== null
+        ? `Ages ${activity.ageMin}-${activity.ageMax}`
+        : '';
+      const location = activity.location
+        ? `${activity.location.name}, ${activity.location.city}`
+        : '';
+
+      return `
+        <div style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h3 style="margin: 0 0 8px 0; color: #222;">${activity.name}</h3>
+          <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">${activity.provider?.name || 'Provider'}</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+            ${ages ? `<span style="background: #FFE5EC; color: #FF385C; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${ages}</span>` : ''}
+            ${days ? `<span style="background: #E3F2FD; color: #1976D2; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${days}</span>` : ''}
+            ${time ? `<span style="background: #F3E5F5; color: #7B1FA2; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${time}</span>` : ''}
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-weight: bold; color: #222;">${price}</span>
+              ${spots ? `<span style="margin-left: 12px; color: ${activity.spotsAvailable && activity.spotsAvailable <= 3 ? '#FF385C' : '#666'}; font-size: 14px;">${spots}</span>` : ''}
+            </div>
+            <a href="${activity.registrationUrl || this.baseUrl}" style="background: #FF385C; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px;">View Details</a>
+          </div>
+          ${location ? `<p style="margin: 12px 0 0 0; color: #888; font-size: 12px;">📍 ${location}</p>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #FF385C 0%, #FF6B6B 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .header p { margin: 8px 0 0 0; opacity: 0.9; }
+          .content { background: #f9f9f9; padding: 24px; border-radius: 0 0 12px 12px; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #888; }
+          .footer a { color: #FF385C; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎯 ${activities.length} New Activities for You!</h1>
+            <p>Based on your preferences</p>
+          </div>
+          <div class="content">
+            <p style="margin: 0 0 20px 0;">Hi ${user.name},</p>
+            <p style="margin: 0 0 20px 0;">We found <strong>${activities.length} new activities</strong> that match what you're looking for:</p>
+            ${activityCardsHtml}
+            ${activities.length > 10 ? `<p style="text-align: center; color: #666;">+ ${activities.length - 10} more activities in the app</p>` : ''}
+            <div style="text-align: center; margin-top: 24px;">
+              <a href="${this.baseUrl}" style="background: #FF385C; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Browse All Activities</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>You're receiving this because you enabled daily activity alerts.</p>
+            <p><a href="${unsubscribeUrl}">Unsubscribe</a> | <a href="${this.baseUrl}/settings/notifications">Manage Preferences</a></p>
+            <p>Kids Activity Tracker</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `🎯 ${activities.length} New Activities Match Your Preferences`,
+      html
+    });
+  }
+
+  /**
+   * Send weekly digest summary email
+   */
+  async sendWeeklyDigest(
+    user: { name: string; email: string },
+    summary: {
+      newActivitiesCount: number;
+      topActivities: Array<{
+        id: string;
+        name: string;
+        cost?: number;
+        provider?: { name: string } | null;
+        location?: { name: string; city: string } | null;
+      }>;
+      favoritesCount: number;
+      weekStart: Date;
+      weekEnd: Date;
+    },
+    unsubscribeUrl: string
+  ): Promise<void> {
+    const weekRange = `${summary.weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${summary.weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+    const topActivitiesHtml = summary.topActivities.slice(0, 5).map(activity => `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 8px;">
+          <strong style="color: #222;">${activity.name}</strong><br>
+          <span style="color: #666; font-size: 13px;">${activity.provider?.name || ''}</span>
+        </td>
+        <td style="padding: 12px 8px; text-align: right; color: #FF385C; font-weight: 600;">
+          ${activity.cost ? `$${activity.cost}` : 'Free'}
+        </td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+          .content { background: white; padding: 24px; border-radius: 0 0 12px 12px; }
+          .stat-box { background: #f9f9f9; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 20px; }
+          .stat-number { font-size: 36px; font-weight: bold; color: #FF385C; }
+          .stat-label { color: #666; font-size: 14px; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #888; }
+          .footer a { color: #667eea; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 Your Weekly Activity Digest</h1>
+            <p>${weekRange}</p>
+          </div>
+          <div class="content">
+            <p>Hi ${user.name},</p>
+            <p>Here's your weekly summary of kids' activities:</p>
+
+            <div style="display: flex; gap: 16px; margin: 24px 0;">
+              <div class="stat-box" style="flex: 1;">
+                <div class="stat-number">${summary.newActivitiesCount}</div>
+                <div class="stat-label">New Activities</div>
+              </div>
+              <div class="stat-box" style="flex: 1;">
+                <div class="stat-number">${summary.favoritesCount}</div>
+                <div class="stat-label">Your Favorites</div>
+              </div>
+            </div>
+
+            <h3 style="color: #222; margin: 24px 0 16px 0;">Top Activities This Week</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              ${topActivitiesHtml}
+            </table>
+
+            <div style="text-align: center; margin-top: 32px;">
+              <a href="${this.baseUrl}" style="background: #667eea; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Explore Activities</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>You're receiving this weekly digest based on your preferences.</p>
+            <p><a href="${unsubscribeUrl}">Unsubscribe</a> | <a href="${this.baseUrl}/settings/notifications">Manage Preferences</a></p>
+            <p>Kids Activity Tracker</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `📊 Weekly Digest: ${summary.newActivitiesCount} New Activities (${weekRange})`,
+      html
+    });
+  }
+
+  /**
+   * Send capacity alert when a favorited activity is running low on spots
+   */
+  async sendCapacityAlert(
+    user: { name: string; email: string },
+    activity: {
+      name: string;
+      spotsAvailable?: number | null;
+      totalSpots?: number | null;
+      cost?: number;
+      dayOfWeek?: string[];
+      startTime?: string | null;
+      registrationUrl?: string | null;
+      provider?: { name: string } | null;
+      location?: { name: string; city: string } | null;
+    },
+    spotsRemaining: number,
+    unsubscribeUrl: string
+  ): Promise<void> {
+    const urgencyColor = spotsRemaining <= 1 ? '#D32F2F' : spotsRemaining <= 3 ? '#F57C00' : '#FF385C';
+    const days = activity.dayOfWeek?.join(', ') || '';
+    const location = activity.location ? `${activity.location.name}, ${activity.location.city}` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: ${urgencyColor}; color: white; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+          .content { background: white; padding: 24px; border-radius: 0 0 12px 12px; }
+          .alert-box { background: #FFF3E0; border: 2px solid ${urgencyColor}; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
+          .spots-remaining { font-size: 48px; font-weight: bold; color: ${urgencyColor}; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #888; }
+          .footer a { color: #FF385C; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⚠️ Spots Filling Up Fast!</h1>
+            <p>One of your saved activities is almost full</p>
+          </div>
+          <div class="content">
+            <p>Hi ${user.name},</p>
+            <p>An activity you saved is running low on spots:</p>
+
+            <div class="alert-box">
+              <div class="spots-remaining">${spotsRemaining}</div>
+              <div style="color: #666; font-size: 16px;">spot${spotsRemaining !== 1 ? 's' : ''} remaining${activity.totalSpots ? ` out of ${activity.totalSpots}` : ''}</div>
+            </div>
+
+            <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="margin: 0 0 12px 0; color: #222;">${activity.name}</h3>
+              <p style="margin: 0 0 8px 0; color: #666;">${activity.provider?.name || 'Provider'}</p>
+              ${days ? `<p style="margin: 0 0 4px 0; color: #666;">📅 ${days}${activity.startTime ? ` at ${activity.startTime}` : ''}</p>` : ''}
+              ${location ? `<p style="margin: 0 0 4px 0; color: #666;">📍 ${location}</p>` : ''}
+              <p style="margin: 12px 0 0 0;"><strong style="color: #222;">${activity.cost ? `$${activity.cost}` : 'Free'}</strong></p>
+            </div>
+
+            <div style="text-align: center; margin-top: 24px;">
+              <a href="${activity.registrationUrl || this.baseUrl}" style="background: ${urgencyColor}; color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; font-size: 16px;">Register Now</a>
+            </div>
+
+            <p style="text-align: center; color: #888; margin-top: 16px; font-size: 14px;">Don't miss out - register before it fills up!</p>
+          </div>
+          <div class="footer">
+            <p>You're receiving this because you enabled capacity alerts for saved activities.</p>
+            <p><a href="${unsubscribeUrl}">Unsubscribe</a> | <a href="${this.baseUrl}/settings/notifications">Manage Preferences</a></p>
+            <p>Kids Activity Tracker</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `⚠️ ${activity.name} - Only ${spotsRemaining} Spot${spotsRemaining !== 1 ? 's' : ''} Left!`,
+      html
+    });
+  }
+
+  /**
+   * Send price drop alert when a favorited activity's price decreases
+   */
+  async sendPriceDropAlert(
+    user: { name: string; email: string },
+    activity: {
+      name: string;
+      cost?: number;
+      dayOfWeek?: string[];
+      startTime?: string | null;
+      registrationUrl?: string | null;
+      provider?: { name: string } | null;
+      location?: { name: string; city: string } | null;
+    },
+    oldPrice: number,
+    newPrice: number,
+    unsubscribeUrl: string
+  ): Promise<void> {
+    const savings = oldPrice - newPrice;
+    const savingsPercent = Math.round((savings / oldPrice) * 100);
+    const days = activity.dayOfWeek?.join(', ') || '';
+    const location = activity.location ? `${activity.location.name}, ${activity.location.city}` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #00C853 0%, #00E676 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+          .content { background: white; padding: 24px; border-radius: 0 0 12px 12px; }
+          .price-box { background: #E8F5E9; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+          .old-price { font-size: 24px; color: #888; text-decoration: line-through; }
+          .new-price { font-size: 42px; font-weight: bold; color: #00C853; }
+          .savings { background: #00C853; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; display: inline-block; margin-top: 8px; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #888; }
+          .footer a { color: #00C853; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💰 Price Drop Alert!</h1>
+            <p>Great news - an activity you're watching just got cheaper</p>
+          </div>
+          <div class="content">
+            <p>Hi ${user.name},</p>
+            <p>The price just dropped on an activity you saved:</p>
+
+            <div class="price-box">
+              <div class="old-price">$${oldPrice.toFixed(2)}</div>
+              <div class="new-price">$${newPrice.toFixed(2)}</div>
+              <div class="savings">Save $${savings.toFixed(2)} (${savingsPercent}% off)</div>
+            </div>
+
+            <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="margin: 0 0 12px 0; color: #222;">${activity.name}</h3>
+              <p style="margin: 0 0 8px 0; color: #666;">${activity.provider?.name || 'Provider'}</p>
+              ${days ? `<p style="margin: 0 0 4px 0; color: #666;">📅 ${days}${activity.startTime ? ` at ${activity.startTime}` : ''}</p>` : ''}
+              ${location ? `<p style="margin: 0; color: #666;">📍 ${location}</p>` : ''}
+            </div>
+
+            <div style="text-align: center; margin-top: 24px;">
+              <a href="${activity.registrationUrl || this.baseUrl}" style="background: #00C853; color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; font-size: 16px;">Register at New Price</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>You're receiving this because you enabled price drop alerts.</p>
+            <p><a href="${unsubscribeUrl}">Unsubscribe</a> | <a href="${this.baseUrl}/settings/notifications">Manage Preferences</a></p>
+            <p>Kids Activity Tracker</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `💰 Price Drop: ${activity.name} Now $${newPrice.toFixed(2)} (Save ${savingsPercent}%)`,
+      html
+    });
+  }
+
+  /**
+   * Send spots available alert for waitlisted activities
+   */
+  async sendSpotsAvailableAlert(
+    user: { name: string; email: string },
+    activity: {
+      name: string;
+      spotsAvailable?: number | null;
+      cost?: number;
+      dayOfWeek?: string[];
+      startTime?: string | null;
+      registrationUrl?: string | null;
+      provider?: { name: string } | null;
+      location?: { name: string; city: string } | null;
+    },
+    unsubscribeUrl: string
+  ): Promise<void> {
+    const days = activity.dayOfWeek?.join(', ') || '';
+    const location = activity.location ? `${activity.location.name}, ${activity.location.city}` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #2196F3 0%, #03A9F4 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0; }
+          .content { background: white; padding: 24px; border-radius: 0 0 12px 12px; }
+          .alert-box { background: #E3F2FD; border: 2px solid #2196F3; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+          .checkmark { font-size: 48px; margin-bottom: 8px; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #888; }
+          .footer a { color: #2196F3; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎉 Spots Now Available!</h1>
+            <p>An activity you were waiting for has openings</p>
+          </div>
+          <div class="content">
+            <p>Hi ${user.name},</p>
+            <p>Great news! An activity you joined the waitlist for now has spots available:</p>
+
+            <div class="alert-box">
+              <div class="checkmark">✅</div>
+              <div style="font-size: 18px; font-weight: 600; color: #1565C0;">${activity.spotsAvailable} spot${activity.spotsAvailable !== 1 ? 's' : ''} now available!</div>
+            </div>
+
+            <div style="background: #f9f9f9; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="margin: 0 0 12px 0; color: #222;">${activity.name}</h3>
+              <p style="margin: 0 0 8px 0; color: #666;">${activity.provider?.name || 'Provider'}</p>
+              ${days ? `<p style="margin: 0 0 4px 0; color: #666;">📅 ${days}${activity.startTime ? ` at ${activity.startTime}` : ''}</p>` : ''}
+              ${location ? `<p style="margin: 0 0 4px 0; color: #666;">📍 ${location}</p>` : ''}
+              <p style="margin: 12px 0 0 0;"><strong style="color: #222;">${activity.cost ? `$${activity.cost}` : 'Free'}</strong></p>
+            </div>
+
+            <div style="text-align: center; margin-top: 24px;">
+              <a href="${activity.registrationUrl || this.baseUrl}" style="background: #2196F3; color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; font-size: 16px;">Register Now</a>
+            </div>
+
+            <p style="text-align: center; color: #888; margin-top: 16px; font-size: 14px;">Act fast - these spots may fill up quickly!</p>
+          </div>
+          <div class="footer">
+            <p>You're receiving this because you joined the waitlist for this activity.</p>
+            <p><a href="${unsubscribeUrl}">Unsubscribe</a> | <a href="${this.baseUrl}/settings/notifications">Manage Preferences</a></p>
+            <p>Kids Activity Tracker</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `🎉 Spots Available: ${activity.name}`,
+      html
+    });
+  }
+
+  /**
    * Verify transporter connection
    */
   async verifyConnection(): Promise<boolean> {
