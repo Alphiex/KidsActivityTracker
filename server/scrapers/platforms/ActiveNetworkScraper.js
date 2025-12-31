@@ -647,6 +647,13 @@ class ActiveNetworkScraper extends BaseScraper {
     // Determine registration status from multiple sources
     const registrationStatus = this.determineAPIRegistrationStatus(item);
 
+    // Override spotsAvailable to 0 if status is Full/Waitlist
+    // (API's total_open might include waitlist spots which is misleading)
+    let spotsAvailable = item.total_open ?? null;
+    if (registrationStatus === 'Full' || registrationStatus === 'Waitlist' || registrationStatus === 'Closed') {
+      spotsAvailable = 0;
+    }
+
     return {
       name: item.name,
       externalId: String(item.id || item.number),
@@ -666,7 +673,7 @@ class ActiveNetworkScraper extends BaseScraper {
       ageMin: item.age_min_year || null,
       ageMax: item.age_max_year || null,
       ageRange: item.age_description,
-      spotsAvailable: item.total_open || null,
+      spotsAvailable: spotsAvailable,
       availability: registrationStatus,
       registrationStatus: registrationStatus
     };
@@ -700,19 +707,19 @@ class ActiveNetworkScraper extends BaseScraper {
       }
     }
 
-    // Priority 2: Check total_open spots
-    if (item.total_open !== null && item.total_open !== undefined) {
-      if (item.total_open > 0) {
-        return 'Open';
-      }
-      // total_open is 0 - check if waitlist is available
-      if (item.is_waitlist_enabled || item.waitlist_enabled) {
-        return 'Waitlist';
-      }
-      return 'Full';
+    // Priority 2: Check corner_mark (visual status badge) - MORE RELIABLE than total_open
+    // The corner_mark shows "Full", "Waitlist", "X spots left" etc. and indicates actual status
+    // even when total_open > 0 (which might be waitlist spots)
+    const cornerMark = item.corner_mark?.toLowerCase() || '';
+    if (cornerMark) {
+      if (cornerMark.includes('waitlist') || cornerMark.includes('waiting')) return 'Waitlist';
+      if (cornerMark.includes('full')) return 'Full';
+      if (cornerMark.includes('closed')) return 'Closed';
+      // Only return Open if corner_mark explicitly shows availability
+      if (cornerMark.includes('space') || cornerMark.includes('spot') || cornerMark.includes('opening')) return 'Open';
     }
 
-    // Priority 3: Check other status fields
+    // Priority 3: Check other status fields (before total_open)
     const statusFields = [
       item.status,
       item.activity_status,
@@ -738,12 +745,17 @@ class ActiveNetworkScraper extends BaseScraper {
       }
     }
 
-    // Priority 4: Check corner_mark (used for visual status badges)
-    const cornerMark = item.corner_mark?.toLowerCase() || '';
-    if (cornerMark) {
-      if (cornerMark.includes('waitlist')) return 'Waitlist';
-      if (cornerMark.includes('full')) return 'Full';
-      if (cornerMark.includes('space') || cornerMark.includes('spot')) return 'Open';
+    // Priority 4: Check total_open spots (as fallback)
+    // NOTE: total_open might include waitlist spots, so only use if no explicit status
+    if (item.total_open !== null && item.total_open !== undefined) {
+      if (item.total_open > 0) {
+        return 'Open';
+      }
+      // total_open is 0 - check if waitlist is available
+      if (item.is_waitlist_enabled || item.waitlist_enabled) {
+        return 'Waitlist';
+      }
+      return 'Full';
     }
 
     // Priority 5: If activity has a valid date range in the future, assume Open
@@ -934,6 +946,12 @@ class ActiveNetworkScraper extends BaseScraper {
             registrationStatus: extractAvailability(element, text),
             spotsAvailable: extractSpotsAvailable(element, text)
           };
+
+          // Override spotsAvailable to 0 if status is Full/Waitlist
+          const status = activity.registrationStatus?.toLowerCase();
+          if (status === 'full' || status === 'waitlist' || status === 'closed') {
+            activity.spotsAvailable = 0;
+          }
 
           if (activity.name) {
             activities.push(activity);
@@ -1425,6 +1443,15 @@ class ActiveNetworkScraper extends BaseScraper {
             availability: extractAvailability(element, text),
             spotsAvailable: extractSpotsAvailable(element, text)
           };
+
+          // Add registrationStatus for consistency
+          activity.registrationStatus = activity.availability;
+
+          // Override spotsAvailable to 0 if status is Full/Waitlist
+          const status = activity.availability?.toLowerCase();
+          if (status === 'full' || status === 'waitlist' || status === 'closed') {
+            activity.spotsAvailable = 0;
+          }
 
           // Only include if we found meaningful data
           if (activity.name) {
