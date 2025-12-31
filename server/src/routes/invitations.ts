@@ -144,7 +144,11 @@ router.get(
  */
 router.get(
   '/preview/:token',
-  param('token').notEmpty(),
+  param('token')
+    .notEmpty()
+    .isLength({ min: 1, max: 128 })
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage('Invalid token format'),
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
@@ -193,7 +197,11 @@ router.post(
   '/accept',
   verifyToken,
   authLimiter,
-  body('token').notEmpty(),
+  body('token')
+    .notEmpty()
+    .isLength({ min: 1, max: 128 })
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage('Invalid token format'),
   handleValidationErrors,
   logActivity('accept_invitation'),
   async (req: Request, res: Response) => {
@@ -224,7 +232,11 @@ router.post(
   '/decline',
   verifyToken,
   authLimiter,
-  body('token').notEmpty(),
+  body('token')
+    .notEmpty()
+    .isLength({ min: 1, max: 128 })
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage('Invalid token format'),
   handleValidationErrors,
   logActivity('decline_invitation'),
   async (req: Request, res: Response) => {

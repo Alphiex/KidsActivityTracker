@@ -219,6 +219,11 @@ class FirebaseAuthService {
       // Import Apple Authentication dynamically
       const { appleAuth } = await import('@invertase/react-native-apple-authentication');
 
+      // Check if Apple Auth is supported
+      if (!appleAuth.isSupported) {
+        throw new Error('Apple Sign-In is not supported on this device');
+      }
+
       // Start the Apple sign-in request
       const appleAuthRequestResponse = await appleAuth.performRequest({
         requestedOperation: appleAuth.Operation.LOGIN,
@@ -230,7 +235,7 @@ class FirebaseAuthService {
         throw new Error('Apple Sign-In failed - no identity token returned');
       }
 
-      // Create an Apple credential with the token
+      // Create an Apple credential with the token and nonce from the response
       const { identityToken, nonce } = appleAuthRequestResponse;
       const appleCredential = auth.AppleAuthProvider.credential(identityToken, nonce);
 
@@ -252,11 +257,15 @@ class FirebaseAuthService {
       secureLog('[FirebaseAuth] Apple sign-in successful');
       return this.mapFirebaseUser(credential.user);
     } catch (error: any) {
-      secureError('[FirebaseAuth] Apple sign-in failed:', error.code || error.message);
+      secureError('[FirebaseAuth] Apple sign-in failed:', error.code, error.message);
 
       // Handle Apple Sign-In specific errors
-      if (error.code === '1001') {
+      if (error.code === '1001' || error.message?.includes('canceled')) {
         throw new Error('Sign-in was cancelled');
+      }
+      if (error.code === '1000') {
+        // Error 1000 usually means configuration issue or Apple ID not set up
+        throw new Error('Apple Sign-In failed. Please ensure you are signed into your Apple ID in Settings, or try again later.');
       }
 
       throw this.handleAuthError(error);

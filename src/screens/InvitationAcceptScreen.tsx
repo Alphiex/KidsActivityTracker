@@ -55,7 +55,8 @@ const InvitationAcceptScreen = () => {
       setError('No invitation token provided');
       setLoading(false);
     }
-  }, [invitationToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitationToken]); // loadInvitation uses invitationToken from closure
 
   const loadInvitation = async () => {
     try {
@@ -63,8 +64,17 @@ const InvitationAcceptScreen = () => {
       setError(null);
 
       const response = await fetch(
-        `${API_CONFIG.BASE_URL}/api/invitations/preview/${invitationToken}`
+        `${API_CONFIG.BASE_URL}/api/invitations/preview/${encodeURIComponent(invitationToken!)}`
       );
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError('Invitation not found');
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success && data.invitation) {
@@ -79,8 +89,8 @@ const InvitationAcceptScreen = () => {
       } else {
         setError(data.error || 'Invitation not found');
       }
-    } catch (err: any) {
-      console.error('Error loading invitation:', err);
+    } catch (err) {
+      if (__DEV__) console.error('Error loading invitation:', err);
       setError('Failed to load invitation details');
     } finally {
       setLoading(false);
@@ -88,9 +98,15 @@ const InvitationAcceptScreen = () => {
   };
 
   const handleAccept = async () => {
+    if (!invitationToken) return;
+
     if (!isAuthenticated) {
       // Store the token and redirect to login
-      await deepLinkService.storePendingInvitation(invitationToken!);
+      const stored = await deepLinkService.storePendingInvitation(invitationToken);
+      if (!stored) {
+        Alert.alert('Error', 'Invalid invitation token');
+        return;
+      }
       Alert.alert(
         'Sign In Required',
         'Please sign in or create an account to accept this invitation.',
@@ -98,7 +114,7 @@ const InvitationAcceptScreen = () => {
           { text: 'Cancel', style: 'cancel' },
           { 
             text: 'Sign In', 
-            onPress: () => (navigation as any).navigate('Auth', { screen: 'Login' })
+            onPress: () => navigation.navigate('Auth' as never, { screen: 'Login' } as never)
           },
         ]
       );
@@ -120,6 +136,10 @@ const InvitationAcceptScreen = () => {
         }
       );
       
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -129,22 +149,23 @@ const InvitationAcceptScreen = () => {
           [
             {
               text: 'View Shared Activities',
-              onPress: () => (navigation as any).navigate('SharedActivities'),
+              onPress: () => navigation.navigate('SharedActivities' as never),
             },
           ]
         );
       } else {
         Alert.alert('Error', data.error || 'Failed to accept invitation');
       }
-    } catch (err: any) {
+    } catch (err) {
+      if (__DEV__) console.error('Error accepting invitation:', err);
       Alert.alert('Error', 'Failed to accept invitation. Please try again.');
     } finally {
       setAccepting(false);
     }
   };
 
-  const handleDecline = async () => {
-    if (!isAuthenticated) {
+  const handleDecline = () => {
+    if (!isAuthenticated || !invitationToken) {
       navigation.goBack();
       return;
     }
@@ -173,6 +194,10 @@ const InvitationAcceptScreen = () => {
                 }
               );
               
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+
               const data = await response.json();
 
               if (data.success) {
@@ -182,7 +207,8 @@ const InvitationAcceptScreen = () => {
               } else {
                 Alert.alert('Error', data.error || 'Failed to decline invitation');
               }
-            } catch (err: any) {
+            } catch (err) {
+              if (__DEV__) console.error('Error declining invitation:', err);
               Alert.alert('Error', 'Failed to decline invitation');
             } finally {
               setDeclining(false);
@@ -191,15 +217,6 @@ const InvitationAcceptScreen = () => {
         },
       ]
     );
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
   };
 
   const getExpiryText = () => {

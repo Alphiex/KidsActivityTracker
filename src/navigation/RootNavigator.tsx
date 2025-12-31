@@ -402,20 +402,27 @@ const RootNavigator = () => {
           barStyle={isDark ? 'light-content' : 'dark-content'} 
           backgroundColor={colors.background}
         />
-        <Stack.Navigator 
+        <Stack.Navigator
           screenOptions={{ headerShown: false }}
         >
-          {/* Invitation Accept - accessible from any auth state */}
-          <Stack.Screen 
-            name="InvitationAccept" 
-            component={InvitationAcceptScreen}
-            options={{ presentation: 'modal' }}
-          />
-          
           {!isAuthenticated ? (
-            <Stack.Screen name="Auth" component={AuthNavigator} />
+            <>
+              <Stack.Screen name="Auth" component={AuthNavigator} />
+              <Stack.Screen
+                name="InvitationAccept"
+                component={InvitationAcceptScreen}
+                options={{ presentation: 'modal' }}
+              />
+            </>
           ) : !hasCompletedOnboarding ? (
-            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+            <>
+              <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+              <Stack.Screen
+                name="InvitationAccept"
+                component={InvitationAcceptScreen}
+                options={{ presentation: 'modal' }}
+              />
+            </>
           ) : (
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} />
@@ -428,6 +435,11 @@ const RootNavigator = () => {
               <Stack.Screen
                 name="CustomerCenter"
                 component={CustomerCenterScreen}
+                options={{ presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name="InvitationAccept"
+                component={InvitationAcceptScreen}
                 options={{ presentation: 'modal' }}
               />
             </>

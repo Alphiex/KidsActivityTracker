@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 
 interface InvitationData {
@@ -21,16 +21,55 @@ interface InvitationData {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kids-activity-api-205843686007.us-central1.run.app';
+const TOKEN_REGEX = /^[a-zA-Z0-9_-]+$/;
+
+// Validate token format for security
+function isValidToken(token: string): boolean {
+  return TOKEN_REGEX.test(token) && token.length > 0 && token.length <= 128;
+}
+
+// Sanitize text to prevent XSS
+function sanitizeText(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export default function InvitationPage({ params }: { params: { token: string } }) {
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Validate token format
+  const isTokenValid = useMemo(() => isValidToken(params.token), [params.token]);
+
   useEffect(() => {
     const fetchInvitation = async () => {
+      // Validate token format before making request
+      if (!isTokenValid) {
+        setError('Invalid invitation link');
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch(`${API_URL}/api/invitations/preview/${params.token}`);
+        const response = await fetch(
+          `${API_URL}/api/invitations/preview/${encodeURIComponent(params.token)}`
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Invitation not found');
+          } else {
+            setError('Failed to load invitation');
+          }
+          setLoading(false);
+          return;
+        }
+
         const data = await response.json();
 
         if (data.success && data.invitation) {
@@ -53,7 +92,7 @@ export default function InvitationPage({ params }: { params: { token: string } }
     };
 
     fetchInvitation();
-  }, [params.token]);
+  }, [params.token, isTokenValid]);
 
   const getExpiryText = () => {
     if (!invitation) return '';
@@ -68,7 +107,8 @@ export default function InvitationPage({ params }: { params: { token: string } }
 
   const appStoreUrl = 'https://apps.apple.com/app/kids-activity-tracker/id6478181275';
   const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.kidsactivitytracker.app';
-  const deepLink = `kidsactivitytracker://invite/${params.token}`;
+  // Only generate deep link if token is valid
+  const deepLink = isTokenValid ? `kidsactivitytracker://invite/${encodeURIComponent(params.token)}` : '#';
 
   if (loading) {
     return (

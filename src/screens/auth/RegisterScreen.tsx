@@ -23,8 +23,7 @@ import {
   loginWithApple,
   clearError,
 } from '../../store/slices/authSlice';
-import { deepLinkService } from '../../services/deepLinkService';
-import { API_CONFIG } from '../../config/api';
+import { usePendingInvitation } from '../../hooks/usePendingInvitation';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -58,45 +57,8 @@ const RegisterScreen: React.FC = () => {
     dispatch(clearError());
   }, [dispatch]);
 
-  // Check for pending invitation after successful registration
-  useEffect(() => {
-    const processPendingInvitation = async () => {
-      if (isAuthenticated && token) {
-        const pendingToken = await deepLinkService.getPendingInvitation();
-        if (pendingToken) {
-          console.log('[Register] Found pending invitation, auto-accepting:', pendingToken);
-          try {
-            const response = await fetch(
-              `${API_CONFIG.BASE_URL}/api/invitations/accept`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ token: pendingToken }),
-              }
-            );
-            const data = await response.json();
-            if (data.success) {
-              console.log('[Register] Invitation auto-accepted successfully');
-              Alert.alert(
-                'Welcome!',
-                'Your account has been created and the invitation has been accepted. You can now view shared activities.',
-                [{ text: 'OK' }]
-              );
-            } else {
-              console.log('[Register] Failed to auto-accept invitation:', data.error);
-            }
-          } catch (err) {
-            console.error('[Register] Error auto-accepting invitation:', err);
-          }
-        }
-      }
-    };
-
-    processPendingInvitation();
-  }, [isAuthenticated, token]);
+  // Process any pending invitation after successful registration
+  usePendingInvitation({ isAuthenticated, authToken: token, variant: 'register' });
 
   useEffect(() => {
     if (error) {

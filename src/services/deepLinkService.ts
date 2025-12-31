@@ -1,7 +1,9 @@
-import { Linking } from 'react-native';
+import { Linking, EmitterSubscription } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PENDING_INVITATION_KEY = '@pending_invitation_token';
+// Only allow alphanumeric tokens with hyphens/underscores for security
+const TOKEN_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 export interface DeepLinkData {
   type: 'invitation' | 'activity' | 'unknown';
@@ -15,6 +17,7 @@ class DeepLinkService {
   private static instance: DeepLinkService;
   private listeners: ((data: DeepLinkData) => void)[] = [];
   private initialized = false;
+  private linkingSubscription: EmitterSubscription | null = null;
 
   private constructor() {}
 
@@ -35,17 +38,36 @@ class DeepLinkService {
     // Handle app opened from a link when app was closed
     const initialUrl = await Linking.getInitialURL();
     if (initialUrl) {
-      console.log('[DeepLink] Initial URL:', initialUrl);
+      if (__DEV__) console.log('[DeepLink] Initial URL received');
       this.handleUrl(initialUrl);
     }
 
     // Handle links when app is already running
-    Linking.addEventListener('url', (event) => {
-      console.log('[DeepLink] URL event:', event.url);
+    this.linkingSubscription = Linking.addEventListener('url', (event) => {
+      if (__DEV__) console.log('[DeepLink] URL event received');
       this.handleUrl(event.url);
     });
 
     this.initialized = true;
+  }
+
+  /**
+   * Cleanup the deep link service
+   */
+  cleanup(): void {
+    if (this.linkingSubscription) {
+      this.linkingSubscription.remove();
+      this.linkingSubscription = null;
+    }
+    this.listeners = [];
+    this.initialized = false;
+  }
+
+  /**
+   * Validate a token format for security
+   */
+  private isValidToken(token: string): boolean {
+    return TOKEN_REGEX.test(token) && token.length > 0 && token.length <= 128;
   }
 
   /**
@@ -89,32 +111,48 @@ class DeepLinkService {
 
     // Handle invitation links: /invite/TOKEN
     if (segments[0] === 'invite' && segments[1]) {
-      return {
-        type: 'invitation',
-        token: segments[1],
-        path: cleanPath,
-        params: queryParams,
-      };
+      const token = decodeURIComponent(segments[1]);
+      if (this.isValidToken(token)) {
+        return {
+          type: 'invitation',
+          token,
+          path: cleanPath,
+          params: queryParams,
+        };
+      }
+      // Invalid token format - treat as unknown
+      if (__DEV__) console.warn('[DeepLink] Invalid invitation token format');
+      return { type: 'unknown', path: cleanPath, params: queryParams };
     }
 
     // Handle legacy format: /accept-invitation?token=TOKEN
     if (segments[0] === 'accept-invitation' && queryParams.token) {
-      return {
-        type: 'invitation',
-        token: queryParams.token,
-        path: cleanPath,
-        params: queryParams,
-      };
+      const token = queryParams.token;
+      if (this.isValidToken(token)) {
+        return {
+          type: 'invitation',
+          token,
+          path: cleanPath,
+          params: queryParams,
+        };
+      }
+      if (__DEV__) console.warn('[DeepLink] Invalid invitation token format');
+      return { type: 'unknown', path: cleanPath, params: queryParams };
     }
 
     // Handle activity links: /activity/ID
     if (segments[0] === 'activity' && segments[1]) {
-      return {
-        type: 'activity',
-        activityId: segments[1],
-        path: cleanPath,
-        params: queryParams,
-      };
+      const activityId = decodeURIComponent(segments[1]);
+      if (this.isValidToken(activityId)) {
+        return {
+          type: 'activity',
+          activityId,
+          path: cleanPath,
+          params: queryParams,
+        };
+      }
+      if (__DEV__) console.warn('[DeepLink] Invalid activity ID format');
+      return { type: 'unknown', path: cleanPath, params: queryParams };
     }
 
     return {
@@ -129,14 +167,14 @@ class DeepLinkService {
    */
   private handleUrl(url: string): void {
     const data = this.parseUrl(url);
-    console.log('[DeepLink] Parsed data:', data);
+    if (__DEV__) console.log('[DeepLink] Parsed type:', data.type);
 
     // Notify all listeners
     this.listeners.forEach((listener) => {
       try {
         listener(data);
       } catch (error) {
-        console.error('[DeepLink] Error in listener:', error);
+        if (__DEV__) console.error('[DeepLink] Error in listener:', error);
       }
     });
   }
@@ -156,28 +194,40 @@ class DeepLinkService {
   /**
    * Store a pending invitation token for processing after login
    */
-  async storePendingInvitation(token: string): Promise<void> {
+  async storePendingInvitation(token: string): Promise<boolean> {
+    if (!this.isValidToken(token)) {
+      if (__DEV__) console.warn('[DeepLink] Attempted to store invalid token');
+      return false;
+    }
     try {
       await AsyncStorage.setItem(PENDING_INVITATION_KEY, token);
-      console.log('[DeepLink] Stored pending invitation:', token);
+      if (__DEV__) console.log('[DeepLink] Stored pending invitation');
+      return true;
     } catch (error) {
-      console.error('[DeepLink] Error storing pending invitation:', error);
+      if (__DEV__) console.error('[DeepLink] Error storing pending invitation:', error);
+      return false;
     }
   }
 
   /**
-   * Get and clear pending invitation token
+   * Get and clear pending invitation token atomically
    */
   async getPendingInvitation(): Promise<string | null> {
     try {
       const token = await AsyncStorage.getItem(PENDING_INVITATION_KEY);
       if (token) {
+        // Clear immediately to prevent duplicate processing
         await AsyncStorage.removeItem(PENDING_INVITATION_KEY);
-        console.log('[DeepLink] Retrieved pending invitation:', token);
+        // Validate token before returning
+        if (this.isValidToken(token)) {
+          if (__DEV__) console.log('[DeepLink] Retrieved pending invitation');
+          return token;
+        }
+        if (__DEV__) console.warn('[DeepLink] Stored token was invalid');
       }
-      return token;
+      return null;
     } catch (error) {
-      console.error('[DeepLink] Error getting pending invitation:', error);
+      if (__DEV__) console.error('[DeepLink] Error getting pending invitation:', error);
       return null;
     }
   }
@@ -188,8 +238,8 @@ class DeepLinkService {
   async hasPendingInvitation(): Promise<boolean> {
     try {
       const token = await AsyncStorage.getItem(PENDING_INVITATION_KEY);
-      return token !== null;
-    } catch (error) {
+      return token !== null && this.isValidToken(token);
+    } catch {
       return false;
     }
   }
@@ -200,8 +250,8 @@ class DeepLinkService {
   async clearPendingInvitation(): Promise<void> {
     try {
       await AsyncStorage.removeItem(PENDING_INVITATION_KEY);
-    } catch (error) {
-      console.error('[DeepLink] Error clearing pending invitation:', error);
+    } catch {
+      // Silently fail - not critical
     }
   }
 }
