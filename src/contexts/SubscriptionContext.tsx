@@ -16,7 +16,7 @@ import { Alert, Linking, Platform } from 'react-native';
 import {
   revenueCatService,
   ENTITLEMENTS,
-  PAYWALL_RESULT,
+  getPaywallResult,
   PaywallResultType,
 } from '../services/revenueCatService';
 import { CustomerInfo, PurchasesOfferings, PurchasesPackage } from 'react-native-purchases';
@@ -112,7 +112,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     } catch (error: any) {
       console.error('[SubscriptionContext] Paywall error:', error);
       Alert.alert('Error', error.message || 'Unable to show subscription options');
-      return PAYWALL_RESULT.ERROR;
+      return 'ERROR';
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
     }

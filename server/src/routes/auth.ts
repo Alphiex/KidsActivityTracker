@@ -49,7 +49,7 @@ router.post('/sync', verifyToken, logActivity('sync'), async (req: Request, res:
           select: {
             id: true,
             name: true,
-            birthDate: true,
+            dateOfBirth: true,
           }
         },
         _count: {
@@ -124,7 +124,7 @@ router.get('/profile', verifyToken, logActivity('get-profile'), async (req: Requ
           select: {
             id: true,
             name: true,
-            birthDate: true,
+            dateOfBirth: true,
           }
         },
         _count: {
@@ -241,8 +241,8 @@ router.delete('/delete-account', verifyToken, authLimiter, logActivity('delete-a
         where: {
           activityShare: {
             OR: [
-              { sharerId: userId },
-              { sharedWithId: userId }
+              { sharingUserId: userId },
+              { sharedWithUserId: userId }
             ]
           }
         }
@@ -251,8 +251,8 @@ router.delete('/delete-account', verifyToken, authLimiter, logActivity('delete-a
       await tx.activityShare.deleteMany({
         where: {
           OR: [
-            { sharerId: userId },
-            { sharedWithId: userId }
+            { sharingUserId: userId },
+            { sharedWithUserId: userId }
           ]
         }
       });

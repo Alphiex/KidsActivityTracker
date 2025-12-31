@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "NUA772QT7C.com.kidsactivitytracker.app",
+        "paths": [
+          "/invite/*",
+          "/accept-invitation",
+          "/accept-invitation/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "NUA772QT7C.com.kidsactivitytracker.app"
+    ]
+  }
+}

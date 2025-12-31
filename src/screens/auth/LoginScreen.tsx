@@ -24,6 +24,8 @@ import {
   loginWithApple,
   clearError,
 } from '../../store/slices/authSlice';
+import { deepLinkService } from '../../services/deepLinkService';
+import { API_CONFIG } from '../../config/api';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -41,7 +43,7 @@ const loginHeaderImage = require('../../assets/illustrations/login-header.png');
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const dispatch = useAppDispatch();
-  const { isLoading, error } = useAppSelector((state) => state.auth);
+  const { isLoading, error, isAuthenticated, token } = useAppSelector((state) => state.auth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,6 +61,46 @@ const LoginScreen: React.FC = () => {
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  // Check for pending invitation after successful login
+  useEffect(() => {
+    const processPendingInvitation = async () => {
+      if (isAuthenticated && token) {
+        const pendingToken = await deepLinkService.getPendingInvitation();
+        if (pendingToken) {
+          console.log('[Login] Found pending invitation, auto-accepting:', pendingToken);
+          try {
+            const response = await fetch(
+              `${API_CONFIG.BASE_URL}/api/invitations/accept`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ token: pendingToken }),
+              }
+            );
+            const data = await response.json();
+            if (data.success) {
+              console.log('[Login] Invitation auto-accepted successfully');
+              Alert.alert(
+                'Invitation Accepted!',
+                'You can now view the shared activities.',
+                [{ text: 'OK' }]
+              );
+            } else {
+              console.log('[Login] Failed to auto-accept invitation:', data.error);
+            }
+          } catch (err) {
+            console.error('[Login] Error auto-accepting invitation:', err);
+          }
+        }
+      }
+    };
+
+    processPendingInvitation();
+  }, [isAuthenticated, token]);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

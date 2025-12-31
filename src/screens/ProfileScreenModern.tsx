@@ -211,13 +211,13 @@ const ProfileScreenModern = () => {
 
   const handleDeleteAccount = async () => {
     if (!deleteAccountPassword) {
-      Alert.alert('Error', 'Please enter your password to confirm account deletion');
+      Alert.alert('Error', 'Please type "DELETE" to confirm account deletion');
       return;
     }
 
     setIsLoading(true);
     try {
-      await authService.deleteAccount(deleteAccountPassword);
+      await authService.deleteAccount();
 
       // Clear local data and logout
       await SecureStore.clearAllAuthData();

@@ -51,8 +51,8 @@ async function findOrCreateUser(
       select: { id: true, email: true, firebaseUid: true, authProvider: true }
     });
 
-    if (user) {
-      return user;
+    if (user && user.firebaseUid) {
+      return { ...user, firebaseUid: user.firebaseUid };
     }
 
     // Check if user exists by email (for linking accounts)
@@ -73,7 +73,7 @@ async function findOrCreateUser(
         select: { id: true, email: true, firebaseUid: true, authProvider: true }
       });
       console.log(`[Auth] Linked existing user ${user.id} to Firebase account ${firebaseUid}`);
-      return user;
+      return { ...user, firebaseUid: user.firebaseUid! };
     }
 
     // Create new user
@@ -89,7 +89,7 @@ async function findOrCreateUser(
     });
 
     console.log(`[Auth] Created new user ${user.id} from Firebase account ${firebaseUid}`);
-    return user;
+    return { ...user, firebaseUid: user.firebaseUid! };
   } catch (error) {
     console.error('[Auth] Error finding/creating user:', error);
     return null;

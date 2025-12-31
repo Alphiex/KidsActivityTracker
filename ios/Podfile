@@ -8,13 +8,11 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-# Firebase requires modular headers for Swift compatibility
-pod 'GoogleUtilities', :modular_headers => true
-pod 'FirebaseAuthInterop', :modular_headers => true
-pod 'FirebaseAppCheckInterop', :modular_headers => true
-pod 'FirebaseCore', :modular_headers => true
-pod 'FirebaseCoreExtension', :modular_headers => true
-pod 'RecaptchaInterop', :modular_headers => true
+# Use static frameworks for Firebase (required for Firebase Auth Swift code)
+use_frameworks! :linkage => :static
+
+# Disable flipper as it conflicts with static frameworks
+$RNFirebaseAsStaticFramework = true
 
 # Build Hermes from source to include dSYM for crash symbolication
 ENV['RCT_BUILD_HERMES_FROM_SOURCE'] = '1' if ENV['ARCHIVE_BUILD'] == '1'
@@ -32,11 +30,7 @@ def __apply_Xcode_16_3_RC_post_install_workaround(installer)
   end
 end
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Linkage is configured globally above with use_frameworks!
 
 target 'KidsActivityTracker' do
   config = use_native_modules!

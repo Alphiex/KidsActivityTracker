@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { forgotPassword, clearError } from '../../store/slices/authSlice';
+import { sendPasswordReset, clearError } from '../../store/slices/authSlice';
 
 // App-consistent colors
 const appColors = {
@@ -78,9 +78,9 @@ const ForgotPasswordScreen: React.FC = () => {
       return;
     }
 
-    const result = await dispatch(forgotPassword({ email: email.trim() }));
-    
-    if (forgotPassword.fulfilled.match(result)) {
+    const result = await dispatch(sendPasswordReset({ email: email.trim() }));
+
+    if (sendPasswordReset.fulfilled.match(result)) {
       setIsSubmitted(true);
       Alert.alert(
         'Email Sent',

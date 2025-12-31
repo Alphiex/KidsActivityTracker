@@ -969,6 +969,20 @@ class PerfectMindScraper extends BaseScraper {
             registrationStatus = 'Open';
           }
 
+          // FALLBACK: If still Unknown and no negative indicators, assume Open
+          // Most PerfectMind listings without explicit status are available
+          if (registrationStatus === 'Unknown') {
+            // If spots available is positive, it's open
+            if (spotsAvailable !== null && spotsAvailable > 0) {
+              registrationStatus = 'Open';
+            }
+            // If we have valid activity data (cost, dates, times) and no negative indicators, assume Open
+            else if ((cost !== null || rawText.match(/\d{1,2}:\d{2}/)) &&
+                     !/not\s*available|no\s*longer|sold\s*out/i.test(rawText)) {
+              registrationStatus = 'Open';
+            }
+          }
+
           // Extract time - comprehensive patterns
           let startTime = null;
           let endTime = null;
@@ -1828,6 +1842,28 @@ class PerfectMindScraper extends BaseScraper {
                   data.registrationStatus = 'Closed';
                 } else if (statusText.includes('register') || statusText.includes('available') || statusText.includes('sign up')) {
                   data.registrationStatus = 'Open';
+                }
+
+                // FALLBACK: If no explicit status found, check if activity looks available
+                // Many PerfectMind pages don't have explicit "Register Now" text but are still open
+                if (!data.registrationStatus) {
+                  // Check for "Add to Cart" or "Enroll" buttons (common on open activities)
+                  if (pageHtml.includes('Add to Cart') || pageHtml.includes('AddToCart') ||
+                      pageHtml.includes('EnrollNow') || pageHtml.includes('Enroll Now') ||
+                      pageHtml.includes('btn-enroll') || pageHtml.includes('enroll-button')) {
+                    data.registrationStatus = 'Open';
+                  }
+                  // Check if spots available is a positive number
+                  else if (data.spotsAvailable !== undefined && data.spotsAvailable > 0) {
+                    data.registrationStatus = 'Open';
+                  }
+                  // Check for course ID and dates (indicates active course listing)
+                  // If we found valid dates and no negative indicators, assume Open
+                  else if ((data.dateStartStr || data.dateEndStr) &&
+                           !statusText.includes('not available') &&
+                           !statusText.includes('no longer')) {
+                    data.registrationStatus = 'Open';
+                  }
                 }
 
                 return data;

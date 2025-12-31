@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import api from './api';
+import api from './apiClient';
 
 export type ClickDestinationType = 'activity_detail' | 'external_url' | 'registration';
 export type PlacementType = 'activity_list' | 'activity_detail' | 'search_results' | 'dashboard';
@@ -109,14 +109,19 @@ export async function getABTestAssignment(
   }
 
   try {
-    const response = await api.get(`/api/v1/analytics/ab-test/${testId}/assignment`, {
+    interface ABTestResponse {
+      inTest: boolean;
+      variant: string | null;
+      testConfig: Record<string, any> | null;
+    }
+    const response = await api.get<ABTestResponse>(`/api/v1/analytics/ab-test/${testId}/assignment`, {
       params: { identifier, identifierType },
     });
 
     const assignment: ABTestAssignment = {
-      inTest: response.data.inTest,
-      variant: response.data.variant,
-      testConfig: response.data.testConfig,
+      inTest: response.inTest,
+      variant: response.variant,
+      testConfig: response.testConfig,
     };
 
     // Cache the assignment
@@ -139,8 +144,15 @@ export async function getActiveABTests(): Promise<Array<{
   testType: string;
 }>> {
   try {
-    const response = await api.get('/api/v1/analytics/ab-tests/active');
-    return response.data.tests || [];
+    interface ActiveTestsResponse {
+      tests: Array<{
+        id: string;
+        name: string;
+        testType: string;
+      }>;
+    }
+    const response = await api.get<ActiveTestsResponse>('/api/v1/analytics/ab-tests/active');
+    return response.tests || [];
   } catch (error) {
     console.warn('[SponsorAnalytics] Failed to get active tests:', error);
     return [];

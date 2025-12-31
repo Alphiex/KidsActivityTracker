@@ -16,6 +16,7 @@ export interface PostgresUser {
   email: string;
   name: string;
   phoneNumber?: string;
+  location?: string;
   preferences?: any;
   authProvider: string;
   createdAt: string;
@@ -37,6 +38,7 @@ export interface PostgresUser {
 export interface ProfileUpdateParams {
   name?: string;
   phoneNumber?: string;
+  location?: string;
   preferences?: any;
 }
 

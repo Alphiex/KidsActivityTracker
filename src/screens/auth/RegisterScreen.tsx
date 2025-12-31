@@ -17,7 +17,14 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { register, clearError } from '../../store/slices/authSlice';
+import {
+  registerWithEmail,
+  loginWithGoogle,
+  loginWithApple,
+  clearError,
+} from '../../store/slices/authSlice';
+import { deepLinkService } from '../../services/deepLinkService';
+import { API_CONFIG } from '../../config/api';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -33,7 +40,7 @@ const loginHeaderImage = require('../../assets/illustrations/login-header.png');
 const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
   const dispatch = useAppDispatch();
-  const { isLoading, error } = useAppSelector((state) => state.auth);
+  const { isLoading, error, isAuthenticated, token } = useAppSelector((state) => state.auth);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -50,6 +57,46 @@ const RegisterScreen: React.FC = () => {
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);
+
+  // Check for pending invitation after successful registration
+  useEffect(() => {
+    const processPendingInvitation = async () => {
+      if (isAuthenticated && token) {
+        const pendingToken = await deepLinkService.getPendingInvitation();
+        if (pendingToken) {
+          console.log('[Register] Found pending invitation, auto-accepting:', pendingToken);
+          try {
+            const response = await fetch(
+              `${API_CONFIG.BASE_URL}/api/invitations/accept`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ token: pendingToken }),
+              }
+            );
+            const data = await response.json();
+            if (data.success) {
+              console.log('[Register] Invitation auto-accepted successfully');
+              Alert.alert(
+                'Welcome!',
+                'Your account has been created and the invitation has been accepted. You can now view shared activities.',
+                [{ text: 'OK' }]
+              );
+            } else {
+              console.log('[Register] Failed to auto-accept invitation:', data.error);
+            }
+          } catch (err) {
+            console.error('[Register] Error auto-accepting invitation:', err);
+          }
+        }
+      }
+    };
+
+    processPendingInvitation();
+  }, [isAuthenticated, token]);
 
   useEffect(() => {
     if (error) {
@@ -90,12 +137,8 @@ const RegisterScreen: React.FC = () => {
       setPasswordError('Password is required');
       return false;
     }
-    if (password.length < 8) {
-      setPasswordError('Password must be at least 8 characters');
-      return false;
-    }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      setPasswordError('Password must contain uppercase, lowercase, and number');
+    if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
       return false;
     }
     setPasswordError('');
@@ -115,7 +158,7 @@ const RegisterScreen: React.FC = () => {
     return true;
   };
 
-  const handleRegister = async () => {
+  const handleEmailRegister = async () => {
     const isNameValid = validateName(name);
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password);
@@ -125,11 +168,21 @@ const RegisterScreen: React.FC = () => {
       return;
     }
 
-    dispatch(register({
-      name: name.trim(),
-      email: email.trim(),
-      password,
-    }));
+    dispatch(
+      registerWithEmail({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      })
+    );
+  };
+
+  const handleGoogleSignIn = async () => {
+    dispatch(loginWithGoogle());
+  };
+
+  const handleAppleSignIn = async () => {
+    dispatch(loginWithApple());
   };
 
   return (
@@ -145,11 +198,7 @@ const RegisterScreen: React.FC = () => {
         >
           {/* Header Illustration */}
           <View style={styles.headerContainer}>
-            <Image
-              source={loginHeaderImage}
-              style={styles.headerImage}
-              resizeMode="cover"
-            />
+            <Image source={loginHeaderImage} style={styles.headerImage} resizeMode="cover" />
             {/* Back Button */}
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
               <View style={styles.backButtonCircle}>
@@ -168,6 +217,42 @@ const RegisterScreen: React.FC = () => {
 
           {/* Form */}
           <View style={styles.formContainer}>
+            {/* Social Login Buttons */}
+            <View style={styles.socialButtonsContainer}>
+              {/* Google Sign-In */}
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={handleGoogleSignIn}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                <Icon name="google" size={22} color="#DB4437" />
+                <Text style={styles.socialButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              {/* Apple Sign-In (iOS only) */}
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={[styles.socialButton, styles.appleButton]}
+                  onPress={handleAppleSignIn}
+                  disabled={isLoading}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="apple" size={22} color="#FFFFFF" />
+                  <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                    Continue with Apple
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign up with email</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
             {/* Name Input */}
             <View style={styles.inputWrapper}>
               <View style={[styles.inputContainer, nameError ? styles.inputError : null]}>
@@ -210,7 +295,7 @@ const RegisterScreen: React.FC = () => {
                 <Icon name="lock-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder="Password (min 6 characters)"
                   placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={setPassword}
@@ -234,8 +319,15 @@ const RegisterScreen: React.FC = () => {
 
             {/* Confirm Password Input */}
             <View style={styles.inputWrapper}>
-              <View style={[styles.inputContainer, confirmPasswordError ? styles.inputError : null]}>
-                <Icon name="lock-check-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <View
+                style={[styles.inputContainer, confirmPasswordError ? styles.inputError : null]}
+              >
+                <Icon
+                  name="lock-check-outline"
+                  size={20}
+                  color="#9CA3AF"
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={styles.input}
                   placeholder="Confirm Password"
@@ -257,33 +349,14 @@ const RegisterScreen: React.FC = () => {
                   />
                 </TouchableOpacity>
               </View>
-              {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
-            </View>
-
-            {/* Password Requirements */}
-            <View style={styles.passwordRequirements}>
-              <Text style={styles.requirementTitle}>Password must contain:</Text>
-              <View style={styles.requirementRow}>
-                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.requirementText}>At least 8 characters</Text>
-              </View>
-              <View style={styles.requirementRow}>
-                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.requirementText}>One uppercase letter</Text>
-              </View>
-              <View style={styles.requirementRow}>
-                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.requirementText}>One lowercase letter</Text>
-              </View>
-              <View style={styles.requirementRow}>
-                <Icon name="check-circle-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.requirementText}>One number</Text>
-              </View>
+              {confirmPasswordError ? (
+                <Text style={styles.errorText}>{confirmPasswordError}</Text>
+              ) : null}
             </View>
 
             {/* Create Account Button */}
             <TouchableOpacity
-              onPress={handleRegister}
+              onPress={handleEmailRegister}
               disabled={isLoading}
               activeOpacity={0.8}
               style={[styles.registerButton, isLoading && styles.disabledButton]}
@@ -330,7 +403,7 @@ const styles = StyleSheet.create({
   // Header Illustration Styles
   headerContainer: {
     width: '100%',
-    height: 120,
+    height: 100,
     overflow: 'hidden',
   },
   headerImage: {
@@ -379,6 +452,52 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
   },
+  // Social Buttons
+  socialButtonsContainer: {
+    gap: 10,
+    marginBottom: 4,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    gap: 10,
+  },
+  socialButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+  },
+  // Divider Styles
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  // Input Styles
   inputWrapper: {
     marginBottom: 10,
   },
@@ -408,33 +527,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#EF4444',
-    fontSize: 13,
-    marginTop: 6,
-    marginLeft: 4,
-  },
-  // Password Requirements Styles
-  passwordRequirements: {
-    backgroundColor: '#F9FAFB',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 2,
-    marginBottom: 12,
-  },
-  requirementTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 6,
-  },
-  requirementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  requirementText: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginLeft: 6,
+    marginTop: 4,
+    marginLeft: 4,
   },
   // Button Styles
   registerButton: {
@@ -443,6 +538,7 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
     shadowColor: '#FF385C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -462,8 +558,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 12,
   },
   loginText: {
     color: '#6B7280',

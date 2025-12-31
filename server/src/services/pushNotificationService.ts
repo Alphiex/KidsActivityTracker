@@ -299,6 +299,48 @@ class PushNotificationService {
   }
 
   /**
+   * Send invitation notification to a user
+   */
+  async sendInvitationNotification(
+    recipientUserId: string,
+    senderName: string,
+    token: string
+  ): Promise<SendResult> {
+    const payload: PushNotificationPayload = {
+      title: 'New Activity Share Invitation',
+      body: `${senderName} wants to share their children's activities with you`,
+      data: {
+        type: 'invitation',
+        token: token,
+        senderName: senderName,
+        screen: 'InvitationAccept',
+      },
+    };
+
+    return this.sendToUser(recipientUserId, payload);
+  }
+
+  /**
+   * Send invitation accepted notification to the sender
+   */
+  async sendInvitationAcceptedNotification(
+    senderUserId: string,
+    acceptorName: string
+  ): Promise<SendResult> {
+    const payload: PushNotificationPayload = {
+      title: 'Invitation Accepted!',
+      body: `${acceptorName} accepted your activity share invitation`,
+      data: {
+        type: 'invitation_accepted',
+        acceptorName: acceptorName,
+        screen: 'SharingManagement',
+      },
+    };
+
+    return this.sendToUser(senderUserId, payload);
+  }
+
+  /**
    * Send a test notification to a user (for debugging)
    */
   async sendTestNotification(userId: string): Promise<SendResult> {

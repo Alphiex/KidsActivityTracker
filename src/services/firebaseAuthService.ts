@@ -8,16 +8,23 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import { Platform } from 'react-native';
 import { secureLog, secureError } from '../utils/secureLogger';
 
-// Configure Google Sign-In
-// Note: webClientId must match the OAuth 2.0 Web Client ID from Google Cloud Console
-// This is automatically read from GoogleService-Info.plist (iOS) and google-services.json (Android)
-GoogleSignin.configure({
-  webClientId: Platform.select({
-    ios: undefined, // Will use value from GoogleService-Info.plist
-    android: undefined, // Will use value from google-services.json
-  }),
-  offlineAccess: true,
-});
+// Google Sign-In configuration - done lazily to ensure native module is ready
+let googleSignInConfigured = false;
+const configureGoogleSignIn = () => {
+  if (googleSignInConfigured) return;
+  try {
+    // webClientId is the OAuth 2.0 Web Client ID from Firebase Console
+    // This is required for Firebase Auth integration on both platforms
+    GoogleSignin.configure({
+      webClientId: '97509826340-g56nnh9fp4e1clvrp8tap870ildddle2.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+    googleSignInConfigured = true;
+    secureLog('[FirebaseAuth] Google Sign-In configured');
+  } catch (error) {
+    secureError('[FirebaseAuth] Failed to configure Google Sign-In:', error);
+  }
+};
 
 export interface FirebaseUser {
   uid: string;
@@ -159,6 +166,9 @@ class FirebaseAuthService {
     try {
       secureLog('[FirebaseAuth] Starting Google Sign-In...');
 
+      // Ensure Google Sign-In is configured
+      configureGoogleSignIn();
+
       // Check if device supports Google Play Services
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
@@ -261,7 +271,7 @@ class FirebaseAuthService {
       secureLog('[FirebaseAuth] Signing out...');
 
       // Sign out from Google if signed in with Google
-      const isGoogleSignedIn = await GoogleSignin.isSignedIn();
+      const isGoogleSignedIn = GoogleSignin.hasPreviousSignIn();
       if (isGoogleSignedIn) {
         await GoogleSignin.signOut();
       }
@@ -335,7 +345,7 @@ class FirebaseAuthService {
       secureLog('[FirebaseAuth] Deleting account...');
 
       // Sign out from Google if needed
-      const isGoogleSignedIn = await GoogleSignin.isSignedIn();
+      const isGoogleSignedIn = GoogleSignin.hasPreviousSignIn();
       if (isGoogleSignedIn) {
         await GoogleSignin.revokeAccess();
       }

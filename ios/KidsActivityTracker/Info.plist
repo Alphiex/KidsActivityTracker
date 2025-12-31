@@ -27,14 +27,24 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.97509826340-aoe0e5d8c8ck9kb4c2620pogldjhuvlr</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.kidsactivitytracker.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kidsactivitytracker</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GIDClientID</key>
-	<string>REPLACE_WITH_GOOGLE_CLIENT_ID</string>
+	<string>97509826340-aoe0e5d8c8ck9kb4c2620pogldjhuvlr.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

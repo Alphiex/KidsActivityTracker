@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar, View, Text, ActivityIndicator } from 'react-native';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -54,6 +54,7 @@ import AIRecommendationsScreen from '../screens/AIRecommendationsScreen';
 import WeeklyPlannerScreen from '../screens/WeeklyPlannerScreen';
 import WaitingListScreen from '../screens/WaitingListScreen';
 import MapSearchScreen from '../screens/MapSearchScreen';
+import InvitationAcceptScreen from '../screens/InvitationAcceptScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -256,6 +257,29 @@ const MainTabs = () => {
   );
 };
 
+// Deep linking configuration
+const linking: LinkingOptions<any> = {
+  prefixes: [
+    'https://kidsactivitytracker.ca',
+    'https://www.kidsactivitytracker.ca',
+    'kidsactivitytracker://',
+  ],
+  config: {
+    screens: {
+      InvitationAccept: {
+        path: 'invite/:token',
+      },
+      // Legacy support
+      InvitationAcceptLegacy: {
+        path: 'accept-invitation',
+        parse: {
+          token: (token: string) => token,
+        },
+      },
+    },
+  },
+};
+
 const RootNavigator = () => {
   console.log('RootNavigator rendering');
   const dispatch = useAppDispatch();
@@ -343,6 +367,7 @@ const RootNavigator = () => {
       <NavigationContainer
         ref={navigationRef}
         onReady={onNavigationReady}
+        linking={linking}
         theme={{
           dark: isDark,
           colors: {
@@ -380,6 +405,13 @@ const RootNavigator = () => {
         <Stack.Navigator 
           screenOptions={{ headerShown: false }}
         >
+          {/* Invitation Accept - accessible from any auth state */}
+          <Stack.Screen 
+            name="InvitationAccept" 
+            component={InvitationAcceptScreen}
+            options={{ presentation: 'modal' }}
+          />
+          
           {!isAuthenticated ? (
             <Stack.Screen name="Auth" component={AuthNavigator} />
           ) : !hasCompletedOnboarding ? (

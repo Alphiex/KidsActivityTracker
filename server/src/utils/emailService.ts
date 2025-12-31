@@ -282,7 +282,8 @@ export class EmailService {
     expiresInDays: number = 7,
     recipientName?: string
   ): Promise<void> {
-    const invitationUrl = `${this.baseUrl}/accept-invitation?token=${token}`;
+    // Use the deep link URL format that opens the app or falls back to web landing page
+    const invitationUrl = `https://kidsactivitytracker.ca/invite/${token}`;
     const greeting = recipientName ? `Hi ${recipientName},` : 'Hi,';
 
     const html = `

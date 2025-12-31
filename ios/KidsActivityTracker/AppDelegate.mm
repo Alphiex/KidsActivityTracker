@@ -4,7 +4,7 @@
 #import <React/RCTLinkingManager.h>
 #import <Firebase.h>
 #import <UserNotifications/UserNotifications.h>
-#import <RNCPushNotificationIOS.h>
+#import <FirebaseMessaging/FirebaseMessaging.h>
 
 @implementation AppDelegate
 
@@ -24,19 +24,22 @@
   UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
   center.delegate = self;
 
+  // Set Firebase messaging delegate
+  [FIRMessaging messaging].delegate = self;
+
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
 
 // Required for push notification registration
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
 {
-  [RNCPushNotificationIOS didRegisterForRemoteNotificationsWithDeviceToken:deviceToken];
+  [FIRMessaging messaging].APNSToken = deviceToken;
 }
 
 // Required for push notification registration error
 - (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
 {
-  [RNCPushNotificationIOS didFailToRegisterForRemoteNotificationsWithError:error];
+  NSLog(@"Failed to register for remote notifications: %@", error);
 }
 
 // Required for foreground notification handling
@@ -52,7 +55,6 @@
 didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void(^)(void))completionHandler
 {
-  [RNCPushNotificationIOS didReceiveNotificationResponse:response];
   completionHandler();
 }
 
@@ -60,7 +62,15 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
 fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
-  [RNCPushNotificationIOS didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
+  [[FIRMessaging messaging] appDidReceiveMessage:userInfo];
+  completionHandler(UIBackgroundFetchResultNewData);
+}
+
+// Firebase Messaging delegate - called when FCM token is refreshed
+- (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken
+{
+  NSLog(@"FCM token: %@", fcmToken);
+  // You can send this token to your server if needed
 }
 
 // Required for Google Sign-In URL handling

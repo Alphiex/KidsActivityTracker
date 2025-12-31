@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { emailService } from '../utils/emailService';
 import { securityUtils } from '../utils/securityUtils';
+import { pushNotificationService } from './pushNotificationService';
 
 interface CreateInvitationData {
   senderId: string;
@@ -138,6 +139,21 @@ export class InvitationService {
       expiresInDays,
       existingUser?.name
     );
+
+    // Send push notification if recipient is an existing user
+    if (existingUser) {
+      try {
+        await pushNotificationService.sendInvitationNotification(
+          existingUser.id,
+          sender.name,
+          token
+        );
+        console.log('[Invitation] Push notification sent to existing user:', existingUser.id);
+      } catch (pushError) {
+        // Don't fail the invitation if push notification fails
+        console.error('[Invitation] Failed to send push notification:', pushError);
+      }
+    }
 
     // Log the invitation
     console.log({
@@ -305,6 +321,18 @@ export class InvitationService {
       invitation.sender.name,
       acceptingUser.name
     );
+
+    // Send push notification to the sender
+    try {
+      await pushNotificationService.sendInvitationAcceptedNotification(
+        invitation.senderId,
+        acceptingUser.name
+      );
+      console.log('[Invitation] Push notification sent to sender:', invitation.senderId);
+    } catch (pushError) {
+      // Don't fail if push notification fails
+      console.error('[Invitation] Failed to send acceptance push notification:', pushError);
+    }
 
     // Log the acceptance
     console.log({

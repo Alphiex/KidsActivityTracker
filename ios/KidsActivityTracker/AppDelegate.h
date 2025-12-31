@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <UserNotifications/UNUserNotificationCenter.h>
+#import <FirebaseMessaging/FirebaseMessaging.h>
 
 // Suppress deprecation warning for RCTAppDelegate
 // TODO: Migrate to RCTReactNativeFactory when upgrading React Native
@@ -8,6 +9,6 @@
 #import <RCTAppDelegate.h>
 #pragma clang diagnostic pop
 
-@interface AppDelegate : RCTAppDelegate <UNUserNotificationCenterDelegate>
+@interface AppDelegate : RCTAppDelegate <UNUserNotificationCenterDelegate, FIRMessagingDelegate>
 
 @end

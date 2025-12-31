@@ -12,7 +12,7 @@ import notifee, {
   Event,
   AndroidStyle,
 } from '@notifee/react-native';
-import { apiClient } from './api';
+import apiClient from './apiClient';
 import DeviceInfo from 'react-native-device-info';
 
 // Navigation reference - will be set from RootNavigator

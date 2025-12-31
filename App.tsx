@@ -11,6 +11,7 @@ import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import ActivityService from './src/services/activityService';
 import { revenueCatService } from './src/services/revenueCatService';
 import { pushNotificationService } from './src/services/pushNotificationService';
+import { deepLinkService } from './src/services/deepLinkService';
 
 // Lazy MMKV initialization for Android JSI compatibility
 let _defaultStorage: MMKV | null = null;
@@ -48,6 +49,14 @@ function App() {
         console.log('[App] Push notifications initialized successfully');
       } catch (error) {
         console.error('[App] Push notification initialization failed:', error);
+      }
+
+      // Initialize Deep Linking
+      try {
+        await deepLinkService.initialize();
+        console.log('[App] Deep link service initialized successfully');
+      } catch (error) {
+        console.error('[App] Deep link service initialization failed:', error);
       }
     };
 

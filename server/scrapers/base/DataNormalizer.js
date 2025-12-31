@@ -351,6 +351,25 @@ class DataNormalizer {
         return new Date(`${dateStr}, ${currentYear}`);
       }
 
+      // Handle "Day, DD-Mon-YY" or "DD-Mon-YY" format (e.g., "Sat, 17-Jan-26" or "17-Jan-26")
+      // Used by Intelligenz/Recreation Excellence (Lethbridge, Pitt Meadows, etc.)
+      // Note: Day prefix requires a comma or space to avoid matching digits
+      const ddMonYYMatch = String(dateStr).match(/(?:[A-Za-z]+,\s*)?(\d{1,2})[-/]([A-Za-z]{3})[-/](\d{2,4})/);
+      if (ddMonYYMatch) {
+        const months = {
+          'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+          'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+        };
+        const day = parseInt(ddMonYYMatch[1]);
+        const month = months[ddMonYYMatch[2].toLowerCase()];
+        let year = parseInt(ddMonYYMatch[3]);
+        if (year < 100) year += 2000; // Convert 26 to 2026
+
+        if (month !== undefined) {
+          return new Date(year, month, day);
+        }
+      }
+
       // Try standard Date parsing
       const parsed = new Date(dateStr);
       return isNaN(parsed.getTime()) ? null : parsed;

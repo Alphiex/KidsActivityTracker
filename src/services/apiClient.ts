@@ -1,14 +1,12 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { API_CONFIG } from '../config/api';
-import * as SecureStore from '../utils/secureStorage';
 import { store } from '../store';
-import { refreshToken, clearAuth } from '../store/slices/authSlice';
+import { clearAuth } from '../store/slices/authSlice';
+import { firebaseAuthService } from './firebaseAuthService';
 
 class ApiClient {
   private static instance: ApiClient;
   private axiosInstance: AxiosInstance;
-  private isRefreshing = false;
-  private refreshSubscribers: Array<(token: string) => void> = [];
 
   private constructor() {
     this.axiosInstance = axios.create({
@@ -30,15 +28,20 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor
+    // Request interceptor - get Firebase ID token
     this.axiosInstance.interceptors.request.use(
       async (config) => {
-        const token = await SecureStore.getAccessToken();
-        console.log('[API] Request to:', config.url, 'token present:', !!token);
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        } else {
-          console.warn('[API] No access token found for request:', config.url);
+        try {
+          // Get Firebase ID token (automatically refreshes if needed)
+          const token = await firebaseAuthService.getIdToken();
+          console.log('[API] Request to:', config.url, 'token present:', !!token);
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          } else {
+            console.warn('[API] No access token found for request:', config.url);
+          }
+        } catch (error) {
+          console.error('[API] Error getting token:', error);
         }
         return config;
       },
@@ -47,50 +50,15 @@ class ApiClient {
       }
     );
 
-    // Response interceptor
+    // Response interceptor - handle 401 errors
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          if (this.isRefreshing) {
-            // Wait for the refresh to complete
-            return new Promise((resolve) => {
-              this.refreshSubscribers.push((token: string) => {
-                originalRequest.headers!.Authorization = `Bearer ${token}`;
-                resolve(this.axiosInstance(originalRequest));
-              });
-            });
-          }
-
-          originalRequest._retry = true;
-          this.isRefreshing = true;
-
-          try {
-            // Attempt to refresh the token
-            const result = await store.dispatch(refreshToken());
-            
-            if (refreshToken.fulfilled.match(result)) {
-              const newToken = result.payload.tokens.accessToken;
-              
-              // Notify all subscribers with the new token
-              this.refreshSubscribers.forEach(callback => callback(newToken));
-              this.refreshSubscribers = [];
-              
-              // Retry the original request
-              originalRequest.headers!.Authorization = `Bearer ${newToken}`;
-              return this.axiosInstance(originalRequest);
-            } else {
-              throw new Error('Token refresh failed');
-            }
-          } catch (refreshError) {
-            // Refresh failed, clear auth and redirect to login
-            store.dispatch(clearAuth());
-            throw refreshError;
-          } finally {
-            this.isRefreshing = false;
-          }
+        // If we get a 401, the token is invalid (Firebase should have refreshed it)
+        // This likely means the user's session has been revoked
+        if (error.response?.status === 401) {
+          console.log('[API] 401 received, clearing auth state');
+          store.dispatch(clearAuth());
         }
 
         return Promise.reject(error);

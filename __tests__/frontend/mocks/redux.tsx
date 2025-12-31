@@ -9,10 +9,11 @@ import { Provider } from 'react-redux';
 // Mock initial states
 export const mockAuthState = {
   user: null,
-  token: null,
+  firebaseUser: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  authProvider: null as 'email' | 'google' | 'apple' | null,
 };
 
 export const mockChildrenState = {

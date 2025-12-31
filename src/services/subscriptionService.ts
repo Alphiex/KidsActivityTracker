@@ -75,6 +75,7 @@ interface CurrentSubscriptionResponse {
     favoritesCount: number;
     sharedUsersCount: number;
     savedSearchesCount: number;
+    waitlistCount: number;
   };
   isTrialing: boolean;
   trialDaysRemaining: number | null;
