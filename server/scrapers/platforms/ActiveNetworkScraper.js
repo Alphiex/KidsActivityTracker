@@ -1722,10 +1722,34 @@ class ActiveNetworkScraper extends BaseScraper {
       schedule: 'schedule',
       cost: 'cost',
       registrationUrl: 'registrationUrl',
-      locationName: 'locationName',
-      dates: 'dates',
-      dateStart: 'dateStart',
-      dateEnd: 'dateEnd',
+      locationName: { path: 'locationName', transform: (val, raw) => val || raw?.location },
+      dates: { path: 'dates', transform: (val, raw) => {
+        if (val) return val;
+        // Extract dates from rawText if not set (e.g., "January 6, 2026 to March 10, 2026")
+        if (raw?.rawText) {
+          const dateMatch = raw.rawText.match(/([A-Za-z]+\s+\d{1,2},?\s*\d{4})\s*to\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4})/i);
+          if (dateMatch) return `${dateMatch[1]} to ${dateMatch[2]}`;
+        }
+        return null;
+      }},
+      dateStart: { path: 'dateStart', transform: (val, raw) => {
+        if (val) return val;
+        // Extract start date from rawText
+        if (raw?.rawText) {
+          const dateMatch = raw.rawText.match(/([A-Za-z]+\s+\d{1,2},?\s*\d{4})\s*to/i);
+          if (dateMatch) return dateMatch[1];
+        }
+        return null;
+      }},
+      dateEnd: { path: 'dateEnd', transform: (val, raw) => {
+        if (val) return val;
+        // Extract end date from rawText
+        if (raw?.rawText) {
+          const dateMatch = raw.rawText.match(/to\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4})/i);
+          if (dateMatch) return dateMatch[1];
+        }
+        return null;
+      }},
       ageMin: { path: 'ageMin', transform: (val, raw) => val || raw?.ageRange?.min },
       ageMax: { path: 'ageMax', transform: (val, raw) => val || raw?.ageRange?.max },
       registrationStatus: { path: 'registrationStatus', transform: (val, raw) => val || raw?.availability || 'Unknown' },
@@ -1734,9 +1758,36 @@ class ActiveNetworkScraper extends BaseScraper {
       latitude: 'latitude',
       longitude: 'longitude',
       fullAddress: 'fullAddress',
-      dayOfWeek: 'dayOfWeek',
-      startTime: 'startTime',
-      endTime: 'endTime',
+      dayOfWeek: { path: 'dayOfWeek', transform: (val, raw) => {
+        if (val && val.length > 0) return val;
+        // Extract day of week from schedule if not set
+        if (raw?.schedule) {
+          const dayMatch = raw.schedule.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
+          if (dayMatch) {
+            const dayMap = { 'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday', 'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday', 'Sun': 'Sunday' };
+            return [dayMap[dayMatch[1]] || dayMatch[1]];
+          }
+        }
+        return [];
+      }},
+      startTime: { path: 'startTime', transform: (val, raw) => {
+        if (val) return val;
+        // Extract start time from schedule if not set (e.g., "Tue 7:00 PM - 7:30 PM")
+        if (raw?.schedule) {
+          const timeMatch = raw.schedule.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))\s*[-–]\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+          if (timeMatch) return timeMatch[1];
+        }
+        return null;
+      }},
+      endTime: { path: 'endTime', transform: (val, raw) => {
+        if (val) return val;
+        // Extract end time from schedule if not set
+        if (raw?.schedule) {
+          const timeMatch = raw.schedule.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))\s*[-–]\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+          if (timeMatch) return timeMatch[2];
+        }
+        return null;
+      }},
       instructor: 'instructor',
       sessionCount: 'sessionCount',
       hasMultipleSessions: 'hasMultipleSessions',
