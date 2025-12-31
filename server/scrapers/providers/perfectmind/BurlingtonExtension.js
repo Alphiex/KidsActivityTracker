@@ -51,7 +51,7 @@ class BurlingtonExtension extends CategoryBoxExtension {
   // Age filtering during extraction handles the rest
 
   getWaitTime() {
-    return 10000;
+    return 15000;  // Increased from 10000 for better widget loading
   }
 
   getTimeout() {

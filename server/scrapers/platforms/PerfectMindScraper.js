@@ -1526,7 +1526,84 @@ class PerfectMindScraper extends BaseScraper {
                   }
                 }
 
-                // PRIORITY 2 (fallback): JSON data - often only has first session date
+                // PRIORITY 2: Extract from SESSION TABLE (Peterborough, Halifax, Prince George style)
+                // These sites show individual session dates in a table, not a range
+                // Format: YYYY-MM-DD (Peterborough), DD-Mon-YYYY (Halifax), M/DD/YY (Prince George)
+                if (!data.dateStartStr || !data.dateEndStr) {
+                  // Extract YYYY-MM-DD format dates (Peterborough style)
+                  const isoDateMatches = pageText.match(/\b(\d{4})-(\d{2})-(\d{2})\b/g);
+                  if (isoDateMatches && isoDateMatches.length >= 1) {
+                    // Sort dates and take first and last
+                    const sortedDates = isoDateMatches.sort();
+                    data.dateStartStr = sortedDates[0];
+                    data.dateEndStr = sortedDates[sortedDates.length - 1];
+                  }
+                }
+
+                if (!data.dateStartStr || !data.dateEndStr) {
+                  // Extract M/DD/YY format dates from session table (Prince George style)
+                  // Pattern: "2/09/26", "3/11/26" in session table rows
+                  // Must be in Course Dates section to avoid false matches
+                  const courseDatesSection = pageText.match(/Course Dates[\s\S]*?(?=About this Course|Course ID|$)/i);
+                  if (courseDatesSection) {
+                    const mddyyMatches = courseDatesSection[0].match(/\b(\d{1,2})\/(\d{2})\/(\d{2})\b/g);
+                    if (mddyyMatches && mddyyMatches.length >= 1) {
+                      // Parse and sort dates
+                      const parsedDates = mddyyMatches.map(d => {
+                        const parts = d.match(/(\d{1,2})\/(\d{2})\/(\d{2})/);
+                        if (parts) {
+                          const month = parseInt(parts[1]) - 1;
+                          const day = parseInt(parts[2]);
+                          const year = 2000 + parseInt(parts[3]); // Convert 26 to 2026
+                          return { date: new Date(year, month, day), str: d };
+                        }
+                        return null;
+                      }).filter(d => d !== null);
+
+                      if (parsedDates.length >= 1) {
+                        parsedDates.sort((a, b) => a.date - b.date);
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const startDate = parsedDates[0].date;
+                        const endDate = parsedDates[parsedDates.length - 1].date;
+                        data.dateStartStr = `${monthNames[startDate.getMonth()]} ${startDate.getDate()}, ${startDate.getFullYear()}`;
+                        data.dateEndStr = `${monthNames[endDate.getMonth()]} ${endDate.getDate()}, ${endDate.getFullYear()}`;
+                      }
+                    }
+                  }
+                }
+
+                if (!data.dateStartStr || !data.dateEndStr) {
+                  // Extract DD-Mon-YYYY format dates from session table (Halifax style)
+                  // Pattern: "06-Jan-2026" in session table rows
+                  const ddMonYYYYTableMatches = pageText.match(/\b(\d{1,2})-([A-Z][a-z]{2})-(\d{4})\b/gi);
+                  if (ddMonYYYYTableMatches && ddMonYYYYTableMatches.length >= 1) {
+                    // Parse and sort dates to find range
+                    const monthMap = { 'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+                                       'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11 };
+                    const parsedDates = ddMonYYYYTableMatches.map(d => {
+                      const parts = d.match(/(\d{1,2})-([A-Z][a-z]{2})-(\d{4})/i);
+                      if (parts) {
+                        const day = parseInt(parts[1]);
+                        const month = monthMap[parts[2].toLowerCase()];
+                        const year = parseInt(parts[3]);
+                        return { date: new Date(year, month, day), str: d };
+                      }
+                      return null;
+                    }).filter(d => d !== null);
+
+                    if (parsedDates.length >= 1) {
+                      parsedDates.sort((a, b) => a.date - b.date);
+                      // Convert to standard format for parsing
+                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      const startDate = parsedDates[0].date;
+                      const endDate = parsedDates[parsedDates.length - 1].date;
+                      data.dateStartStr = `${monthNames[startDate.getMonth()]} ${startDate.getDate()}, ${startDate.getFullYear()}`;
+                      data.dateEndStr = `${monthNames[endDate.getMonth()]} ${endDate.getDate()}, ${endDate.getFullYear()}`;
+                    }
+                  }
+                }
+
+                // PRIORITY 3 (fallback): JSON data - often only has first session date
                 // Only use if we couldn't extract from visible text
                 if (!data.dateStartStr || !data.dateEndStr) {
                   const startDateMatch = pageHtml.match(/["']StartDate["']\s*:\s*["'](\d{4}-\d{2}-\d{2})/i);

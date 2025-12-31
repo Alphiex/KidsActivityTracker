@@ -38,6 +38,7 @@ class WebTracScraper extends BaseScraper {
       'Youth Rec': 'Youth Recreation',
       'Preschool Rec': 'Preschool Recreation',
       'Family': 'Family Recreation',
+      'Family Fun': 'Family Fun',
       'Arts Culture Recreation': 'Arts, Culture & Recreation',
       'Lifesaving Society': 'Lifesaving Society',
       'Stroke Improvement': 'Stroke Improvement'

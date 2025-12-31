@@ -103,34 +103,66 @@ class ScraperOrchestrator {
         this.updateSummary(results.summary, result);
       }
     } else {
-      // Group by platform and run in parallel batches
-      const byPlatform = this.groupByPlatform(providers);
+      // Separate long-running scrapers (>30 min estimated) from quick ones
+      const longRunningCodes = ['vancouver', 'toronto', 'hamilton', 'vernon', 'ottawa', 'burnaby', 'north-vancouver', 'surrey'];
+      const longRunning = providers.filter(p =>
+        (p.metadata?.estimatedDuration && p.metadata.estimatedDuration > 30) ||
+        longRunningCodes.includes(p.code)
+      );
+      const quickRunning = providers.filter(p => !longRunning.includes(p));
 
-      for (const [platform, platformProviders] of Object.entries(byPlatform)) {
-        console.log(`\n--- Processing ${platform.toUpperCase()} providers (${platformProviders.length}) ---`);
+      console.log(`\n--- Long-running scrapers (${longRunning.length}): ${longRunning.map(p => p.code).join(', ')} ---`);
+      console.log(`--- Quick scrapers (${quickRunning.length}) ---\n`);
 
-        // Run platform providers in parallel (with concurrency limit)
-        // Increased to 3 for better parallelization with 1000+ activities
-        const batchSize = 3;
-        for (let i = 0; i < platformProviders.length; i += batchSize) {
-          const batch = platformProviders.slice(i, i + batchSize);
-          const batchPromises = batch.map(p => this.runSingle(p.code, { dryRun }));
-          const batchResults = await Promise.allSettled(batchPromises);
+      // Start all long-running scrapers in parallel immediately
+      const longPromises = longRunning.map(p => {
+        console.log(`[PARALLEL] Starting long-running scraper: ${p.code}`);
+        return this.runSingle(p.code, { dryRun }).then(result => ({ provider: p, result }));
+      });
 
-          batchResults.forEach((result, idx) => {
-            if (result.status === 'fulfilled') {
-              results.providers.push(result.value);
-              this.updateSummary(results.summary, result.value);
-            } else {
-              results.providers.push({
-                provider: batch[idx].code,
-                success: false,
-                error: result.reason?.message || 'Unknown error'
-              });
-              results.summary.failed++;
-            }
-          });
-        }
+      // Run quick scrapers in batches of 5 while long ones are running
+      const quickBatchSize = 5;
+      for (let i = 0; i < quickRunning.length; i += quickBatchSize) {
+        const batch = quickRunning.slice(i, i + quickBatchSize);
+        console.log(`\n--- Processing quick batch ${Math.floor(i / quickBatchSize) + 1} (${batch.length} providers) ---`);
+
+        const batchPromises = batch.map(p => this.runSingle(p.code, { dryRun }));
+        const batchResults = await Promise.allSettled(batchPromises);
+
+        batchResults.forEach((result, idx) => {
+          if (result.status === 'fulfilled') {
+            results.providers.push(result.value);
+            this.updateSummary(results.summary, result.value);
+          } else {
+            results.providers.push({
+              provider: batch[idx].code,
+              success: false,
+              error: result.reason?.message || 'Unknown error'
+            });
+            results.summary.failed++;
+          }
+        });
+      }
+
+      // Wait for all long-running scrapers to complete
+      if (longPromises.length > 0) {
+        console.log(`\n--- Waiting for ${longPromises.length} long-running scrapers to complete ---`);
+        const longResults = await Promise.allSettled(longPromises);
+
+        longResults.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            results.providers.push(result.value.result);
+            this.updateSummary(results.summary, result.value.result);
+            console.log(`[PARALLEL] Completed: ${result.value.provider.code}`);
+          } else {
+            results.providers.push({
+              provider: 'unknown',
+              success: false,
+              error: result.reason?.message || 'Unknown error'
+            });
+            results.summary.failed++;
+          }
+        });
       }
     }
 
