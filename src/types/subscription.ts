@@ -14,6 +14,7 @@ export interface PlanFeatures {
   maxChildren: number;
   maxFavorites: number;
   maxSharedUsers: number;
+  maxWaitlistItems: number;
   hasAdvancedFilters: boolean;
   hasCalendarExport: boolean;
   hasInstantAlerts: boolean;
@@ -54,6 +55,7 @@ export interface SubscriptionUsage {
   favoritesCount: number;
   sharedUsersCount: number;
   savedSearchesCount: number;
+  waitlistCount: number;
 }
 
 /**
@@ -113,4 +115,4 @@ export type FeatureName =
 /**
  * Resource names for limit checks
  */
-export type ResourceName = 'children' | 'favorites' | 'shares' | 'saved-searches';
+export type ResourceName = 'children' | 'favorites' | 'shares' | 'saved-searches' | 'waitlist';

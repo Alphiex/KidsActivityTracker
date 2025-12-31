@@ -22,8 +22,10 @@ import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
+import WaitlistService from '../services/waitlistService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import useFavoriteSubscription from '../hooks/useFavoriteSubscription';
+import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import { AIRecommendButton } from '../components/ai';
 import LinearGradient from 'react-native-linear-gradient';
@@ -38,9 +40,12 @@ const DashboardScreenModern = () => {
   const [activityTypes, setActivityTypes] = useState<any[]>([]);
   const [ageGroups, setAgeGroups] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [waitlistCount, setWaitlistCount] = useState(0);
+  const [waitlistAvailableCount, setWaitlistAvailableCount] = useState(0);
   const [scrollY] = useState(new Animated.Value(0));
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
+  const waitlistService = WaitlistService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
   const isInitialMount = useRef(true);
 
@@ -53,6 +58,17 @@ const DashboardScreenModern = () => {
     favoritesCount,
     favoritesLimit,
   } = useFavoriteSubscription();
+
+  // Subscription-aware waitlist
+  const {
+    canAddToWaitlist,
+    onWaitlistLimitReached,
+    showUpgradeModal: showWaitlistUpgradeModal,
+    hideUpgradeModal: hideWaitlistUpgradeModal,
+    waitlistCount: subscriptionWaitlistCount,
+    waitlistLimit,
+    syncWaitlistCount,
+  } = useWaitlistSubscription();
 
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -88,6 +104,7 @@ const DashboardScreenModern = () => {
   useEffect(() => {
     loadDashboardData();
     loadFavorites();
+    loadWaitlistCount();
   }, []);
 
   const loadFavorites = () => {
@@ -97,6 +114,16 @@ const DashboardScreenModern = () => {
       setFavoriteIds(ids);
     } catch (error) {
       console.error('Error loading favorites:', error);
+    }
+  };
+
+  const loadWaitlistCount = async () => {
+    try {
+      await waitlistService.getWaitlist(true); // Force refresh
+      setWaitlistCount(waitlistService.getWaitlistCount());
+      setWaitlistAvailableCount(waitlistService.getAvailableCount());
+    } catch (error) {
+      console.error('Error loading waitlist count:', error);
     }
   };
 
@@ -662,7 +689,7 @@ const DashboardScreenModern = () => {
         <View style={styles.cardImageContainer}>
           <Image source={imageSource} style={styles.cardImage} />
 
-          {/* Action buttons row - favorites, share, calendar */}
+          {/* Action buttons row - favorites, waitlist, share, calendar */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={styles.actionButton}
@@ -675,6 +702,26 @@ const DashboardScreenModern = () => {
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={16}
                 color={isFavorite ? "#FF385C" : "#FFF"}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={async (e) => {
+                e.stopPropagation();
+                const isOnWaitlist = waitlistService.isOnWaitlist(activity.id);
+                if (!isOnWaitlist && !canAddToWaitlist) {
+                  onWaitlistLimitReached();
+                  return;
+                }
+                await waitlistService.toggleWaitlist(activity);
+                syncWaitlistCount();
+                loadWaitlistCount();
+              }}
+            >
+              <Icon
+                name={waitlistService.isOnWaitlist(activity.id) ? "bell-ring" : "bell-outline"}
+                size={16}
+                color={waitlistService.isOnWaitlist(activity.id) ? "#FFB800" : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
@@ -838,6 +885,32 @@ const DashboardScreenModern = () => {
             </View>
           </LinearGradient>
         </TouchableOpacity>
+
+        {/* Waiting List Banner - only shown when user has items on waitlist */}
+        {waitlistCount > 0 && (
+          <TouchableOpacity
+            style={styles.waitlistBanner}
+            onPress={() => navigation.navigate('WaitingList')}
+          >
+            <View style={styles.waitlistBannerContent}>
+              <View style={styles.waitlistBannerLeft}>
+                <Icon name="bell-ring" size={24} color="#FFB800" />
+                <View style={styles.waitlistBannerText}>
+                  <Text style={styles.waitlistBannerTitle}>
+                    Your Waiting List
+                    {waitlistAvailableCount > 0 && (
+                      <Text style={styles.waitlistBannerAvailable}> • {waitlistAvailableCount} available!</Text>
+                    )}
+                  </Text>
+                  <Text style={styles.waitlistBannerSubtitle}>
+                    {waitlistCount} {waitlistCount === 1 ? 'activity' : 'activities'} being monitored
+                  </Text>
+                </View>
+              </View>
+              <Icon name="chevron-right" size={20} color="#222" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Recommended Activities Section */}
         <View style={styles.section}>
@@ -1012,6 +1085,15 @@ const DashboardScreenModern = () => {
         currentCount={favoritesCount}
         limit={favoritesLimit}
       />
+
+      {/* Upgrade Modal for waitlist limit */}
+      <UpgradePromptModal
+        visible={showWaitlistUpgradeModal}
+        feature="waitlist"
+        onClose={hideWaitlistUpgradeModal}
+        currentCount={subscriptionWaitlistCount}
+        limit={waitlistLimit}
+      />
     </SafeAreaView>
   );
 };
@@ -1098,6 +1180,48 @@ const styles = StyleSheet.create({
   aiBannerSubtitle: {
     color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 13,
+  },
+  waitlistBanner: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    borderRadius: 16,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#FFB800',
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  waitlistBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  waitlistBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  waitlistBannerText: {
+    flex: 1,
+  },
+  waitlistBannerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 2,
+  },
+  waitlistBannerAvailable: {
+    color: '#22C55E',
+    fontWeight: '700',
+  },
+  waitlistBannerSubtitle: {
+    fontSize: 13,
+    color: '#717171',
   },
   section: {
     marginBottom: 30,

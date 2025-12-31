@@ -1789,6 +1789,13 @@ class ActiveNetworkScraper extends BaseScraper {
                   }
                 }
 
+                // === COURSE ID / ACTIVITY NUMBER ===
+                // ActiveNet shows activity number like "#124026" near the season/session name
+                const courseIdMatch = pageText.match(/#(\d{5,10})/);
+                if (courseIdMatch) {
+                  data.courseId = courseIdMatch[1];
+                }
+
                 // === LOCATION/FACILITY ===
                 // ActiveNet shows location in format: "2026 Community Centre - Winter - 2026 Winter Strathcona|#586453"
                 // Extract the community centre name (last part before |#)
@@ -2101,6 +2108,8 @@ class ActiveNetworkScraper extends BaseScraper {
               // Merge detail data with activity
               return {
                 ...activity,
+                // Course ID (numeric activity number from detail page)
+                courseId: detailData.courseId || activity.courseId,
                 // Dates
                 dateStart: startDate,
                 dateEnd: endDate,

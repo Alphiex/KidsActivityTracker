@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Animated,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,6 +18,7 @@ import Slider from '@react-native-community/slider';
 import ActivityService from '../services/activityService';
 import aiService from '../services/aiService';
 import { ActivitySearchParams } from '../types/api';
+import { ActivitySearchFilters } from '../types/ai';
 import { useTheme } from '../contexts/ThemeContext';
 import { API_CONFIG } from '../config/api';
 import { AIRecommendButton } from '../components/ai';
@@ -65,6 +67,12 @@ const SearchScreen = () => {
   const [activityTypes, setActivityTypes] = useState<any[]>([]);
   const [loadingActivityTypes, setLoadingActivityTypes] = useState(false);
   
+  // NL parsing state
+  const [isNLQuery, setIsNLQuery] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parsedFilters, setParsedFilters] = useState<Partial<ActivitySearchFilters> | null>(null);
+  const [parseConfidence, setParseConfidence] = useState(0);
+  
   // UI state
   const [expandedSection, setExpandedSection] = useState<string | null>('what');
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -80,6 +88,35 @@ const SearchScreen = () => {
     // Load activity types
     loadActivityTypes();
   }, []);
+
+  // Debounced NL detection and parsing
+  useEffect(() => {
+    const detectNL = aiService.isNaturalLanguageQuery(searchText);
+    setIsNLQuery(detectNL);
+
+    // Auto-parse if NL detected
+    if (detectNL && searchText.length >= 20) {
+      const parseTimeout = setTimeout(async () => {
+        setIsParsing(true);
+        try {
+          const result = await aiService.parseSearch(searchText);
+          if (result.success) {
+            setParsedFilters(result.parsed_filters);
+            setParseConfidence(result.confidence);
+          }
+        } catch (error) {
+          console.error('Parse error:', error);
+        } finally {
+          setIsParsing(false);
+        }
+      }, 800); // Debounce 800ms
+
+      return () => clearTimeout(parseTimeout);
+    } else {
+      setParsedFilters(null);
+      setParseConfidence(0);
+    }
+  }, [searchText]);
 
   const loadActivityTypes = async () => {
     try {
@@ -168,6 +205,107 @@ const SearchScreen = () => {
     setSelectedCities([]);
     setMinAge(0);
     setMaxAge(18);
+    setParsedFilters(null);
+    setParseConfidence(0);
+  };
+
+  /**
+   * Apply parsed filters to the form fields
+   */
+  const applyParsedFilters = () => {
+    if (!parsedFilters) return;
+
+    // Apply search term
+    if (parsedFilters.search) {
+      setSearchText(parsedFilters.search);
+    }
+
+    // Apply age
+    if (parsedFilters.ageMin !== undefined) {
+      setMinAge(parsedFilters.ageMin);
+    }
+    if (parsedFilters.ageMax !== undefined) {
+      setMaxAge(parsedFilters.ageMax);
+    }
+
+    // Apply days
+    if (parsedFilters.dayOfWeek && parsedFilters.dayOfWeek.length > 0) {
+      setSelectedDays(parsedFilters.dayOfWeek);
+    }
+
+    // Apply location
+    if (parsedFilters.location) {
+      const matchingCity = POPULAR_CITIES.find(
+        city => city.toLowerCase() === parsedFilters.location?.toLowerCase()
+      );
+      if (matchingCity) {
+        setSelectedCities([matchingCity]);
+      }
+    }
+
+    // Apply cost
+    if (parsedFilters.costMax !== undefined) {
+      setMaxCost(parsedFilters.costMax);
+      setIsUnlimitedCost(false);
+    }
+
+    // Clear parsed state after applying
+    setParsedFilters(null);
+    setParseConfidence(0);
+  };
+
+  /**
+   * Render parsed filter chips
+   */
+  const renderParsedFilters = () => {
+    if (!parsedFilters || Object.keys(parsedFilters).length === 0) return null;
+
+    const chips: { label: string; key: string }[] = [];
+
+    if (parsedFilters.search) {
+      chips.push({ label: `"${parsedFilters.search}"`, key: 'search' });
+    }
+    if (parsedFilters.ageMin !== undefined || parsedFilters.ageMax !== undefined) {
+      const min = parsedFilters.ageMin ?? 0;
+      const max = parsedFilters.ageMax ?? 18;
+      chips.push({ label: `Ages ${min}-${max}`, key: 'age' });
+    }
+    if (parsedFilters.dayOfWeek && parsedFilters.dayOfWeek.length > 0) {
+      chips.push({ label: parsedFilters.dayOfWeek.join(', '), key: 'days' });
+    }
+    if (parsedFilters.location) {
+      chips.push({ label: parsedFilters.location, key: 'location' });
+    }
+    if (parsedFilters.costMax !== undefined) {
+      chips.push({ label: `Under $${parsedFilters.costMax}`, key: 'cost' });
+    }
+
+    if (chips.length === 0) return null;
+
+    return (
+      <View style={styles.parsedFiltersContainer}>
+        <View style={styles.parsedFiltersHeader}>
+          <View style={styles.parsedFiltersLabel}>
+            <Icon name="robot" size={16} color="#6B46C1" />
+            <Text style={styles.parsedFiltersText}>AI detected filters:</Text>
+          </View>
+          <Text style={styles.confidenceText}>
+            {Math.round(parseConfidence * 100)}% confident
+          </Text>
+        </View>
+        <View style={styles.parsedChipsContainer}>
+          {chips.map(chip => (
+            <View key={chip.key} style={styles.parsedChip}>
+              <Text style={styles.parsedChipText}>{chip.label}</Text>
+            </View>
+          ))}
+        </View>
+        <TouchableOpacity style={styles.applyParsedButton} onPress={applyParsedFilters}>
+          <Icon name="check" size={16} color="#FFFFFF" />
+          <Text style={styles.applyParsedButtonText}>Apply These Filters</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   const handleSearch = async () => {
@@ -327,14 +465,34 @@ const SearchScreen = () => {
               'What?',
               'magnify',
               <View style={styles.textInputContainer}>
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search activities..."
-                  placeholderTextColor="#999999"
-                  value={searchText}
-                  onChangeText={setSearchText}
-                  autoFocus={expandedSection === 'what'}
-                />
+                <View style={styles.searchInputWrapper}>
+                  <TextInput
+                    style={[
+                      styles.searchInput,
+                      isNLQuery && styles.searchInputNL
+                    ]}
+                    placeholder="Search activities or try: 'swimming for my 5 year old on Saturdays'"
+                    placeholderTextColor="#999999"
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    autoFocus={expandedSection === 'what'}
+                    multiline={isNLQuery}
+                  />
+                  {isParsing && (
+                    <View style={styles.parsingIndicator}>
+                      <ActivityIndicator size="small" color="#6B46C1" />
+                    </View>
+                  )}
+                </View>
+                {isNLQuery && !isParsing && (
+                  <View style={styles.nlIndicator}>
+                    <Icon name="robot" size={14} color="#6B46C1" />
+                    <Text style={styles.nlIndicatorText}>
+                      Natural language detected - AI will parse your request
+                    </Text>
+                  </View>
+                )}
+                {renderParsedFilters()}
               </View>
             )}
 
@@ -734,6 +892,9 @@ const styles = StyleSheet.create({
   textInputContainer: {
     marginTop: 10,
   },
+  searchInputWrapper: {
+    position: 'relative',
+  },
   searchInput: {
     fontSize: 16,
     color: '#222222',
@@ -742,6 +903,92 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  searchInputNL: {
+    borderColor: '#6B46C1',
+    borderWidth: 2,
+    minHeight: 60,
+  },
+  parsingIndicator: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -10,
+  },
+  nlIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  nlIndicatorText: {
+    fontSize: 12,
+    color: '#6B46C1',
+    marginLeft: 4,
+  },
+  parsedFiltersContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  parsedFiltersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  parsedFiltersLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  parsedFiltersText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B46C1',
+    marginLeft: 6,
+  },
+  confidenceText: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  parsedChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  parsedChip: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  parsedChipText: {
+    fontSize: 13,
+    color: '#5B21B6',
+    fontWeight: '500',
+  },
+  applyParsedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6B46C1',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    gap: 6,
+  },
+  applyParsedButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   daysContainer: {
     flexDirection: 'row',

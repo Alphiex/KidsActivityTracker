@@ -22,7 +22,10 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchActivityChildren } from '../../store/slices/childActivitiesSlice';
 import ActivityService from '../../services/activityService';
 import FavoritesService from '../../services/favoritesService';
+import WaitlistService from '../../services/waitlistService';
 import childrenService from '../../services/childrenService';
+import useWaitlistSubscription from '../../hooks/useWaitlistSubscription';
+import UpgradePromptModal from '../../components/UpgradePromptModal';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
 import AssignActivityToChildModal from '../../components/activities/AssignActivityToChildModal';
@@ -41,8 +44,21 @@ const ActivityDetailScreenModern = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const favoritesService = FavoritesService.getInstance();
+  const waitlistService = WaitlistService.getInstance();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isOnWaitlist, setIsOnWaitlist] = useState(false);
   const [isAssignedToCalendar, setIsAssignedToCalendar] = useState(false);
+
+  // Subscription-aware waitlist
+  const {
+    canAddToWaitlist,
+    onWaitlistLimitReached,
+    showUpgradeModal: showWaitlistUpgradeModal,
+    hideUpgradeModal: hideWaitlistUpgradeModal,
+    waitlistCount,
+    waitlistLimit,
+    syncWaitlistCount,
+  } = useWaitlistSubscription();
   const [loading, setLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showChildAssignModal, setShowChildAssignModal] = useState(false);
@@ -107,6 +123,7 @@ const ActivityDetailScreenModern = () => {
 
   useEffect(() => {
     setIsFavorite(favoritesService.isFavorite(activity.id));
+    setIsOnWaitlist(waitlistService.isOnWaitlist(activity.id));
     dispatch(fetchActivityChildren(activity.id));
 
     // Check if activity is assigned to any child
@@ -174,6 +191,29 @@ const ActivityDetailScreenModern = () => {
       favoritesService.addFavorite(activity);
     } else {
       favoritesService.removeFavorite(activity.id);
+    }
+  };
+
+  const handleToggleWaitlist = async () => {
+    if (!user) return;
+
+    // Check subscription limit when trying to add
+    if (!isOnWaitlist && !canAddToWaitlist) {
+      onWaitlistLimitReached();
+      return;
+    }
+
+    const newWaitlistState = !isOnWaitlist;
+    setIsOnWaitlist(newWaitlistState); // Optimistic update
+
+    const result = await waitlistService.toggleWaitlist(activity);
+    if (!result.success) {
+      // Revert on failure
+      setIsOnWaitlist(!newWaitlistState);
+      Alert.alert('Error', result.message || 'Failed to update waitlist');
+    } else {
+      // Sync count after successful change
+      syncWaitlistCount();
     }
   };
 
@@ -416,6 +456,9 @@ const ActivityDetailScreenModern = () => {
                     <Icon name="calendar-check" size={22} color="#FFF" />
                   </View>
                 )}
+                <TouchableOpacity style={styles.headerButton} onPress={handleToggleWaitlist}>
+                  <Icon name={isOnWaitlist ? 'bell-ring' : 'bell-outline'} size={22} color={isOnWaitlist ? '#FFB800' : '#000'} />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.headerButton} onPress={handleToggleFavorite}>
                   <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#FF385C' : '#000'} />
                 </TouchableOpacity>
@@ -457,6 +500,29 @@ const ActivityDetailScreenModern = () => {
             >
               <Icon name="share-variant" size={18} color={ModernColors.primary} />
               <Text style={styles.secondaryButtonText}>Share via Email</Text>
+            </TouchableOpacity>
+
+            {/* Waitlist Button - prominent when activity is full */}
+            <TouchableOpacity
+              style={[
+                styles.secondaryButton,
+                isOnWaitlist && styles.waitlistActiveButton,
+                activity.spotsAvailable === 0 && !isOnWaitlist && styles.waitlistPromptButton,
+              ]}
+              onPress={handleToggleWaitlist}
+            >
+              <Icon
+                name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
+                size={18}
+                color={isOnWaitlist ? '#FFB800' : activity.spotsAvailable === 0 ? '#FFFFFF' : ModernColors.primary}
+              />
+              <Text style={[
+                styles.secondaryButtonText,
+                isOnWaitlist && styles.waitlistActiveButtonText,
+                activity.spotsAvailable === 0 && !isOnWaitlist && styles.waitlistPromptButtonText,
+              ]}>
+                {isOnWaitlist ? 'On Waiting List' : activity.spotsAvailable === 0 ? 'Join Waiting List' : 'Notify When Available'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -759,6 +825,15 @@ const ActivityDetailScreenModern = () => {
           }}
         />
       )}
+
+      {/* Upgrade Modal for waitlist limit */}
+      <UpgradePromptModal
+        visible={showWaitlistUpgradeModal}
+        feature="waitlist"
+        onClose={hideWaitlistUpgradeModal}
+        currentCount={waitlistCount}
+        limit={waitlistLimit}
+      />
     </SafeAreaView>
   );
 };
@@ -1141,6 +1216,22 @@ const styles = StyleSheet.create({
     color: ModernColors.primary,
     fontWeight: '500',
     marginLeft: ModernSpacing.sm,
+  },
+  waitlistActiveButton: {
+    backgroundColor: '#FFB800' + '20',
+    borderColor: '#FFB800',
+    marginTop: ModernSpacing.sm,
+  },
+  waitlistActiveButtonText: {
+    color: '#B38600',
+  },
+  waitlistPromptButton: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#F59E0B',
+    marginTop: ModernSpacing.sm,
+  },
+  waitlistPromptButtonText: {
+    color: '#FFFFFF',
   },
 });
 

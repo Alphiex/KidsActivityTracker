@@ -877,7 +877,8 @@ class PerfectMindScraper extends BaseScraper {
           if (!courseId) {
             const link = row.querySelector('a[href*="courseId"]');
             if (link) {
-              const match = link.href.match(/courseId=(\d+)/);
+              // Match both numeric courseId and GUID format (e.g., courseId=e75c6fbf-6aa2-4afc-...)
+              const match = link.href.match(/courseId=([a-f0-9-]+|\d+)/i);
               if (match) courseId = match[1];
             }
           }
@@ -1432,27 +1433,28 @@ class PerfectMindScraper extends BaseScraper {
                 if (endDateMatch) data.dateEndStr = endDateMatch[1];
 
                 // Also look for visible date ranges "Jan 6, 2026 - Mar 24, 2026"
+                // IMPORTANT: Run fallback if EITHER dateStartStr OR dateEndStr is missing
                 const dateRangeMatch = pageText.match(/([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})\s*(?:to|-)\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i);
-                if (dateRangeMatch && !data.dateStartStr) {
-                  data.dateStartStr = dateRangeMatch[1];
-                  data.dateEndStr = dateRangeMatch[2];
+                if (dateRangeMatch && (!data.dateStartStr || !data.dateEndStr)) {
+                  if (!data.dateStartStr) data.dateStartStr = dateRangeMatch[1];
+                  if (!data.dateEndStr) data.dateEndStr = dateRangeMatch[2];
                 }
 
                 // DD-Mon-YYYY format (e.g., "06-Jan-2026 - 29-Jan-2026") used by Surrey, etc.
-                if (!data.dateStartStr) {
+                if (!data.dateStartStr || !data.dateEndStr) {
                   const ddMonYYYYMatch = pageText.match(/(\d{1,2})-([A-Z][a-z]{2})-(\d{4})\s*[-–—]\s*(\d{1,2})-([A-Z][a-z]{2})-(\d{4})/i);
                   if (ddMonYYYYMatch) {
-                    data.dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
-                    data.dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+                    if (!data.dateStartStr) data.dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
+                    if (!data.dateEndStr) data.dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
                   }
                 }
 
                 // Also try MM/DD/YY format commonly used by PerfectMind (e.g., "11/02/25 - 12/14/25")
-                if (!data.dateStartStr) {
+                if (!data.dateStartStr || !data.dateEndStr) {
                   const mmddyyMatch = pageText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/);
                   if (mmddyyMatch) {
-                    data.dateStartStr = mmddyyMatch[1];
-                    data.dateEndStr = mmddyyMatch[2];
+                    if (!data.dateStartStr) data.dateStartStr = mmddyyMatch[1];
+                    if (!data.dateEndStr) data.dateEndStr = mmddyyMatch[2];
                   }
                 }
 
@@ -1634,6 +1636,13 @@ class PerfectMindScraper extends BaseScraper {
                   data.instructor = instructorMatch[1].trim();
                 }
 
+                // === COURSE ID ===
+                // Extract numeric course ID from visible text (e.g., "Course ID 00469927")
+                const courseIdTextMatch = pageText.match(/Course\s*ID\s*[:\s]*(\d{5,10})/i);
+                if (courseIdTextMatch) {
+                  data.courseId = courseIdTextMatch[1];
+                }
+
                 // === SESSIONS ===
                 const sessionsMatch = pageHtml.match(/["']NumberOfSessions["']\s*:\s*(\d+)/i) ||
                                       pageText.match(/(\d+)\s*sessions?/i);
@@ -1701,6 +1710,8 @@ class PerfectMindScraper extends BaseScraper {
                 index,
                 result: {
                   ...activity,
+                  // Course ID (numeric ID from detail page overrides GUID from URL)
+                  courseId: detailData.courseId || activity.courseId,
                   // Location
                   latitude: detailData.latitude || activity.latitude,
                   longitude: detailData.longitude || activity.longitude,

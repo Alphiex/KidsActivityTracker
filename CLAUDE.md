@@ -87,10 +87,11 @@ npm run typecheck   # Check for TypeScript errors
 - Database: PostgreSQL on Google Cloud SQL
 
 ## Coverage Statistics (December 2025)
-- **100,000+** activities from **79 cities** across **10 provinces**
-- **11 scraper platforms**: PerfectMind (35), ActiveNetwork (29), Amilia (3), IC3 (2), others
-- **30 critical cities** scraped 3x daily, **43 standard** daily, **5 low** weekly
-- Top cities: Vancouver (10k), Ottawa (7.4k), NVRC (7.4k), Burnaby (6.6k), Toronto (4.8k)
+- **112,000+** activities from **81 cities** across **8 provinces**
+- **79 active providers** with **3,980 locations**
+- **Province breakdown**: BC (33 cities), ON (33 cities), AB (5), QC (5), SK (2), MB (1), NL (1), NS (1)
+- **Scraper platforms**: PerfectMind, ActiveNetwork, Amilia, IC3, and others
+- **Scraping schedule**: Critical cities 3x daily, standard daily, low-priority weekly
 
 ## Scripts Reference
 
@@ -144,6 +145,9 @@ KidsActivityTracker/
 │   ├── src/                # TypeScript source
 │   ├── prisma/             # Database schema
 │   └── scrapers/           # Web scrapers
+│       ├── platforms/      # Platform-specific scrapers
+│       ├── configs/        # Provider configurations
+│       └── validation/     # Claude Vision validation system
 ├── ios/                    # iOS native code
 ├── android/                # Android native code
 ├── scripts/                # All project scripts
@@ -151,7 +155,7 @@ KidsActivityTracker/
 │   ├── deployment/         # Deploy scripts
 │   ├── database/           # Database scripts
 │   └── development/        # Dev utilities
-├── docs/                   # Documentation (10 files)
+├── docs/                   # Documentation (20+ files)
 ├── config/                 # Configuration files
 ├── __tests__/              # Test files
 └── assets/                 # Static assets
@@ -160,5 +164,23 @@ KidsActivityTracker/
 ## Key Active Files
 - Dashboard: `src/screens/DashboardScreenModern.tsx`
 - Calendar: `src/screens/CalendarScreenModernFixed.tsx`
-- Activity Card: `src/components/modern/ActivityCard.tsx`
+- Activity Card: `src/components/ActivityCard.tsx`
 - API Service: `src/services/api.ts`
+- Onboarding: `src/screens/onboarding/` (ActivityTypes, Age, Location screens)
+- Favorites: `src/services/favoritesService.ts`
+- Preferences: `src/services/preferencesService.ts`
+
+## Scraper Validation System
+The project includes a Claude Vision-based validation system for verifying scraped data:
+```bash
+node server/scrapers/scripts/runValidation.js --provider=vancouver --sample=5
+```
+- `server/scrapers/validation/` - Validation components
+- Captures screenshots, extracts data via Claude Vision, compares with scraped data
+- Generates HTML reports with discrepancy analysis
+
+## Database Maintenance Scripts
+```bash
+node server/scripts/maintenance/fix-city-provinces.js  # Fix city/province data
+node server/scripts/maintenance/normalize-locations.js # Consolidate locations
+```

@@ -15,6 +15,7 @@ This guide covers setting up the Kids Activity Tracker development environment.
 | CocoaPods | Latest | iOS dependency management |
 | Android Studio | Latest | Android development (optional) |
 | Git | Latest | Version control |
+| Java | OpenJDK 17 | Android builds |
 
 ### Recommended Tools
 
@@ -31,29 +32,27 @@ git clone https://github.com/your-org/KidsActivityTracker.git
 cd KidsActivityTracker
 ```
 
-### 2. Install Frontend Dependencies
+### 2. Install All Dependencies
 
 ```bash
+# Install frontend, backend, and iOS dependencies
+npm install && cd server && npm install && cd ../ios && pod install && cd ..
+```
+
+Or install separately:
+
+```bash
+# Frontend dependencies
 npm install
+
+# Backend dependencies
+cd server && npm install && cd ..
+
+# iOS dependencies
+cd ios && pod install && cd ..
 ```
 
-### 3. Install Backend Dependencies
-
-```bash
-cd server
-npm install
-cd ..
-```
-
-### 4. Install iOS Dependencies
-
-```bash
-cd ios
-pod install
-cd ..
-```
-
-### 5. Environment Configuration
+### 3. Environment Configuration
 
 Create environment files:
 
@@ -81,7 +80,7 @@ PORT=3000
 NODE_ENV=development
 ```
 
-### 6. Database Setup
+### 4. Database Setup
 
 ```bash
 # Create database
@@ -138,6 +137,26 @@ npx react-native run-ios --udid="A8661E75-FE3E-483F-8F13-AC87110E8EE2"
 | iPhone 16 | 6558E69E-75D4-4088-B42B-DBD7F5FDFAFA |
 | iPhone 16 Plus | 86E8B2CB-2E1B-4621-9A20-78549BDFB0F9 |
 
+### Run Android App
+
+```bash
+# Set environment variables (or add to shell profile)
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+export ANDROID_SDK_ROOT=/opt/homebrew/share/android-commandlinetools
+
+# Start emulator (if not running)
+$ANDROID_SDK_ROOT/emulator/emulator -avd Pixel_7_API_34 &
+
+# Run app
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 npx react-native run-android
+```
+
+### Available Android Emulators
+
+| Device | AVD Name |
+|--------|----------|
+| Pixel 7 API 34 (Primary) | Pixel_7_API_34 |
+
 ## Development Workflow
 
 ### Code Quality Checks
@@ -193,44 +212,59 @@ KidsActivityTracker/
 │   │   ├── modern/             # Modern UI components
 │   │   ├── calendar/           # Calendar components
 │   │   └── HierarchicalSelect/ # Location picker
-│   ├── screens/                # Screen components
+│   ├── screens/                # Screen components (50+)
 │   │   ├── DashboardScreenModern.tsx
 │   │   ├── CalendarScreenModernFixed.tsx
+│   │   ├── FeaturedPartnersScreen.tsx
 │   │   ├── FiltersScreen.tsx
+│   │   ├── onboarding/         # Onboarding flow screens
+│   │   │   ├── OnboardingActivityTypesScreen.tsx
+│   │   │   ├── OnboardingAgeScreen.tsx
+│   │   │   └── OnboardingLocationScreen.tsx
 │   │   └── ...
 │   ├── services/               # API & business logic
 │   │   ├── api.ts              # API client
 │   │   ├── authService.ts
+│   │   ├── favoritesService.ts
+│   │   ├── revenueCatService.ts
 │   │   └── preferencesService.ts
 │   ├── store/                  # Redux store
 │   │   ├── slices/             # Redux slices
 │   │   └── store.ts
 │   ├── types/                  # TypeScript definitions
 │   ├── navigation/             # React Navigation setup
+│   │   └── OnboardingNavigator.tsx
 │   └── theme/                  # Design tokens
+│       └── modernTheme.ts
 │
 ├── server/                     # Backend server
 │   ├── src/
 │   │   ├── routes/             # API routes
 │   │   ├── services/           # Business logic
 │   │   ├── middleware/         # Auth, rate limiting
+│   │   ├── ai/                 # AI recommendation system
 │   │   ├── utils/              # Utilities
 │   │   └── server.ts           # Express app
 │   ├── scrapers/
 │   │   ├── platforms/          # Scraper implementations
-│   │   └── configs/providers/  # City configurations
+│   │   ├── validation/         # Claude Vision validation
+│   │   └── configs/providers/  # City configurations (80 files)
+│   ├── scripts/maintenance/    # Data maintenance scripts
 │   └── prisma/
-│       ├── schema.prisma       # Database schema
+│       ├── schema.prisma       # Database schema (35+ tables)
 │       └── migrations/         # Migration history
 │
 ├── scripts/
 │   ├── ios/                    # iOS scripts
+│   │   └── run-simulator.sh
 │   ├── deployment/             # Deploy scripts
-│   └── database/               # DB utilities
+│   ├── database/               # DB utilities
+│   └── maintenance/            # Data maintenance
 │
 ├── ios/                        # iOS native code
 ├── android/                    # Android native code
-└── docs/                       # Documentation
+├── docs/                       # Documentation (20+ files)
+└── CLAUDE.md                   # AI assistant instructions
 ```
 
 ## Common Development Tasks
@@ -258,7 +292,17 @@ KidsActivityTracker/
 
 1. Create config file in `server/scrapers/configs/providers/`
 2. Ensure scraper platform exists for the website type
-3. Test locally before deploying
+3. Test locally: `node scrapers/scripts/runSingleScraper.js --provider=cityname`
+4. Run validation: `node scrapers/scripts/runValidation.js --provider=cityname`
+
+### Fixing City/Province Data
+
+If locations have incorrect province associations:
+
+```bash
+# Run the maintenance script
+node server/scripts/maintenance/fix-city-provinces.js
+```
 
 ## Debugging
 
@@ -297,6 +341,12 @@ npx react-native start --reset-cache
 cd ios && pod install --repo-update && cd ..
 ```
 
+**Android build issues**:
+```bash
+# Clear gradle cache
+cd android && ./gradlew clean && cd ..
+```
+
 **Database connection issues**:
 ```bash
 # Verify PostgreSQL is running
@@ -307,3 +357,11 @@ pg_isready
 ```bash
 cd server && npx prisma generate
 ```
+
+**MMKV errors on Android**:
+MMKV is lazily initialized on Android. If you see JSI timing issues, ensure MMKV.initialize() is called early in App.tsx.
+
+---
+
+**Document Version**: 5.1
+**Last Updated**: December 2025

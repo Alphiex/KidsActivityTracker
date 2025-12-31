@@ -24,7 +24,8 @@ export type UpgradeFeature =
   | 'filters'
   | 'calendar'
   | 'alerts'
-  | 'savedSearches';
+  | 'savedSearches'
+  | 'waitlist';
 
 interface FeatureConfig {
   icon: string;
@@ -76,6 +77,12 @@ const FEATURE_CONFIGS: Record<UpgradeFeature, FeatureConfig> = {
     message: 'Saving search presets is a Premium feature.',
     benefit: 'Save up to 10 search presets with Premium',
   },
+  waitlist: {
+    icon: 'bell-ring',
+    title: 'Waiting List Limit Reached',
+    message: "You've reached the maximum of 4 waiting list items on the free plan.",
+    benefit: 'Monitor unlimited activities with Premium',
+  },
 };
 
 interface UpgradePromptModalProps {
@@ -126,6 +133,9 @@ const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({
       }
       if (feature === 'sharing') {
         return `You're sharing with ${currentCount} of ${limit} allowed. Upgrade to share with more.`;
+      }
+      if (feature === 'waitlist') {
+        return `You have ${currentCount} of ${limit} waiting list items. Upgrade for unlimited.`;
       }
     }
     return config.message;

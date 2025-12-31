@@ -7,28 +7,32 @@ Automated web scraping system for collecting activity data from recreation cente
 | | |
 |---|---|
 | **Cloud Run Job** | `kids-activity-scraper-job` |
-| **Schedule** | Daily at 6:00 AM UTC |
+| **Schedule** | Tiered (3x daily, daily, weekly) |
 | **Region** | us-central1 |
 | **Timeout** | 30 minutes |
 | **Memory** | 2GB |
-| **Platforms** | 9 scraper types |
-| **Cities** | 43 supported |
+| **Platforms** | 11 scraper types |
+| **Providers** | 80 active |
+| **Cities** | 81 supported |
+| **Activities** | 117,700+ |
 
 ## Scraper Platforms
 
-The system supports 9 different recreation website platforms:
+The system supports 11 different recreation website platforms:
 
 | Platform | File | Used By |
 |----------|------|---------|
-| PerfectMind | `PerfectMindScraper.js` | NVRC, Richmond, Coquitlam, many BC cities |
-| ActiveNetwork | `ActiveNetworkScraper.js` | Toronto, Vancouver |
+| PerfectMind | `PerfectMindScraper.js` | NVRC, Richmond, Coquitlam, many BC/ON cities |
+| ActiveNetwork | `ActiveNetworkScraper.js` | Toronto, Vancouver, Ottawa, Mississauga |
 | REGPROG | `REGPROGScraper.js` | Calgary (Live and Play) |
-| COE | `COEScraper.js` | Community online enrollment systems |
-| FullCalendar | `FullCalendarScraper.js` | Calendar-based registrations |
-| WebTrac | `WebTracScraper.js` | WebTrac platforms |
-| IC3 | `IC3Scraper.js` | IC3 booking systems |
-| Intelligentz | `IntelligenzScraper.js` | Intelligentz platforms |
-| LiveAndPlay | `LiveAndPlayScraper.js` | Live and Play systems |
+| COE | `COEScraper.js` | Edmonton |
+| FullCalendar | `FullCalendarScraper.js` | Lions Bay |
+| WebTrac | `WebTracScraper.js` | Saskatoon |
+| IC3 | `IC3Scraper.js` | Montreal, Gatineau |
+| Intelligenz | `IntelligenzScraper.js` | Kelowna, Oshawa, Pitt Meadows |
+| Amilia | `AmiliaScraper.js` | Quebec City, Laval, Dorval |
+| LooknBook | `LooknBookScraper.js` | Red Deer, Strathcona County |
+| Qidigo | `QidigoScraper.js` | Sherbrooke |
 
 ## Architecture
 
@@ -44,23 +48,35 @@ server/scrapers/
 ├── platforms/
 │   ├── PerfectMindScraper.js       # PerfectMind implementation
 │   ├── ActiveNetworkScraper.js     # ActiveNetwork implementation
+│   ├── AmiliaScraper.js            # Amilia implementation
 │   ├── REGPROGScraper.js           # REGPROG implementation
 │   ├── COEScraper.js               # COE implementation
+│   ├── IC3Scraper.js               # IC3 implementation
+│   ├── IntelligenzScraper.js       # Intelligenz implementation
+│   ├── LooknBookScraper.js         # LooknBook implementation
 │   └── ...                         # Other platforms
+├── validation/
+│   ├── ValidationRunner.js         # Orchestrates validation
+│   ├── ScreenshotCapture.js        # Puppeteer screenshot
+│   ├── ClaudeVisionExtractor.js    # Claude Vision API
+│   ├── DataComparator.js           # Compare scraped vs visible
+│   ├── ReportGenerator.js          # HTML report output
+│   └── prompts/                    # Vision extraction prompts
 ├── utils/
 │   ├── stableIdGenerator.js        # External ID generation (IMPORTANT)
 │   ├── KidsActivityFilter.js       # Age-based filtering
 │   └── activityTypeParser.js       # Category parsing
 ├── configs/
-│   └── providers/                  # Provider configurations (79 files)
+│   └── providers/                  # Provider configurations (80 files)
 │       ├── vancouver.json
-│       ├── calgary.json
 │       ├── toronto.json
+│       ├── calgary.json
 │       └── ...
 ├── scripts/
 │   ├── runAllScrapers.js           # Run all providers
 │   ├── runByTier.js                # Run by schedule tier
-│   └── runSingleScraper.js         # Run single provider
+│   ├── runSingleScraper.js         # Run single provider
+│   └── runValidation.js            # Run validation check
 └── scraperJob.js                   # Cloud Run entry point
 ```
 
@@ -79,6 +95,64 @@ class BaseScraper {
   }
 }
 ```
+
+## Claude Vision Validation System
+
+The validation system uses Claude Vision to verify scraped data against what's actually visible on recreation websites. This helps detect scraping errors without relying on brittle CSS selectors.
+
+### How It Works
+
+```
+1. Capture Screenshot
+   ├── Navigate to activity page
+   ├── Wait for content to load
+   └── Capture full-page screenshot
+
+2. Claude Vision Extraction
+   ├── Send screenshot to Claude Vision API
+   ├── Use structured prompts for extraction
+   └── Return visible activity data as JSON
+
+3. Comparison
+   ├── Match activities by name/ID
+   ├── Compare field by field
+   └── Calculate discrepancy score
+
+4. Report Generation
+   ├── Generate HTML report
+   ├── Highlight discrepancies
+   └── Include recommendations
+```
+
+### Running Validation
+
+```bash
+# Validate specific provider with sample
+node server/scrapers/scripts/runValidation.js --provider=vancouver --sample=5
+
+# Validate all active providers
+node server/scrapers/scripts/runValidation.js --all
+
+# Validate specific activity
+node server/scrapers/scripts/runValidation.js --provider=vancouver --activityId=abc123
+```
+
+### Validation Output
+
+Reports are generated at `server/scrapers/validation/reports/`:
+
+- `vancouver-validation-2024-12-30.html` - HTML report with visual diff
+- `vancouver-validation-2024-12-30.json` - Raw comparison data
+
+### Discrepancy Types
+
+| Type | Severity | Description |
+|------|----------|-------------|
+| Missing Field | Warning | Scraped data missing visible field |
+| Wrong Value | Error | Field value doesn't match visible |
+| Extra Field | Info | Scraped field not visible on page |
+| Date Mismatch | Error | Start/end date incorrect |
+| Price Mismatch | Error | Cost differs from visible |
 
 ## Scraping Lifecycle
 
@@ -137,6 +211,25 @@ if (existing) {
 
 Activities not seen during scrape remain `isActive: false` and won't appear in search results.
 
+## Scraping Schedule
+
+### Tier 1: High Volume (3x Daily)
+Scraped at 7:00 AM, 1:00 PM, 7:00 PM local time
+
+- Toronto, Vancouver, Ottawa
+- North Vancouver, Burnaby, Mississauga
+- Surrey, Brampton, Edmonton
+
+### Tier 2: Standard (Daily)
+Scraped at 6:00 AM local time
+
+- All providers with 100+ activities
+
+### Tier 3: Low Priority (Weekly)
+Scraped on Sundays
+
+- Providers with fewer than 100 activities
+
 ## Provider Configuration
 
 Each provider has a JSON config file:
@@ -164,9 +257,8 @@ Each provider has a JSON config file:
     "retries": 3
   },
   "schedule": {
-    "tier": "critical",
-    "frequency": "3x-daily",
-    "times": ["07:00", "13:00", "19:00"],
+    "tier": "standard",
+    "frequency": "daily",
     "timezone": "America/Edmonton"
   },
   "metadata": {
@@ -187,7 +279,7 @@ Each provider has a JSON config file:
 | `scraperConfig.entryPoints` | Starting URLs/paths |
 | `scraperConfig.rateLimit` | Request throttling |
 | `scraperConfig.timeout` | Page load timeout (ms) |
-| `schedule.tier` | `critical` (3x daily) or `standard` (daily) |
+| `schedule.tier` | `critical` (3x daily), `standard` (daily), or `low` (weekly) |
 
 ## Rate Limiting
 
@@ -306,41 +398,6 @@ const badHash = hash(name + location + cost);
 const goodHash = hash(name + location);
 ```
 
-### Example: Good ID Generation
-
-```javascript
-// 1. Try native ID first
-let externalId = activity.courseId || activity.activityId;
-
-// 2. Try URL extraction
-if (!externalId && activity.registrationUrl) {
-  const match = activity.registrationUrl.match(/courseId=(\d+)/);
-  if (match) externalId = match[1];
-}
-
-// 3. Stable hash fallback (name + location ONLY)
-if (!externalId) {
-  const key = (activity.name + '-' + activity.locationName)
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .substring(0, 24);
-  externalId = `provider-${key}`;
-}
-```
-
-### Example: Bad ID Generation (AVOID)
-
-```javascript
-// NEVER DO THIS - creates duplicates on every scrape!
-externalId: `activity-${index}-${Date.now()}`
-
-// NEVER DO THIS - changes when price changes!
-externalId: hash(name + location + cost + dates)
-
-// NEVER DO THIS - random = always new activity!
-externalId: `activity-${Math.random().toString(36)}`
-```
-
 ## Manual Execution
 
 ### Run Scraper Manually
@@ -364,7 +421,15 @@ gcloud run jobs executions logs \
 
 ```bash
 cd server
-node scrapers/scraperJob.js --provider=vancouver
+
+# Run single provider
+node scrapers/scripts/runSingleScraper.js --provider=vancouver
+
+# Run all scrapers
+node scrapers/scripts/runAllScrapers.js
+
+# Run by tier
+node scrapers/scripts/runByTier.js --tier=critical
 ```
 
 ## Monitoring & Metrics
@@ -408,7 +473,8 @@ node scrapers/scraperJob.js --provider=vancouver
    - **NEVER** use `Date.now()`, `Math.random()`, or volatile fields
 5. **Test locally**: Run with `--provider=cityname`
 6. **Verify ID stability**: Run scraper twice, ensure no duplicate activities created
-7. **Deploy**: Config auto-loads on next scraper run
+7. **Run validation**: `node scrapers/scripts/runValidation.js --provider=cityname`
+8. **Deploy**: Config auto-loads on next scraper run
 
 ### New Scraper Checklist
 
@@ -418,6 +484,7 @@ node scrapers/scraperJob.js --provider=vancouver
 - [ ] Does NOT include cost, dates, or times in hash
 - [ ] Running scraper twice produces same activity count (no duplicates)
 - [ ] Changes to activity fields are logged as UPDATES, not NEW
+- [ ] Validation report shows < 5% discrepancy rate
 
 ## Troubleshooting
 
@@ -430,6 +497,7 @@ node scrapers/scraperJob.js --provider=vancouver
 **Missing activities**
 - Verify `entryPoints` are correct
 - Check if website structure changed
+- Run validation to compare
 
 **Rate limit errors (429)**
 - Reduce `requestsPerMinute`
@@ -439,18 +507,24 @@ node scrapers/scraperJob.js --provider=vancouver
 - Reduce `concurrentRequests`
 - Increase memory allocation
 
+**High validation discrepancy**
+- Check if selectors need updating
+- Verify website hasn't changed layout
+- Compare with Claude Vision extraction
+
 ### Debug Mode
 
 ```bash
 # Run with debug logging
-DEBUG=scraper:* node scrapers/scraperJob.js --provider=vancouver
+DEBUG=scraper:* node scrapers/scripts/runSingleScraper.js --provider=vancouver
 ```
 
 ---
 
-**Document Version**: 5.0
+**Document Version**: 6.0
 **Last Updated**: December 2025
 
 ### Changelog
+- v6.0: Added Claude Vision validation system documentation
 - v5.0: Added External ID Generation section with guidelines for stable IDs
 - v4.0: Initial comprehensive documentation

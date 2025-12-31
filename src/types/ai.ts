@@ -80,3 +80,85 @@ export interface AIHealthStatus {
  * Source badge display type
  */
 export type AISourceType = 'cache' | 'heuristic' | 'llm';
+
+/**
+ * Response from parse-search endpoint
+ */
+export interface ParseSearchResponse {
+  success: boolean;
+  parsed_filters: Partial<ActivitySearchFilters>;
+  confidence: number;
+  detected_intent: string;
+  error?: string;
+}
+
+/**
+ * Activity explanation for a specific child
+ */
+export interface ActivityExplanation {
+  summary: string;
+  benefits: {
+    category: 'Physical' | 'Social' | 'Cognitive' | 'Creative' | 'Emotional';
+    description: string;
+  }[];
+  age_appropriateness: string;
+  match_score: number;
+}
+
+/**
+ * Response from explain endpoint
+ */
+export interface ExplainActivityResponse {
+  success: boolean;
+  explanations: Record<string, ActivityExplanation>;
+  error?: string;
+}
+
+/**
+ * Weekly schedule entry
+ */
+export interface ScheduleEntry {
+  child_id: string;
+  child_name?: string;
+  activity_id: string;
+  activity_name: string;
+  day: string;
+  time: string;
+  location: string;
+  duration_minutes?: number;
+}
+
+/**
+ * Schedule conflict
+ */
+export interface ScheduleConflict {
+  type: 'time_overlap' | 'travel_distance' | 'back_to_back';
+  description: string;
+  affected_entries: string[];
+}
+
+/**
+ * Weekly schedule
+ */
+export interface WeeklySchedule {
+  week_start: string;
+  entries: Record<string, ScheduleEntry[]>;
+  conflicts: ScheduleConflict[];
+  suggestions: string[];
+  total_cost?: number;
+  total_activities: number;
+}
+
+/**
+ * Response from plan-week endpoint
+ */
+export interface WeeklyScheduleResponse {
+  success: boolean;
+  schedule: WeeklySchedule | null;
+  error?: string;
+}
+
+/**
+ * Multi-child optimization mode
+ */
+export type MultiChildMode = 'together' | 'parallel' | 'any';

@@ -2,7 +2,6 @@ import Redis from 'ioredis';
 import { PrismaClient } from '../../../generated/prisma';
 import { EnhancedActivityService } from '../../services/activityService.enhanced';
 import { AICacheService } from '../cache/cacheService';
-import { invokeRecommendationChain } from '../chains/recommendationChain';
 import { getModelByTier } from '../models/chatModels';
 import { selectModel } from './modelRouter';
 import { compressActivities } from '../utils/contextCompressor';
@@ -18,15 +17,26 @@ import {
 } from '../types/ai.types';
 import { AIResponse } from '../schemas/recommendation.schema';
 
+// LangGraph imports
+import { 
+  executeAIGraph, 
+  AIGraphStateType,
+  AIRequestType,
+  ActivityExplanation,
+  WeeklySchedule,
+  MultiChildMode
+} from '../graph';
+
 /**
  * AI Orchestrator - Main decision engine for AI features
+ * 
+ * Now backed by LangGraph for multi-agent orchestration.
+ * Provides backwards-compatible API while leveraging graph-based execution.
  * 
  * Responsibilities:
  * - Check cache before calling LLM
  * - Enforce daily budget limits
- * - Select appropriate model tier
- * - Pre-filter candidates in DB
- * - Compress context for LLM
+ * - Route requests through LangGraph
  * - Validate and sanitize responses
  * - Provide heuristic fallback when needed
  */
@@ -42,7 +52,7 @@ export class AIOrchestrator {
   }
 
   /**
-   * Get AI-powered recommendations
+   * Get AI-powered recommendations (backwards compatible)
    */
   async getRecommendations(request: AIRecommendationRequest): Promise<AIResponseWithMeta> {
     const startTime = Date.now();
@@ -68,92 +78,86 @@ export class AIOrchestrator {
         return this.getHeuristicRecommendations(request, startTime);
       }
 
-      // 4. Build family context FIRST to get user preferences
+      // 4. Build family context for graph
       const familyContext = request.family_context ||
         await this.buildFamilyContextForRequest(request);
 
-      // 5. Merge user preferences into filters for candidate search
-      const mergedFilters = this.mergePreferencesIntoFilters(request.filters, familyContext);
+      // 5. Determine request type based on content
+      let requestType: AIRequestType = 'recommend';
       
-      console.log('[AI Orchestrator] Merged filters:', {
-        originalFilters: request.filters,
-        hasLocation: !!mergedFilters.location || !!mergedFilters.locations,
-        location: mergedFilters.location,
-        ageMin: mergedFilters.ageMin,
-        ageMax: mergedFilters.ageMax,
-        categories: mergedFilters.categories
-      });
-
-      // 6. Pre-filter candidates in DB (no LLM cost)
-      const candidates = await this.activityService.searchActivities({
-        ...mergedFilters,
-        limit: 100, // Get more than we need for ranking
-        hideClosedOrFull: true
-      });
-
-      console.log(`[AI Orchestrator] Found ${candidates.activities?.length || 0} candidates`);
-
-      // 7. If simple query with few results, skip LLM
-      if (this.isSimpleQuery(request) && (candidates.activities?.length || 0) < 20) {
-        console.log('[AI Orchestrator] Simple query with few results, using heuristic');
-        return this.getHeuristicRecommendations(request, startTime, candidates.activities, familyContext);
+      // Detect multi-child mode
+      const multiChildMode = (request as any).multi_child_mode as MultiChildMode | undefined;
+      if (multiChildMode || familyContext.children.length > 1) {
+        requestType = 'multi_child';
       }
 
-      // 8. Compress context for LLM
-      const compressed = compressActivities(
-        candidates.activities || [],
-        parseInt(process.env.AI_MAX_CANDIDATES || '30')
-      );
-
-      if (compressed.length === 0) {
-        return {
-          recommendations: [],
-          assumptions: ['No activities found matching your criteria. Check your location preferences.'],
-          questions: [],
-          source: 'heuristic',
-          latency_ms: Date.now() - startTime
-        };
-      }
-
-      // 8. Select model tier
+      // 6. Select model tier
       const modelSelection = selectModel(request);
-      const model = getModelByTier(modelSelection.tier);
+      
+      console.log(`[AI Orchestrator] Executing LangGraph with type: ${requestType}, model: ${modelSelection.model}`);
 
-      console.log(`[AI Orchestrator] Using model: ${modelSelection.model} (${modelSelection.reason})`);
+      // 7. Execute LangGraph
+      const graphResult = await executeAIGraph({
+        request_id: `req_${Date.now()}`,
+        request_type: requestType,
+        search_intent: request.search_intent,
+        raw_query: request.search_intent,
+        user_id: request.user_id,
+        parsed_filters: request.filters,
+        family_context: familyContext,
+        multi_child_mode: multiChildMode,
+        model_tier: modelSelection.tier,
+      });
 
-      // 9. Invoke LangChain chain
-      const result = await invokeRecommendationChain(
-        model,
-        request.search_intent,
-        compressed,
-        familyContext
-      );
+      // 8. Handle errors from graph
+      if (graphResult.errors && graphResult.errors.length > 0) {
+        console.warn('[AI Orchestrator] Graph errors:', graphResult.errors);
+      }
 
-      // 10. Validate and enforce sponsorship policy
-      const validated = validateAndSanitize(result, compressed);
-
-      // 11. Build activities map (include full data to avoid client fetching each activity)
+      // 9. Build activities map from candidates
       const activitiesMap: Record<string, any> = {};
-      const recommendedIds = new Set(validated.recommendations.map(r => r.activity_id));
-      for (const activity of (candidates.activities || [])) {
-        if (recommendedIds.has(activity.id)) {
+      const recommendedIds = new Set(
+        (graphResult.recommendations || []).map(r => r.activity_id)
+      );
+      
+      // Fetch full activity data for recommended activities
+      if (recommendedIds.size > 0) {
+        const activities = await this.prisma.activity.findMany({
+          where: { id: { in: Array.from(recommendedIds) } },
+          include: {
+            activityType: true,
+            location: true,
+            provider: true,
+          }
+        });
+        for (const activity of activities) {
           activitiesMap[activity.id] = activity;
         }
       }
 
-      // 12. Build response with metadata
-      const response: AIResponseWithMeta = {
+      // 10. Build response for validation (AIResponse without meta)
+      const responseForValidation: AIResponse = {
+        recommendations: graphResult.recommendations || [],
+        assumptions: [],
+        questions: [],
+      };
+
+      // 11. Validate and enforce sponsorship policy
+      const validated = validateAndSanitize(responseForValidation, graphResult.candidate_activities || []);
+
+      // 12. Build full response with metadata
+      const fullResponse: AIResponseWithMeta = {
         ...validated,
         activities: activitiesMap,
-        source: 'llm',
-        model_used: modelSelection.model,
+        source: graphResult.source || 'llm',
+        model_used: graphResult.model_used,
         latency_ms: Date.now() - startTime
       };
 
       // 13. Cache result
-      await this.cache.setCachedRecommendations(cacheKey, response);
+      await this.cache.setCachedRecommendations(cacheKey, fullResponse);
 
-      return response;
+      return fullResponse;
 
     } catch (error: any) {
       console.error('[AI Orchestrator] Error:', error.message);
@@ -164,19 +168,78 @@ export class AIOrchestrator {
   }
 
   /**
-   * Check if query is simple enough to skip LLM
+   * Parse natural language query into structured filters
    */
-  private isSimpleQuery(request: AIRecommendationRequest): boolean {
-    const intent = request.search_intent || '';
-    
-    // Simple if: no natural language intent or very short
-    if (!intent || intent.length < 10) return true;
-    
-    // Simple if: just filter keywords
-    const filterKeywords = ['near me', 'nearby', 'this week', 'this weekend'];
-    const lowercaseIntent = intent.toLowerCase();
-    
-    return filterKeywords.some(kw => lowercaseIntent === kw);
+  async parseSearch(query: string): Promise<{
+    parsed_filters: any;
+    confidence: number;
+    detected_intent: string;
+  }> {
+    const result = await executeAIGraph({
+      request_id: `parse_${Date.now()}`,
+      request_type: 'parse',
+      raw_query: query,
+      search_intent: query,
+    });
+
+    return {
+      parsed_filters: result.parsed_filters || {},
+      confidence: result.errors?.length ? 0.5 : 0.9,
+      detected_intent: result.search_intent || query,
+    };
+  }
+
+  /**
+   * Get activity explanations for children
+   */
+  async explainActivity(
+    activityId: string,
+    userId?: string,
+    childIds?: string[]
+  ): Promise<Record<string, ActivityExplanation>> {
+    // Build family context if user is logged in
+    let familyContext: FamilyContext | undefined;
+    if (userId) {
+      familyContext = await buildFamilyContext(userId, this.prisma);
+    }
+
+    const result = await executeAIGraph({
+      request_id: `explain_${Date.now()}`,
+      request_type: 'explain',
+      activity_id: activityId,
+      user_id: userId,
+      selected_child_ids: childIds,
+      family_context: familyContext,
+    });
+
+    return result.explanations || {};
+  }
+
+  /**
+   * Generate weekly schedule for family
+   */
+  async planWeek(
+    weekStart: string,
+    userId: string,
+    constraints?: {
+      max_activities_per_child?: number;
+      avoid_back_to_back?: boolean;
+      max_travel_between_activities_km?: number;
+    }
+  ): Promise<WeeklySchedule | null> {
+    // Build family context
+    const familyContext = await buildFamilyContext(userId, this.prisma);
+
+    const result = await executeAIGraph({
+      request_id: `plan_${Date.now()}`,
+      request_type: 'plan',
+      user_id: userId,
+      family_context: familyContext,
+      search_intent: `Plan week starting ${weekStart}`,
+      parsed_filters: constraints as any,
+    });
+
+    return result.weekly_schedule || null;
   }
 
   /**
@@ -198,63 +261,6 @@ export class AIOrchestrator {
   }
 
   /**
-   * Merge user preferences from family context into search filters
-   * User preferences are used as defaults, but explicit filters take priority
-   */
-  private mergePreferencesIntoFilters(
-    filters: any,
-    familyContext: FamilyContext
-  ): any {
-    const merged = { ...filters };
-    const prefs = familyContext.preferences;
-    const children = familyContext.children;
-
-    // Location: Use family context location if no filter specified
-    if (!merged.location && !merged.locations) {
-      if (familyContext.location?.cities && familyContext.location.cities.length > 0) {
-        merged.locations = familyContext.location.cities;
-        console.log('[AI Orchestrator] Applied user location preferences:', merged.locations);
-      } else if (familyContext.location?.city) {
-        merged.location = familyContext.location.city;
-        console.log('[AI Orchestrator] Applied user location preference:', merged.location);
-      }
-    }
-
-    // Age: Calculate from children if no age filter specified
-    if (merged.ageMin === undefined && merged.ageMax === undefined && children.length > 0) {
-      const ages = children.map(c => c.age);
-      const minAge = Math.min(...ages);
-      const maxAge = Math.max(...ages);
-      // Expand range slightly to include appropriate activities
-      merged.ageMin = Math.max(0, minAge - 1);
-      merged.ageMax = Math.min(18, maxAge + 1);
-      console.log('[AI Orchestrator] Applied child age range:', { ageMin: merged.ageMin, ageMax: merged.ageMax, children: ages });
-    }
-
-    // Activity types: Use preferences if no category filter specified
-    if (!merged.categories && !merged.activityType && prefs.preferred_categories?.length) {
-      // Don't restrict to categories - just use them for ranking in LLM
-      // This allows discovery of new activity types
-      console.log('[AI Orchestrator] User preferred categories (for ranking):', prefs.preferred_categories);
-    }
-
-    // Days of week: Use preferences if no filter specified
-    if (!merged.dayOfWeek && prefs.days_of_week?.length) {
-      merged.dayOfWeek = prefs.days_of_week;
-      console.log('[AI Orchestrator] Applied preferred days:', merged.dayOfWeek);
-    }
-
-    // Budget: Use preferences if no cost filter specified  
-    if (merged.costMax === undefined && prefs.budget_monthly) {
-      // Convert monthly budget to per-activity estimate (assume ~4 activities/month)
-      merged.costMax = Math.round(prefs.budget_monthly / 4);
-      console.log('[AI Orchestrator] Applied budget preference:', merged.costMax);
-    }
-
-    return merged;
-  }
-
-  /**
    * Check daily budget
    */
   private checkDailyBudget(): BudgetCheck {
@@ -263,7 +269,6 @@ export class AIOrchestrator {
 
   /**
    * Generate heuristic recommendations without LLM
-   * Uses simple scoring based on relevance signals
    */
   private async getHeuristicRecommendations(
     request: AIRecommendationRequest,
@@ -307,7 +312,7 @@ export class AIOrchestrator {
       warnings: []
     }));
 
-    // Build activities map (include full data to avoid client fetching each activity)
+    // Build activities map
     const activitiesMap: Record<string, any> = {};
     for (const item of topScored) {
       activitiesMap[item.activity.id] = item.activity;
@@ -324,12 +329,53 @@ export class AIOrchestrator {
   }
 
   /**
+   * Merge user preferences from family context into search filters
+   */
+  private mergePreferencesIntoFilters(
+    filters: any,
+    familyContext: FamilyContext
+  ): any {
+    const merged = { ...filters };
+    const prefs = familyContext.preferences;
+    const children = familyContext.children;
+
+    // Location: Use family context location if no filter specified
+    if (!merged.location && !merged.locations) {
+      if (familyContext.location?.cities && familyContext.location.cities.length > 0) {
+        merged.locations = familyContext.location.cities;
+      } else if (familyContext.location?.city) {
+        merged.location = familyContext.location.city;
+      }
+    }
+
+    // Age: Calculate from children if no age filter specified
+    if (merged.ageMin === undefined && merged.ageMax === undefined && children.length > 0) {
+      const ages = children.map(c => c.age);
+      const minAge = Math.min(...ages);
+      const maxAge = Math.max(...ages);
+      merged.ageMin = Math.max(0, minAge - 1);
+      merged.ageMax = Math.min(18, maxAge + 1);
+    }
+
+    // Days of week: Use preferences if no filter specified
+    if (!merged.dayOfWeek && prefs.days_of_week?.length) {
+      merged.dayOfWeek = prefs.days_of_week;
+    }
+
+    // Budget: Use preferences if no cost filter specified  
+    if (merged.costMax === undefined && prefs.budget_monthly) {
+      merged.costMax = Math.round(prefs.budget_monthly / 4);
+    }
+
+    return merged;
+  }
+
+  /**
    * Calculate a simple score for heuristic ranking
    */
   private calculateHeuristicScore(activity: any, request: AIRecommendationRequest): number {
-    let score = 50; // Base score
+    let score = 50;
     
-    // Age fit
     const targetAge = request.filters.ageMin || request.filters.ageMax;
     if (targetAge) {
       const ageMin = activity.ageMin ?? 0;
@@ -339,28 +385,23 @@ export class AIOrchestrator {
       }
     }
     
-    // Price fit
     if (request.filters.costMax && activity.cost !== null) {
       if (activity.cost <= request.filters.costMax) {
         score += 10;
       }
-      // Bonus for free activities
       if (activity.cost === 0) {
         score += 5;
       }
     }
     
-    // Available spots
     if (activity.spotsAvailable && activity.spotsAvailable > 5) {
       score += 10;
     }
     
-    // Sponsored items get small boost (but capped by policy)
     if (activity.isFeatured) {
       score += 5;
     }
     
-    // Recent/updated activities
     if (activity.updatedAt) {
       const daysSinceUpdate = (Date.now() - new Date(activity.updatedAt).getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceUpdate < 7) {
@@ -377,24 +418,20 @@ export class AIOrchestrator {
   private generateHeuristicReasons(activity: any, request: AIRecommendationRequest): string[] {
     const reasons: string[] = [];
     
-    // Age match
     if (activity.ageMin !== null && activity.ageMax !== null) {
       reasons.push(`Suitable for ages ${activity.ageMin}-${activity.ageMax}`);
     }
     
-    // Price
     if (activity.cost === 0) {
       reasons.push('Free activity');
     } else if (activity.cost && request.filters.costMax && activity.cost <= request.filters.costMax) {
       reasons.push('Within your budget');
     }
     
-    // Availability
     if (activity.spotsAvailable && activity.spotsAvailable > 0) {
       reasons.push(`${activity.spotsAvailable} spots available`);
     }
     
-    // Category match
     if (activity.activityType?.name) {
       reasons.push(`Category: ${activity.activityType.name}`);
     }

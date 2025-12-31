@@ -61,6 +61,7 @@ const DEFAULT_FREE_LIMITS: PlanFeatures = {
   maxChildren: 2,
   maxFavorites: 10,
   maxSharedUsers: 1,
+  maxWaitlistItems: 4,
   hasAdvancedFilters: false,
   hasCalendarExport: false,
   hasInstantAlerts: false,
@@ -366,4 +367,25 @@ export const selectSharesRemaining = (state: { subscription?: SubscriptionState 
   const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
   const usage = state.subscription?.usage;
   return Math.max(0, limits.maxSharedUsers - (usage?.sharedUsersCount || 0));
+};
+
+export const selectCanAddToWaitlist = (state: { subscription?: SubscriptionState }): boolean => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
+  // Unlimited for premium (represented as a high number or -1)
+  if (limits.maxWaitlistItems === -1 || limits.maxWaitlistItems >= 1000) return true;
+  return !usage || (usage.waitlistCount || 0) < limits.maxWaitlistItems;
+};
+
+export const selectWaitlistRemaining = (state: { subscription?: SubscriptionState }): number => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  const usage = state.subscription?.usage;
+  // Unlimited for premium
+  if (limits.maxWaitlistItems === -1 || limits.maxWaitlistItems >= 1000) return 999;
+  return Math.max(0, limits.maxWaitlistItems - (usage?.waitlistCount || 0));
+};
+
+export const selectWaitlistLimit = (state: { subscription?: SubscriptionState }): number => {
+  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
+  return limits.maxWaitlistItems;
 };

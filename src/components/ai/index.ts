@@ -9,3 +9,5 @@ export { default as AIRecommendationCard } from './AIRecommendationCard';
 export { default as AISourceBadge } from './AISourceBadge';
 export { default as AILoadingState } from './AILoadingState';
 export { default as AIErrorState } from './AIErrorState';
+export { ActivityExplanation } from './ActivityExplanation';
+export { MultiChildSelector } from './MultiChildSelector';

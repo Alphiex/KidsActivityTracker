@@ -2,7 +2,12 @@ import apiClient from './apiClient';
 import { 
   AIRecommendationRequest, 
   AIRecommendationResponse, 
-  AIHealthStatus 
+  AIHealthStatus,
+  ParseSearchResponse,
+  ExplainActivityResponse,
+  WeeklyScheduleResponse,
+  ActivityExplanation,
+  WeeklySchedule,
 } from '../types/ai';
 
 /**
@@ -10,8 +15,9 @@ import {
  * 
  * Features:
  * - Get personalized activity recommendations
- * - Natural language search parsing (future)
- * - Weekly schedule planning (future)
+ * - Natural language search parsing
+ * - Activity explanations for children
+ * - Weekly schedule planning
  */
 class AIService {
   private static instance: AIService;
@@ -164,6 +170,147 @@ class AIService {
     return parts.length > 0 
       ? `Find activities ${parts.join(' ')}`
       : 'Find the best activities for my family';
+  }
+
+  /**
+   * Parse natural language search query into structured filters
+   * 
+   * @param query - Natural language query like "swimming for my 5 year old on Saturdays"
+   * @returns Parsed filters and detected intent
+   */
+  async parseSearch(query: string): Promise<ParseSearchResponse> {
+    try {
+      console.log('[AIService] Parsing search query:', query);
+
+      const response = await apiClient.post<ParseSearchResponse>(
+        '/api/v1/ai/parse-search',
+        { query },
+        { timeout: 30000 }
+      );
+
+      console.log('[AIService] Parsed filters:', response.parsed_filters);
+      return response;
+
+    } catch (error: any) {
+      console.error('[AIService] Error parsing search:', error);
+      
+      // Return empty parse result on error
+      return {
+        success: false,
+        parsed_filters: {},
+        confidence: 0,
+        detected_intent: query
+      };
+    }
+  }
+
+  /**
+   * Detect if a query looks like natural language
+   * 
+   * @param query - User input
+   * @returns true if query appears to be natural language
+   */
+  isNaturalLanguageQuery(query: string): boolean {
+    if (!query || query.length < 15) return false;
+    
+    // Patterns that indicate NL search
+    const nlPatterns = [
+      /\bfor\s+my\s+\d+\s*year\s*old\b/i,
+      /\bnear\s+(downtown|me|here)\b/i,
+      /\bon\s+(saturday|sunday|monday|tuesday|wednesday|thursday|friday)s?\b/i,
+      /\bin\s+the\s+(morning|afternoon|evening)s?\b/i,
+      /\blessons?\s+for\b/i,
+      /\bclasses?\s+for\b/i,
+      /\bactivities?\s+for\b/i,
+      /\bfind\s+(me|us)?\b/i,
+      /\blooking\s+for\b/i,
+    ];
+    
+    return nlPatterns.some(pattern => pattern.test(query));
+  }
+
+  /**
+   * Get activity explanations for children
+   * 
+   * @param activityId - Activity to explain
+   * @param childIds - Optional specific children to explain for
+   * @returns Explanations per child with benefits and match scores
+   */
+  async explainActivity(
+    activityId: string, 
+    childIds?: string[]
+  ): Promise<ExplainActivityResponse> {
+    try {
+      console.log('[AIService] Getting explanations for activity:', activityId);
+
+      const response = await apiClient.post<ExplainActivityResponse>(
+        '/api/v1/ai/explain',
+        { 
+          activity_id: activityId,
+          child_ids: childIds
+        },
+        { timeout: 30000 }
+      );
+
+      console.log('[AIService] Got explanations:', Object.keys(response.explanations || {}).length);
+      return response;
+
+    } catch (error: any) {
+      console.error('[AIService] Error getting explanations:', error);
+      return {
+        success: false,
+        explanations: {}
+      };
+    }
+  }
+
+  /**
+   * Generate weekly activity schedule
+   * 
+   * @param weekStart - Start date of the week (ISO string)
+   * @param constraints - Optional scheduling constraints
+   * @returns Optimized weekly schedule
+   */
+  async planWeek(
+    weekStart?: string,
+    constraints?: {
+      max_activities_per_child?: number;
+      avoid_back_to_back?: boolean;
+      max_travel_between_activities_km?: number;
+    }
+  ): Promise<WeeklyScheduleResponse> {
+    try {
+      console.log('[AIService] Planning week starting:', weekStart);
+
+      const response = await apiClient.post<WeeklyScheduleResponse>(
+        '/api/v1/ai/plan-week',
+        { 
+          week_start: weekStart,
+          ...constraints
+        },
+        { timeout: 60000 } // 60 second timeout for complex planning
+      );
+
+      console.log('[AIService] Got schedule:', response.schedule?.total_activities, 'activities');
+      return response;
+
+    } catch (error: any) {
+      console.error('[AIService] Error planning week:', error);
+      
+      if (error?.response?.status === 401) {
+        return {
+          success: false,
+          schedule: null,
+          error: 'Please log in to use weekly planning'
+        };
+      }
+      
+      return {
+        success: false,
+        schedule: null,
+        error: 'Failed to generate weekly schedule'
+      };
+    }
   }
 }
 

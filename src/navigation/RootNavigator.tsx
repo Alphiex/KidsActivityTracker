@@ -50,6 +50,8 @@ import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import AIRecommendationsScreen from '../screens/AIRecommendationsScreen';
+import WeeklyPlannerScreen from '../screens/WeeklyPlannerScreen';
+import WaitingListScreen from '../screens/WaitingListScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -93,6 +95,8 @@ const HomeStack = () => (
     <Stack.Screen name="FeaturedPartners" component={FeaturedPartnersScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
+    <Stack.Screen name="WeeklyPlanner" component={WeeklyPlannerScreen} />
+    <Stack.Screen name="WaitingList" component={WaitingListScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
   </Stack.Navigator>

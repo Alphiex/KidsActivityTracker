@@ -14,6 +14,7 @@ import { Activity } from '../types';
 import { useAppSelector } from '../store';
 import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 import FavoritesService from '../services/favoritesService';
+import WaitlistService from '../services/waitlistService';
 import { fixDayAbbreviations } from '../utils/dayAbbreviations';
 import { Colors, Theme } from '../theme';
 import { getActivityImageByKey } from '../assets/images';
@@ -40,6 +41,11 @@ interface ActivityCardProps {
   onFavoriteLimitReached?: () => void;
   // Custom container style for grid layouts
   containerStyle?: any;
+  // Waitlist support
+  isOnWaitlist?: boolean;
+  onWaitlistPress?: () => void;
+  canAddToWaitlist?: boolean;
+  onWaitlistLimitReached?: () => void;
 }
 
 const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -51,12 +57,23 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   canAddFavorite = true,
   onFavoriteLimitReached,
   containerStyle,
+  isOnWaitlist: externalIsOnWaitlist,
+  onWaitlistPress,
+  canAddToWaitlist = true,
+  onWaitlistLimitReached,
 }) => {
   const favoritesService = FavoritesService.getInstance();
+  const waitlistService = WaitlistService.getInstance();
+
   // Use external state if provided, otherwise manage internally
   const isExternallyControlled = externalIsFavorite !== undefined;
   const [internalIsFavorite, setInternalIsFavorite] = useState(false);
   const isFavorite = isExternallyControlled ? externalIsFavorite : internalIsFavorite;
+
+  // Waitlist state - same pattern as favorites
+  const isWaitlistExternallyControlled = externalIsOnWaitlist !== undefined;
+  const [internalIsOnWaitlist, setInternalIsOnWaitlist] = useState(false);
+  const isOnWaitlist = isWaitlistExternallyControlled ? externalIsOnWaitlist : internalIsOnWaitlist;
 
   const [hasCapacityAlert, setHasCapacityAlert] = useState(false);
   const { colors, isDark } = useTheme();
@@ -67,9 +84,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     if (!isExternallyControlled) {
       setInternalIsFavorite(favoritesService.isFavorite(activity.id));
     }
+    // Set waitlist state if not externally controlled
+    if (!isWaitlistExternallyControlled) {
+      setInternalIsOnWaitlist(waitlistService.isOnWaitlist(activity.id));
+    }
     const alerts = favoritesService.getCapacityAlertsForActivity(activity.id);
     setHasCapacityAlert(alerts.length > 0);
-  }, [activity.id, isExternallyControlled]);
+  }, [activity.id, isExternallyControlled, isWaitlistExternallyControlled]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -295,6 +316,30 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     }
   };
 
+  const handleWaitlistToggle = async () => {
+    // If trying to add (not remove), check subscription limit
+    if (!isOnWaitlist && !canAddToWaitlist) {
+      if (onWaitlistLimitReached) {
+        onWaitlistLimitReached();
+      }
+      return;
+    }
+
+    if (onWaitlistPress) {
+      // Use external handler if provided
+      onWaitlistPress();
+    } else {
+      // Optimistic update
+      setInternalIsOnWaitlist(!internalIsOnWaitlist);
+      // Use internal handler
+      const result = await waitlistService.toggleWaitlist(activity);
+      // Revert if failed
+      if (!result.success) {
+        setInternalIsOnWaitlist(internalIsOnWaitlist);
+      }
+    }
+  };
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.cardBackground }, containerStyle]}
@@ -338,7 +383,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             {activity.cost !== null && activity.cost !== undefined && activity.cost > 0 && <Text style={styles.priceLabel}>per child</Text>}
           </View>
         </View>
-        {/* Action buttons row - favorites, share, calendar */}
+        {/* Action buttons row - favorites, waitlist, share, calendar */}
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity
             onPress={() => {
@@ -370,6 +415,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={18}
               color={isFavorite ? '#FF6B6B' : '#FFF'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={handleWaitlistToggle}>
+            <Icon
+              name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
+              size={18}
+              color={isOnWaitlist ? '#FFB800' : '#FFF'}
             />
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>

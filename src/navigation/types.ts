@@ -5,6 +5,7 @@ export type RootStackParamList = {
   ActivityDetail: { activity: any }; // TODO: Fix Activity type conflict
   Filter: { currentFilter?: Filter };
   Favorites: undefined;
+  WaitingList: undefined;
   Search: undefined;
   Settings: undefined;
   Children: undefined;

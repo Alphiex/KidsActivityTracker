@@ -210,7 +210,14 @@ router.get('/waitlist', verifyToken, async (req: Request, res: Response) => {
           provider: entry.activity.provider?.name,
           location: entry.activity.location?.name,
           spotsAvailable: entry.activity.spotsAvailable,
-          cost: entry.activity.cost
+          totalSpots: entry.activity.totalSpots,
+          cost: entry.activity.cost,
+          dateStart: entry.activity.dateStart,
+          dateEnd: entry.activity.dateEnd,
+          startTime: entry.activity.startTime,
+          endTime: entry.activity.endTime,
+          registrationUrl: entry.activity.registrationUrl,
+          directRegistrationUrl: entry.activity.directRegistrationUrl,
         },
         joinedAt: entry.createdAt,
         notifiedAt: entry.notifiedAt

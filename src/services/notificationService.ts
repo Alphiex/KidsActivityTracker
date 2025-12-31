@@ -23,7 +23,14 @@ export interface WaitlistEntry {
     provider?: string;
     location?: string;
     spotsAvailable?: number;
+    totalSpots?: number;
     cost?: number;
+    dateStart?: string;
+    dateEnd?: string;
+    startTime?: string;
+    endTime?: string;
+    registrationUrl?: string;
+    directRegistrationUrl?: string;
   };
   joinedAt: string;
   notifiedAt?: string;
