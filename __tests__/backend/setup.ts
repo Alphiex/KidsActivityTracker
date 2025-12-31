@@ -2,6 +2,7 @@
  * Backend Test Setup
  * Configures mocks and test environment for Express/Node.js
  */
+// Note: Jest globals are automatically available via ts-jest
 
 // Mock environment variables
 process.env.NODE_ENV = 'test';

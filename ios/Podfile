@@ -8,6 +8,9 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Firebase requires modular headers for GoogleUtilities
+pod 'GoogleUtilities', :modular_headers => true
+
 # Build Hermes from source to include dSYM for crash symbolication
 ENV['RCT_BUILD_HERMES_FROM_SOURCE'] = '1' if ENV['ARCHIVE_BUILD'] == '1'
 

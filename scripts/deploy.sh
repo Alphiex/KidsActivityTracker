@@ -174,26 +174,12 @@ deploy_website() {
     # Navigate to website directory
     cd "$(dirname "$0")/../website"
     
-    # Build and deploy
+    # Build and deploy using cloudbuild.yaml
     local IMAGE="gcr.io/${PROJECT_ID}/website:latest"
-    log_info "Building image: $IMAGE"
+    log_info "Building image using Cloud Build..."
     
-    gcloud builds submit \
-        --tag "$IMAGE" \
-        --build-arg "NEXT_PUBLIC_API_URL=https://api.kidsactivitytracker.ca" \
-        .
-    
-    log_info "Deploying to Cloud Run..."
-    gcloud run deploy $WEBSITE_SERVICE \
-        --image "$IMAGE" \
-        --region $REGION \
-        --platform managed \
-        --allow-unauthenticated \
-        --memory 512Mi \
-        --cpu 1 \
-        --min-instances 0 \
-        --max-instances 10 \
-        --port 3000
+    # Use the cloudbuild.yaml which handles build args properly
+    gcloud builds submit --config=cloudbuild.yaml .
     
     log_success "Website deployed!"
     

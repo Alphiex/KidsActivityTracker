@@ -2,27 +2,11 @@
  * Frontend Test Setup
  * Configures mocks and test environment for React Native
  */
-import 'react-native-gesture-handler/jestSetup';
 
-// Mock React Native modules
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    NativeModules: {
-      ...RN.NativeModules,
-      UIManager: {
-        RCTView: () => ({}),
-        getViewManagerConfig: jest.fn(() => ({})),
-      },
-    },
-    Platform: {
-      ...RN.Platform,
-      OS: 'ios',
-      select: (obj: Record<string, unknown>) => obj.ios || obj.default,
-    },
-  };
-});
+// Note: react-native-gesture-handler setup is handled by jest preset
+// import 'react-native-gesture-handler/jestSetup';
+
+// React Native is mocked by the react-native preset - don't override here
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -120,8 +104,7 @@ global.console = {
   error: jest.fn(),
 };
 
-// Silence the warning: Animated: `useNativeDriver` is not supported
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+// Note: NativeAnimatedHelper mock removed - handled by react-native preset
 
 // Setup fetch mock
 global.fetch = jest.fn(() =>

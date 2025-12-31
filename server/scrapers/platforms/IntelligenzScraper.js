@@ -207,6 +207,42 @@ class IntelligenzScraper extends BaseScraper {
               this.handleError(error, `processing nav link ${subcat.name}`);
             }
           }
+        } else if (pageType === 'search-form') {
+          // Search form page (Lethbridge-style) - need to click Search button first
+          this.logProgress('Found search form page, clicking Search button...');
+          const searchClicked = await this.clickSearchButton(page);
+
+          if (searchClicked) {
+            // Check if we now have CourseDetails links after clicking search
+            const newPageType = await this.detectPageType(page);
+            this.logProgress(`After search click, page type: ${newPageType}`);
+
+            if (newPageType === 'activity-listing') {
+              const entryInfo = { name: entryPoint, ...categoryInfo };
+              const pageActivities = await this.extractActivitiesWithDetails(browser, page, entryInfo);
+              activities.push(...pageActivities);
+            } else {
+              // Fallback - try course type dropdown search
+              const courseTypes = await this.discoverCourseTypes(page);
+              this.logProgress(`Found ${courseTypes.length} course types in dropdown`);
+
+              for (const courseType of courseTypes) {
+                try {
+                  this.logProgress(`Searching course type: ${courseType.name}`);
+                  await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+
+                  const searchResults = await this.searchByCourseType(page, courseType);
+                  if (searchResults.length > 0) {
+                    this.logProgress(`  Found ${searchResults.length} activities in ${courseType.name}`);
+                    activities.push(...searchResults);
+                  }
+                } catch (error) {
+                  this.handleError(error, `searching course type ${courseType.name}`);
+                }
+              }
+            }
+          }
         } else if (pageType === 'category-listing') {
           // Category page - navigate to subcategories
           const subcategories = await this.discoverSubcategories(page);
@@ -316,6 +352,17 @@ class IntelligenzScraper extends BaseScraper {
       const coursePanels = document.querySelectorAll('.panel.course-results, .course-panel, .course-results');
       if (coursePanels.length > 0) return 'activity-listing';
 
+      // IMPORTANT: Check for search form BEFORE category links
+      // Lethbridge-style pages have a #CourseTypes dropdown AND browse links,
+      // but need the Search button clicked to show actual courses
+      const dropdown = document.querySelector('#CourseTypes, select[name="CourseTypes"]');
+      const searchBtn = Array.from(document.querySelectorAll('button, input[type="submit"], .btn')).find(b => {
+        const text = (b.textContent || b.value || '').trim().toLowerCase();
+        return text === 'search';
+      });
+      // If we have a course types dropdown and a search button, it's a search form page
+      if (dropdown && searchBtn) return 'search-form';
+
       // Check for subcategory cards (category page)
       const subcatCards = document.querySelectorAll('.card a[href*="/browse/"]');
       if (subcatCards.length > 0) return 'category-listing';
@@ -334,8 +381,7 @@ class IntelligenzScraper extends BaseScraper {
       const sessionLinks = document.querySelectorAll('a[href*="Session"], a[href*="session"], a[href*="Offering"]');
       if (sessionLinks.length > 0) return 'activity-listing';
 
-      // Check for course type dropdown (search form)
-      const dropdown = document.querySelector('#CourseTypes, select[name="CourseTypes"]');
+      // Check for course type dropdown without search button (fallback)
       if (dropdown) return 'search-form';
 
       // Check for any clickable category elements
@@ -344,6 +390,41 @@ class IntelligenzScraper extends BaseScraper {
 
       return 'unknown';
     });
+  }
+
+  /**
+   * Click the Search button to load results on a search-form page
+   * @param {Object} page - Puppeteer page
+   * @returns {Promise<boolean>} Whether search was clicked successfully
+   */
+  async clickSearchButton(page) {
+    const clicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button, input[type="submit"], .btn'));
+      const searchBtn = buttons.find(b => {
+        const text = (b.textContent || b.value || '').trim().toLowerCase();
+        return text === 'search';
+      });
+      if (searchBtn) {
+        searchBtn.click();
+        return true;
+      }
+      // Try form submit
+      const form = document.querySelector('#searchForm, form[action*="courses"]');
+      if (form) {
+        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (submitBtn) {
+          submitBtn.click();
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (clicked) {
+      // Wait for results to load
+      await new Promise(r => setTimeout(r, 5000));
+    }
+    return clicked;
   }
 
   /**
@@ -429,6 +510,22 @@ class IntelligenzScraper extends BaseScraper {
         // Extract activities with detail pages
         const pageActivities = await this.extractActivitiesWithDetails(browser, page, subcategory);
         activities.push(...pageActivities);
+      } else if (pageType === 'search-form') {
+        // Search form page - click Search button to load results
+        this.logProgress(`  Found search form in ${subcategory.name}, clicking Search...`);
+        const searchClicked = await this.clickSearchButton(page);
+
+        if (searchClicked) {
+          const newPageType = await this.detectPageType(page);
+          if (newPageType === 'activity-listing') {
+            const pageActivities = await this.extractActivitiesWithDetails(browser, page, subcategory);
+            activities.push(...pageActivities);
+          } else {
+            // Fallback
+            const directActivities = await this.extractActivitiesFromPage(page, subcategory);
+            activities.push(...directActivities);
+          }
+        }
       } else if (pageType === 'category-listing') {
         // Go one level deeper
         const deeperSubcats = await this.discoverSubcategories(page);
