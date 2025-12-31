@@ -18,7 +18,12 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { login, clearError } from '../../store/slices/authSlice';
+import {
+  loginWithEmail,
+  loginWithGoogle,
+  loginWithApple,
+  clearError,
+} from '../../store/slices/authSlice';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -50,7 +55,7 @@ const LoginScreen: React.FC = () => {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Login Failed', error);
+      Alert.alert('Sign In Failed', error);
       dispatch(clearError());
     }
   }, [error, dispatch]);
@@ -82,7 +87,7 @@ const LoginScreen: React.FC = () => {
     return true;
   };
 
-  const handleLogin = async () => {
+  const handleEmailLogin = async () => {
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password);
 
@@ -90,7 +95,15 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
-    dispatch(login({ email: email.trim(), password }));
+    dispatch(loginWithEmail({ email: email.trim(), password }));
+  };
+
+  const handleGoogleSignIn = async () => {
+    dispatch(loginWithGoogle());
+  };
+
+  const handleAppleSignIn = async () => {
+    dispatch(loginWithApple());
   };
 
   return (
@@ -106,11 +119,7 @@ const LoginScreen: React.FC = () => {
         >
           {/* Header Illustration */}
           <View style={styles.headerContainer}>
-            <Image
-              source={loginHeaderImage}
-              style={styles.headerImage}
-              resizeMode="cover"
-            />
+            <Image source={loginHeaderImage} style={styles.headerImage} resizeMode="cover" />
             <View style={styles.headerOverlay} />
           </View>
 
@@ -124,6 +133,42 @@ const LoginScreen: React.FC = () => {
 
           {/* Form */}
           <View style={styles.formContainer}>
+            {/* Social Login Buttons */}
+            <View style={styles.socialButtonsContainer}>
+              {/* Google Sign-In */}
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={handleGoogleSignIn}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                <Icon name="google" size={24} color="#DB4437" />
+                <Text style={styles.socialButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              {/* Apple Sign-In (iOS only) */}
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={[styles.socialButton, styles.appleButton]}
+                  onPress={handleAppleSignIn}
+                  disabled={isLoading}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="apple" size={24} color="#FFFFFF" />
+                  <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                    Continue with Apple
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign in with email</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
             {/* Email Input */}
             <View style={styles.inputWrapper}>
               <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
@@ -181,7 +226,7 @@ const LoginScreen: React.FC = () => {
 
             {/* Sign In Button */}
             <TouchableOpacity
-              onPress={handleLogin}
+              onPress={handleEmailLogin}
               disabled={isLoading}
               activeOpacity={0.8}
               style={[styles.loginButton, isLoading && styles.disabledButton]}
@@ -192,13 +237,6 @@ const LoginScreen: React.FC = () => {
                 <Text style={styles.loginButtonText}>Sign In</Text>
               )}
             </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
 
             {/* Register Link */}
             <View style={styles.registerContainer}>
@@ -228,7 +266,7 @@ const styles = StyleSheet.create({
   // Header Illustration Styles
   headerContainer: {
     width: '100%',
-    height: 220,
+    height: 180,
     overflow: 'hidden',
   },
   headerImage: {
@@ -246,7 +284,7 @@ const styles = StyleSheet.create({
   // Welcome Text Styles
   welcomeContainer: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 20,
     paddingBottom: 8,
   },
   welcomeTitle: {
@@ -266,6 +304,52 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 32,
   },
+  // Social Buttons
+  socialButtonsContainer: {
+    gap: 12,
+    marginBottom: 8,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    gap: 12,
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+  },
+  // Divider Styles
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  // Input Styles
   inputWrapper: {
     marginBottom: 16,
   },
@@ -330,28 +414,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  // Divider Styles
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#9CA3AF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   // Register Link Styles
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 24,
   },
   registerText: {
     color: '#6B7280',

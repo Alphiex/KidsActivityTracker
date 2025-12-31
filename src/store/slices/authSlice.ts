@@ -1,181 +1,187 @@
+/**
+ * Auth Slice - Firebase Authentication State Management
+ *
+ * Handles authentication state using Firebase Auth.
+ * Firebase manages tokens automatically, so we just track user state.
+ */
+
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { authService } from '../../services/authService';
+import { authService, PostgresUser } from '../../services/authService';
+import { firebaseAuthService, FirebaseUser, AuthProvider } from '../../services/firebaseAuthService';
 import * as SecureStore from '../../utils/secureStorage';
 import { fetchSubscription, clearSubscription } from './subscriptionSlice';
 import { revenueCatService } from '../../services/revenueCatService';
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  phoneNumber?: string;
-  location?: string;
-  isVerified?: boolean;
-  emailVerified?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: number;
-  refreshTokenExpiry: number;
-}
-
 interface AuthState {
-  user: User | null;
-  tokens: AuthTokens | null;
+  // PostgreSQL user (our database)
+  user: PostgresUser | null;
+  // Firebase user info (for display)
+  firebaseUser: FirebaseUser | null;
+  // Auth state
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  isRefreshing: boolean;
+  // Auth provider used
+  authProvider: AuthProvider | null;
 }
 
 const initialState: AuthState = {
   user: null,
-  tokens: null,
+  firebaseUser: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
-  isRefreshing: false,
+  authProvider: null,
 };
 
-// Async thunks
-export const login = createAsyncThunk(
-  'auth/login',
+/**
+ * Helper to sync Firebase user with PostgreSQL and RevenueCat
+ */
+const syncUserAfterAuth = async (
+  firebaseUser: FirebaseUser,
+  dispatch: any
+): Promise<PostgresUser> => {
+  // Sync with PostgreSQL database
+  const { user: postgresUser } = await authService.syncUser();
+
+  // Cache user data locally
+  await SecureStore.setUserData(postgresUser);
+
+  // Initialize RevenueCat with PostgreSQL user ID
+  try {
+    await revenueCatService.login(postgresUser.id);
+    dispatch(fetchSubscription());
+  } catch (error) {
+    console.log('[Auth] RevenueCat login/subscription fetch failed:', error);
+  }
+
+  return postgresUser;
+};
+
+// ============================================================
+// ASYNC THUNKS - Firebase Authentication
+// ============================================================
+
+/**
+ * Sign in with email and password
+ */
+export const loginWithEmail = createAsyncThunk(
+  'auth/loginWithEmail',
   async ({ email, password }: { email: string; password: string }, { dispatch }) => {
-    const response = await authService.login({ email, password });
-
-    // Store tokens and user data securely
-    await SecureStore.setTokens(response.tokens);
-    await SecureStore.setUserData(response.user);
-
-    // Initialize RevenueCat and fetch subscription after login
-    try {
-      await revenueCatService.login(response.user.id);
-      dispatch(fetchSubscription());
-    } catch (error) {
-      console.log('[Auth] RevenueCat login/subscription fetch failed:', error);
-    }
-
-    return response;
+    const firebaseUser = await firebaseAuthService.signInWithEmail(email, password);
+    const postgresUser = await syncUserAfterAuth(firebaseUser, dispatch);
+    return { firebaseUser, postgresUser, authProvider: 'email' as AuthProvider };
   }
 );
 
-export const register = createAsyncThunk(
-  'auth/register',
+/**
+ * Sign in with Google
+ */
+export const loginWithGoogle = createAsyncThunk('auth/loginWithGoogle', async (_, { dispatch }) => {
+  const firebaseUser = await firebaseAuthService.signInWithGoogle();
+  const postgresUser = await syncUserAfterAuth(firebaseUser, dispatch);
+  return { firebaseUser, postgresUser, authProvider: 'google' as AuthProvider };
+});
+
+/**
+ * Sign in with Apple (iOS only)
+ */
+export const loginWithApple = createAsyncThunk('auth/loginWithApple', async (_, { dispatch }) => {
+  const firebaseUser = await firebaseAuthService.signInWithApple();
+  const postgresUser = await syncUserAfterAuth(firebaseUser, dispatch);
+  return { firebaseUser, postgresUser, authProvider: 'apple' as AuthProvider };
+});
+
+/**
+ * Create account with email and password
+ */
+export const registerWithEmail = createAsyncThunk(
+  'auth/registerWithEmail',
   async (
-    {
-      email,
-      password,
-      name,
-      phoneNumber,
-    }: {
-      email: string;
-      password: string;
-      name: string;
-      phoneNumber?: string;
-    },
+    { email, password, name }: { email: string; password: string; name: string },
     { dispatch }
   ) => {
-    const response = await authService.register({ email, password, name, phoneNumber });
+    const firebaseUser = await firebaseAuthService.createAccount(email, password, name);
+    const postgresUser = await syncUserAfterAuth(firebaseUser, dispatch);
+    return { firebaseUser, postgresUser, authProvider: 'email' as AuthProvider };
+  }
+);
 
-    // Store tokens and user data securely
-    await SecureStore.setTokens(response.tokens);
-    await SecureStore.setUserData(response.user);
+/**
+ * Logout from all providers
+ */
+export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
+  // Notify server
+  await authService.logout();
 
-    // Initialize RevenueCat and fetch subscription after registration
+  // Sign out from Firebase (also signs out from Google/Apple)
+  await firebaseAuthService.signOut();
+
+  // Clear local data
+  await SecureStore.clearAllAuthData();
+
+  // Clear subscription state and logout from RevenueCat
+  dispatch(clearSubscription());
+  try {
+    await revenueCatService.logout();
+  } catch (error) {
+    console.log('[Auth] RevenueCat logout failed:', error);
+  }
+});
+
+/**
+ * Load auth state from Firebase on app start
+ */
+export const loadAuthState = createAsyncThunk('auth/loadAuthState', async (_, { dispatch }) => {
+  const firebaseUser = firebaseAuthService.getCurrentUser();
+
+  if (!firebaseUser) {
+    // Clear any stale local data
+    await SecureStore.clearAllAuthData();
+    return null;
+  }
+
+  try {
+    // Sync with PostgreSQL to get full user data
+    const { user: postgresUser } = await authService.syncUser();
+    await SecureStore.setUserData(postgresUser);
+
+    // Initialize RevenueCat
     try {
-      await revenueCatService.login(response.user.id);
+      await revenueCatService.login(postgresUser.id);
       dispatch(fetchSubscription());
     } catch (error) {
       console.log('[Auth] RevenueCat login/subscription fetch failed:', error);
     }
 
-    return response;
-  }
-);
-
-export const refreshToken = createAsyncThunk(
-  'auth/refreshToken',
-  async (_, { getState }) => {
-    const state = getState() as { auth: AuthState };
-    const currentRefreshToken = state.auth.tokens?.refreshToken;
-    
-    if (!currentRefreshToken) {
-      throw new Error('No refresh token available');
-    }
-    
-    const response = await authService.refreshToken(currentRefreshToken);
-    
-    // Update stored tokens
-    await SecureStore.setTokens(response.tokens);
-    
-    return response;
-  }
-);
-
-export const logout = createAsyncThunk(
-  'auth/logout',
-  async (_, { dispatch }) => {
-    await authService.logout();
-    await SecureStore.clearAllAuthData(); // Clear ALL auth data, not just tokens
-
-    // Clear subscription state and logout from RevenueCat
-    dispatch(clearSubscription());
-    try {
-      await revenueCatService.logout();
-    } catch (error) {
-      console.log('[Auth] RevenueCat logout failed:', error);
-    }
-  }
-);
-
-export const forgotPassword = createAsyncThunk(
-  'auth/forgotPassword',
-  async ({ email }: { email: string }) => {
-    const response = await authService.forgotPassword(email);
-    return response;
-  }
-);
-
-export const resetPassword = createAsyncThunk(
-  'auth/resetPassword',
-  async ({ token, newPassword }: { token: string; newPassword: string }) => {
-    const response = await authService.resetPassword({ token, newPassword });
-    return response;
-  }
-);
-
-export const loadStoredAuth = createAsyncThunk(
-  'auth/loadStoredAuth',
-  async () => {
-    const tokens = await SecureStore.getTokens();
-
-    // Clear any dev tokens - we don't use them anymore
-    if (tokens?.accessToken?.startsWith('dev_access_token_') || tokens?.accessToken?.startsWith('dev_')) {
-      console.log('🔧 Found old dev tokens, clearing them');
-      await SecureStore.clearAllAuthData();
-      return null;
-    }
-
-    if (tokens && tokens.accessToken) {
-      try {
-        // Verify token is still valid
-        const response = await authService.verifyToken();
-        return { user: response.user, tokens };
-      } catch (error: any) {
-        console.error('Token verification failed during load:', error.message);
-        // Clear invalid tokens
-        await SecureStore.clearAllAuthData();
-        return null;
-      }
-    }
+    return {
+      firebaseUser,
+      postgresUser,
+      authProvider: firebaseUser.providerId as AuthProvider,
+    };
+  } catch (error: any) {
+    console.error('[Auth] Failed to sync user on app load:', error.message);
+    // Firebase user exists but PostgreSQL sync failed - clear and start fresh
+    await firebaseAuthService.signOut();
+    await SecureStore.clearAllAuthData();
     return null;
   }
+});
+
+/**
+ * Send password reset email (uses Firebase directly)
+ */
+export const sendPasswordReset = createAsyncThunk(
+  'auth/sendPasswordReset',
+  async ({ email }: { email: string }) => {
+    await firebaseAuthService.sendPasswordResetEmail(email);
+    return { success: true };
+  }
 );
 
+/**
+ * Update user profile
+ */
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (data: { name?: string; phoneNumber?: string; preferences?: any }) => {
@@ -184,6 +190,30 @@ export const updateProfile = createAsyncThunk(
   }
 );
 
+/**
+ * Delete account
+ */
+export const deleteAccount = createAsyncThunk('auth/deleteAccount', async (_, { dispatch }) => {
+  // Delete from PostgreSQL (backend also deletes from Firebase)
+  await authService.deleteAccount();
+
+  // Clear local state
+  await SecureStore.clearAllAuthData();
+  dispatch(clearSubscription());
+
+  try {
+    await revenueCatService.logout();
+  } catch (error) {
+    console.log('[Auth] RevenueCat logout failed:', error);
+  }
+
+  return { success: true };
+});
+
+// ============================================================
+// SLICE DEFINITION
+// ============================================================
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -191,142 +221,179 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    setTokens: (state, action: PayloadAction<AuthTokens>) => {
-      state.tokens = action.payload;
-    },
     clearAuth: (state) => {
       state.user = null;
-      state.tokens = null;
+      state.firebaseUser = null;
       state.isAuthenticated = false;
+      state.authProvider = null;
       state.error = null;
     },
-    updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
+    updateUserProfile: (state, action: PayloadAction<Partial<PostgresUser>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
       }
     },
+    setFirebaseUser: (state, action: PayloadAction<FirebaseUser | null>) => {
+      state.firebaseUser = action.payload;
+      if (!action.payload) {
+        state.isAuthenticated = false;
+        state.user = null;
+      }
+    },
   },
   extraReducers: (builder) => {
-    // Login
+    // Login with Email
     builder
-      .addCase(login.pending, (state) => {
+      .addCase(loginWithEmail.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(loginWithEmail.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = { ...action.payload.user, isVerified: (action.payload.user as any).isVerified ?? action.payload.user.emailVerified ?? false };
-        state.tokens = action.payload.tokens;
+        state.user = action.payload.postgresUser;
+        state.firebaseUser = action.payload.firebaseUser;
+        state.authProvider = action.payload.authProvider;
         state.isAuthenticated = true;
         state.error = null;
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(loginWithEmail.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || 'Login failed';
         state.isAuthenticated = false;
       });
 
-    // Register
+    // Login with Google
     builder
-      .addCase(register.pending, (state) => {
+      .addCase(loginWithGoogle.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(loginWithGoogle.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = { ...action.payload.user, isVerified: (action.payload.user as any).isVerified ?? action.payload.user.emailVerified ?? false };
-        state.tokens = action.payload.tokens;
+        state.user = action.payload.postgresUser;
+        state.firebaseUser = action.payload.firebaseUser;
+        state.authProvider = action.payload.authProvider;
         state.isAuthenticated = true;
         state.error = null;
       })
-      .addCase(register.rejected, (state, action) => {
+      .addCase(loginWithGoogle.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error.message || 'Google sign-in failed';
+        state.isAuthenticated = false;
+      });
+
+    // Login with Apple
+    builder
+      .addCase(loginWithApple.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loginWithApple.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.postgresUser;
+        state.firebaseUser = action.payload.firebaseUser;
+        state.authProvider = action.payload.authProvider;
+        state.isAuthenticated = true;
+        state.error = null;
+      })
+      .addCase(loginWithApple.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error.message || 'Apple sign-in failed';
+        state.isAuthenticated = false;
+      });
+
+    // Register with Email
+    builder
+      .addCase(registerWithEmail.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(registerWithEmail.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.postgresUser;
+        state.firebaseUser = action.payload.firebaseUser;
+        state.authProvider = action.payload.authProvider;
+        state.isAuthenticated = true;
+        state.error = null;
+      })
+      .addCase(registerWithEmail.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || 'Registration failed';
         state.isAuthenticated = false;
       });
 
-    // Refresh Token
-    builder
-      .addCase(refreshToken.pending, (state) => {
-        state.isRefreshing = true;
-      })
-      .addCase(refreshToken.fulfilled, (state, action) => {
-        state.isRefreshing = false;
-        state.tokens = action.payload.tokens;
-      })
-      .addCase(refreshToken.rejected, (state) => {
-        state.isRefreshing = false;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.tokens = null;
-      });
-
     // Logout
-    builder
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.tokens = null;
-        state.isAuthenticated = false;
-        state.error = null;
-      });
+    builder.addCase(logout.fulfilled, (state) => {
+      state.user = null;
+      state.firebaseUser = null;
+      state.isAuthenticated = false;
+      state.authProvider = null;
+      state.error = null;
+    });
 
-    // Load Stored Auth
+    // Load Auth State
     builder
-      .addCase(loadStoredAuth.pending, (state) => {
+      .addCase(loadAuthState.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(loadStoredAuth.fulfilled, (state, action) => {
+      .addCase(loadAuthState.fulfilled, (state, action) => {
         state.isLoading = false;
         if (action.payload) {
-          state.user = action.payload.user;
-          state.tokens = action.payload.tokens;
+          state.user = action.payload.postgresUser;
+          state.firebaseUser = action.payload.firebaseUser;
+          state.authProvider = action.payload.authProvider;
           state.isAuthenticated = true;
+        } else {
+          state.isAuthenticated = false;
         }
       })
-      .addCase(loadStoredAuth.rejected, (state) => {
+      .addCase(loadAuthState.rejected, (state) => {
         state.isLoading = false;
         state.isAuthenticated = false;
       });
 
-    // Update Profile
+    // Send Password Reset
     builder
-      .addCase(updateProfile.fulfilled, (state, action) => {
-        if (state.user) {
-          state.user = { ...state.user, ...action.payload.profile };
-        }
-      });
-
-    // Forgot Password
-    builder
-      .addCase(forgotPassword.pending, (state) => {
+      .addCase(sendPasswordReset.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(forgotPassword.fulfilled, (state) => {
+      .addCase(sendPasswordReset.fulfilled, (state) => {
         state.isLoading = false;
         state.error = null;
       })
-      .addCase(forgotPassword.rejected, (state, action) => {
+      .addCase(sendPasswordReset.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || 'Failed to send reset email';
       });
 
-    // Reset Password
+    // Update Profile
+    builder.addCase(updateProfile.fulfilled, (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload.profile };
+      }
+    });
+
+    // Delete Account
     builder
-      .addCase(resetPassword.pending, (state) => {
+      .addCase(deleteAccount.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(resetPassword.fulfilled, (state) => {
+      .addCase(deleteAccount.fulfilled, (state) => {
         state.isLoading = false;
+        state.user = null;
+        state.firebaseUser = null;
+        state.isAuthenticated = false;
+        state.authProvider = null;
         state.error = null;
       })
-      .addCase(resetPassword.rejected, (state, action) => {
+      .addCase(deleteAccount.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error.message || 'Failed to reset password';
+        state.error = action.error.message || 'Failed to delete account';
       });
   },
 });
 
-export const { clearError, setTokens, clearAuth, updateUserProfile } = authSlice.actions;
+export const { clearError, clearAuth, updateUserProfile, setFirebaseUser } = authSlice.actions;
 export default authSlice.reducer;

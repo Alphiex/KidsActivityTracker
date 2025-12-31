@@ -35,20 +35,15 @@ const API_CONFIG = {
   
   // Endpoints
   ENDPOINTS: {
-    // Auth endpoints
+    // Auth endpoints (Firebase-based)
     AUTH: {
-      LOGIN: '/api/auth/login',
-      REGISTER: '/api/auth/register',
-      LOGOUT: '/api/auth/logout',
-      REFRESH: '/api/auth/refresh',
-      FORGOT_PASSWORD: '/api/auth/forgot-password',
-      RESET_PASSWORD: '/api/auth/reset-password',
-      VERIFY_EMAIL: '/api/auth/verify-email',
-      RESEND_VERIFICATION: '/api/auth/resend-verification',
-      CHANGE_PASSWORD: '/api/auth/change-password',
-      PROFILE: '/api/auth/profile',
-      CHECK: '/api/auth/check',
-      DELETE_ACCOUNT: '/api/auth/delete-account',
+      SYNC: '/api/auth/sync',           // Sync Firebase user with PostgreSQL
+      LOGOUT: '/api/auth/logout',       // Server acknowledgment
+      PROFILE: '/api/auth/profile',     // Get/update PostgreSQL profile
+      CHECK: '/api/auth/check',         // Verify auth status
+      DELETE_ACCOUNT: '/api/auth/delete-account', // Delete account (Apple requirement)
+      // Legacy endpoints - kept for reference but no longer used
+      // LOGIN, REGISTER, REFRESH, FORGOT_PASSWORD, etc. are now handled by Firebase
     },
     
     // Activities

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import Hero from '@/components/Hero';
 import Stats from '@/components/Stats';
 import ActivityShowcase from '@/components/ActivityShowcase';
+import AICapabilities from '@/components/AICapabilities';
 import AppScreenshots from '@/components/AppScreenshots';
 import Features from '@/components/Features';
 import HowItWorks from '@/components/HowItWorks';
@@ -44,6 +45,7 @@ export default async function Home() {
       <Hero />
       <Stats />
       <ActivityShowcase />
+      <AICapabilities />
       <AppScreenshots />
       <Features />
       <HowItWorks />

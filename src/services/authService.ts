@@ -1,46 +1,40 @@
+/**
+ * Auth Service - API calls using Firebase Authentication
+ *
+ * This service handles API calls that require authentication.
+ * Firebase handles all authentication (login, register, password reset, etc.)
+ * This service just makes authenticated API calls using Firebase ID tokens.
+ */
+
 import axios, { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
-import * as SecureStore from '../utils/secureStorage';
+import { firebaseAuthService } from './firebaseAuthService';
 import { secureLog, secureError } from '../utils/secureLogger';
 
-interface LoginParams {
+export interface PostgresUser {
+  id: string;
   email: string;
-  password: string;
-}
-
-interface RegisterParams {
-  email: string;
-  password: string;
   name: string;
   phoneNumber?: string;
-}
-
-interface ResetPasswordParams {
-  token: string;
-  newPassword: string;
-}
-
-interface AuthResponse {
-  success: boolean;
-  message: string;
-  user: {
+  preferences?: any;
+  authProvider: string;
+  createdAt: string;
+  updatedAt: string;
+  profilePicture?: string | null;
+  children?: Array<{
     id: string;
-    email: string;
     name: string;
-    phoneNumber?: string;
-    emailVerified: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-    accessTokenExpiry: number;
-    refreshTokenExpiry: number;
+    birthDate: string | null;
+  }>;
+  _count?: {
+    favorites: number;
+    children: number;
+    myShares?: number;
+    sharedWithMe?: number;
   };
 }
 
-interface ProfileUpdateParams {
+export interface ProfileUpdateParams {
   name?: string;
   phoneNumber?: string;
   preferences?: any;
@@ -58,21 +52,18 @@ class AuthService {
       },
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor to add Firebase ID token
     this.api.interceptors.request.use(
       async (config) => {
-        const token = await SecureStore.getAccessToken();
-        // Use secure logging - never log actual token content
+        const token = await firebaseAuthService.getIdToken();
+
         secureLog('Request interceptor:', {
           url: config.url,
           hasToken: !!token,
         });
 
-        // Don't add dev tokens to real API requests
-        if (token && !token.startsWith('dev_')) {
+        if (token) {
           config.headers.Authorization = `Bearer ${token}`;
-        } else if (__DEV__ && token && token.startsWith('dev_')) {
-          secureLog('Development mode: Skipping dev token for API request');
         }
 
         return config;
@@ -83,55 +74,33 @@ class AuthService {
       }
     );
 
-    // Response interceptor to handle token refresh
+    // Response interceptor for error handling
     this.api.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
 
-        // Don't retry if:
-        // 1. Already retried
-        // 2. It's a refresh token request (to prevent loops)
-        // 3. It's a login/register request
-        // 4. Rate limited (429)
-        const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
-                              originalRequest.url?.includes('/auth/register') ||
-                              originalRequest.url?.includes('/auth/refresh');
-        const isRateLimited = error.response?.status === 429;
-
-        if (error.response?.status === 401 && 
-            !originalRequest._retry && 
-            !isAuthEndpoint && 
-            !isRateLimited) {
+        // Handle 401 errors - token might need refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
           try {
-            const tokens = await SecureStore.getTokens();
-            if (tokens?.refreshToken && !tokens.refreshToken.startsWith('dev_')) {
-              secureLog('Attempting token refresh...');
-              const response = await this.refreshToken(tokens.refreshToken);
-              await SecureStore.setTokens(response.tokens);
+            // Force refresh the Firebase token
+            const newToken = await firebaseAuthService.getIdToken(true);
 
-              // Retry original request with new token
-              originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`;
+            if (newToken) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
               return this.api(originalRequest);
-            } else {
-              secureLog('Invalid or dev refresh token, clearing auth');
-              await SecureStore.clearAllAuthData();
             }
-          } catch (refreshError: any) {
-            secureError('Token refresh failed:', refreshError.message);
-            // Refresh failed, clear auth and redirect to login
-            await SecureStore.clearAllAuthData();
-            throw refreshError;
+          } catch (refreshError) {
+            secureError('Token refresh failed:', refreshError);
           }
         }
 
-        // Log rate limit errors clearly (keeping for potential future use)
-        if (isRateLimited) {
+        // Handle rate limiting
+        if (error.response?.status === 429) {
           secureError('RATE LIMITED: Please wait before making more requests');
           const retryAfter = error.response?.headers?.['retry-after'];
-
           if (retryAfter) {
             secureError(`Retry after: ${retryAfter} seconds`);
           }
@@ -142,105 +111,41 @@ class AuthService {
     );
   }
 
-  async login(params: LoginParams): Promise<AuthResponse> {
-    // Always use real authentication - no more mock tokens!
+  /**
+   * Sync Firebase user with PostgreSQL database
+   * Called after Firebase login to ensure user exists in our database
+   */
+  async syncUser(): Promise<{ success: boolean; user: PostgresUser }> {
     try {
-      secureLog('Login attempt:', { email: params.email, url: API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.AUTH.LOGIN });
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.LOGIN, params);
-      secureLog('Login response:', { success: response.data?.success });
+      secureLog('[AuthService] Syncing user with database...');
+      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.SYNC);
+      secureLog('[AuthService] User sync successful');
       return response.data;
     } catch (error: any) {
-      secureError('Login error:', {
-        status: error.response?.status,
-        message: error.message,
-        url: error.config?.url,
-      });
-      throw new Error(error.response?.data?.error || 'Login failed');
-    }
-  }
-
-  async register(params: RegisterParams): Promise<AuthResponse> {
-    try {
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.REGISTER, params);
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Registration failed');
-    }
-  }
-
-  async refreshToken(refreshToken: string): Promise<{ tokens: AuthResponse['tokens'] }> {
-    try {
-      secureLog('[AuthService] Refreshing token...');
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.REFRESH, { refreshToken });
-      secureLog('[AuthService] Token refresh successful');
-      return response.data;
-    } catch (error: any) {
-      secureError('[AuthService] Token refresh failed:', {
+      secureError('[AuthService] User sync failed:', {
         status: error.response?.status,
         message: error.message,
       });
-      throw new Error(error.response?.data?.error || 'Token refresh failed');
+      throw new Error(error.response?.data?.error || 'Failed to sync user');
     }
   }
 
+  /**
+   * Logout - notify server (Firebase handles actual token invalidation)
+   */
   async logout(): Promise<void> {
     try {
       await this.api.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
     } catch (error) {
-      // Even if logout fails on server, clear local data
-      secureError('Logout error:', error);
+      // Even if server logout fails, Firebase will sign out
+      secureError('Logout API error:', error);
     }
   }
 
-  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to send reset email');
-    }
-  }
-
-  async resetPassword(params: ResetPasswordParams): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, params);
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Password reset failed');
-    }
-  }
-
-  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.AUTH.VERIFY_EMAIL}?token=${token}`);
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Email verification failed');
-    }
-  }
-
-  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to resend verification email');
-    }
-  }
-
-  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.post(API_CONFIG.ENDPOINTS.AUTH.CHANGE_PASSWORD, {
-        currentPassword,
-        newPassword,
-      });
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Password change failed');
-    }
-  }
-
-  async getProfile(): Promise<{ success: boolean; profile: any }> {
+  /**
+   * Get user profile from PostgreSQL
+   */
+  async getProfile(): Promise<{ success: boolean; profile: PostgresUser }> {
     try {
       const response = await this.api.get(API_CONFIG.ENDPOINTS.AUTH.PROFILE);
       return response.data;
@@ -249,7 +154,12 @@ class AuthService {
     }
   }
 
-  async updateProfile(data: ProfileUpdateParams): Promise<{ success: boolean; message: string; profile: any }> {
+  /**
+   * Update user profile in PostgreSQL
+   */
+  async updateProfile(
+    data: ProfileUpdateParams
+  ): Promise<{ success: boolean; message: string; profile: PostgresUser }> {
     try {
       const response = await this.api.put(API_CONFIG.ENDPOINTS.AUTH.PROFILE, data);
       return response.data;
@@ -258,32 +168,35 @@ class AuthService {
     }
   }
 
+  /**
+   * Verify authentication status
+   */
   async verifyToken(): Promise<{ success: boolean; authenticated: boolean; user: any }> {
-    // Always use real token verification - no more mock tokens!
     try {
       secureLog('Verifying token at:', API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.AUTH.CHECK);
       const response = await this.api.get(API_CONFIG.ENDPOINTS.AUTH.CHECK);
-      secureLog('Token verification response:', { success: response.data?.success, authenticated: response.data?.authenticated });
+      secureLog('Token verification response:', {
+        success: response.data?.success,
+        authenticated: response.data?.authenticated,
+      });
       return response.data;
     } catch (error: any) {
       secureError('Token verification error:', {
         status: error.response?.status,
         message: error.message,
-        url: error.config?.url,
       });
       throw new Error(error.response?.data?.error || 'Token verification failed');
     }
   }
 
   /**
-   * Delete user account and all associated data
+   * Delete user account from both PostgreSQL and Firebase
    * Apple App Store requirement - users must be able to delete their accounts
    */
-  async deleteAccount(password: string): Promise<{ success: boolean; message: string }> {
+  async deleteAccount(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await this.api.delete(API_CONFIG.ENDPOINTS.AUTH.DELETE_ACCOUNT, {
-        data: { password },
-      });
+      // Delete from PostgreSQL (backend also deletes from Firebase)
+      const response = await this.api.delete(API_CONFIG.ENDPOINTS.AUTH.DELETE_ACCOUNT);
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Failed to delete account');
