@@ -2002,21 +2002,24 @@ class ActiveNetworkScraper extends BaseScraper {
               // === CLICK "VIEW FEE DETAILS" BUTTON IF PRESENT ===
               // Many ActiveNetwork sites hide the actual cost behind this button
               try {
-                const feeDetailsButton = await page.$('a[href*="fee"], button:has-text("fee details"), .fee-details-link, [data-action="view-fees"]');
+                // First try CSS selectors that might work
+                let feeDetailsButton = await page.$('a[href*="fee"], .fee-details-link, [data-action="view-fees"], .view-fee-btn');
+
                 if (!feeDetailsButton) {
-                  // Try text-based selector
-                  const buttons = await page.$$('a, button');
-                  for (const btn of buttons) {
-                    const text = await btn.evaluate(el => el.textContent?.toLowerCase() || '');
-                    if (text.includes('view fee') || text.includes('fee details')) {
-                      await btn.click();
-                      await new Promise(r => setTimeout(r, 1500)); // Wait for fee modal/content
+                  // Try text-based search for "View fee" or "Fee details" buttons/links
+                  const clickables = await page.$$('a, button, [role="button"]');
+                  for (const el of clickables) {
+                    const text = await el.evaluate(node => node.textContent?.toLowerCase() || '');
+                    if (text.includes('view fee') || text.includes('fee details') || text.includes('fee information')) {
+                      feeDetailsButton = el;
                       break;
                     }
                   }
-                } else {
+                }
+
+                if (feeDetailsButton) {
                   await feeDetailsButton.click();
-                  await new Promise(r => setTimeout(r, 1500));
+                  await new Promise(r => setTimeout(r, 1500)); // Wait for fee modal/content to load
                 }
               } catch (feeErr) {
                 // Fee details button not found or click failed - continue with extraction
@@ -2083,10 +2086,19 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === COURSE ID / ACTIVITY NUMBER ===
-                // ActiveNet shows activity number like "#124026" near the season/session name
-                const courseIdMatch = pageText.match(/#(\d{5,10})/);
-                if (courseIdMatch) {
-                  data.courseId = courseIdMatch[1];
+                // ActiveNet shows activity number in various formats:
+                // - "#124026" near the season/session name
+                // - "Activity number\n#143741" (Ottawa format)
+                const courseIdPatterns = [
+                  /Activity\s*number\s*\n\s*#?(\d{5,10})/i,
+                  /#(\d{5,10})/
+                ];
+                for (const pattern of courseIdPatterns) {
+                  const match = pageText.match(pattern);
+                  if (match) {
+                    data.courseId = match[1];
+                    break;
+                  }
                 }
 
                 // === LOCATION/FACILITY ===
