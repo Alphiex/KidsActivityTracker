@@ -488,6 +488,9 @@ model User {
   unsubscribeTokens     UnsubscribeToken[]
   waitlistEntries       WaitlistEntry[]
 
+  // Push notification tokens
+  pushTokens            DevicePushToken[]
+
   @@index([email])
 }
 
@@ -1306,6 +1309,23 @@ model WaitlistEntry {
   @@unique([userId, activityId])
   @@index([activityId])
   @@index([userId])
+}
+
+// Push notification device tokens for FCM
+model DevicePushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   // "ios" or "android"
+  deviceId  String?  // Optional device identifier for managing multiple devices
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([isActive])
 }
 
 // ============================================

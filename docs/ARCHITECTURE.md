@@ -113,6 +113,9 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  ┌───────────────────────────────────────────────────────┐  │  │
 │  │  │        Favorites Service (MMKV + API sync)            │  │  │
 │  │  └───────────────────────────────────────────────────────┘  │  │
+│  │  ┌───────────────────────────────────────────────────────┐  │  │
+│  │  │    Push Notification Service (FCM + Notifee)          │  │  │
+│  │  └───────────────────────────────────────────────────────┘  │  │
 │  └────────┼──────────────────────────────────────────────────┘  │
 │           │                                                      │
 │  ┌────────▼──────────────────────────────────────────────────┐  │
@@ -374,6 +377,75 @@ Database Updated (117,700+ activities)
 - `UserPreferenceMatcherService`: Matches activities to user preferences
 - `ActivitySnapshotService`: Detects price/capacity changes between scrapes
 
+### Push Notification Flow
+
+```
+┌───────────────────────────────────────────┐
+│         MOBILE APP STARTUP                │
+│                                           │
+│  1. Request notification permissions      │
+│  2. Get FCM token from Firebase           │
+│  3. Register token with backend API       │
+│  4. Set up message handlers               │
+└───────────────────┬───────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────┐
+│           BACKEND API                     │
+│                                           │
+│  POST /api/push-tokens                    │
+│  - Store token in DevicePushToken table   │
+│  - Handle device switching users          │
+│  - Support multiple devices per user      │
+└───────────────────┬───────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────┐
+│     NOTIFICATION TRIGGERS                 │
+│                                           │
+│  ┌────────────┐  ┌────────────────────┐  │
+│  │ Waitlist   │  │  Post-Scraper      │  │
+│  │ Available  │  │  Alerts            │  │
+│  └─────┬──────┘  └─────────┬──────────┘  │
+│        │                   │              │
+│        ▼                   ▼              │
+│  ┌────────────────────────────────────┐  │
+│  │    Firebase Admin SDK (Server)     │  │
+│  │    Send to FCM with user tokens    │  │
+│  └────────────────────────────────────┘  │
+└───────────────────┬───────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────┐
+│     FIREBASE CLOUD MESSAGING (FCM)        │
+│                                           │
+│  - APNs for iOS devices                   │
+│  - Direct connection for Android          │
+└───────────────────┬───────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────┐
+│         MOBILE APP RECEPTION              │
+│                                           │
+│  Foreground: Display via Notifee          │
+│  Background: System notification          │
+│  Quit state: Wake app on tap              │
+│                                           │
+│  Deep link to:                            │
+│  - Activity Detail (activityId)           │
+│  - Waiting List screen                    │
+│  - Custom screens (data.screen)           │
+└───────────────────────────────────────────┘
+```
+
+**Push Notification Types**:
+| Type | Trigger | Deep Link |
+|------|---------|-----------|
+| spots_available | Waitlist activity gets spots | Activity Detail |
+| capacity_alert | Favorite activity getting full | Activity Detail |
+| price_drop | Activity price decreased | Activity Detail |
+| general | System announcements | Custom screen |
+
 ## Technology Stack
 
 ### Frontend
@@ -388,6 +460,8 @@ Database Updated (117,700+ activities)
 | HTTP | Axios | API communication |
 | Forms | react-hook-form | Form handling |
 | Payments | RevenueCat | Subscription management |
+| Push Notifications | @react-native-firebase/messaging | FCM token management |
+| Local Notifications | @notifee/react-native | Foreground display |
 
 ### Backend
 | Component | Technology | Purpose |
@@ -400,7 +474,8 @@ Database Updated (117,700+ activities)
 | Validation | express-validator | Input validation |
 | Security | Helmet, CORS | HTTP security |
 | Docs | Swagger/OpenAPI | API documentation |
-| AI | Claude API | Recommendations & validation |
+| AI | Claude API, OpenAI, LangGraph | Recommendations & orchestration |
+| Push | firebase-admin | FCM server SDK |
 
 ### Database
 | Component | Technology | Purpose |
@@ -490,5 +565,5 @@ Database Updated (117,700+ activities)
 
 ---
 
-**Document Version**: 5.0
+**Document Version**: 5.1
 **Last Updated**: December 2025

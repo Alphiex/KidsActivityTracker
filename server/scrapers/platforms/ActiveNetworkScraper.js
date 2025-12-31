@@ -1090,6 +1090,16 @@ class ActiveNetworkScraper extends BaseScraper {
       function parseDates(text) {
         const result = { raw: null, startStr: null, endStr: null };
 
+        // Pattern 0: "January 6, 2025 to January 6, 2026" (full month names with "to" separator)
+        // ActiveNetwork list pages use this format
+        const fullMonthToMatch = text.match(/([A-Z][a-z]+\s+\d{1,2},?\s*\d{4})\s+to\s+([A-Z][a-z]+\s+\d{1,2},?\s*\d{4})/i);
+        if (fullMonthToMatch) {
+          result.raw = fullMonthToMatch[0];
+          result.startStr = fullMonthToMatch[1];
+          result.endStr = fullMonthToMatch[2];
+          return result;
+        }
+
         // Pattern 1: "Jan 6 - Mar 24, 2025" or "Jan 6, 2025 - Mar 24, 2025"
         const dateRangeMatch = text.match(/([A-Z][a-z]{2}\s+\d{1,2}(?:,?\s*\d{4})?)\s*[-–—]\s*([A-Z][a-z]{2}\s+\d{1,2}(?:,?\s*\d{4})?)/);
         if (dateRangeMatch) {

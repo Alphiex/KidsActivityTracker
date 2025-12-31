@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { emailService } from '../utils/emailService';
 import { userPreferenceMatcherService } from './userPreferenceMatcherService';
 import { activitySnapshotService, PriceDropEvent, CapacityChangeEvent } from './activitySnapshotService';
+import { pushNotificationService } from './pushNotificationService';
 
 type NotificationType = 'daily_digest' | 'weekly_digest' | 'capacity_alert' | 'price_drop' | 'spots_available';
 
@@ -363,7 +364,27 @@ export class NotificationService {
    */
   async processCapacityChanges(changes: CapacityChangeEvent[]): Promise<void> {
     for (const change of changes) {
-      // Get users who have favorited this activity and want capacity alerts
+      // Get the activity for push notification
+      const activity = await prisma.activity.findUnique({
+        where: { id: change.activityId },
+        include: { provider: true, location: true }
+      });
+
+      if (!activity) continue;
+
+      // Send push notification for low capacity
+      try {
+        const pushResult = await pushNotificationService.sendCapacityAlertNotification(
+          change.activityId,
+          activity,
+          change.newSpots
+        );
+        console.log(`[Notification] Capacity alert push sent: ${pushResult.successCount} success`);
+      } catch (error) {
+        console.error(`[Notification] Failed to send capacity alert push:`, error);
+      }
+
+      // Get users who have favorited this activity and want capacity alerts (for email)
       const users = await userPreferenceMatcherService.getUsersWithFavoriteCapacityAlerts(change.activityId);
 
       for (const user of users) {
@@ -382,7 +403,28 @@ export class NotificationService {
    */
   async processPriceDrops(drops: PriceDropEvent[]): Promise<void> {
     for (const drop of drops) {
-      // Get users who have favorited this activity
+      // Get the activity for push notification
+      const activity = await prisma.activity.findUnique({
+        where: { id: drop.activityId },
+        include: { provider: true, location: true }
+      });
+
+      if (!activity) continue;
+
+      // Send push notification for price drop
+      try {
+        const pushResult = await pushNotificationService.sendPriceDropNotification(
+          drop.activityId,
+          activity,
+          drop.oldPrice,
+          drop.newPrice
+        );
+        console.log(`[Notification] Price drop push sent: ${pushResult.successCount} success`);
+      } catch (error) {
+        console.error(`[Notification] Failed to send price drop push:`, error);
+      }
+
+      // Get users who have favorited this activity (for email)
       const favorites = await prisma.favorite.findMany({
         where: { activityId: drop.activityId, notifyOnChange: true },
         include: { user: true }
@@ -405,6 +447,17 @@ export class NotificationService {
    * Process waitlist and notify users when spots become available
    */
   async processWaitlistNotifications(activityId: string): Promise<void> {
+    // Get the activity for push notification content
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId },
+      include: { provider: true, location: true }
+    });
+
+    if (!activity) {
+      console.error(`[Notification] Activity ${activityId} not found`);
+      return;
+    }
+
     // Get all waitlist entries for this activity that haven't been notified
     const entries = await prisma.waitlistEntry.findMany({
       where: {
@@ -414,6 +467,22 @@ export class NotificationService {
       include: { user: true }
     });
 
+    if (entries.length === 0) {
+      return;
+    }
+
+    // Send push notifications to all users at once (more efficient)
+    try {
+      const pushResult = await pushNotificationService.sendSpotsAvailableNotification(
+        activityId,
+        activity
+      );
+      console.log(`[Notification] Push sent for activity ${activityId}: ${pushResult.successCount} success`);
+    } catch (error) {
+      console.error(`[Notification] Failed to send push for activity ${activityId}:`, error);
+    }
+
+    // Send email notifications (existing logic)
     for (const entry of entries) {
       await this.sendSpotsAvailableAlert(entry.userId, activityId);
     }

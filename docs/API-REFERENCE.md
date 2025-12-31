@@ -778,6 +778,82 @@ Quick unsubscribe from all notifications. **Requires authentication**.
 
 ---
 
+## Push Notification Endpoints
+
+Push notification system using Firebase Cloud Messaging (FCM) for real-time alerts on iOS and Android.
+
+### POST /api/push-tokens
+
+Register or update a device push token. **Requires authentication**.
+
+**Request**
+```json
+{
+  "token": "fcm_device_token_string",
+  "platform": "ios",
+  "deviceId": "unique_device_identifier"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `token` | string | Yes | FCM device token |
+| `platform` | string | Yes | `ios` or `android` |
+| `deviceId` | string | No | Unique device ID for multi-device support |
+
+**Response** `200 OK`
+```json
+{
+  "success": true
+}
+```
+
+**Notes**:
+- Tokens are automatically handled when devices switch users
+- Same device with new token updates the existing entry
+- Supports multiple devices per user
+
+### DELETE /api/push-tokens/:token
+
+Unregister a push token (call on logout). **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "success": true
+}
+```
+
+### GET /api/push-tokens
+
+Get all active push tokens for the authenticated user (debugging). **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "tokens": [
+    {
+      "id": "uuid",
+      "platform": "ios",
+      "deviceId": "device-uuid",
+      "createdAt": "2025-01-15T10:00:00Z",
+      "updatedAt": "2025-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Push Notification Types
+
+| Type | Description | Data Fields |
+|------|-------------|-------------|
+| `spots_available` | Waitlist activity has spots | `activityId`, `activityName` |
+| `capacity_alert` | Favorite activity getting full | `activityId`, `activityName` |
+| `price_drop` | Activity price decreased | `activityId`, `activityName` |
+| `general` | General notifications | `screen` (optional) |
+
+---
+
 ## Sharing Endpoints
 
 ### POST /api/invitations
@@ -864,5 +940,5 @@ GET /api/v1/activities?page=2&limit=20
 
 ---
 
-**Document Version**: 5.1
+**Document Version**: 5.2
 **Last Updated**: December 2025

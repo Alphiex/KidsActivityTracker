@@ -34,6 +34,7 @@ import adminActivitiesRoutes from './routes/adminActivities';
 import adminMonitoringRoutes from './routes/adminMonitoring';
 import adminNotificationsRoutes from './routes/adminNotifications';
 import vendorRoutes from './routes/vendor';
+import pushTokensRoutes from './routes/pushTokens';
 import aiRoutes from './ai/routes';
 
 // Import AI module
@@ -248,6 +249,9 @@ app.use('/api/sponsor', partnerPortalRoutes);
 
 // Vendor portal routes
 app.use('/api/vendor', vendorRoutes);
+
+// Push notification token routes
+app.use('/api/push-tokens', pushTokensRoutes);
 
 // Protected route example
 app.get('/api/protected', verifyToken, (req, res) => {
