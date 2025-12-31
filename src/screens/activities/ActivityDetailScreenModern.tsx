@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import LinearGradient from 'react-native-linear-gradient';
 import { Activity } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -783,7 +783,6 @@ const ActivityDetailScreenModern = () => {
                 <MapView
                   ref={mapRef}
                   style={styles.map}
-                  provider={PROVIDER_GOOGLE}
                   initialRegion={{
                     latitude: mapLat,
                     longitude: mapLng,

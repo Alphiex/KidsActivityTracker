@@ -10,7 +10,7 @@ import {
   FlatList,
   Animated,
 } from 'react-native';
-import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Region } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Activity } from '../types';
@@ -315,7 +315,6 @@ const MapSearchScreen = () => {
           ref={mapRef}
           style={styles.map}
           initialRegion={DEFAULT_REGION}
-          provider={PROVIDER_GOOGLE}
           onPress={handleMapPress}
           showsUserLocation
           showsMyLocationButton={false}
