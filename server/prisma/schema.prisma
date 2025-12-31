@@ -456,8 +456,10 @@ model ScraperRun {
 
 model User {
   id                  String          @id @default(uuid())
+  firebaseUid         String?         @unique  // Firebase Auth UID (null for legacy users)
+  authProvider        String          @default("email")  // "email", "google", "apple"
   email               String          @unique
-  passwordHash        String
+  passwordHash        String?         // Nullable for social login users
   name                String
   phoneNumber         String?
   isVerified          Boolean         @default(false)
@@ -492,6 +494,7 @@ model User {
   pushTokens            DevicePushToken[]
 
   @@index([email])
+  @@index([firebaseUid])
 }
 
 model Session {

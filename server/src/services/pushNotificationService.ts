@@ -3,35 +3,9 @@
  * Sends push notifications via Firebase Cloud Messaging (FCM)
  */
 
-import admin from 'firebase-admin';
 import { prisma } from '../lib/prisma';
 import { Activity, User } from '../../generated/prisma';
-
-// Initialize Firebase Admin SDK
-let firebaseInitialized = false;
-
-function initializeFirebase(): boolean {
-  if (firebaseInitialized) return true;
-
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccountJson) {
-    console.warn('[FCM] FIREBASE_SERVICE_ACCOUNT env var not set, push notifications disabled');
-    return false;
-  }
-
-  try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    firebaseInitialized = true;
-    console.log('[FCM] Firebase Admin SDK initialized');
-    return true;
-  } catch (error) {
-    console.error('[FCM] Failed to initialize Firebase Admin SDK:', error);
-    return false;
-  }
-}
+import { initializeFirebase, getFirebaseMessaging, admin } from '../config/firebase';
 
 export interface PushNotificationPayload {
   title: string;

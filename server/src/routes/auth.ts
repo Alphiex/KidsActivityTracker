@@ -1,296 +1,105 @@
+/**
+ * Auth Routes - Firebase Authentication
+ *
+ * Most authentication is now handled by Firebase on the client side:
+ * - Login/Register: Firebase Auth SDK
+ * - Password Reset: Firebase sendPasswordResetEmail()
+ * - Email Verification: Firebase sendEmailVerification()
+ * - Token Refresh: Firebase handles automatically
+ *
+ * These routes handle PostgreSQL user management and profile operations.
+ */
+
 import { Router, Request, Response } from 'express';
-import { authService } from '../services/authService';
-import { 
-  verifyToken, 
-  authLimiter, 
-  passwordResetLimiter,
-  emailVerificationLimiter,
+import { prisma } from '../lib/prisma';
+import { deleteFirebaseUser } from '../config/firebase';
+import {
+  verifyToken,
+  authLimiter,
   logActivity
 } from '../middleware/auth';
 
 const router = Router();
 
 /**
- * @route   POST /api/auth/register
- * @desc    Register a new user
- * @access  Public
+ * @route   POST /api/auth/sync
+ * @desc    Sync Firebase user with PostgreSQL (called after Firebase login)
+ * @access  Private (requires Firebase token)
+ *
+ * This endpoint is called after a user logs in via Firebase.
+ * The verifyToken middleware automatically creates/links the PostgreSQL user.
+ * This endpoint returns the full user profile.
  */
-router.post('/register', authLimiter, logActivity('register'), async (req: Request, res: Response) => {
+router.post('/sync', verifyToken, logActivity('sync'), async (req: Request, res: Response) => {
   try {
-    const { email, password, name, phoneNumber } = req.body;
+    // The user is already created/linked by verifyToken middleware
+    // Just fetch and return the full profile
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        preferences: true,
+        authProvider: true,
+        createdAt: true,
+        updatedAt: true,
+        children: {
+          select: {
+            id: true,
+            name: true,
+            birthDate: true,
+          }
+        },
+        _count: {
+          select: {
+            favorites: true,
+            children: true,
+          }
+        }
+      }
+    });
 
-    // Validate required fields
-    if (!email || !password || !name) {
-      return res.status(400).json({
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        error: 'Email, password, and name are required'
+        error: 'User not found'
       });
     }
 
-    // Register user
-    const result = await authService.register({
-      email,
-      password,
-      name,
-      phoneNumber
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Registration successful. Please check your email to verify your account.',
-      user: result.user,
-      tokens: result.tokens
-    });
-  } catch (error: any) {
-    console.error('Registration error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Registration failed'
-    });
-  }
-});
-
-/**
- * @route   POST /api/auth/login
- * @desc    Login user
- * @access  Public
- */
-router.post('/login', authLimiter, logActivity('login'), async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email and password are required'
-      });
-    }
-
-    // Login user
-    const result = await authService.login({ email, password });
+    // Include Firebase user info if available
+    const firebaseUser = req.firebaseUser;
 
     res.json({
       success: true,
-      message: 'Login successful',
-      user: result.user,
-      tokens: result.tokens
+      user: {
+        ...user,
+        // Add Firebase profile data if available
+        profilePicture: firebaseUser?.picture || null,
+      }
     });
   } catch (error: any) {
-    console.error('Login error:', error);
-    res.status(401).json({
+    console.error('Sync error:', error);
+    res.status(500).json({
       success: false,
-      error: error.message || 'Login failed'
-    });
-  }
-});
-
-/**
- * @route   POST /api/auth/refresh
- * @desc    Refresh access token
- * @access  Public
- */
-router.post('/refresh', logActivity('refresh-token'), async (req: Request, res: Response) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(400).json({
-        success: false,
-        error: 'Refresh token is required'
-      });
-    }
-
-    // Refresh tokens
-    const tokens = await authService.refreshToken(refreshToken);
-
-    res.json({
-      success: true,
-      tokens
-    });
-  } catch (error: any) {
-    console.error('Token refresh error:', error);
-    res.status(401).json({
-      success: false,
-      error: error.message || 'Token refresh failed'
+      error: 'Failed to sync user'
     });
   }
 });
 
 /**
  * @route   POST /api/auth/logout
- * @desc    Logout user (client-side token removal)
+ * @desc    Logout user (acknowledgment only - Firebase handles token invalidation)
  * @access  Private
  */
 router.post('/logout', verifyToken, logActivity('logout'), async (req: Request, res: Response) => {
-  // In a stateless JWT system, logout is handled client-side
-  // Here we just acknowledge the logout
+  // Firebase handles token invalidation on the client side
+  // This is just an acknowledgment endpoint
   res.json({
     success: true,
     message: 'Logout successful'
   });
-});
-
-/**
- * @route   GET /api/auth/verify-email
- * @desc    Verify email address
- * @access  Public
- */
-router.get('/verify-email', emailVerificationLimiter, logActivity('verify-email'), async (req: Request, res: Response) => {
-  try {
-    const { token } = req.query;
-
-    if (!token || typeof token !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Verification token is required'
-      });
-    }
-
-    // Verify email
-    await authService.verifyEmail(token);
-
-    res.json({
-      success: true,
-      message: 'Email verified successfully'
-    });
-  } catch (error: any) {
-    console.error('Email verification error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Email verification failed'
-    });
-  }
-});
-
-/**
- * @route   POST /api/auth/resend-verification
- * @desc    Resend verification email
- * @access  Public
- */
-router.post('/resend-verification', emailVerificationLimiter, logActivity('resend-verification'), async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email is required'
-      });
-    }
-
-    // Resend verification email
-    await authService.resendVerificationEmail(email);
-
-    res.json({
-      success: true,
-      message: 'Verification email sent'
-    });
-  } catch (error: any) {
-    console.error('Resend verification error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Failed to resend verification email'
-    });
-  }
-});
-
-/**
- * @route   POST /api/auth/forgot-password
- * @desc    Request password reset
- * @access  Public
- */
-router.post('/forgot-password', passwordResetLimiter, logActivity('forgot-password'), async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email is required'
-      });
-    }
-
-    // Request password reset
-    await authService.requestPasswordReset(email);
-
-    // Always return success to prevent email enumeration
-    res.json({
-      success: true,
-      message: 'If an account exists with this email, a password reset link has been sent'
-    });
-  } catch (error: any) {
-    console.error('Password reset request error:', error);
-    // Still return success to prevent email enumeration
-    res.json({
-      success: true,
-      message: 'If an account exists with this email, a password reset link has been sent'
-    });
-  }
-});
-
-/**
- * @route   POST /api/auth/reset-password
- * @desc    Reset password with token
- * @access  Public
- */
-router.post('/reset-password', passwordResetLimiter, logActivity('reset-password'), async (req: Request, res: Response) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'Token and new password are required'
-      });
-    }
-
-    // Reset password
-    await authService.resetPassword({ token, newPassword });
-
-    res.json({
-      success: true,
-      message: 'Password reset successful'
-    });
-  } catch (error: any) {
-    console.error('Password reset error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Password reset failed'
-    });
-  }
-});
-
-/**
- * @route   POST /api/auth/change-password
- * @desc    Change password for authenticated user
- * @access  Private
- */
-router.post('/change-password', verifyToken, authLimiter, logActivity('change-password'), async (req: Request, res: Response) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'Current password and new password are required'
-      });
-    }
-
-    // Change password
-    await authService.changePassword(req.user!.id, currentPassword, newPassword);
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-  } catch (error: any) {
-    console.error('Password change error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Password change failed'
-    });
-  }
 });
 
 /**
@@ -300,17 +109,57 @@ router.post('/change-password', verifyToken, authLimiter, logActivity('change-pa
  */
 router.get('/profile', verifyToken, logActivity('get-profile'), async (req: Request, res: Response) => {
   try {
-    const profile = await authService.getUserProfile(req.user!.id);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        preferences: true,
+        authProvider: true,
+        createdAt: true,
+        updatedAt: true,
+        children: {
+          select: {
+            id: true,
+            name: true,
+            birthDate: true,
+          }
+        },
+        _count: {
+          select: {
+            favorites: true,
+            children: true,
+            myShares: true,
+            sharedWithMe: true,
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Include Firebase profile data if available
+    const firebaseUser = req.firebaseUser;
 
     res.json({
       success: true,
-      profile
+      profile: {
+        ...user,
+        profilePicture: firebaseUser?.picture || null,
+      }
     });
   } catch (error: any) {
     console.error('Get profile error:', error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Failed to get profile'
+      error: 'Failed to get profile'
     });
   }
 });
@@ -324,23 +173,35 @@ router.put('/profile', verifyToken, logActivity('update-profile'), async (req: R
   try {
     const { name, phoneNumber, preferences } = req.body;
 
-    // Update profile
-    const profile = await authService.updateUserProfile(req.user!.id, {
-      name,
-      phoneNumber,
-      preferences
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (preferences !== undefined) updateData.preferences = preferences;
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        preferences: true,
+        authProvider: true,
+        updatedAt: true,
+      }
     });
 
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      profile
+      profile: user
     });
   } catch (error: any) {
     console.error('Update profile error:', error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Failed to update profile'
+      error: 'Failed to update profile'
     });
   }
 });
@@ -354,7 +215,11 @@ router.get('/check', verifyToken, async (req: Request, res: Response) => {
   res.json({
     success: true,
     authenticated: true,
-    user: req.user
+    user: {
+      id: req.user!.id,
+      email: req.user!.email,
+      authProvider: req.user!.authProvider,
+    }
   });
 });
 
@@ -366,17 +231,47 @@ router.get('/check', verifyToken, async (req: Request, res: Response) => {
  */
 router.delete('/delete-account', verifyToken, authLimiter, logActivity('delete-account'), async (req: Request, res: Response) => {
   try {
-    const { password } = req.body;
+    const userId = req.user!.id;
+    const firebaseUid = req.user!.firebaseUid;
 
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Password is required to delete account'
+    // Delete user from PostgreSQL (cascades to related data)
+    await prisma.$transaction(async (tx) => {
+      // Delete related data first (for tables without cascade)
+      await tx.activityShareProfile.deleteMany({
+        where: {
+          activityShare: {
+            OR: [
+              { sharerId: userId },
+              { sharedWithId: userId }
+            ]
+          }
+        }
       });
+
+      await tx.activityShare.deleteMany({
+        where: {
+          OR: [
+            { sharerId: userId },
+            { sharedWithId: userId }
+          ]
+        }
+      });
+
+      // Delete the user (other relations have onDelete: Cascade)
+      await tx.user.delete({
+        where: { id: userId }
+      });
+    });
+
+    // Delete from Firebase Auth
+    if (firebaseUid) {
+      const deleted = await deleteFirebaseUser(firebaseUid);
+      if (!deleted) {
+        console.warn(`[Auth] Failed to delete Firebase user ${firebaseUid}, but PostgreSQL user was deleted`);
+      }
     }
 
-    // Delete account and all associated data
-    await authService.deleteAccount(req.user!.id, password);
+    console.log(`[Auth] Account deleted: ${userId}`);
 
     res.json({
       success: true,
@@ -384,9 +279,9 @@ router.delete('/delete-account', verifyToken, authLimiter, logActivity('delete-a
     });
   } catch (error: any) {
     console.error('Account deletion error:', error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Failed to delete account'
+      error: 'Failed to delete account'
     });
   }
 });

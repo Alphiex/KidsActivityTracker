@@ -1,21 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { tokenUtils } from '../utils/tokenUtils';
 import { prisma } from '../lib/prisma';
-
-// Validate JWT secrets are configured at startup
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-
-if (!JWT_ACCESS_SECRET || !JWT_REFRESH_SECRET) {
-  console.error('CRITICAL: JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be configured');
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
-  }
-}
-
-// Use validated secrets or fallback only in development
-const getAccessSecret = () => JWT_ACCESS_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-access-secret-not-for-production' : '');
-const getRefreshSecret = () => JWT_REFRESH_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-refresh-secret-not-for-production' : '');
+import { verifyFirebaseToken, isFirebaseInitialized } from '../config/firebase';
+import { tokenUtils } from '../utils/tokenUtils';
 
 // Extend Express Request type to include user
 declare global {
@@ -24,6 +10,15 @@ declare global {
       user?: {
         id: string;
         email: string;
+        firebaseUid?: string;
+        authProvider?: string;
+      };
+      firebaseUser?: {
+        uid: string;
+        email?: string;
+        name?: string;
+        picture?: string;
+        emailVerified?: boolean;
       };
       session?: any;
     }
@@ -31,12 +26,92 @@ declare global {
 }
 
 /**
- * Verify JWT access token
+ * Extract Bearer token from Authorization header
+ */
+function extractBearerToken(authHeader: string | undefined): string | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  return authHeader.substring(7);
+}
+
+/**
+ * Find or create PostgreSQL user from Firebase user data
+ */
+async function findOrCreateUser(
+  firebaseUid: string,
+  email: string,
+  name: string | undefined,
+  authProvider: string
+): Promise<{ id: string; email: string; firebaseUid: string; authProvider: string } | null> {
+  try {
+    // First, try to find user by firebaseUid
+    let user = await prisma.user.findUnique({
+      where: { firebaseUid },
+      select: { id: true, email: true, firebaseUid: true, authProvider: true }
+    });
+
+    if (user) {
+      return user;
+    }
+
+    // Check if user exists by email (for linking accounts)
+    user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, firebaseUid: true, authProvider: true }
+    });
+
+    if (user) {
+      // Link existing email user to Firebase account
+      user = await prisma.user.update({
+        where: { email },
+        data: {
+          firebaseUid,
+          authProvider,
+          isVerified: true, // Firebase has verified the email
+        },
+        select: { id: true, email: true, firebaseUid: true, authProvider: true }
+      });
+      console.log(`[Auth] Linked existing user ${user.id} to Firebase account ${firebaseUid}`);
+      return user;
+    }
+
+    // Create new user
+    user = await prisma.user.create({
+      data: {
+        firebaseUid,
+        email,
+        name: name || email.split('@')[0],
+        authProvider,
+        isVerified: true, // Firebase handles email verification
+      },
+      select: { id: true, email: true, firebaseUid: true, authProvider: true }
+    });
+
+    console.log(`[Auth] Created new user ${user.id} from Firebase account ${firebaseUid}`);
+    return user;
+  } catch (error) {
+    console.error('[Auth] Error finding/creating user:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify Firebase ID token and attach user to request
+ * This replaces the old JWT verification
  */
 export const verifyToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Check if Firebase is configured
+    if (!isFirebaseInitialized()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Authentication service unavailable'
+      });
+    }
+
     // Extract token from header
-    const token = tokenUtils.extractTokenFromHeader(req.headers.authorization);
+    const token = extractBearerToken(req.headers.authorization);
 
     if (!token) {
       return res.status(401).json({
@@ -45,78 +120,110 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       });
     }
 
-    // Verify token
-    const decoded = tokenUtils.verifyJWT(
-      token,
-      getAccessSecret()
-    );
+    // Verify Firebase ID token
+    const decodedToken = await verifyFirebaseToken(token);
 
-    // Check token type
-    if (decoded.type !== 'access') {
+    if (!decodedToken) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid token type'
+        error: 'Invalid or expired token'
       });
     }
 
-    // Check if user exists and is verified
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, email: true, isVerified: true }
-    });
+    // Extract user info from Firebase token
+    const firebaseUid = decodedToken.uid;
+    const email = decodedToken.email;
+    const name = decodedToken.name as string | undefined;
+    const picture = decodedToken.picture as string | undefined;
+    const emailVerified = decodedToken.email_verified;
+
+    // Determine auth provider from Firebase token
+    let authProvider = 'email';
+    if (decodedToken.firebase?.sign_in_provider) {
+      const provider = decodedToken.firebase.sign_in_provider;
+      if (provider === 'google.com') {
+        authProvider = 'google';
+      } else if (provider === 'apple.com') {
+        authProvider = 'apple';
+      }
+    }
+
+    if (!email) {
+      return res.status(401).json({
+        success: false,
+        error: 'Email not available in token'
+      });
+    }
+
+    // Find or create PostgreSQL user
+    const user = await findOrCreateUser(firebaseUid, email, name, authProvider);
 
     if (!user) {
-      return res.status(401).json({
+      return res.status(500).json({
         success: false,
-        error: 'User not found'
+        error: 'Failed to process user account'
       });
     }
 
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        error: 'Email not verified'
-      });
-    }
-
-    // Attach user to request
+    // Attach user info to request
     req.user = {
       id: user.id,
-      email: user.email
+      email: user.email,
+      firebaseUid: user.firebaseUid || undefined,
+      authProvider: user.authProvider
+    };
+
+    // Also attach Firebase user info for additional data (like profile picture)
+    req.firebaseUser = {
+      uid: firebaseUid,
+      email,
+      name,
+      picture,
+      emailVerified
     };
 
     next();
   } catch (error: any) {
+    console.error('[Auth] Token verification error:', error);
     return res.status(401).json({
       success: false,
-      error: error.message || 'Invalid token'
+      error: 'Authentication failed'
     });
   }
 };
 
 /**
  * Optional authentication - doesn't fail if no token
+ * Useful for endpoints that work both authenticated and unauthenticated
  */
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = tokenUtils.extractTokenFromHeader(req.headers.authorization);
+    const token = extractBearerToken(req.headers.authorization);
 
-    if (token) {
-      const decoded = tokenUtils.verifyJWT(
-        token,
-        getAccessSecret()
-      );
+    if (token && isFirebaseInitialized()) {
+      const decodedToken = await verifyFirebaseToken(token);
 
-      if (decoded.type === 'access') {
+      if (decodedToken && decodedToken.email) {
+        // Try to find existing user
         const user = await prisma.user.findUnique({
-          where: { id: decoded.userId },
-          select: { id: true, email: true, isVerified: true }
+          where: { firebaseUid: decodedToken.uid },
+          select: { id: true, email: true, firebaseUid: true, authProvider: true }
         });
 
-        if (user && user.isVerified) {
+        if (user) {
           req.user = {
             id: user.id,
-            email: user.email
+            email: user.email,
+            firebaseUid: user.firebaseUid || undefined,
+            authProvider: user.authProvider
+          };
+
+          req.firebaseUser = {
+            uid: decodedToken.uid,
+            email: decodedToken.email,
+            name: decodedToken.name as string | undefined,
+            picture: decodedToken.picture as string | undefined,
+            emailVerified: decodedToken.email_verified
           };
         }
       }
