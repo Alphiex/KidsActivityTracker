@@ -1118,7 +1118,15 @@ class ActiveNetworkScraper extends BaseScraper {
         const lowerText = text.toLowerCase();
         if (lowerText.includes('sold out') || lowerText.includes('full')) return 'Full';
         if (lowerText.includes('waitlist')) return 'Waitlist';
-        if (lowerText.includes('register') || lowerText.includes('available')) return 'Open';
+        // Check for various "Open" indicators
+        if (lowerText.includes('register') || lowerText.includes('available') ||
+            lowerText.includes('enroll') || lowerText.includes('sign up') ||
+            lowerText.match(/openings?\s*\d+/) || lowerText.match(/\d+\s*openings?/)) {
+          return 'Open';
+        }
+        // If we have spots available info, assume Open
+        const spotsMatch = text.match(/(\d+)\s*spots?\s*(?:left|available|remaining)/i);
+        if (spotsMatch && parseInt(spotsMatch[1]) > 0) return 'Open';
         return 'Unknown';
       }
 
@@ -1617,7 +1625,8 @@ class ActiveNetworkScraper extends BaseScraper {
           return 'waitlist';
         } else if (lowerText.includes('full') || lowerText.includes('sold out')) {
           return 'full';
-        } else if (lowerText.includes('space') || lowerText.includes('opening') || lowerText.includes('available')) {
+        } else if (lowerText.includes('space') || lowerText.includes('opening') || lowerText.includes('available') ||
+                   lowerText.includes('enroll') || lowerText.includes('register') || lowerText.includes('sign up')) {
           return 'open';
         } else if (lowerText.includes('closed')) {
           return 'closed';
