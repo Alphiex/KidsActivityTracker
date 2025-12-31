@@ -2219,14 +2219,16 @@ class ActiveNetworkScraper extends BaseScraper {
 
                 // === INSTRUCTOR / SUPERVISOR / COACH ===
                 // Try multiple field names as different sites use different terminology
+                // Toronto format: "Supervisor    PR CR-N5-R1" (tab-separated in table)
+                // Ottawa format: "Supervisor\nRenaud Demers" (newline-separated)
                 const instructorPatterns = [
-                  /Instructor\s*\n\s*([^\n]+)/i,
-                  /Supervisor\s*\n\s*([^\n]+)/i,
-                  /Coach\s*\n\s*([^\n]+)/i,
-                  /Leader\s*\n\s*([^\n]+)/i,
-                  /Facilitator\s*\n\s*([^\n]+)/i,
-                  /Teacher\s*\n\s*([^\n]+)/i,
-                  /Staff\s*\n\s*([^\n]+)/i
+                  /Instructor\s+([^\n\t]+)/i,
+                  /Supervisor\s+([^\n\t]+)/i,
+                  /Coach\s+([^\n\t]+)/i,
+                  /Leader\s+([^\n\t]+)/i,
+                  /Facilitator\s+([^\n\t]+)/i,
+                  /Teacher\s+([^\n\t]+)/i,
+                  /Staff\s+([^\n\t]+)/i
                 ];
                 for (const pattern of instructorPatterns) {
                   const match = pageText.match(pattern);
@@ -2242,7 +2244,9 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === NUMBER OF SESSIONS ===
-                const sessionsMatch = pageText.match(/Number of sessions\s*\n?\s*(\d+)/i);
+                // Ottawa: "Number of sessions\n9"
+                // Toronto: "Number of sessions    9" (tab/spaces in table)
+                const sessionsMatch = pageText.match(/Number of sessions\s+(\d+)/i);
                 if (sessionsMatch) {
                   data.sessionCount = parseInt(sessionsMatch[1]);
                 }
@@ -2272,12 +2276,15 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === REGISTRATION DATES ===
-                // Format 1: "Registration dates" section with multiple user types
-                // "Members 18 Nov 2025 9:00 PM to 4 Jan 2026 6:00 AM"
+                // Different formats across ActiveNetwork sites:
+                // Ottawa: "Members 18 Nov 2025 9:00 PM to 4 Jan 2026 6:00 AM"
+                // Toronto: "Members    From Dec 3, 2025 7:00 AM" (tab-separated table)
                 const regDatePatterns = [
-                  // "DD Mon YYYY H:MM AM/PM to DD Mon YYYY H:MM AM/PM" (Ottawa format)
-                  /(?:Members?|Residents?|Non-members?|Public)\s*(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))\s*to\s*(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i,
-                  // "From Mon DD, YYYY H:MM AM" format
+                  // Ottawa format: "DD Mon YYYY H:MM AM/PM to DD Mon YYYY H:MM AM/PM"
+                  /(?:Members?|Residents?|Non-members?|Public)\s+(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))\s+to\s+(\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i,
+                  // Toronto format: "Members    From Dec 3, 2025 7:00 AM"
+                  /(?:Members?|Residents?)\s+From\s+([A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i,
+                  // "From Mon DD, YYYY H:MM AM" format (generic)
                   /Registration\s*dates?\s*\n?\s*From\s+([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4}\s*\d{1,2}:\d{2}\s*(?:AM|PM))/i,
                   // "Registration: Mon DD - Mon DD, YYYY"
                   /Registration[:\s]+([A-Z][a-z]{2}\s+\d{1,2})\s*[-–]\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i,
