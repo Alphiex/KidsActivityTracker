@@ -985,6 +985,12 @@ class PerfectMindScraper extends BaseScraper {
             }
           }
 
+          // IMPORTANT: Override spotsAvailable when status indicates no availability
+          // This ensures consistency - if status says Full/Waitlist/Closed, spots should be 0
+          if (registrationStatus === 'Full' || registrationStatus === 'Waitlist' || registrationStatus === 'Closed') {
+            spotsAvailable = 0;
+          }
+
           // Extract time - comprehensive patterns
           let startTime = null;
           let endTime = null;
@@ -1888,6 +1894,12 @@ class PerfectMindScraper extends BaseScraper {
                            !statusText.includes('no longer')) {
                     data.registrationStatus = 'Open';
                   }
+                }
+
+                // IMPORTANT: Override spotsAvailable when status indicates no availability
+                // This ensures consistency - if status says Full/Waitlist/Closed, spots should be 0
+                if (data.registrationStatus === 'Full' || data.registrationStatus === 'Waitlist' || data.registrationStatus === 'Closed') {
+                  data.spotsAvailable = 0;
                 }
 
                 return data;
