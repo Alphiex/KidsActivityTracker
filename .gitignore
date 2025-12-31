@@ -30,6 +30,11 @@ local.properties
 .env.*
 !.env.example
 
+# Google/Firebase service files (contain API keys)
+ios/GoogleService-Info.plist
+ios/*/GoogleService-Info.plist
+android/app/google-services.json
+
 # IDE
 .idea/
 .vscode/
