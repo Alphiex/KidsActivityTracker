@@ -576,28 +576,42 @@ class IntelligenzScraper extends BaseScraper {
     if (cardActivities.length > 0) {
       this.logProgress(`  Extracted ${cardActivities.length} activities from cards`);
 
-      // Check if we should enrich with detail page data (for descriptions)
+      // Check if we should enrich with detail page data (for descriptions, dates, ages)
       if (this.config.scraperConfig.fetchDetailPages) {
-        this.logProgress(`  Enriching ${cardActivities.length} activities with detail page data...`);
-        for (let i = 0; i < cardActivities.length; i++) {
-          const activity = cardActivities[i];
-          if (activity.registrationUrl && !activity.description) {
-            try {
-              const enriched = await this.fetchDescriptionFromDetailPage(page, activity.registrationUrl);
-              if (enriched.description) {
-                activity.description = enriched.description;
+        // Count activities that need enrichment (missing dates, description, or age)
+        const needsEnrichment = cardActivities.filter(a =>
+          a.registrationUrl && (!a.description || !a.startDate || !a.ageMin)
+        );
+
+        if (needsEnrichment.length > 0) {
+          this.logProgress(`  Enriching ${needsEnrichment.length}/${cardActivities.length} activities with detail page data...`);
+          for (let i = 0; i < cardActivities.length; i++) {
+            const activity = cardActivities[i];
+            if (activity.registrationUrl && (!activity.description || !activity.startDate || !activity.ageMin)) {
+              try {
+                const enriched = await this.fetchDescriptionFromDetailPage(page, activity.registrationUrl);
+                if (enriched.description && !activity.description) {
+                  activity.description = enriched.description;
+                }
+                if (enriched.ageMin && !activity.ageMin) {
+                  activity.ageMin = enriched.ageMin;
+                  activity.ageMax = enriched.ageMax;
+                }
+                // Add date enrichment
+                if (enriched.startDate && !activity.startDate) {
+                  activity.startDate = enriched.startDate;
+                }
+                if (enriched.endDate && !activity.endDate) {
+                  activity.endDate = enriched.endDate;
+                }
+                // Rate limiting
+                await new Promise(r => setTimeout(r, 500));
+                if ((i + 1) % 20 === 0) {
+                  this.logProgress(`    Enriched ${i + 1}/${cardActivities.length} activities`);
+                }
+              } catch (err) {
+                // Continue without enrichment if detail page fails
               }
-              if (enriched.ageMin && !activity.ageMin) {
-                activity.ageMin = enriched.ageMin;
-                activity.ageMax = enriched.ageMax;
-              }
-              // Rate limiting
-              await new Promise(r => setTimeout(r, 500));
-              if ((i + 1) % 20 === 0) {
-                this.logProgress(`    Enriched ${i + 1}/${cardActivities.length} activities`);
-              }
-            } catch (err) {
-              // Continue without enrichment if detail page fails
             }
           }
         }
@@ -704,10 +718,35 @@ class IntelligenzScraper extends BaseScraper {
           }
 
           // Extract dates - look for "From:" and "To:" patterns
-          const fromMatch = text.match(/From:\s*([A-Za-z]+,?\s*[A-Za-z]+\s+\d+,?\s*\d{4})/);
-          const toMatch = text.match(/To:\s*([A-Za-z]+,?\s*[A-Za-z]+\s+\d+,?\s*\d{4})/);
-          if (fromMatch) activity.startDate = fromMatch[1];
-          if (toMatch) activity.endDate = toMatch[1];
+          // Multiple formats: "Wed, January 15, 2025", "Wed, 10-Dec-25", "10-Dec-25"
+          const datePatterns = [
+            // "Wed, 10-Dec-25" or "Wed, 10-Dec-2025" (DD-Mon-YY/YYYY)
+            /From:\s*(?:[A-Za-z]+,?\s*)?(\d{1,2}[-/][A-Za-z]{3}[-/]\d{2,4})/i,
+            // "Wed, January 15, 2025" (Day, Month DD, YYYY)
+            /From:\s*([A-Za-z]+,?\s*[A-Za-z]+\s+\d+,?\s*\d{4})/i,
+            // "January 15, 2025" (Month DD, YYYY)
+            /From:\s*([A-Za-z]+\s+\d+,?\s*\d{4})/i
+          ];
+          const toDatePatterns = [
+            /To:\s*(?:[A-Za-z]+,?\s*)?(\d{1,2}[-/][A-Za-z]{3}[-/]\d{2,4})/i,
+            /To:\s*([A-Za-z]+,?\s*[A-Za-z]+\s+\d+,?\s*\d{4})/i,
+            /To:\s*([A-Za-z]+\s+\d+,?\s*\d{4})/i
+          ];
+
+          for (const pattern of datePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+              activity.startDate = match[1];
+              break;
+            }
+          }
+          for (const pattern of toDatePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+              activity.endDate = match[1];
+              break;
+            }
+          }
 
           // Extract schedule from table
           const table = card.querySelector('table');
@@ -1778,6 +1817,25 @@ class IntelligenzScraper extends BaseScraper {
           result.ageMin = parseInt(ageMatch[1]);
           result.ageMax = Math.ceil(parseFloat(ageMatch[2]));
         }
+
+        // Extract dates from table rows (label: value format)
+        const rows = document.querySelectorAll('table.table tr, table tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 2) {
+            const labelCell = cells[0];
+            const valueCell = cells[cells.length - 1];
+            const label = labelCell.querySelector('label');
+            const labelText = (label ? label.textContent : labelCell.textContent).trim().toLowerCase();
+            const value = valueCell.textContent.trim();
+
+            if (labelText.includes('start date') || labelText === 'from') {
+              result.startDate = value;
+            } else if (labelText.includes('end date') || labelText === 'to') {
+              result.endDate = value;
+            }
+          }
+        });
 
         return result;
       });
