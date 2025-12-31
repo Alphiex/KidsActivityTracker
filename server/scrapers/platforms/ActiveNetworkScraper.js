@@ -644,6 +644,9 @@ class ActiveNetworkScraper extends BaseScraper {
     // This is the activity ID in ActiveNetwork's system
     const urlCourseId = item.detail_url?.match(/\/(\d+)(?:\?|$)/)?.[1];
 
+    // Determine registration status from multiple sources
+    const registrationStatus = this.determineAPIRegistrationStatus(item);
+
     return {
       name: item.name,
       externalId: String(item.id || item.number),
@@ -664,9 +667,100 @@ class ActiveNetworkScraper extends BaseScraper {
       ageMax: item.age_max_year || null,
       ageRange: item.age_description,
       spotsAvailable: item.total_open || null,
-      availability: item.total_open > 0 ? 'Open' : 'Full',
-      registrationStatus: item.total_open > 0 ? 'Open' : (item.urgent_message?.status_description || 'Unknown')
+      availability: registrationStatus,
+      registrationStatus: registrationStatus
     };
+  }
+
+  /**
+   * Determine registration status from API response item
+   * Checks multiple fields in priority order
+   * @param {Object} item - API response item
+   * @returns {String} Registration status
+   */
+  determineAPIRegistrationStatus(item) {
+    // Priority 1: Check urgent_message for status description
+    const urgentStatus = item.urgent_message?.status_description?.toLowerCase() || '';
+    if (urgentStatus) {
+      // Check waitlist before full (e.g., "FULL - Waitlist Available")
+      if (urgentStatus.includes('waitlist') || urgentStatus.includes('waiting')) {
+        return 'Waitlist';
+      }
+      if (urgentStatus.includes('full') || urgentStatus.includes('sold out')) {
+        return 'Full';
+      }
+      if (urgentStatus.includes('closed') || urgentStatus.includes('ended')) {
+        return 'Closed';
+      }
+      if (urgentStatus.includes('cancel')) {
+        return 'Cancelled';
+      }
+      if (urgentStatus.includes('register') || urgentStatus.includes('open') || urgentStatus.includes('enroll')) {
+        return 'Open';
+      }
+    }
+
+    // Priority 2: Check total_open spots
+    if (item.total_open !== null && item.total_open !== undefined) {
+      if (item.total_open > 0) {
+        return 'Open';
+      }
+      // total_open is 0 - check if waitlist is available
+      if (item.is_waitlist_enabled || item.waitlist_enabled) {
+        return 'Waitlist';
+      }
+      return 'Full';
+    }
+
+    // Priority 3: Check other status fields
+    const statusFields = [
+      item.status,
+      item.activity_status,
+      item.registration_status,
+      item.availability_status
+    ];
+
+    for (const status of statusFields) {
+      if (status) {
+        const statusLower = String(status).toLowerCase();
+        if (statusLower.includes('waitlist') || statusLower.includes('waiting')) {
+          return 'Waitlist';
+        }
+        if (statusLower.includes('full') || statusLower.includes('sold')) {
+          return 'Full';
+        }
+        if (statusLower.includes('closed') || statusLower.includes('ended')) {
+          return 'Closed';
+        }
+        if (statusLower.includes('open') || statusLower.includes('available') || statusLower.includes('register')) {
+          return 'Open';
+        }
+      }
+    }
+
+    // Priority 4: Check corner_mark (used for visual status badges)
+    const cornerMark = item.corner_mark?.toLowerCase() || '';
+    if (cornerMark) {
+      if (cornerMark.includes('waitlist')) return 'Waitlist';
+      if (cornerMark.includes('full')) return 'Full';
+      if (cornerMark.includes('space') || cornerMark.includes('spot')) return 'Open';
+    }
+
+    // Priority 5: If activity has a valid date range in the future, assume Open
+    // This is a reasonable default for activities without explicit status
+    if (item.date_range_end) {
+      try {
+        const endDate = new Date(item.date_range_end);
+        if (endDate > new Date()) {
+          return 'Open';
+        }
+      } catch (e) {
+        // Ignore date parsing errors
+      }
+    }
+
+    // Default: Unknown (only if we truly can't determine)
+    return 'Unknown';
   }
 
   /**
