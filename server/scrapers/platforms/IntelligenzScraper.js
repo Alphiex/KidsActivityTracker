@@ -178,6 +178,35 @@ class IntelligenzScraper extends BaseScraper {
           const entryInfo = { name: entryPoint, ...categoryInfo };
           const pageActivities = await this.extractActivitiesWithDetails(browser, page, entryInfo);
           activities.push(...pageActivities);
+        } else if (pageType === 'button-navigation') {
+          // Info panel with navigation buttons - discover and follow all links
+          this.logProgress('Found button navigation page, discovering all browse links...');
+          const subcategories = await this.discoverSubcategories(page);
+          this.logProgress(`Found ${subcategories.length} navigation links`);
+
+          for (const subcat of subcategories) {
+            if (this.visitedUrls.has(subcat.url)) {
+              continue;
+            }
+            try {
+              const subcatCode = this.extractCategoryCode(subcat.url);
+              const subcatAgeInfo = subcatCode ? this.categoryAgeMap[subcatCode.toLowerCase()] : null;
+              const subcatWithAge = {
+                ...subcat,
+                ageMin: subcatAgeInfo?.ageMin ?? categoryInfo?.ageMin,
+                ageMax: subcatAgeInfo?.ageMax ?? categoryInfo?.ageMax
+              };
+
+              this.logProgress(`Processing nav link: ${subcat.name}`);
+              const subcatActivities = await this.extractFromSubcategory(browser, subcatWithAge);
+              if (subcatActivities.length > 0) {
+                this.logProgress(`  Found ${subcatActivities.length} activities in ${subcat.name}`);
+                activities.push(...subcatActivities);
+              }
+            } catch (error) {
+              this.handleError(error, `processing nav link ${subcat.name}`);
+            }
+          }
         } else if (pageType === 'category-listing') {
           // Category page - navigate to subcategories
           const subcategories = await this.discoverSubcategories(page);
@@ -264,7 +293,7 @@ class IntelligenzScraper extends BaseScraper {
   /**
    * Detect the type of page we're on
    * @param {Object} page - Puppeteer page
-   * @returns {Promise<string>} 'activity-listing', 'category-listing', or 'search-form'
+   * @returns {Promise<string>} 'activity-listing', 'category-listing', 'button-navigation', or 'search-form'
    */
   async detectPageType(page) {
     return await page.evaluate(() => {
@@ -291,9 +320,27 @@ class IntelligenzScraper extends BaseScraper {
       const subcatCards = document.querySelectorAll('.card a[href*="/browse/"]');
       if (subcatCards.length > 0) return 'category-listing';
 
+      // Check for info panel with navigation buttons (Lethbridge style)
+      // These pages have an info panel and buttons that navigate to session lists
+      const infoPanel = document.querySelector('.panel-info, .info-panel, .category-info');
+      const navButtons = document.querySelectorAll('a.btn[href*="/browse/"], a.btn-primary[href*="category"], button[onclick*="browse"]');
+      if (infoPanel || navButtons.length > 0) {
+        // Check if there are also browse links we can follow
+        const browseLinks = document.querySelectorAll('a[href*="/browse/"]');
+        if (browseLinks.length > 0) return 'button-navigation';
+      }
+
+      // Check for links that go to sessions/offerings
+      const sessionLinks = document.querySelectorAll('a[href*="Session"], a[href*="session"], a[href*="Offering"]');
+      if (sessionLinks.length > 0) return 'activity-listing';
+
       // Check for course type dropdown (search form)
       const dropdown = document.querySelector('#CourseTypes, select[name="CourseTypes"]');
       if (dropdown) return 'search-form';
+
+      // Check for any clickable category elements
+      const categoryLinks = document.querySelectorAll('a[href*="category"], a[href*="browse"]');
+      if (categoryLinks.length > 0) return 'category-listing';
 
       return 'unknown';
     });

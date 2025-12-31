@@ -38,6 +38,7 @@
       "Advanced Aquatics & First Aid"
     ],
     "browserPoolSize": 3,
+    "pagesPerBrowser": 5,
     "batchesPerBrowser": 5,
     "incrementalSave": true,
     "dynamicDiscovery": true,

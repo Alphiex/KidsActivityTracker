@@ -192,19 +192,14 @@ class PerfectMindScraper extends BaseScraper {
 
     this.logProgress(`Found ${activityLinks.length} activity links to process`);
 
-    // Use browser pool for parallelization (multiple browsers, not tabs)
+    // Use browser pool for parallelization (multiple browsers with multiple tabs each)
     const browserPoolSize = this.config.scraperConfig.browserPoolSize || 3;
+    const pagesPerBrowser = this.config.scraperConfig.pagesPerBrowser || 5; // NEW: parallel tabs per browser
     const batchesPerBrowser = this.config.scraperConfig.batchesPerBrowser || 5;
 
-    this.logProgress(`Using browser pool: ${browserPoolSize} browsers, restart every ${batchesPerBrowser} batches`);
+    this.logProgress(`Using browser pool: ${browserPoolSize} browsers, ${pagesPerBrowser} parallel tabs each`);
 
-    // Create batches
-    const batches = [];
-    for (let i = 0; i < activityLinks.length; i += maxConcurrency) {
-      batches.push(activityLinks.slice(i, i + maxConcurrency));
-    }
-
-    // Process with browser pool
+    // Process with browser pool using multi-tab parallelization
     const browserPool = [];
     const browserBatchCounts = [];
 
@@ -226,57 +221,57 @@ class PerfectMindScraper extends BaseScraper {
     this.logProgress(`Launched ${browserPool.length} browsers for parallel processing`);
 
     try {
-      // Process batches using round-robin browser assignment
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        const browserIndex = batchIndex % browserPool.length;
+      // Distribute links across browsers evenly
+      const linksPerBrowser = Math.ceil(activityLinks.length / browserPool.length);
+      const browserQueues = [];
+      for (let i = 0; i < browserPool.length; i++) {
+        const start = i * linksPerBrowser;
+        const end = Math.min(start + linksPerBrowser, activityLinks.length);
+        browserQueues.push(activityLinks.slice(start, end));
+      }
 
-        this.logProgress(`Processing batch ${batchIndex + 1}/${batches.length} (browser ${browserIndex + 1})`);
+      // Process links in parallel across all browsers
+      const browserWorkers = browserPool.map(async (browser, browserIndex) => {
+        const queue = browserQueues[browserIndex];
+        const browserActivities = [];
 
-        // Check if browser needs restart (memory management)
-        browserBatchCounts[browserIndex]++;
-        if (browserBatchCounts[browserIndex] >= batchesPerBrowser) {
+        if (queue.length === 0) return browserActivities;
+
+        this.logProgress(`Browser ${browserIndex + 1} processing ${queue.length} links`);
+
+        // Process links in parallel using multiple tabs per browser
+        const results = await this.processLinksWithPagePool(
+          browser,
+          browserIndex,
+          widgetUrl,
+          queue,
+          pagesPerBrowser
+        );
+
+        browserActivities.push(...results);
+
+        // Incremental save: save activities after processing this browser's queue
+        if (this.currentProviderId && browserActivities.length > 0) {
           try {
-            await browserPool[browserIndex].close();
-            browserPool[browserIndex] = await this.launchBrowserWithRetry();
-            browserBatchCounts[browserIndex] = 0;
-            this.logProgress(`  🔄 Restarted browser ${browserIndex + 1} for memory management`);
-          } catch (error) {
-            this.logProgress(`  ⚠️ Failed to restart browser: ${error.message}`);
-          }
-        }
-
-        const currentBrowser = browserPool[browserIndex];
-
-        // Process batch items sequentially within the batch to avoid tab overload
-        const batchActivities = [];
-        for (const link of batch) {
-          try {
-            const linkActivities = await this.extractActivitiesFromLink(widgetUrl, link, currentBrowser);
-            if (linkActivities.length > 0) {
-              activities.push(...linkActivities);
-              batchActivities.push(...linkActivities);
-              this.logProgress(`  ✅ ${link.text} (${link.section}): ${linkActivities.length} activities`);
-            }
-          } catch (error) {
-            this.logProgress(`  ❌ ${link.text}: ${error.message}`);
-          }
-        }
-
-        // Incremental save: save activities after each batch to prevent data loss
-        if (this.currentProviderId && batchActivities.length > 0) {
-          try {
-            const normalized = await this.normalizeActivities(batchActivities);
+            const normalized = await this.normalizeActivities(browserActivities);
             const batchStats = await this.saveActivitiesToDatabase(normalized, this.currentProviderId);
             this.totalStats.created += batchStats.created;
             this.totalStats.updated += batchStats.updated;
             this.totalStats.unchanged += batchStats.unchanged;
             this.totalStats.errors += batchStats.errors;
-            this.logProgress(`  💾 Saved batch: ${batchStats.created} new, ${batchStats.updated} updated`);
+            this.logProgress(`  Browser ${browserIndex + 1} saved: ${batchStats.created} new, ${batchStats.updated} updated`);
           } catch (saveError) {
-            this.logProgress(`  ⚠️ Batch save failed: ${saveError.message}`);
+            this.logProgress(`  Browser ${browserIndex + 1} save failed: ${saveError.message}`);
           }
         }
+
+        return browserActivities;
+      });
+
+      // Wait for all browsers to complete
+      const allResults = await Promise.all(browserWorkers);
+      for (const browserActivities of allResults) {
+        activities.push(...browserActivities);
       }
     } finally {
       // Close all browsers in pool
@@ -288,6 +283,51 @@ class PerfectMindScraper extends BaseScraper {
     }
 
     this.logProgress(`Total activities extracted: ${activities.length}`);
+    return activities;
+  }
+
+  /**
+   * Process links using a pool of pages (tabs) for parallelization
+   * @param {Browser} browser - Puppeteer browser instance
+   * @param {Number} browserIndex - Index of this browser in the pool
+   * @param {String} widgetUrl - URL of the widget page
+   * @param {Array} links - Links to process
+   * @param {Number} poolSize - Number of parallel tabs to use
+   * @returns {Promise<Array>} - All extracted activities
+   */
+  async processLinksWithPagePool(browser, browserIndex, widgetUrl, links, poolSize) {
+    const activities = [];
+    const queue = [...links];
+    let processed = 0;
+    const total = links.length;
+
+    // Worker function for each page in the pool
+    const pageWorker = async () => {
+      while (queue.length > 0) {
+        const link = queue.shift();
+        if (!link) break;
+
+        try {
+          const linkActivities = await this.extractActivitiesFromLink(widgetUrl, link, browser);
+          if (linkActivities.length > 0) {
+            activities.push(...linkActivities);
+            this.logProgress(`  B${browserIndex + 1} ✅ ${link.text}: ${linkActivities.length} activities`);
+          }
+        } catch (error) {
+          this.logProgress(`  B${browserIndex + 1} ❌ ${link.text}: ${error.message}`);
+        }
+
+        processed++;
+        if (processed % 10 === 0 || processed === total) {
+          this.logProgress(`  Browser ${browserIndex + 1} progress: ${processed}/${total}`);
+        }
+      }
+    };
+
+    // Start multiple page workers in parallel
+    const workers = Array(Math.min(poolSize, queue.length)).fill(null).map(() => pageWorker());
+    await Promise.all(workers);
+
     return activities;
   }
 
