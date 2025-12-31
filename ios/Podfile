@@ -100,5 +100,20 @@ target 'KidsActivityTracker' do
     
     # Fix Folly build errors by disabling problematic templates
     __apply_Xcode_16_3_RC_post_install_workaround(installer)
+
+    # Include custom Config.xcconfig in Pods xcconfig files for API keys
+    pods_project_path = installer.sandbox.project_path
+    target_support_files = "#{pods_project_path}/../Target Support Files/Pods-KidsActivityTracker"
+
+    ['debug', 'release'].each do |config|
+      xcconfig_path = "#{target_support_files}/Pods-KidsActivityTracker.#{config}.xcconfig"
+      if File.exist?(xcconfig_path)
+        content = File.read(xcconfig_path)
+        include_line = '#include "../../../Config.xcconfig"'
+        unless content.include?(include_line)
+          File.write(xcconfig_path, "#{include_line}\n#{content}")
+        end
+      end
+    end
   end
 end

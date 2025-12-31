@@ -293,6 +293,7 @@
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = NUA772QT7C;
 				ENABLE_BITCODE = NO;
+				GOOGLE_MAPS_API_KEY = AIzaSyA2ihLRhU3zvg4F0SQCuFgDJvLr2B7HmHg;
 				INFOPLIST_FILE = KidsActivityTracker/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -306,7 +307,6 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kidsactivitytracker.app;
-				GOOGLE_MAPS_API_KEY = AIzaSyA2ihLRhU3zvg4F0SQCuFgDJvLr2B7HmHg;
 				PRODUCT_NAME = KidsActivityTracker;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
@@ -320,6 +320,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = NUA772QT7C;
+				GOOGLE_MAPS_API_KEY = AIzaSyA2ihLRhU3zvg4F0SQCuFgDJvLr2B7HmHg;
 				INFOPLIST_FILE = KidsActivityTracker/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -333,7 +334,6 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kidsactivitytracker.app;
-				GOOGLE_MAPS_API_KEY = AIzaSyA2ihLRhU3zvg4F0SQCuFgDJvLr2B7HmHg;
 				PRODUCT_NAME = KidsActivityTracker;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
