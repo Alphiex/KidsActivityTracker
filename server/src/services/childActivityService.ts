@@ -561,8 +561,9 @@ export class ChildActivityService {
           dateStart: {
             gte: new Date(),
             lte: endDate
-          },
-          isActive: true
+          }
+          // Note: intentionally NOT filtering by isActive
+          // Child should see registered activities even if provider removed them
         }
       },
       include: {
