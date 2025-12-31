@@ -976,8 +976,10 @@ class PerfectMindScraper extends BaseScraper {
             if (spotsAvailable !== null && spotsAvailable > 0) {
               registrationStatus = 'Open';
             }
-            // If we have valid activity data (cost, dates, times) and no negative indicators, assume Open
-            else if ((cost !== null || rawText.match(/\d{1,2}:\d{2}/)) &&
+            // If we have valid activity data (cost, dates, sessions) and no negative indicators, assume Open
+            else if ((cost !== null || rawText.match(/\d{1,2}:\d{2}/) ||
+                     rawText.match(/\d+\s*sessions?/i) ||
+                     rawText.match(/every\s+(mon|tue|wed|thu|fri|sat|sun)/i)) &&
                      !/not\s*available|no\s*longer|sold\s*out/i.test(rawText)) {
               registrationStatus = 'Open';
             }

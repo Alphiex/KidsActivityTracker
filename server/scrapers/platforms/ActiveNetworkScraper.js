@@ -1839,7 +1839,30 @@ class ActiveNetworkScraper extends BaseScraper {
       }},
       ageMin: { path: 'ageMin', transform: (val, raw) => val || raw?.ageRange?.min },
       ageMax: { path: 'ageMax', transform: (val, raw) => val || raw?.ageRange?.max },
-      registrationStatus: { path: 'registrationStatus', transform: (val, raw) => val || raw?.availability || 'Unknown' },
+      registrationStatus: { path: 'registrationStatus', transform: (val, raw) => {
+        // First try explicit status fields
+        if (val && val !== 'Unknown') return val;
+        if (raw?.availability && raw.availability !== 'Unknown') return raw.availability;
+
+        // Extract from rawText if available
+        if (raw?.rawText) {
+          const lowerText = raw.rawText.toLowerCase();
+          // Check waitlist/full first
+          if (lowerText.includes('waitlist')) return 'Waitlist';
+          if (lowerText.includes('sold out') || /\bfull\b/.test(lowerText)) return 'Full';
+          // Check for open indicators
+          if (lowerText.match(/openings?\s*\d+/) || lowerText.match(/\d+\s*openings?/) ||
+              lowerText.includes('enroll') || lowerText.includes('register now') ||
+              lowerText.includes('sign up') || lowerText.includes('available')) {
+            return 'Open';
+          }
+        }
+
+        // If we have spots available, assume Open
+        if (raw?.spotsAvailable > 0) return 'Open';
+
+        return 'Unknown';
+      }},
       registrationDate: 'registrationDate',
       spotsAvailable: 'spotsAvailable',
       latitude: 'latitude',
