@@ -20,12 +20,12 @@
     "docker:build": "docker build -t kids-activity-api .",
     "docker:run": "docker run -p 3000:3000 --env-file .env kids-activity-api",
     "gcp:deploy": "gcloud builds submit --config=cloudbuild.yaml .",
-    "test": "jest --config ../\__tests__/backend/jest.config.js",
-    "test:unit": "jest --config ../\__tests__/backend/jest.config.js --testPathPattern='unit'",
-    "test:routes": "jest --config ../\__tests__/backend/jest.config.js --testPathPattern='routes'",
-    "test:integration": "jest --config ../\__tests__/backend/jest.config.js --testPathPattern='integration'",
-    "test:coverage": "jest --config ../\__tests__/backend/jest.config.js --coverage",
-    "test:watch": "jest --config ../\__tests__/backend/jest.config.js --watch"
+    "test": "jest --config ../__tests__/backend/jest.config.js",
+    "test:unit": "jest --config ../__tests__/backend/jest.config.js --testPathPattern='unit'",
+    "test:routes": "jest --config ../__tests__/backend/jest.config.js --testPathPattern='routes'",
+    "test:integration": "jest --config ../__tests__/backend/jest.config.js --testPathPattern='integration'",
+    "test:coverage": "jest --config ../__tests__/backend/jest.config.js --coverage",
+    "test:watch": "jest --config ../__tests__/backend/jest.config.js --watch"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
