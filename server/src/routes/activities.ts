@@ -54,8 +54,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       radiusKm,
       limit = '50',
       offset = '0',
-      sortBy = 'dateStart',
-      sortOrder = 'asc'
+      sortBy = 'availability', // Default: availability-first random ordering
+      sortOrder = 'asc',
+      randomSeed // Seed for consistent random ordering across pagination
     } = req.query;
 
     console.log('[Routes] Activities API Request:', {
@@ -129,8 +130,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       radiusKm: radiusKm ? parseFloat(radiusKm as string) : undefined,
       limit: parseInt(limit as string),
       offset: parseInt(offset as string),
-      sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance',
-      sortOrder: sortOrder as 'asc' | 'desc'
+      sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability',
+      sortOrder: sortOrder as 'asc' | 'desc',
+      randomSeed: randomSeed as string
     };
 
     console.log('🚨 [API Route] Global filter params being passed:', {

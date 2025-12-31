@@ -25,9 +25,10 @@ interface SearchParams {
   hideClosedOrFull?: boolean; // Hide activities that are closed OR full
   limit?: number;
   offset?: number;
-  sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance';
+  sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability';
   sortOrder?: 'asc' | 'desc';
   includeInactive?: boolean; // Only for admin use
+  randomSeed?: string; // Seed for consistent random ordering across pagination
 }
 
 export class EnhancedActivityService {
@@ -60,9 +61,10 @@ export class EnhancedActivityService {
       hideClosedOrFull = false,
       limit = 50,
       offset = 0,
-      sortBy = 'dateStart',
+      sortBy = 'availability', // Default to availability-first random ordering
       sortOrder = 'asc',
-      includeInactive = false
+      includeInactive = false,
+      randomSeed
     } = params;
 
     // DEBUG LOGGING
@@ -440,28 +442,121 @@ export class EnhancedActivityService {
     console.log('📋 [ActivityService] Final where clause before query:', JSON.stringify(finalWhere, null, 2));
 
     // Execute query
-    const [activities, total] = await Promise.all([
-      this.prisma.activity.findMany({
+    let activities: Activity[];
+    let total: number;
+
+    if (sortBy === 'availability') {
+      // Availability-first random ordering:
+      // 1. Activities with spots available (Open status) come first
+      // 2. Within each group, order is randomized but consistent for pagination
+      // Uses a seeded hash for deterministic randomization
+
+      const seed = randomSeed || new Date().toISOString().slice(0, 10); // Default seed: today's date
+
+      // Simple hash function for deterministic random ordering
+      const hashCode = (str: string): number => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
+      };
+
+      // Get availability priority (lower = better)
+      const getAvailabilityPriority = (activity: any): number => {
+        const status = activity.registrationStatus;
+        const spots = activity.spotsAvailable;
+
+        if (status === 'Open' && (spots === null || spots > 0)) return 0;
+        if (status === 'Waitlist') return 1;
+        if (status === null || status === 'Unknown') return 2;
+        return 3; // Full, Closed, etc.
+      };
+
+      // Fetch all matching activities (just IDs and sort fields for efficiency)
+      const allMatching = await this.prisma.activity.findMany({
         where: finalWhere,
-        include: {
-          provider: true,
-          location: {
-            include: {
-              cityRecord: true // Include city data for complete location info
+        select: {
+          id: true,
+          registrationStatus: true,
+          spotsAvailable: true
+        }
+      });
+
+      total = allMatching.length;
+
+      // Sort by availability priority, then by seeded random
+      const sorted = allMatching.sort((a, b) => {
+        const priorityA = getAvailabilityPriority(a);
+        const priorityB = getAvailabilityPriority(b);
+
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+
+        // Same priority - use seeded random
+        const hashA = hashCode(a.id + seed);
+        const hashB = hashCode(b.id + seed);
+        return hashA - hashB;
+      });
+
+      // Get the page slice
+      const pageIds = sorted.slice(offset, offset + limit).map(a => a.id);
+
+      if (pageIds.length > 0) {
+        // Fetch full activity records for this page
+        const unorderedActivities = await this.prisma.activity.findMany({
+          where: { id: { in: pageIds } },
+          include: {
+            provider: true,
+            location: {
+              include: {
+                cityRecord: true
+              }
+            },
+            activityType: true,
+            activitySubtype: true,
+            _count: {
+              select: { favorites: true }
+            }
+          }
+        });
+
+        // Restore the sort order
+        const activityMap = new Map(unorderedActivities.map(a => [a.id, a]));
+        activities = pageIds.map(id => activityMap.get(id)!).filter(Boolean);
+      } else {
+        activities = [];
+      }
+
+      console.log(`🎲 [ActivityService] Availability-first random sort applied (seed: ${seed})`);
+    } else {
+      // Standard Prisma ordering for other sort modes
+      [activities, total] = await Promise.all([
+        this.prisma.activity.findMany({
+          where: finalWhere,
+          include: {
+            provider: true,
+            location: {
+              include: {
+                cityRecord: true // Include city data for complete location info
+              }
+            },
+            activityType: true,
+            activitySubtype: true,
+            _count: {
+              select: { favorites: true }
             }
           },
-          activityType: true,
-          activitySubtype: true,
-          _count: {
-            select: { favorites: true }
-          }
-        },
-        orderBy: { [sortBy]: sortOrder },
-        take: limit,
-        skip: offset
-      }),
-      this.prisma.activity.count({ where: finalWhere })
-    ]);
+          orderBy: { [sortBy]: sortOrder },
+          take: limit,
+          skip: offset
+        }),
+        this.prisma.activity.count({ where: finalWhere })
+      ]);
+    }
 
     console.log(`📊 [ActivityService] Query results:`, {
       totalFound: total,
