@@ -746,14 +746,15 @@ class ActiveNetworkScraper extends BaseScraper {
     }
 
     // Priority 4: Check total_open spots (as fallback)
-    // NOTE: total_open might include waitlist spots, so only use if no explicit status
+    // NOTE: total_open might include waitlist spots, so check waitlist FIRST
     if (item.total_open !== null && item.total_open !== undefined) {
-      if (item.total_open > 0) {
-        return 'Open';
-      }
-      // total_open is 0 - check if waitlist is available
+      // IMPORTANT: Check waitlist BEFORE checking total_open > 0
+      // because total_open can include waitlist spots which is misleading
       if (item.is_waitlist_enabled || item.waitlist_enabled) {
         return 'Waitlist';
+      }
+      if (item.total_open > 0) {
+        return 'Open';
       }
       return 'Full';
     }
@@ -1179,8 +1180,10 @@ class ActiveNetworkScraper extends BaseScraper {
         const statusEl = element.querySelector('[class*="status"], [class*="availability"]');
         if (statusEl) return statusEl.textContent.trim();
         const lowerText = text.toLowerCase();
+        // IMPORTANT: Check waitlist BEFORE full because "Full - Waitlist available" should be Waitlist
+        if (lowerText.includes('waitlist') || lowerText.includes('waiting list')) return 'Waitlist';
         if (lowerText.includes('sold out') || lowerText.includes('full')) return 'Full';
-        if (lowerText.includes('waitlist')) return 'Waitlist';
+        if (lowerText.includes('closed') || lowerText.includes('cancelled')) return 'Closed';
         // Check for various "Open" indicators
         if (lowerText.includes('register') || lowerText.includes('available') ||
             lowerText.includes('enroll') || lowerText.includes('sign up') ||
@@ -1719,24 +1722,25 @@ class ActiveNetworkScraper extends BaseScraper {
         if (cornerMark) {
           const markText = cornerMark.textContent.toLowerCase();
           // Check waitlist before full because "Full - Waitlist available" should be waitlist
-          if (markText.includes('waitlist')) return 'waitlist';
-          if (markText.includes('full')) return 'full';
-          if (markText.includes('space') || markText.includes('left')) return 'open';
+          if (markText.includes('waitlist') || markText.includes('waiting list')) return 'Waitlist';
+          if (markText.includes('full')) return 'Full';
+          if (markText.includes('closed')) return 'Closed';
+          if (markText.includes('space') || markText.includes('left')) return 'Open';
         }
 
         const lowerText = text.toLowerCase();
         // Check waitlist before full because "Full - Waitlist available" should be waitlist
         if (lowerText.includes('waitlist') || lowerText.includes('waiting list')) {
-          return 'waitlist';
+          return 'Waitlist';
         } else if (lowerText.includes('full') || lowerText.includes('sold out')) {
-          return 'full';
+          return 'Full';
+        } else if (lowerText.includes('closed') || lowerText.includes('cancelled')) {
+          return 'Closed';
         } else if (lowerText.includes('space') || lowerText.includes('opening') || lowerText.includes('available') ||
                    lowerText.includes('enroll') || lowerText.includes('register') || lowerText.includes('sign up')) {
-          return 'open';
-        } else if (lowerText.includes('closed')) {
-          return 'closed';
+          return 'Open';
         }
-        return 'unknown';
+        return 'Unknown';
       }
 
       function extractSpotsAvailable(element, text) {
@@ -1874,9 +1878,10 @@ class ActiveNetworkScraper extends BaseScraper {
         // Extract from rawText if available
         if (raw?.rawText) {
           const lowerText = raw.rawText.toLowerCase();
-          // Check waitlist/full first
-          if (lowerText.includes('waitlist')) return 'Waitlist';
+          // Check waitlist/full FIRST - includes "waiting list" with space
+          if (lowerText.includes('waitlist') || lowerText.includes('waiting list')) return 'Waitlist';
           if (lowerText.includes('sold out') || /\bfull\b/.test(lowerText)) return 'Full';
+          if (lowerText.includes('closed') || lowerText.includes('cancelled')) return 'Closed';
           // Check for open indicators
           if (lowerText.match(/openings?\s*\d+/) || lowerText.match(/\d+\s*openings?/) ||
               lowerText.includes('enroll') || lowerText.includes('register now') ||
@@ -1885,8 +1890,9 @@ class ActiveNetworkScraper extends BaseScraper {
           }
         }
 
-        // If we have spots available, assume Open
-        if (raw?.spotsAvailable > 0) return 'Open';
+        // NOTE: Do NOT assume Open based on spotsAvailable > 0
+        // because spotsAvailable might include waitlist spots
+        // Only return Open if we have explicit indicators above
 
         return 'Unknown';
       }},
@@ -2246,24 +2252,31 @@ class ActiveNetworkScraper extends BaseScraper {
 
                 // === INSTRUCTOR / SUPERVISOR / COACH ===
                 // Try multiple field names as different sites use different terminology
-                // Toronto format: "Supervisor    PR CR-N5-R1" (tab-separated in table)
-                // Ottawa format: "Supervisor\nRenaud Demers" (newline-separated)
+                // Various formats:
+                // "Instructor\t\tSupervisor Library Programs" (tab-separated in table)
+                // "Supervisor\nRenaud Demers" (newline-separated)
+                // "Instructor: John Smith"
+                // Note: Some sites use "Supervisor X" as the actual instructor name
                 const instructorPatterns = [
-                  /Instructor\s+([^\n\t]+)/i,
-                  /Supervisor\s+([^\n\t]+)/i,
-                  /Coach\s+([^\n\t]+)/i,
-                  /Leader\s+([^\n\t]+)/i,
-                  /Facilitator\s+([^\n\t]+)/i,
-                  /Teacher\s+([^\n\t]+)/i,
-                  /Staff\s+([^\n\t]+)/i
+                  // Label followed by value (tabs/spaces)
+                  /(?:^|\n)Instructor[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Supervisor[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Coach[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Leader[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Facilitator[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Teacher[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Staff[:\s\t]+(?!only|meeting|office)([^\n]+)/im,
+                  // "Supervisor X" as a name (e.g., "Supervisor Aquatics", "Supervisor Library Programs")
+                  /\b(Supervisor\s+[A-Z][a-zA-Z\s]+(?:Programs?|Services?|Aquatics?|Recreation|Community))\b/
                 ];
                 for (const pattern of instructorPatterns) {
                   const match = pageText.match(pattern);
                   if (match && match[1].trim()) {
                     // Skip generic values like "TBD", "Staff", location names
                     const value = match[1].trim();
-                    if (!/^(TBD|TBA|Staff|N\/A)$/i.test(value) &&
-                        !/Recreation\s*Centre|Community\s*Centre|Civic\s*Centre/i.test(value)) {
+                    if (!/^(TBD|TBA|N\/A|Staff)$/i.test(value) &&
+                        !/^(Recreation\s*Centre|Community\s*Centre|Civic\s*Centre)$/i.test(value) &&
+                        value.length > 2 && value.length < 100) {
                       data.instructor = value;
                       break;
                     }
@@ -2271,11 +2284,24 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === NUMBER OF SESSIONS ===
+                // Various formats across ActiveNetwork sites:
                 // Ottawa: "Number of sessions\n9"
                 // Toronto: "Number of sessions    9" (tab/spaces in table)
-                const sessionsMatch = pageText.match(/Number of sessions\s+(\d+)/i);
-                if (sessionsMatch) {
-                  data.sessionCount = parseInt(sessionsMatch[1]);
+                // Generic: "10 sessions", "Sessions: 10", "10 meeting dates"
+                const sessionPatterns = [
+                  /Number of sessions\s+(\d+)/i,
+                  /(\d+)\s+sessions?\b/i,
+                  /Sessions?\s*[:\-]?\s*(\d+)/i,
+                  /(\d+)\s+meeting dates?/i,
+                  /(\d+)\s+classes?\b/i,
+                  /(\d+)\s+weeks?\b/i
+                ];
+                for (const pattern of sessionPatterns) {
+                  const sessionsMatch = pageText.match(pattern);
+                  if (sessionsMatch) {
+                    data.sessionCount = parseInt(sessionsMatch[1]);
+                    break;
+                  }
                 }
 
                 // === REGISTRATION STATUS ===

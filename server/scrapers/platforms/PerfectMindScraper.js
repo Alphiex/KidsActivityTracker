@@ -957,9 +957,10 @@ class PerfectMindScraper extends BaseScraper {
 
           // IMPORTANT: Check "closed" and "cancelled" BEFORE "register" because
           // "Registration is closed" contains "register"
+          // Also check "waitlist/waiting list" BEFORE "full" because "Full - Waitlist Available" should be Waitlist
           if (/registration\s+(is\s+)?closed|cancelled|canceled/i.test(rawText)) {
             registrationStatus = 'Closed';
-          } else if (/waitlist/i.test(rawText)) {
+          } else if (/waitlist|waiting\s*list/i.test(rawText)) {
             registrationStatus = 'Waitlist';
           } else if (/\bfull\b/i.test(rawText) || spotsAvailable === 0) {
             registrationStatus = 'Full';
@@ -1813,13 +1814,15 @@ class PerfectMindScraper extends BaseScraper {
                   /["']Supervisor["']\s*:\s*["']([^"']+)["']/i,
                   /["']Coach["']\s*:\s*["']([^"']+)["']/i,
                   /["']Leader["']\s*:\s*["']([^"']+)["']/i,
-                  // Text patterns
-                  /Instructor[:\s]+([^\n]+)/i,
-                  /Supervisor[:\s]+([^\n]+)/i,
-                  /Coach[:\s]+([^\n]+)/i,
-                  /Leader[:\s]+([^\n]+)/i,
-                  /Facilitator[:\s]+([^\n]+)/i,
-                  /Teacher[:\s]+([^\n]+)/i
+                  // Text patterns - label followed by value
+                  /(?:^|\n)Instructor[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Supervisor[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Coach[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Leader[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Facilitator[:\s\t]+([^\n]+)/im,
+                  /(?:^|\n)Teacher[:\s\t]+([^\n]+)/im,
+                  // "Supervisor X" as a name (e.g., "Supervisor Aquatics", "Supervisor Library Programs")
+                  /\b(Supervisor\s+[A-Z][a-zA-Z\s]+(?:Programs?|Services?|Aquatics?|Recreation|Community))\b/
                 ];
                 for (const pattern of instructorPatterns) {
                   const match = pageHtml.match(pattern) || pageText.match(pattern);
@@ -1827,7 +1830,8 @@ class PerfectMindScraper extends BaseScraper {
                     // Skip generic values like "TBD", "Staff", location names
                     const value = match[1].trim();
                     if (!/^(TBD|TBA|Staff|N\/A)$/i.test(value) &&
-                        !/Recreation\s*Centre|Community\s*Centre|Civic\s*Centre/i.test(value)) {
+                        !/^(Recreation\s*Centre|Community\s*Centre|Civic\s*Centre)$/i.test(value) &&
+                        value.length > 2 && value.length < 100) {
                       data.instructor = value;
                       break;
                     }
@@ -1842,10 +1846,22 @@ class PerfectMindScraper extends BaseScraper {
                 }
 
                 // === SESSIONS ===
-                const sessionsMatch = pageHtml.match(/["']NumberOfSessions["']\s*:\s*(\d+)/i) ||
-                                      pageText.match(/(\d+)\s*sessions?/i);
-                if (sessionsMatch) {
-                  data.sessionCount = parseInt(sessionsMatch[1]);
+                // Various formats: "NumberOfSessions": 10, "10 sessions", "Sessions: 10", etc.
+                const sessionPatterns = [
+                  { source: pageHtml, pattern: /["']NumberOfSessions["']\s*:\s*(\d+)/i },
+                  { source: pageText, pattern: /Number of sessions\s*[:\-]?\s*(\d+)/i },
+                  { source: pageText, pattern: /(\d+)\s+sessions?\b/i },
+                  { source: pageText, pattern: /Sessions?\s*[:\-]?\s*(\d+)/i },
+                  { source: pageText, pattern: /(\d+)\s+classes?\b/i },
+                  { source: pageText, pattern: /(\d+)\s+weeks?\b/i },
+                  { source: pageText, pattern: /(\d+)\s+meeting dates?/i }
+                ];
+                for (const { source, pattern } of sessionPatterns) {
+                  const sessionsMatch = source.match(pattern);
+                  if (sessionsMatch) {
+                    data.sessionCount = parseInt(sessionsMatch[1]);
+                    break;
+                  }
                 }
 
                 // === REGISTRATION STATUS ===
@@ -1858,13 +1874,13 @@ class PerfectMindScraper extends BaseScraper {
                 // Determine status from visible text
                 // IMPORTANT: Check "closed" and "cancelled" BEFORE "register" because
                 // "Registration is closed" contains "register"
-                // Also check "waitlist" before "full" because "FULL - Waitlist Available" should be Waitlist
+                // Also check "waitlist/waiting list" before "full" because "FULL - Waitlist Available" should be Waitlist
                 const statusText = pageText.toLowerCase();
                 if (statusText.includes('registration is closed') || statusText.includes('registration closed')) {
                   data.registrationStatus = 'Closed';
                 } else if (statusText.includes('cancelled') || statusText.includes('canceled')) {
                   data.registrationStatus = 'Closed';
-                } else if (statusText.includes('waitlist')) {
+                } else if (statusText.includes('waitlist') || statusText.includes('waiting list')) {
                   data.registrationStatus = 'Waitlist';
                 } else if (statusText.includes('full') && !statusText.includes('not full')) {
                   data.registrationStatus = 'Full';
