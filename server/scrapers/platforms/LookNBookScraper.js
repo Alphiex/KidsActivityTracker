@@ -245,11 +245,29 @@ class LookNBookScraper extends BaseScraper {
         const spotsAvailable = spacesMatch ? parseInt(spacesMatch[1], 10) : null;
 
         // Extract Date Range
+        // Pattern 1: "From: Thu, 15-Jan-26" and "To: Thu, 12-Feb-26" (multi-day courses)
         const fromMatch = containerText.match(/From:\s*([A-Za-z]+,\s*\d{1,2}-[A-Za-z]+-\d{2,4})/);
         const toMatch = containerText.match(/To:\s*([A-Za-z]+,\s*\d{1,2}-[A-Za-z]+-\d{2,4})/);
 
-        const dateStart = fromMatch ? this.parseLookNBookDate(fromMatch[1]) : null;
-        const dateEnd = toMatch ? this.parseLookNBookDate(toMatch[1]) : dateStart;
+        let dateStart = fromMatch ? this.parseLookNBookDate(fromMatch[1]) : null;
+        let dateEnd = toMatch ? this.parseLookNBookDate(toMatch[1]) : null;
+
+        // Pattern 2: Single-day events without "From:" prefix (e.g., "Tue, 13-Jan-26" alone)
+        // These appear right after the "Spaces:" line
+        if (!dateStart) {
+          // Look for date pattern between Spaces and Day/Start/End table headers
+          // The text structure is: "Spaces: N\n\nTue, 13-Jan-26\n\nDay\nStart\nEnd..."
+          const singleDayMatch = containerText.match(/Spaces:\s*\d+\s+([A-Za-z]{3},\s*\d{1,2}-[A-Za-z]{3}-\d{2,4})\s+Day\s/);
+          if (singleDayMatch) {
+            dateStart = this.parseLookNBookDate(singleDayMatch[1]);
+            dateEnd = dateStart; // Single-day event
+          }
+        }
+
+        // If we have start but no end, set end = start (single day course)
+        if (dateStart && !dateEnd) {
+          dateEnd = dateStart;
+        }
 
         // Extract schedule from table
         const schedule = this.extractSchedule($, $container);
