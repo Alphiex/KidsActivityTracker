@@ -946,6 +946,46 @@ class DataNormalizer {
       'oct': 9, 'october': 9, 'nov': 10, 'november': 10, 'dec': 11, 'december': 11
     };
 
+    // Pattern: "Jan 5, 2026 - Mar 9, 2026" or "January 5, 2026 - March 9, 2026" (each date has year)
+    // This format is used by ActiveNetwork API
+    const fullDateRangePattern = /([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})\s*[-–—to]+\s*([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})/i;
+    const fullDateMatch = fullText.match(fullDateRangePattern);
+    if (fullDateMatch) {
+      const startMonth = months[fullDateMatch[1].toLowerCase()];
+      const startDay = parseInt(fullDateMatch[2]);
+      const startYear = parseInt(fullDateMatch[3]);
+      const endMonth = months[fullDateMatch[4].toLowerCase()];
+      const endDay = parseInt(fullDateMatch[5]);
+      const endYear = parseInt(fullDateMatch[6]);
+
+      if (startMonth !== undefined && endMonth !== undefined) {
+        return {
+          start: new Date(startYear, startMonth, startDay),
+          end: new Date(endYear, endMonth, endDay)
+        };
+      }
+    }
+
+    // Pattern: "12-Jan-2026 - 09-Feb-2026" or "12 Jan 2026 - 09 Feb 2026" (DD-Mon-YYYY format)
+    // This format is used by some PerfectMind providers
+    const ddMonYYYYPattern = /(\d{1,2})[-\s]([a-z]+)[-\s](\d{4})\s*[-–—to]+\s*(\d{1,2})[-\s]([a-z]+)[-\s](\d{4})/i;
+    const ddMonYYYYMatch = fullText.match(ddMonYYYYPattern);
+    if (ddMonYYYYMatch) {
+      const startDay = parseInt(ddMonYYYYMatch[1]);
+      const startMonth = months[ddMonYYYYMatch[2].toLowerCase()];
+      const startYear = parseInt(ddMonYYYYMatch[3]);
+      const endDay = parseInt(ddMonYYYYMatch[4]);
+      const endMonth = months[ddMonYYYYMatch[5].toLowerCase()];
+      const endYear = parseInt(ddMonYYYYMatch[6]);
+
+      if (startMonth !== undefined && endMonth !== undefined) {
+        return {
+          start: new Date(startYear, startMonth, startDay),
+          end: new Date(endYear, endMonth, endDay)
+        };
+      }
+    }
+
     // Pattern: "January 6 - March 24, 2025" or "Jan 6 - Mar 24, 2025"
     const namedDateRangePattern = /([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*[-–—to]+\s*([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:[,\s]+(\d{4}))?/i;
     const namedMatch = fullText.match(namedDateRangePattern);
