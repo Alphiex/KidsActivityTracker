@@ -655,6 +655,11 @@ class REGPROGScraper extends BaseScraper {
         dateEnd = this.parseCalgaryDate(activity.endDateText);
       }
 
+      // For single-day events where only startDate exists, set endDate to startDate
+      if (dateStart && !dateEnd) {
+        dateEnd = dateStart;
+      }
+
       // Parse time - already in "6:00 PM" format
       const startTime = activity.startTime ? this.normalizeTime(activity.startTime) : null;
       const endTime = activity.endTime ? this.normalizeTime(activity.endTime) : null;

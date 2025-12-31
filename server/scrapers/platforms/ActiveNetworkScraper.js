@@ -640,9 +640,14 @@ class ActiveNetworkScraper extends BaseScraper {
     // Handle description
     const description = item.desc || item.description || null;
 
+    // Extract courseId from detail URL - the numeric ID at the end (e.g., /205255?)
+    // This is the activity ID in ActiveNetwork's system
+    const urlCourseId = item.detail_url?.match(/\/(\d+)(?:\?|$)/)?.[1];
+
     return {
       name: item.name,
       externalId: String(item.id || item.number),
+      courseId: urlCourseId || String(item.id || item.number || ''),
       category: category.name,
       cost: cost,
       description: description,
