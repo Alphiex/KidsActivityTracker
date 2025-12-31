@@ -1099,6 +1099,16 @@ class ActiveNetworkScraper extends BaseScraper {
           return result;
         }
 
+        // Pattern 1b: "22 Feb 2026 - 19 Apr 2026" (DD Mon YYYY format used by Ottawa, etc.)
+        const ddMonYYYYMatch = text.match(/(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})\s*[-–—]\s*(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})/);
+        if (ddMonYYYYMatch) {
+          result.raw = ddMonYYYYMatch[0];
+          // Convert to "Mon DD, YYYY" format for consistent parsing
+          result.startStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
+          result.endStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+          return result;
+        }
+
         // Pattern 2: "01/06/25 - 03/24/25"
         const numDateMatch = text.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[-–—]\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/);
         if (numDateMatch) {
@@ -1471,6 +1481,13 @@ class ActiveNetworkScraper extends BaseScraper {
             return `${match[1]} - ${match[2]}`;
           }
         }
+
+        // DD Mon YYYY format like "22 Feb 2026 - 19 Apr 2026" (Ottawa, etc.)
+        const ddMonYYYYMatch = text.match(/(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})\s*(?:to|-|–)\s*(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})/);
+        if (ddMonYYYYMatch) {
+          // Convert to "Mon DD, YYYY" format
+          return `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]} - ${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+        }
         return null;
       }
 
@@ -1479,16 +1496,18 @@ class ActiveNetworkScraper extends BaseScraper {
         const cornerMark = element.querySelector('.activity-card__cornerMark');
         if (cornerMark) {
           const markText = cornerMark.textContent.toLowerCase();
-          if (markText.includes('full')) return 'full';
+          // Check waitlist before full because "Full - Waitlist available" should be waitlist
           if (markText.includes('waitlist')) return 'waitlist';
+          if (markText.includes('full')) return 'full';
           if (markText.includes('space') || markText.includes('left')) return 'open';
         }
 
         const lowerText = text.toLowerCase();
-        if (lowerText.includes('full') || lowerText.includes('sold out')) {
-          return 'full';
-        } else if (lowerText.includes('waitlist')) {
+        // Check waitlist before full because "Full - Waitlist available" should be waitlist
+        if (lowerText.includes('waitlist') || lowerText.includes('waiting list')) {
           return 'waitlist';
+        } else if (lowerText.includes('full') || lowerText.includes('sold out')) {
+          return 'full';
         } else if (lowerText.includes('space') || lowerText.includes('opening') || lowerText.includes('available')) {
           return 'open';
         } else if (lowerText.includes('closed')) {
@@ -1724,6 +1743,16 @@ class ActiveNetworkScraper extends BaseScraper {
                   data.dateEndStr = dateRangeMatch[2];
                 }
 
+                // Also handle DD Mon YYYY format like "22 Feb 2026 - 19 Apr 2026" (used by Ottawa, etc.)
+                if (!data.dateStartStr) {
+                  const ddMonYYYYMatch = pageText.match(/(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})\s*-\s*(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})/);
+                  if (ddMonYYYYMatch) {
+                    // Convert to "Mon DD, YYYY" format for consistent parsing
+                    data.dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
+                    data.dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+                  }
+                }
+
                 // === DAY OF WEEK & TIMES ===
                 // ActiveNet format: "Weekdays9:00 AM - 4:00 PM" or "Mon, Wed9:00 AM - 10:00 AM" (no space before time)
                 // Also handles: "Saturday10:00 AM - 11:00 AM"
@@ -1889,10 +1918,14 @@ class ActiveNetworkScraper extends BaseScraper {
                 }
 
                 // === REGISTRATION STATUS ===
+                // Check waitlist patterns BEFORE full because page may show both
+                // e.g., "Full" in header + "Waiting List registration is open" below
                 const statusPatterns = [
                   { pattern: /Full\s*\+?\s*Waiting\s*List/i, status: 'Waitlist' },
-                  { pattern: /\bFull\b/i, status: 'Full' },
+                  { pattern: /Waiting\s*List\s*registration\s*is\s*open/i, status: 'Waitlist' },
+                  { pattern: /\+\s*Waiting\s*List/i, status: 'Waitlist' },  // "+ Waiting List" button
                   { pattern: /Waiting\s*List/i, status: 'Waitlist' },
+                  { pattern: /\bFull\b/i, status: 'Full' },
                   { pattern: /Register\s*Now/i, status: 'Open' },
                   { pattern: /Open\s*for\s*Registration/i, status: 'Open' },
                   { pattern: /Registration\s*Closed/i, status: 'Closed' },

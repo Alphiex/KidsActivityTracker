@@ -1014,6 +1014,15 @@ class PerfectMindScraper extends BaseScraper {
             dateEndStr = `${dateRangeMatch[3]} ${dateRangeMatch[4]}, ${year}`;
           }
 
+          // Pattern: "06-Jan-2026 - 29-Jan-2026" (DD-Mon-YYYY format used by some PerfectMind sites)
+          if (!dateStartStr) {
+            const ddMonYYYYMatch = rawText.match(/(\d{1,2})-([A-Z][a-z]{2})-(\d{4})\s*[-–—]\s*(\d{1,2})-([A-Z][a-z]{2})-(\d{4})/i);
+            if (ddMonYYYYMatch) {
+              dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
+              dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+            }
+          }
+
           // Pattern: "01/06/25 - 03/24/25"
           if (!dateStartStr) {
             const numDateMatch = rawText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[-–—]\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/);
@@ -1422,11 +1431,20 @@ class PerfectMindScraper extends BaseScraper {
                 if (startDateMatch) data.dateStartStr = startDateMatch[1];
                 if (endDateMatch) data.dateEndStr = endDateMatch[1];
 
-                // Also look for visible date ranges
+                // Also look for visible date ranges "Jan 6, 2026 - Mar 24, 2026"
                 const dateRangeMatch = pageText.match(/([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})\s*(?:to|-)\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i);
                 if (dateRangeMatch && !data.dateStartStr) {
                   data.dateStartStr = dateRangeMatch[1];
                   data.dateEndStr = dateRangeMatch[2];
+                }
+
+                // DD-Mon-YYYY format (e.g., "06-Jan-2026 - 29-Jan-2026") used by Surrey, etc.
+                if (!data.dateStartStr) {
+                  const ddMonYYYYMatch = pageText.match(/(\d{1,2})-([A-Z][a-z]{2})-(\d{4})\s*[-–—]\s*(\d{1,2})-([A-Z][a-z]{2})-(\d{4})/i);
+                  if (ddMonYYYYMatch) {
+                    data.dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
+                    data.dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+                  }
                 }
 
                 // Also try MM/DD/YY format commonly used by PerfectMind (e.g., "11/02/25 - 12/14/25")
@@ -1633,15 +1651,16 @@ class PerfectMindScraper extends BaseScraper {
                 // Determine status from visible text
                 // IMPORTANT: Check "closed" and "cancelled" BEFORE "register" because
                 // "Registration is closed" contains "register"
+                // Also check "waitlist" before "full" because "FULL - Waitlist Available" should be Waitlist
                 const statusText = pageText.toLowerCase();
                 if (statusText.includes('registration is closed') || statusText.includes('registration closed')) {
                   data.registrationStatus = 'Closed';
                 } else if (statusText.includes('cancelled') || statusText.includes('canceled')) {
                   data.registrationStatus = 'Closed';
-                } else if (statusText.includes('full') && !statusText.includes('not full')) {
-                  data.registrationStatus = 'Full';
                 } else if (statusText.includes('waitlist')) {
                   data.registrationStatus = 'Waitlist';
+                } else if (statusText.includes('full') && !statusText.includes('not full')) {
+                  data.registrationStatus = 'Full';
                 } else if (statusText.includes('closed')) {
                   data.registrationStatus = 'Closed';
                 } else if (statusText.includes('register') || statusText.includes('available') || statusText.includes('sign up')) {
