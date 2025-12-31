@@ -8,34 +8,34 @@ export const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '#';
 // Feature List for Homepage
 export const FEATURES = [
   {
-    title: 'Find Activities',
-    description: 'Browse swimming, sports, arts, music, and educational programs for kids of all ages.',
-    icon: 'search',
+    title: 'AI-Powered Search',
+    description: 'Search naturally like "swimming for my 5 year old on Saturdays" and get instant results.',
+    icon: 'sparkles',
   },
   {
-    title: 'Filter by Age',
-    description: 'Find activities perfect for your child\'s age group, from toddlers to teens.',
-    icon: 'users',
+    title: 'Smart Recommendations',
+    description: 'Get AI explanations for why activities are perfect for your child\'s age and interests.',
+    icon: 'star',
   },
   {
-    title: 'Track Schedules',
-    description: 'Keep all your children\'s activities organized in one easy-to-use calendar.',
+    title: 'Waitlist Alerts',
+    description: 'Join waitlists for full activities and get push notifications when spots open up.',
+    icon: 'bell',
+  },
+  {
+    title: 'Family Calendar',
+    description: 'Track all your children\'s activities in one calendar. Share with co-parents.',
     icon: 'calendar',
   },
   {
-    title: 'Save Favorites',
-    description: 'Bookmark activities you love and get notified about registration openings.',
-    icon: 'heart',
-  },
-  {
     title: 'Multiple Cities',
-    description: 'Find activities across multiple cities in British Columbia and beyond.',
+    description: 'Find activities across Canadian cities from BC to Ontario and growing.',
     icon: 'map',
   },
   {
-    title: 'Free to Use',
-    description: 'Our basic features are completely free. Upgrade for unlimited favorites and more.',
-    icon: 'gift',
+    title: 'iOS & Android',
+    description: 'Available on both platforms. Free to download with optional premium features.',
+    icon: 'phone',
   },
 ];
 

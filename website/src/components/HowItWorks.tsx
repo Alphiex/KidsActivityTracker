@@ -13,22 +13,22 @@ interface Step {
 const steps: Step[] = [
   {
     number: 1,
-    title: 'Discover',
-    description: 'Browse activities by category, age, or location. Find swimming, sports, arts, and more for your kids.',
+    title: 'Ask Naturally',
+    description: 'Search like you talk: "swimming for my 5 year old on weekends" — our AI understands and finds matches instantly.',
     image: '/images/illustrations/onboarding-1-discover.png',
     color: 'from-purple-500 to-purple-600',
   },
   {
     number: 2,
-    title: 'Schedule',
-    description: 'Save activities to your calendar and track schedules for all your children in one place.',
+    title: 'Get Recommendations',
+    description: 'Our AI explains why each activity is great for your child, with personalized match scores and benefits.',
     image: '/images/illustrations/onboarding-2-schedule.png',
     color: 'from-pink-500 to-pink-600',
   },
   {
     number: 3,
-    title: 'Share',
-    description: 'Share activity plans with co-parents and family members. Keep everyone in sync.',
+    title: 'Never Miss a Spot',
+    description: 'Join waitlists for full activities and get push notifications the instant spots become available.',
     image: '/images/illustrations/onboarding-3-family.png',
     color: 'from-orange-500 to-orange-600',
   },

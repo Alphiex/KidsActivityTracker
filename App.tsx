@@ -10,6 +10,7 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import ActivityService from './src/services/activityService';
 import { revenueCatService } from './src/services/revenueCatService';
+import { pushNotificationService } from './src/services/pushNotificationService';
 
 // Lazy MMKV initialization for Android JSI compatibility
 let _defaultStorage: MMKV | null = null;
@@ -30,18 +31,27 @@ const getDefaultStorage = (): MMKV | null => {
 };
 
 function App() {
-  // Initialize RevenueCat on app start
+  // Initialize RevenueCat and Push Notifications on app start
   useEffect(() => {
-    const initRevenueCat = async () => {
+    const initServices = async () => {
+      // Initialize RevenueCat
       try {
         await revenueCatService.initialize();
         console.log('[App] RevenueCat initialized successfully');
       } catch (error) {
         console.error('[App] RevenueCat initialization failed:', error);
       }
+
+      // Initialize Push Notifications
+      try {
+        await pushNotificationService.initialize();
+        console.log('[App] Push notifications initialized successfully');
+      } catch (error) {
+        console.error('[App] Push notification initialization failed:', error);
+      }
     };
 
-    initRevenueCat();
+    initServices();
   }, []);
 
   // Note: Removed automatic clearing of MMKV storage to allow persistent authentication

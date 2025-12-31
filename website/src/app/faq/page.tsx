@@ -19,7 +19,7 @@ const faqs: FAQItem[] = [
   {
     category: 'About the App',
     question: 'Is Kids Activity Tracker free to use?',
-    answer: 'Yes! Our core features are completely free, including browsing activities, filtering by age and category, and viewing program details. We offer an optional premium subscription for families who want additional features like unlimited favourites, personalized recommendations, and calendar sync.',
+    answer: 'Yes! Our core features are completely free, including AI-powered search, browsing activities, filtering by age and category, viewing program details, and joining waitlists. We offer an optional premium subscription for families who want additional features like unlimited favourites, AI activity explanations, weekly schedule planning, and push notification alerts.',
   },
   {
     category: 'About the App',
@@ -50,6 +50,23 @@ const faqs: FAQItem[] = [
     category: 'Activity Information',
     question: 'Why might some activities be missing or have incomplete information?',
     answer: 'Activity information is sourced from various providers who format their data differently. Occasionally, some details may not be captured or may display differently than on the source website. If you notice missing or incorrect information, please let us know through the app\'s feedback feature, and we\'ll work to improve it.',
+  },
+
+  // AI Features
+  {
+    category: 'AI Features',
+    question: 'How does the AI-powered search work?',
+    answer: 'Our AI understands natural language queries like "swimming lessons for my 5 year old on Saturday mornings near downtown." It automatically extracts the activity type, age, schedule preferences, and location to find the best matches. No need to fill out complex filter forms!',
+  },
+  {
+    category: 'AI Features',
+    question: 'What are AI activity explanations?',
+    answer: 'When viewing any activity, you can tap "Why is this good for my child?" to get a personalized AI explanation. It analyzes the activity against your child\'s age and interests, explaining the physical, social, cognitive, and emotional benefits with a match score.',
+  },
+  {
+    category: 'AI Features',
+    question: 'How do waitlist alerts and push notifications work?',
+    answer: 'When an activity is full, you can join its waitlist. Our system continuously monitors for availability changes. The moment a spot opens up, you\'ll receive an instant push notification to your phone so you can register before it fills up again.',
   },
 
   // Requests & Feedback
@@ -100,7 +117,7 @@ const faqs: FAQItem[] = [
   {
     category: 'Technical Support',
     question: 'Which devices is the app available on?',
-    answer: 'Kids Activity Tracker is currently available for iOS (iPhone and iPad) on the App Store. An Android version is coming soon! Sign up for our newsletter to be notified when the Android app launches.',
+    answer: 'Kids Activity Tracker is available for both iOS (iPhone and iPad) on the App Store and Android devices on the Google Play Store. Both versions include all features including AI-powered search, push notifications, and waitlist alerts.',
   },
   {
     category: 'Technical Support',

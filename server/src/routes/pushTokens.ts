@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
-import { authenticate } from '../middleware/auth';
+import { verifyToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -13,7 +13,7 @@ const router = Router();
  * POST /api/push-tokens
  * Register or update a push token for the authenticated user
  */
-router.post('/', authenticate, async (req: Request, res: Response) => {
+router.post('/', verifyToken, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     const { token, platform, deviceId } = req.body;
@@ -112,7 +112,7 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
  * DELETE /api/push-tokens/:token
  * Unregister a push token (logout)
  */
-router.delete('/:token', authenticate, async (req: Request, res: Response) => {
+router.delete('/:token', verifyToken, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     const { token } = req.params;
@@ -141,7 +141,7 @@ router.delete('/:token', authenticate, async (req: Request, res: Response) => {
  * GET /api/push-tokens
  * Get all active push tokens for the authenticated user (for debugging)
  */
-router.get('/', authenticate, async (req: Request, res: Response) => {
+router.get('/', verifyToken, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
 

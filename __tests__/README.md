@@ -1,17 +1,19 @@
 # Kids Activity Tracker - Test Suite
 
-Comprehensive automated testing for the Kids Activity Tracker app.
+Comprehensive testing infrastructure for the Kids Activity Tracker application, covering frontend (React Native), backend (Node.js/Express), and end-to-end testing with Detox.
 
 ## Test Statistics
 
-| Category | Count |
-|----------|-------|
-| Backend Tests | ~70 |
-| Frontend Tests | ~100 |
-| E2E Tests | ~12 |
-| Integration Tests | ~18 |
-| **Total Automated** | **~200** |
-| Manual Test Cases | 120+ |
+| Category | Count | Description |
+|----------|-------|-------------|
+| Backend Route Tests | ~70 | API endpoint testing |
+| Backend Unit Tests | ~25 | Services & middleware |
+| Frontend Screen Tests | ~100 | Component rendering & interaction |
+| Frontend Unit Tests | ~30 | Services & Redux store |
+| Frontend Integration | ~15 | Multi-component flows |
+| E2E Tests (Detox) | ~50 | Full user flow testing |
+| **Total Automated** | **~290** | |
+| Manual Test Cases | 124 | Structured CSV spreadsheet |
 
 ## Quick Start
 
@@ -25,8 +27,12 @@ npm run test:frontend
 # Run backend tests only
 npm run test:backend
 
-# Run E2E tests
+# Run E2E tests (requires Detox build first)
+npm run test:e2e:build
 npm run test:e2e
+
+# Run with coverage
+npm run test:coverage
 
 # Run complete test suite
 npm run test:all
@@ -36,29 +42,70 @@ npm run test:all
 
 ```
 __tests__/
-├── frontend/                 # React Native tests
-│   ├── unit/                 # Unit tests
-│   │   ├── services/         # Service tests
-│   │   ├── components/       # Component tests
-│   │   └── store/            # Redux slice tests
-│   ├── screens/              # Screen tests
-│   ├── integration/          # Integration flow tests
-│   └── mocks/                # Frontend mocks
+├── README.md                          # This file
+├── run-all-tests.sh                   # Master test runner
+├── jest.config.js                     # Root Jest configuration
 │
-├── backend/                  # Express/Node.js tests
-│   ├── unit/                 # Unit tests
-│   │   ├── services/         # Service tests
-│   │   └── middleware/       # Middleware tests
-│   ├── routes/               # API endpoint tests
-│   ├── integration/          # Database integration tests
-│   └── mocks/                # Backend mocks
+├── frontend/
+│   ├── jest.config.js                 # Frontend Jest config
+│   ├── setup.ts                       # Test setup & mocks
+│   ├── mocks/                         # Shared mock utilities
+│   │   ├── services.ts                # API & service mocks
+│   │   ├── navigation.ts              # Navigation mocks
+│   │   ├── redux.ts                   # Redux store mocks
+│   │   └── testData.ts                # Test fixtures
+│   ├── screens/                       # Screen-level tests
+│   │   ├── auth/                      # Login, Register, ForgotPassword
+│   │   ├── dashboard/                 # Dashboard screen
+│   │   ├── search/                    # Search, Results, Filters
+│   │   ├── activities/                # Detail, Calendar
+│   │   ├── children/                  # List, Profile, AddEdit
+│   │   ├── preferences/               # All preference screens
+│   │   ├── profile/                   # Profile, Settings, Notifications
+│   │   └── subscription/              # Paywall
+│   ├── unit/
+│   │   ├── services/                  # Service unit tests
+│   │   └── store/                     # Redux slice tests
+│   └── integration/                   # Multi-component flows
 │
-├── e2e/                      # Detox E2E tests
-│   └── flows/                # User flow tests
+├── backend/
+│   ├── jest.config.js                 # Backend Jest config
+│   ├── setup.ts                       # Backend test setup
+│   ├── mocks/                         # Backend mocks
+│   │   ├── prisma.ts                  # Prisma client mock
+│   │   ├── emailService.ts            # Email service mock
+│   │   ├── testData.ts                # Backend test data
+│   │   └── fixtures/                  # Data fixtures
+│   ├── routes/                        # API endpoint tests
+│   │   ├── auth.test.ts
+│   │   ├── activities.test.ts
+│   │   ├── children.test.ts
+│   │   ├── favorites.test.ts
+│   │   ├── notifications.test.ts
+│   │   ├── admin/
+│   │   └── vendor/
+│   └── unit/
+│       ├── services/
+│       └── middleware/
 │
-└── manual/                   # Manual test plan
-    ├── MANUAL-TEST-PLAN.csv  # Test cases spreadsheet
-    └── README.md             # Manual testing guide
+├── e2e/
+│   ├── .detoxrc.js                    # Detox configuration
+│   ├── jest.config.js                 # E2E Jest config
+│   ├── init.ts                        # Global setup
+│   ├── flows/                         # User flow tests
+│   │   ├── auth.e2e.ts
+│   │   ├── search.e2e.ts
+│   │   ├── childManagement.e2e.ts
+│   │   ├── favorites.e2e.ts
+│   │   ├── calendar.e2e.ts
+│   │   └── onboarding.e2e.ts
+│   └── utils/
+│       ├── testHelpers.ts
+│       └── testIds.ts
+│
+└── manual/
+    ├── MANUAL-TEST-PLAN.csv           # 124 test cases
+    └── README.md                      # Manual testing guide
 ```
 
 ## Test Commands
@@ -69,6 +116,7 @@ __tests__/
 | `npm run test:frontend` | Frontend tests only |
 | `npm run test:backend` | Backend tests only |
 | `npm run test:e2e` | Detox E2E tests |
+| `npm run test:e2e:build` | Build app for E2E tests |
 | `npm run test:unit` | All unit tests |
 | `npm run test:integration` | Integration tests |
 | `npm run test:screens` | Screen component tests |
@@ -79,48 +127,60 @@ __tests__/
 
 ## Writing Tests
 
-### Frontend Tests
+### Frontend Screen Test
 
 ```typescript
-// Example screen test
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import LoginScreen from '../../../src/screens/LoginScreen';
+import { Provider } from 'react-redux';
+import { createMockStore } from '../../mocks/redux';
+import { mockActivityService } from '../../mocks/services';
 
-describe('LoginScreen', () => {
-  it('should render login form', () => {
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />);
+import SearchScreen from '../../../../src/screens/SearchScreen';
 
-    expect(getByPlaceholderText('Email')).toBeTruthy();
-    expect(getByPlaceholderText('Password')).toBeTruthy();
-    expect(getByText('Sign In')).toBeTruthy();
+describe('SearchScreen', () => {
+  it('should search on text input', async () => {
+    const { getByPlaceholderText } = render(
+      <Provider store={createMockStore()}>
+        <SearchScreen />
+      </Provider>
+    );
+
+    fireEvent.changeText(getByPlaceholderText(/search/i), 'swimming');
+
+    await waitFor(() => {
+      expect(mockActivityService.searchActivities).toHaveBeenCalled();
+    });
   });
 });
 ```
 
-### Backend Tests
+### Backend Route Test
 
 ```typescript
-// Example route test
 import request from 'supertest';
-import app from '../../server/src/server';
+import app from '../../../../server/src/app';
+import { prismaMock } from '../../mocks/prisma';
 
 describe('POST /api/auth/login', () => {
-  it('should return 200 with valid credentials', async () => {
+  it('should login with valid credentials', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(mockUser);
+
     const response = await request(app)
       .post('/api/auth/login')
       .send({ email: 'test@example.com', password: 'password123' });
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('token');
+    expect(response.body.token).toBeDefined();
   });
 });
 ```
 
-### E2E Tests
+### E2E Test
 
 ```typescript
-// Example E2E test
+import { device, element, by, expect } from 'detox';
+
 describe('Login Flow', () => {
   beforeAll(async () => {
     await device.launchApp();
@@ -138,28 +198,70 @@ describe('Login Flow', () => {
 
 ## Coverage Requirements
 
-- **Minimum**: 60% across all modules
-- **Target**: 80% for critical paths (auth, search, payments)
+| Threshold | Target |
+|-----------|--------|
+| Branches | 60% |
+| Functions | 60% |
+| Lines | 60% |
+| Statements | 60% |
+
+Run `npm run test:coverage` to generate a detailed coverage report.
 
 ## CI/CD Integration
 
-Tests run automatically on:
-- Pull request creation
-- Push to main branch
-- Nightly scheduled runs
+Tests are designed for CI/CD pipelines:
+
+```yaml
+# GitHub Actions example
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:coverage
+```
 
 ## Manual Testing
 
-See `manual/MANUAL-TEST-PLAN.csv` for comprehensive manual test cases.
+See `manual/README.md` for detailed instructions.
 
-The CSV includes 120+ test cases across:
-- Authentication (15 cases)
-- Search & Filters (25 cases)
-- Child Management (12 cases)
-- Favorites (8 cases)
-- Calendar (10 cases)
-- Preferences (14 cases)
-- Subscriptions (8 cases)
-- Notifications (10 cases)
-- Sharing (6 cases)
-- Admin Functions (10 cases)
+The CSV file (`MANUAL-TEST-PLAN.csv`) contains 124 test cases:
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| AUTH | 15 | Login, registration, password reset |
+| SEARCH | 25 | Search and filter functionality |
+| CHILD | 12 | Child profile management |
+| FAV | 8 | Favorites functionality |
+| CAL | 10 | Calendar views |
+| PREF | 14 | User preferences (7 screens) |
+| SUBS | 8 | Subscription and paywall |
+| NOTIFY | 10 | Notifications |
+| SHARE | 6 | Family sharing |
+| ADMIN | 10 | Admin portal |
+| E2E | 6 | End-to-end journeys |
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Tests timing out**: Increase Jest timeout in config
+2. **Mock not working**: Ensure mock imports before component
+3. **Detox app not found**: Run `npm run test:e2e:build` first
+4. **Prisma mock issues**: Clear cache with `jest --clearCache`
+
+### Debug Mode
+
+```bash
+# Verbose output
+npm test -- --verbose
+
+# Single file
+npm test -- path/to/test.ts
+
+# Debug with inspector
+node --inspect-brk node_modules/.bin/jest --runInBand
+```

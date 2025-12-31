@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar, View, Text, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -11,6 +11,7 @@ import { useAppSelector, useAppDispatch } from '../store';
 import { loadStoredAuth } from '../store/slices/authSlice';
 import { fetchSubscription } from '../store/slices/subscriptionSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 // Import screens
 import DashboardScreen from '../screens/DashboardScreenModern';
@@ -263,6 +264,17 @@ const RootNavigator = () => {
   const { isDark, colors } = useTheme();
   console.log('Theme loaded:', { isDark, hasColors: !!colors });
 
+  // Navigation ref for push notification handling
+  const navigationRef = useRef<NavigationContainerRef<any>>(null);
+
+  // Set navigation ref for push notifications when ready
+  const onNavigationReady = () => {
+    if (navigationRef.current) {
+      pushNotificationService.setNavigationRef(navigationRef.current);
+      console.log('[Navigation] Navigation ref set for push notifications');
+    }
+  };
+
   useEffect(() => {
     initializeApp();
   }, []);
@@ -328,6 +340,8 @@ const RootNavigator = () => {
   return (
     <NavigationErrorBoundary>
       <NavigationContainer
+        ref={navigationRef}
+        onReady={onNavigationReady}
         theme={{
           dark: isDark,
           colors: {

@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <UserNotifications/UNUserNotificationCenter.h>
 
 // Suppress deprecation warning for RCTAppDelegate
 // TODO: Migrate to RCTReactNativeFactory when upgrading React Native
@@ -7,6 +8,6 @@
 #import <RCTAppDelegate.h>
 #pragma clang diagnostic pop
 
-@interface AppDelegate : RCTAppDelegate
+@interface AppDelegate : RCTAppDelegate <UNUserNotificationCenterDelegate>
 
 @end

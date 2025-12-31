@@ -45,14 +45,14 @@ export default function Hero() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-              Find the Perfect{' '}
-              <span className="gradient-text">Activities</span>{' '}
+              AI-Powered{' '}
+              <span className="gradient-text">Activity Discovery</span>{' '}
               for Your Kids
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
-              Discover swimming, sports, arts, music, and educational programs
-              in your city. Keep your children active and engaged with activities
-              they&apos;ll love.
+              Search naturally, get personalized recommendations, and never miss a spot.
+              Our AI helps you find the perfect swimming, sports, arts, and educational
+              programs for your family.
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -61,24 +61,24 @@ export default function Hero() {
 
             <div className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-gray-600">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
                   </svg>
                 </div>
-                <span>Free to use</span>
+                <span>AI-Powered</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                  </svg>
+                </div>
+                <span>Push Alerts</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
                   <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span>Updated daily</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                   </svg>
                 </div>
