@@ -1498,36 +1498,41 @@ class PerfectMindScraper extends BaseScraper {
                 }
 
                 // === DATES ===
-                // PerfectMind formats dates as "StartDate":"2025-01-15T00:00:00" or similar
-                const startDateMatch = pageHtml.match(/["']StartDate["']\s*:\s*["'](\d{4}-\d{2}-\d{2})/i);
-                const endDateMatch = pageHtml.match(/["']EndDate["']\s*:\s*["'](\d{4}-\d{2}-\d{2})/i);
-                if (startDateMatch) data.dateStartStr = startDateMatch[1];
-                if (endDateMatch) data.dateEndStr = endDateMatch[1];
+                // PRIORITY 1: Extract visible date RANGE from page text (most reliable for multi-session courses)
+                // These show the actual course date range, not just the first session
 
-                // Also look for visible date ranges "Jan 6, 2026 - Mar 24, 2026"
-                // IMPORTANT: Run fallback if EITHER dateStartStr OR dateEndStr is missing
-                const dateRangeMatch = pageText.match(/([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})\s*(?:to|-)\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i);
-                if (dateRangeMatch && (!data.dateStartStr || !data.dateEndStr)) {
-                  if (!data.dateStartStr) data.dateStartStr = dateRangeMatch[1];
-                  if (!data.dateEndStr) data.dateEndStr = dateRangeMatch[2];
+                // DD-Mon-YYYY format (e.g., "06-Jan-2026 - 29-Jan-2026") used by New Westminster, Surrey, etc.
+                const ddMonYYYYMatch = pageText.match(/(\d{1,2})-([A-Z][a-z]{2})-(\d{4})\s*[-–—]\s*(\d{1,2})-([A-Z][a-z]{2})-(\d{4})/i);
+                if (ddMonYYYYMatch) {
+                  data.dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
+                  data.dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
                 }
 
-                // DD-Mon-YYYY format (e.g., "06-Jan-2026 - 29-Jan-2026") used by Surrey, etc.
+                // "Mon DD, YYYY - Mon DD, YYYY" format (e.g., "Jan 6, 2026 - Mar 24, 2026")
                 if (!data.dateStartStr || !data.dateEndStr) {
-                  const ddMonYYYYMatch = pageText.match(/(\d{1,2})-([A-Z][a-z]{2})-(\d{4})\s*[-–—]\s*(\d{1,2})-([A-Z][a-z]{2})-(\d{4})/i);
-                  if (ddMonYYYYMatch) {
-                    if (!data.dateStartStr) data.dateStartStr = `${ddMonYYYYMatch[2]} ${ddMonYYYYMatch[1]}, ${ddMonYYYYMatch[3]}`;
-                    if (!data.dateEndStr) data.dateEndStr = `${ddMonYYYYMatch[5]} ${ddMonYYYYMatch[4]}, ${ddMonYYYYMatch[6]}`;
+                  const dateRangeMatch = pageText.match(/([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})\s*(?:to|-)\s*([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/i);
+                  if (dateRangeMatch) {
+                    data.dateStartStr = dateRangeMatch[1];
+                    data.dateEndStr = dateRangeMatch[2];
                   }
                 }
 
-                // Also try MM/DD/YY format commonly used by PerfectMind (e.g., "11/02/25 - 12/14/25")
+                // MM/DD/YY format (e.g., "11/02/25 - 12/14/25")
                 if (!data.dateStartStr || !data.dateEndStr) {
                   const mmddyyMatch = pageText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/);
                   if (mmddyyMatch) {
-                    if (!data.dateStartStr) data.dateStartStr = mmddyyMatch[1];
-                    if (!data.dateEndStr) data.dateEndStr = mmddyyMatch[2];
+                    data.dateStartStr = mmddyyMatch[1];
+                    data.dateEndStr = mmddyyMatch[2];
                   }
+                }
+
+                // PRIORITY 2 (fallback): JSON data - often only has first session date
+                // Only use if we couldn't extract from visible text
+                if (!data.dateStartStr || !data.dateEndStr) {
+                  const startDateMatch = pageHtml.match(/["']StartDate["']\s*:\s*["'](\d{4}-\d{2}-\d{2})/i);
+                  const endDateMatch = pageHtml.match(/["']EndDate["']\s*:\s*["'](\d{4}-\d{2}-\d{2})/i);
+                  if (startDateMatch && !data.dateStartStr) data.dateStartStr = startDateMatch[1];
+                  if (endDateMatch && !data.dateEndStr) data.dateEndStr = endDateMatch[1];
                 }
 
                 // === TIMES ===
