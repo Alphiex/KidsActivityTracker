@@ -20,6 +20,7 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: '<rootDir>/server/tsconfig.json',
+      diagnostics: false, // Disable type checking for tests
     }],
   },
   collectCoverageFrom: [

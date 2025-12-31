@@ -21,7 +21,7 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'kids-activity-website'
+      - 'website'
       - '--image=gcr.io/$PROJECT_ID/website:latest'
       - '--region=us-central1'
       - '--platform=managed'

@@ -39,7 +39,8 @@ export const createMockNavigation = (overrides = {}) => ({
   ...overrides,
 });
 
-export const createMockRoute = <T extends Record<string, unknown>>(
+// Note: This function can be used inside jest.mock() because it starts with 'mock'
+export const mockCreateRoute = <T extends Record<string, unknown>>(
   name: string,
   params: T = {} as T
 ) => ({
@@ -47,6 +48,9 @@ export const createMockRoute = <T extends Record<string, unknown>>(
   name,
   params,
 });
+
+// Alias for backward compatibility
+export const createMockRoute = mockCreateRoute;
 
 // Navigation container mock for testing
 export const mockNavigationContainer = {

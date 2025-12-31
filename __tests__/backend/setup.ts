@@ -138,19 +138,8 @@ jest.mock('../../server/src/utils/emailService', () => ({
   },
 }));
 
-// Mock bcrypt for faster tests
-jest.mock('bcrypt', () => ({
-  hash: jest.fn().mockResolvedValue('$2b$10$hashedpassword'),
-  compare: jest.fn().mockResolvedValue(true),
-  genSalt: jest.fn().mockResolvedValue('$2b$10$salt'),
-}));
-
-// Mock jsonwebtoken
-jest.mock('jsonwebtoken', () => ({
-  sign: jest.fn().mockReturnValue('mock-jwt-token'),
-  verify: jest.fn().mockReturnValue({ userId: 'test-user-id', email: 'test@example.com' }),
-  decode: jest.fn().mockReturnValue({ userId: 'test-user-id' }),
-}));
+// Note: bcrypt and jsonwebtoken mocks removed - they're installed in server/node_modules
+// Tests should mock these at the service level instead
 
 // Global test utilities
 beforeAll(async () => {
