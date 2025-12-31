@@ -1721,16 +1721,26 @@ class PerfectMindScraper extends BaseScraper {
 
               await page.close();
 
-              // Parse dates - handles ISO format, MM/DD/YY, and text formats
-              const parseDate = (dateStr) => {
+              // Parse dates - handles ISO format, MM/DD/YY, DD/MM/YY, and text formats
+              // useDDMM parameter allows forcing DD/MM format for certain providers
+              const parseDate = (dateStr, useDDMM = false) => {
                 if (!dateStr) return null;
                 try {
-                  // Try MM/DD/YY format first (common in PerfectMind)
-                  const mmddyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-                  if (mmddyyMatch) {
-                    let year = parseInt(mmddyyMatch[3]);
+                  // Try slash format: could be MM/DD/YY or DD/MM/YY
+                  const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+                  if (slashMatch) {
+                    const first = parseInt(slashMatch[1]);
+                    const second = parseInt(slashMatch[2]);
+                    let year = parseInt(slashMatch[3]);
                     if (year < 100) year += 2000; // Convert 25 to 2025
-                    return new Date(year, parseInt(mmddyyMatch[1]) - 1, parseInt(mmddyyMatch[2]));
+
+                    // If first > 12, it must be DD/MM (day can't be > 12 if it's month)
+                    // Or if useDDMM is true, use DD/MM format
+                    if (first > 12 || useDDMM) {
+                      return new Date(year, second - 1, first); // DD/MM/YYYY
+                    }
+                    // Default to MM/DD (North American)
+                    return new Date(year, first - 1, second); // MM/DD/YYYY
                   }
                   const date = new Date(dateStr);
                   return isNaN(date.getTime()) ? null : date;
@@ -1739,11 +1749,32 @@ class PerfectMindScraper extends BaseScraper {
                 }
               };
 
+              // Smart date parsing: try MM/DD first, if end < start, try DD/MM
+              const parseDatePair = (startStr, endStr) => {
+                // Try MM/DD format first
+                let start = parseDate(startStr, false);
+                let end = parseDate(endStr, false);
+
+                // If end date is before start date, try DD/MM format
+                if (start && end && end < start) {
+                  const startDDMM = parseDate(startStr, true);
+                  const endDDMM = parseDate(endStr, true);
+                  if (startDDMM && endDDMM && endDDMM >= startDDMM) {
+                    return { start: startDDMM, end: endDDMM };
+                  }
+                }
+
+                return { start, end };
+              };
+
               // Normalize time
               const normalizeTime = (timeStr) => {
                 if (!timeStr) return null;
                 return timeStr.toLowerCase().replace(/\s+/g, ' ').trim();
               };
+
+              // Parse dates using smart DD/MM vs MM/DD detection
+              const parsedDates = parseDatePair(detailData.dateStartStr, detailData.dateEndStr);
 
               // Merge data with activity
               return {
@@ -1759,9 +1790,9 @@ class PerfectMindScraper extends BaseScraper {
                   postalCode: detailData.postalCode || activity.postalCode,
                   fullAddress: detailData.fullAddress || activity.fullAddress,
                   locationName: detailData.locationName || activity.location || activity.locationName,
-                  // Dates
-                  dateStart: parseDate(detailData.dateStartStr) || activity.dateStart,
-                  dateEnd: parseDate(detailData.dateEndStr) || activity.dateEnd,
+                  // Dates (using smart DD/MM detection)
+                  dateStart: parsedDates.start || activity.dateStart,
+                  dateEnd: parsedDates.end || activity.dateEnd,
                   // Times
                   startTime: normalizeTime(detailData.startTime) || activity.startTime,
                   endTime: normalizeTime(detailData.endTime) || activity.endTime,
