@@ -20,8 +20,8 @@ const steps: Step[] = [
   },
   {
     number: 2,
-    title: 'Get Recommendations',
-    description: 'Our AI explains why each activity is great for your child, with personalized match scores and benefits.',
+    title: 'See Why It\'s Great',
+    description: 'Our AI explains exactly how each activity benefits your child\'s development — building confidence, coordination, and social skills.',
     image: '/images/illustrations/onboarding-2-schedule.png',
     color: 'from-pink-500 to-pink-600',
   },

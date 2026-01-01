@@ -60,13 +60,23 @@ const faqs: FAQItem[] = [
   },
   {
     category: 'AI Features',
-    question: 'What are AI activity explanations?',
-    answer: 'When viewing any activity, you can tap "Why is this good for my child?" to get a personalized AI explanation. It analyzes the activity against your child\'s age and interests, explaining the physical, social, cognitive, and emotional benefits with a match score.',
+    question: 'What does "Great for your child" mean?',
+    answer: 'Each AI recommendation includes a "Great for your child" section that explains exactly how the activity benefits your child\'s development. Instead of just showing that an activity matches your search, our AI explains things like "Builds confidence and teamwork skills" or "Great for developing coordination at this age." This helps you understand the real value of each activity.',
+  },
+  {
+    category: 'AI Features',
+    question: 'What are the match quality badges?',
+    answer: 'Activities are rated as "Excellent Match," "Great Match," or "Good Match" based on how well they fit your child\'s age, interests, location, and schedule preferences. An Excellent Match means the activity aligns perfectly with all your criteria, while a Good Match may have minor differences but is still suitable.',
   },
   {
     category: 'AI Features',
     question: 'How do waitlist alerts and push notifications work?',
     answer: 'When an activity is full, you can join its waitlist. Our system continuously monitors for availability changes. The moment a spot opens up, you\'ll receive an instant push notification to your phone so you can register before it fills up again.',
+  },
+  {
+    category: 'AI Features',
+    question: 'What\'s the difference between AI Recommendations and AI Chat?',
+    answer: 'AI Recommendations automatically finds the best activities for your child based on their profile and your preferences - just tap and get personalized suggestions. AI Chat is a conversational assistant where you can ask questions naturally, have back-and-forth conversations, and get more detailed help finding specific activities.',
   },
 
   // Requests & Feedback

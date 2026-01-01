@@ -50,9 +50,9 @@ export default function Hero() {
               for Your Kids
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
-              Search naturally, get personalized recommendations, and never miss a spot.
-              Our AI helps you find the perfect swimming, sports, arts, and educational
-              programs for your family.
+              Search naturally and see exactly why activities are great for your child's development.
+              Our AI explains how each activity builds confidence, coordination, and social skills
+              for your family.
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -69,12 +69,20 @@ export default function Hero() {
                 <span>AI-Powered</span>
               </div>
               <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-rose-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span>Child Benefits</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
                   <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
                   </svg>
                 </div>
-                <span>Push Alerts</span>
+                <span>Waitlist Alerts</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
