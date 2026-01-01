@@ -21,20 +21,57 @@ function getPrisma(): PrismaClient {
 }
 
 /**
+ * Expand search term to include common variations
+ * e.g., "skating" -> ["skating", "skate"]
+ * e.g., "swimming" -> ["swimming", "swim"]
+ */
+function expandSearchTerms(term: string): string[] {
+  const variations: string[] = [term];
+  const lowerTerm = term.toLowerCase();
+
+  // Handle -ing suffix (skating -> skate, swimming -> swim)
+  if (lowerTerm.endsWith('ing')) {
+    const base = lowerTerm.slice(0, -3);
+    if (base.length >= 3) {
+      variations.push(base);
+      // Handle doubled consonants (swimming -> swim)
+      if (base.length >= 4 && base[base.length - 1] === base[base.length - 2]) {
+        variations.push(base.slice(0, -1));
+      }
+    }
+  }
+
+  // Handle -s suffix for plurals (sports -> sport)
+  if (lowerTerm.endsWith('s') && !lowerTerm.endsWith('ss')) {
+    variations.push(lowerTerm.slice(0, -1));
+  }
+
+  // Handle base forms that might need -ing (skate -> skating)
+  if (!lowerTerm.endsWith('ing') && !lowerTerm.endsWith('e')) {
+    variations.push(lowerTerm + 'ing');
+  }
+  if (lowerTerm.endsWith('e')) {
+    variations.push(lowerTerm.slice(0, -1) + 'ing');
+  }
+
+  return [...new Set(variations)]; // Remove duplicates
+}
+
+/**
  * Tool: Search Activities
  * Searches the activity database with various filters
  */
 export const searchActivitiesTool = new DynamicStructuredTool({
   name: 'search_activities',
-  description: 'Search for kids activities with filters like category, age range, location, price, and schedule. Use this to find activities matching parent requests.',
+  description: 'Search for kids activities. IMPORTANT: Use searchTerm for specific activity types like skating, hockey, soccer, swimming lessons, piano, etc. The category field is only for broad database categories.',
   schema: z.object({
-    category: z.string().optional().describe('Activity category (e.g., sports, arts, music, dance, stem, camps, swimming, martial arts)'),
-    minAge: z.number().optional().describe('Minimum age for the activity'),
-    maxAge: z.number().optional().describe('Maximum age for the activity'),
-    city: z.string().optional().describe('City name to search in'),
+    searchTerm: z.string().optional().describe('RECOMMENDED: Search term for activity name - use this for specific activities like "skating", "swimming", "soccer", "piano", "dance", "hockey", "gymnastics", etc.'),
+    city: z.string().optional().describe('City name to search in (e.g., "North Vancouver", "Vancouver", "Burnaby")'),
+    minAge: z.number().optional().describe('Child\'s age - activities suitable for this age will be returned'),
+    maxAge: z.number().optional().describe('Child\'s age - usually same as minAge for a single child'),
+    category: z.string().optional().describe('Database category - rarely needed, searchTerm is preferred'),
     maxPrice: z.number().optional().describe('Maximum price in dollars'),
     daysOfWeek: z.array(z.string()).optional().describe('Preferred days (e.g., ["Saturday", "Sunday"])'),
-    searchTerm: z.string().optional().describe('General search term for activity name or description'),
     limit: z.number().optional().default(10).describe('Number of results to return (max 20)'),
   }),
   func: async ({ category, minAge, maxAge, city, maxPrice, daysOfWeek, searchTerm, limit }) => {
@@ -90,15 +127,22 @@ export const searchActivitiesTool = new DynamicStructuredTool({
           },
         ];
       } else if (searchTerm) {
+        // Expand search term to include variations (skating -> skate, swimming -> swim)
+        const searchTerms = expandSearchTerms(searchTerm);
+        console.log('[searchActivities] Expanded search terms:', searchTerms);
+
+        const searchConditions: any[] = [];
+        for (const term of searchTerms) {
+          searchConditions.push(
+            { name: { contains: term, mode: 'insensitive' } },
+            { description: { contains: term, mode: 'insensitive' } },
+            { category: { contains: term, mode: 'insensitive' } }
+          );
+        }
+
         where.AND = [
           ...(where.AND || []),
-          {
-            OR: [
-              { name: { contains: searchTerm, mode: 'insensitive' } },
-              { description: { contains: searchTerm, mode: 'insensitive' } },
-              { category: { contains: searchTerm, mode: 'insensitive' } },
-            ],
-          },
+          { OR: searchConditions },
         ];
       } else if (category) {
         where.category = { contains: category, mode: 'insensitive' };

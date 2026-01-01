@@ -11,6 +11,8 @@ export interface CreateChildInput {
   avatarUrl?: string;
   interests?: string[];
   notes?: string;
+  location?: string;
+  locationDetails?: any;
 }
 
 export interface UpdateChildInput {
@@ -21,6 +23,8 @@ export interface UpdateChildInput {
   interests?: string[];
   notes?: string;
   isActive?: boolean;
+  location?: string;
+  locationDetails?: any;
 }
 
 export interface ChildWithAge extends Child {
@@ -42,6 +46,8 @@ export class ChildrenService {
         avatarUrl: data.avatarUrl,
         interests: data.interests || [],
         notes: data.notes,
+        location: data.location,
+        locationDetails: data.locationDetails,
       }
     });
   }
