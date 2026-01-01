@@ -58,7 +58,7 @@ class PreferencesService {
       savedAddress: undefined,
       locationPermissionAsked: false,
       ageRanges: [{ min: 0, max: 18 }],
-      priceRange: { min: 0, max: 1000 },
+      priceRange: { min: 0, max: 999999 }, // Default to unlimited
       daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
       timePreferences: {
         morning: true,

@@ -77,14 +77,13 @@ RULES:
 2. Always use tools to search for activities - don't make up information
 3. Personalize recommendations based on child preferences and history
 4. When asked about a specific child, get their context first
-5. Provide 3-5 specific activity recommendations when asked
-6. Explain why each activity is a good match
-7. Be helpful, friendly, and concise
+5. Be helpful, friendly, and concise
 
-RESPONSE FORMAT:
-- Start with a brief, friendly response
-- List recommended activities with key details
-- Suggest 1-2 follow-up questions they might have`;
+CRITICAL RESPONSE FORMAT:
+- DO NOT list or describe individual activities in your text response - the app will display them as clickable cards automatically
+- Just provide a brief summary like "I found X great activities for your child!" or "Here are some skating options that would be perfect for a 3-year-old"
+- Add a brief note about why these are good choices or what to look for
+- Keep your text response SHORT (1-2 sentences max) since activities are shown separately`;
 
 /**
  * Format family context for the system prompt
@@ -211,6 +210,7 @@ export class ActivityChatService {
     const toolsUsed: string[] = [];
     let iterations = 0;
     const maxIterations = 5;
+    let foundActivities: any[] = []; // Store activities from search results
 
     // Prepare messages for the model
     const allMessages: BaseMessage[] = [
@@ -238,6 +238,20 @@ export class ActivityChatService {
               }
 
               const toolResult = await (tool as any).invoke(args);
+
+              // Extract activities from search_activities tool results
+              if (toolCall.name === 'search_activities') {
+                try {
+                  const parsed = JSON.parse(toolResult);
+                  if (parsed.activities && Array.isArray(parsed.activities)) {
+                    foundActivities = parsed.activities;
+                    console.log(`[ActivityChatService] Found ${foundActivities.length} activities from search`);
+                  }
+                } catch (e) {
+                  // Ignore parse errors
+                }
+              }
+
               allMessages.push({
                 role: 'tool',
                 content: toolResult,
@@ -271,8 +285,10 @@ export class ActivityChatService {
         ? response!.content.map(c => ('text' in c ? c.text : '')).join('')
         : '';
 
-    // Parse activities from response
-    const activities = extractActivitiesFromResponse(responseText);
+    // Use activities from tool results, fallback to extracting from text
+    const activities = foundActivities.length > 0
+      ? foundActivities
+      : extractActivitiesFromResponse(responseText);
     const followUpPrompts = generateFollowUpPrompts(responseText, conversation.lastContext);
 
     return {

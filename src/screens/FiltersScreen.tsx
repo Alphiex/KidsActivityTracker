@@ -19,7 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../contexts/ThemeContext';
 import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
-import { UserPreferences, HierarchicalProvince } from '../types/preferences';
+import { UserPreferences, HierarchicalProvince, EnhancedAddress } from '../types/preferences';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
 import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
@@ -27,6 +27,7 @@ import useSubscription from '../hooks/useSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import { LockedFeature } from '../components/PremiumBadge';
 import DistanceFilterSection from '../components/filters/DistanceFilterSection';
+import AddressAutocomplete from '../components/AddressAutocomplete/AddressAutocomplete';
 
 interface ExpandableSection {
   id: string;
@@ -94,9 +95,13 @@ const FiltersScreen = () => {
     { id: 'locations', title: 'Where?', expanded: false },
     { id: 'distance', title: 'How Far?', expanded: false },
     { id: 'budget', title: 'Cost?', expanded: false },
-    { id: 'schedule', title: 'Day of the Week?', expanded: false },
+    { id: 'daysOfWeek', title: 'Day of the Week?', expanded: false },
+    { id: 'preferredTimes', title: 'Preferred Times?', expanded: false },
     { id: 'dates', title: 'When?', expanded: false },
   ]);
+
+  // Location autocomplete state
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [expandedActivityTypes, setExpandedActivityTypes] = useState<Set<string>>(new Set());
@@ -125,6 +130,15 @@ const FiltersScreen = () => {
     loadLocations();
     loadAgeGroups();
   }, []);
+
+  // Auto-enable hideClosedOrFull when user becomes premium
+  useEffect(() => {
+    if (hasAdvancedFilters && preferences && !preferences.hideClosedOrFull) {
+      // User just got premium - auto-enable the filter
+      console.log('📋 [FiltersScreen] User became premium, auto-enabling hideClosedOrFull');
+      updatePreferences({ hideClosedOrFull: true });
+    }
+  }, [hasAdvancedFilters]);
 
   const loadPreferences = async () => {
     try {
@@ -397,9 +411,16 @@ const FiltersScreen = () => {
         const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
         const budgetIsUnlimited = priceRange.max >= 10000;
         return budgetIsUnlimited ? 'No Limit' : `Up to $${priceRange.max}`;
-      case 'schedule':
+      case 'daysOfWeek':
         const days = preferences?.daysOfWeek || [];
         return days.length === 7 || days.length === 0 ? 'Any day' : `${days.length} days`;
+      case 'preferredTimes':
+        const times = preferences?.timePreferences;
+        if (!times || (!times.morning && !times.afternoon && !times.evening)) {
+          return 'Any time';
+        }
+        const activeCount = [times.morning, times.afternoon, times.evening].filter(Boolean).length;
+        return `${activeCount} time${activeCount > 1 ? 's' : ''} selected`;
       case 'dates':
         const dateFilter = preferences?.dateFilter || 'any';
         if (dateFilter === 'any') {
@@ -436,8 +457,10 @@ const FiltersScreen = () => {
         return 'map-marker-radius';
       case 'budget':
         return 'currency-usd';
-      case 'schedule':
+      case 'daysOfWeek':
         return 'calendar-week';
+      case 'preferredTimes':
+        return 'clock-outline';
       case 'dates':
         return 'calendar-range';
       default:
@@ -493,8 +516,10 @@ const FiltersScreen = () => {
         return renderDistanceContent();
       case 'budget':
         return renderBudgetContent();
-      case 'schedule':
-        return renderScheduleContent();
+      case 'daysOfWeek':
+        return renderDaysOfWeekContent();
+      case 'preferredTimes':
+        return renderPreferredTimesContent();
       case 'dates':
         return renderDatesContent();
       default:
@@ -505,26 +530,39 @@ const FiltersScreen = () => {
   const renderEnvironmentContent = () => {
     if (!preferences) return null;
 
+    // Gate environment filter for free users
+    if (!hasAdvancedFilters) {
+      return (
+        <View style={styles.sectionContent}>
+          <LockedFeature
+            label="Indoor/Outdoor Filter"
+            description="Filter activities by whether they take place indoors or outdoors"
+            onPress={() => checkAndShowUpgrade('filters')}
+          />
+        </View>
+      );
+    }
+
     const currentEnv = preferences.environmentFilter || 'all';
-    
+
     const environmentOptions = [
-      { 
-        value: 'all', 
-        label: 'All Activities', 
+      {
+        value: 'all',
+        label: 'All Activities',
         description: 'Show both indoor and outdoor activities',
-        icon: 'earth' 
+        icon: 'earth'
       },
-      { 
-        value: 'indoor', 
-        label: 'Indoor Only', 
+      {
+        value: 'indoor',
+        label: 'Indoor Only',
         description: 'Swimming pools, gyms, studios, rinks',
-        icon: 'home-roof' 
+        icon: 'home-roof'
       },
-      { 
-        value: 'outdoor', 
-        label: 'Outdoor Only', 
+      {
+        value: 'outdoor',
+        label: 'Outdoor Only',
         description: 'Parks, fields, nature, adventure',
-        icon: 'pine-tree' 
+        icon: 'pine-tree'
       },
     ];
 
@@ -564,6 +602,25 @@ const FiltersScreen = () => {
 
   const renderDistanceContent = () => {
     if (!preferences) return null;
+
+    // Gate distance filter for free users
+    if (!hasAdvancedFilters) {
+      return (
+        <View style={styles.sectionContent}>
+          <View style={styles.lockedDistanceInfo}>
+            <Icon name="map-marker-radius" size={24} color="#9CA3AF" />
+            <Text style={styles.lockedDistanceText}>
+              Distance filter locked at 25 km for free users
+            </Text>
+          </View>
+          <LockedFeature
+            label="Custom Distance Range"
+            description="Set your preferred search radius from 5km to 100km"
+            onPress={() => checkAndShowUpgrade('filters')}
+          />
+        </View>
+      );
+    }
 
     return (
       <DistanceFilterSection
@@ -824,33 +881,98 @@ const FiltersScreen = () => {
     );
   };
 
-  const renderLocationsContent = () => (
-    <View style={[styles.sectionContent, { maxHeight: 400 }]}>
-      <HierarchicalSelect
-        hierarchy={hierarchyData}
-        selectedLocationIds={selectedLocationIds}
-        onSelectionChange={handleLocationSelectionChange}
-        loading={locationsLoading}
-        searchPlaceholder="Search provinces, cities, locations..."
-      />
-    </View>
-  );
+  // Handle location selection from autocomplete
+  const handleLocationAutocompleteSelect = useCallback((address: EnhancedAddress | null) => {
+    if (address) {
+      // Save the address to preferences for distance-based filtering
+      preferencesService.updatePreferences({
+        savedAddress: address,
+        locationSource: 'saved_address',
+      });
+      setPreferences(preferencesService.getPreferences());
+      setShowLocationPicker(false);
+    }
+  }, []);
+
+  const renderLocationsContent = () => {
+    const savedAddress = preferences?.savedAddress;
+
+    return (
+      <View style={styles.sectionContent}>
+        {/* Google Places Autocomplete for location search */}
+        <Text style={styles.helperText}>
+          Search for a city, province, or address to filter activities
+        </Text>
+
+        {/* Address Autocomplete */}
+        <View style={{ marginTop: 12, zIndex: 100 }}>
+          <AddressAutocomplete
+            value={savedAddress as EnhancedAddress | undefined}
+            onAddressSelect={handleLocationAutocompleteSelect}
+            placeholder="Search city, province, or address..."
+            types={['(cities)', 'geocode', 'address']}
+            showFallbackOption={true}
+          />
+        </View>
+
+        {/* Divider */}
+        <View style={styles.locationDivider}>
+          <View style={styles.locationDividerLine} />
+          <Text style={styles.locationDividerText}>OR</Text>
+          <View style={styles.locationDividerLine} />
+        </View>
+
+        {/* Hierarchical Location Selection */}
+        <TouchableOpacity
+          style={styles.locationExpandButton}
+          onPress={() => setShowLocationPicker(!showLocationPicker)}
+        >
+          <Icon name="format-list-bulleted" size={20} color="#E8638B" />
+          <Text style={styles.locationExpandText}>
+            Browse by Province & City ({selectedLocationIds.size > 0 ? `${selectedLocationIds.size} selected` : 'None selected'})
+          </Text>
+          <Icon name={showLocationPicker ? 'chevron-up' : 'chevron-down'} size={20} color="#6B7280" />
+        </TouchableOpacity>
+
+        {showLocationPicker && (
+          <View style={{ maxHeight: 300, marginTop: 12 }}>
+            <HierarchicalSelect
+              hierarchy={hierarchyData}
+              selectedLocationIds={selectedLocationIds}
+              onSelectionChange={handleLocationSelectionChange}
+              loading={locationsLoading}
+              searchPlaceholder="Search provinces, cities, locations..."
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderBudgetContent = () => {
-    // Gate budget filter for free users
+    // Gate budget filter for free users - show locked state with "Unlimited" as default
     if (!hasAdvancedFilters) {
       return (
         <View style={styles.sectionContent}>
+          <View style={styles.freeUserBudgetInfo}>
+            <Icon name="infinity" size={24} color="#10B981" />
+            <View style={styles.freeUserBudgetText}>
+              <Text style={styles.freeUserBudgetTitle}>Unlimited (Default)</Text>
+              <Text style={styles.freeUserBudgetDescription}>
+                Showing all activities regardless of price
+              </Text>
+            </View>
+          </View>
           <LockedFeature
-            label="Budget Filter"
-            description="Filter activities by price range to find options that fit your budget"
+            label="Custom Budget Filter"
+            description="Set a maximum price to find activities that fit your budget"
             onPress={() => checkAndShowUpgrade('filters')}
           />
         </View>
       );
     }
 
-    const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
+    const priceRange = preferences?.priceRange || { min: 0, max: 999999 };
     const isUnlimited = priceRange.max >= 10000;
 
     const updateMaxCost = (max: number) => {
@@ -962,14 +1084,16 @@ const FiltersScreen = () => {
     );
   };
 
-  const renderScheduleContent = () => {
+  const renderDaysOfWeekContent = () => {
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const selectedDays = preferences?.daysOfWeek || [];
-    
+
     return (
       <View style={styles.sectionContent}>
-        <Text style={styles.subSectionTitle}>Preferred Days</Text>
-        <View style={styles.daysGrid}>
+        <Text style={styles.helperText}>
+          Select which days of the week you're looking for activities
+        </Text>
+        <View style={[styles.daysGrid, { marginTop: 12 }]}>
           {daysOfWeek.map((day) => (
             <TouchableOpacity
               key={day}
@@ -988,11 +1112,78 @@ const FiltersScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
-        
-        <Text style={[styles.subSectionTitle, { marginTop: 24 }]}>Preferred Times</Text>
-        <View style={styles.timePreferences}>
+
+        {/* Quick select buttons */}
+        <View style={styles.dayQuickSelect}>
+          <TouchableOpacity
+            style={[
+              styles.dayQuickSelectButton,
+              selectedDays.length === 7 && styles.dayQuickSelectButtonActive,
+            ]}
+            onPress={() => updatePreferences({ daysOfWeek: daysOfWeek })}
+          >
+            <Text style={[
+              styles.dayQuickSelectText,
+              selectedDays.length === 7 && styles.dayQuickSelectTextActive,
+            ]}>All Days</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.dayQuickSelectButton,
+              selectedDays.length === 5 &&
+              selectedDays.includes('Monday') &&
+              selectedDays.includes('Friday') &&
+              !selectedDays.includes('Saturday') &&
+              styles.dayQuickSelectButtonActive,
+            ]}
+            onPress={() => updatePreferences({ daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] })}
+          >
+            <Text style={[
+              styles.dayQuickSelectText,
+              selectedDays.length === 5 &&
+              selectedDays.includes('Monday') &&
+              !selectedDays.includes('Saturday') &&
+              styles.dayQuickSelectTextActive,
+            ]}>Weekdays</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.dayQuickSelectButton,
+              selectedDays.length === 2 &&
+              selectedDays.includes('Saturday') &&
+              selectedDays.includes('Sunday') &&
+              styles.dayQuickSelectButtonActive,
+            ]}
+            onPress={() => updatePreferences({ daysOfWeek: ['Saturday', 'Sunday'] })}
+          >
+            <Text style={[
+              styles.dayQuickSelectText,
+              selectedDays.length === 2 &&
+              selectedDays.includes('Saturday') &&
+              selectedDays.includes('Sunday') &&
+              styles.dayQuickSelectTextActive,
+            ]}>Weekends</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderPreferredTimesContent = () => {
+    return (
+      <View style={styles.sectionContent}>
+        <Text style={styles.helperText}>
+          Select what times of day work best for your family
+        </Text>
+        <View style={[styles.timePreferences, { marginTop: 12 }]}>
           <View style={styles.timePreference}>
-            <Text style={styles.timeLabel}>Morning (6AM - 12PM)</Text>
+            <View style={styles.timeLabelContainer}>
+              <Icon name="weather-sunset-up" size={20} color="#F59E0B" style={{ marginRight: 10 }} />
+              <View>
+                <Text style={styles.timeLabel}>Morning</Text>
+                <Text style={styles.timeSubLabel}>6:00 AM - 12:00 PM</Text>
+              </View>
+            </View>
             <Switch
               value={preferences?.timePreferences?.morning || false}
               onValueChange={(value) =>
@@ -1008,9 +1199,15 @@ const FiltersScreen = () => {
               thumbColor={preferences?.timePreferences?.morning ? '#FFFFFF' : '#CCCCCC'}
             />
           </View>
-          
+
           <View style={styles.timePreference}>
-            <Text style={styles.timeLabel}>Afternoon (12PM - 5PM)</Text>
+            <View style={styles.timeLabelContainer}>
+              <Icon name="weather-sunny" size={20} color="#F97316" style={{ marginRight: 10 }} />
+              <View>
+                <Text style={styles.timeLabel}>Afternoon</Text>
+                <Text style={styles.timeSubLabel}>12:00 PM - 5:00 PM</Text>
+              </View>
+            </View>
             <Switch
               value={preferences?.timePreferences?.afternoon || false}
               onValueChange={(value) =>
@@ -1026,9 +1223,15 @@ const FiltersScreen = () => {
               thumbColor={preferences?.timePreferences?.afternoon ? '#FFFFFF' : '#CCCCCC'}
             />
           </View>
-          
+
           <View style={styles.timePreference}>
-            <Text style={styles.timeLabel}>Evening (5PM - 9PM)</Text>
+            <View style={styles.timeLabelContainer}>
+              <Icon name="weather-sunset-down" size={20} color="#8B5CF6" style={{ marginRight: 10 }} />
+              <View>
+                <Text style={styles.timeLabel}>Evening</Text>
+                <Text style={styles.timeSubLabel}>5:00 PM - 9:00 PM</Text>
+              </View>
+            </View>
             <Switch
               value={preferences?.timePreferences?.evening || false}
               onValueChange={(value) =>
@@ -1413,72 +1616,112 @@ const FiltersScreen = () => {
         />
       </View>
 
-      {/* Quick Filter Chips */}
+      {/* Quick Filter Chips - Toggleable */}
       <View style={styles.quickFiltersContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.quickFiltersContent}
         >
-          <TouchableOpacity 
-            style={[
-              styles.quickFilterChip,
-              preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(new Date().toLocaleDateString('en-US', { weekday: 'long' })) && styles.quickFilterChipActive
-            ]}
-            onPress={() => {
-              const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-              updatePreferences({ daysOfWeek: [today] });
-            }}
-          >
-            <Icon name="calendar-today" size={16} color={preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(new Date().toLocaleDateString('en-US', { weekday: 'long' })) ? '#FFF' : '#6B7280'} />
-            <Text style={[styles.quickFilterChipText, preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(new Date().toLocaleDateString('en-US', { weekday: 'long' })) && styles.quickFilterChipTextActive]}>Today</Text>
-          </TouchableOpacity>
+          {(() => {
+            const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+            const isTodayActive = preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(today);
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterChip,
+                  isTodayActive && styles.quickFilterChipActive
+                ]}
+                onPress={() => {
+                  // Toggle: if active, reset to all days; otherwise set to today
+                  if (isTodayActive) {
+                    updatePreferences({ daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] });
+                  } else {
+                    updatePreferences({ daysOfWeek: [today] });
+                  }
+                }}
+              >
+                <Icon name="calendar-today" size={16} color={isTodayActive ? '#FFF' : '#6B7280'} />
+                <Text style={[styles.quickFilterChipText, isTodayActive && styles.quickFilterChipTextActive]}>Today</Text>
+              </TouchableOpacity>
+            );
+          })()}
 
-          <TouchableOpacity 
-            style={[
-              styles.quickFilterChip,
-              preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday') && styles.quickFilterChipActive
-            ]}
-            onPress={() => {
-              updatePreferences({ daysOfWeek: ['Saturday', 'Sunday'] });
-            }}
-          >
-            <Icon name="calendar-weekend" size={16} color={preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday') ? '#FFF' : '#6B7280'} />
-            <Text style={[styles.quickFilterChipText, preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday') && styles.quickFilterChipTextActive]}>Weekend</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isWeekendActive = preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday');
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterChip,
+                  isWeekendActive && styles.quickFilterChipActive
+                ]}
+                onPress={() => {
+                  // Toggle: if active, reset to all days; otherwise set to weekend
+                  if (isWeekendActive) {
+                    updatePreferences({ daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] });
+                  } else {
+                    updatePreferences({ daysOfWeek: ['Saturday', 'Sunday'] });
+                  }
+                }}
+              >
+                <Icon name="calendar-weekend" size={16} color={isWeekendActive ? '#FFF' : '#6B7280'} />
+                <Text style={[styles.quickFilterChipText, isWeekendActive && styles.quickFilterChipTextActive]}>Weekend</Text>
+              </TouchableOpacity>
+            );
+          })()}
 
-          <TouchableOpacity 
-            style={[
-              styles.quickFilterChip,
-              preferences?.priceRange?.max === 0 && styles.quickFilterChipActive
-            ]}
-            onPress={() => {
-              updatePreferences({ priceRange: { min: 0, max: 0 } });
-            }}
-          >
-            <Icon name="gift-outline" size={16} color={preferences?.priceRange?.max === 0 ? '#FFF' : '#6B7280'} />
-            <Text style={[styles.quickFilterChipText, preferences?.priceRange?.max === 0 && styles.quickFilterChipTextActive]}>Free</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isFreeActive = preferences?.priceRange?.max === 0;
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterChip,
+                  isFreeActive && styles.quickFilterChipActive
+                ]}
+                onPress={() => {
+                  // Toggle: if active, reset to unlimited; otherwise set to free
+                  if (isFreeActive) {
+                    updatePreferences({ priceRange: { min: 0, max: 999999 } });
+                  } else {
+                    updatePreferences({ priceRange: { min: 0, max: 0 } });
+                  }
+                }}
+              >
+                <Icon name="gift-outline" size={16} color={isFreeActive ? '#FFF' : '#6B7280'} />
+                <Text style={[styles.quickFilterChipText, isFreeActive && styles.quickFilterChipTextActive]}>Free</Text>
+              </TouchableOpacity>
+            );
+          })()}
 
-          <TouchableOpacity 
-            style={[
-              styles.quickFilterChip,
-              preferences?.priceRange?.max === 50 && styles.quickFilterChipActive
-            ]}
-            onPress={() => {
-              updatePreferences({ priceRange: { min: 0, max: 50 } });
-            }}
-          >
-            <Icon name="currency-usd" size={16} color={preferences?.priceRange?.max === 50 ? '#FFF' : '#6B7280'} />
-            <Text style={[styles.quickFilterChipText, preferences?.priceRange?.max === 50 && styles.quickFilterChipTextActive]}>Under $50</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isUnder50Active = preferences?.priceRange?.max === 50;
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterChip,
+                  isUnder50Active && styles.quickFilterChipActive
+                ]}
+                onPress={() => {
+                  // Toggle: if active, reset to unlimited; otherwise set to under $50
+                  if (isUnder50Active) {
+                    updatePreferences({ priceRange: { min: 0, max: 999999 } });
+                  } else {
+                    updatePreferences({ priceRange: { min: 0, max: 50 } });
+                  }
+                }}
+              >
+                <Icon name="currency-usd" size={16} color={isUnder50Active ? '#FFF' : '#6B7280'} />
+                <Text style={[styles.quickFilterChipText, isUnder50Active && styles.quickFilterChipTextActive]}>Under $50</Text>
+              </TouchableOpacity>
+            );
+          })()}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickFilterChipReset}
             onPress={() => {
-              updatePreferences({ 
+              updatePreferences({
                 daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                priceRange: { min: 0, max: 1000 },
+                priceRange: { min: 0, max: 999999 },
                 environmentFilter: 'all',
               });
             }}
@@ -2265,6 +2508,118 @@ const styles = StyleSheet.create({
   },
   subtypeCountActive: {
     color: '#E8638B',
+  },
+  // Location section styles
+  locationDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  locationDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  locationDividerText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginHorizontal: 12,
+    fontWeight: '500',
+  },
+  locationExpandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    gap: 8,
+  },
+  locationExpandText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  // Distance locked styles
+  lockedDistanceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  lockedDistanceText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  // Free user budget styles
+  freeUserBudgetInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  freeUserBudgetText: {
+    flex: 1,
+  },
+  freeUserBudgetTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#059669',
+    marginBottom: 2,
+  },
+  freeUserBudgetDescription: {
+    fontSize: 13,
+    color: '#10B981',
+  },
+  // Days of week quick select styles
+  dayQuickSelect: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  dayQuickSelectButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  dayQuickSelectButtonActive: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#E8638B',
+  },
+  dayQuickSelectText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  dayQuickSelectTextActive: {
+    color: '#E8638B',
+  },
+  // Preferred times styles
+  timeLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  timeSubLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
   },
 });
 

@@ -39,7 +39,7 @@ const CARD_WIDTH = (width - 32 - CARD_GAP) / 2; // 16px padding on each side, ga
 
 type RouteParams = {
   UnifiedResults: {
-    type: 'budget' | 'new' | 'recommended' | 'activityType' | 'ageGroup' | 'favorites';
+    type?: 'budget' | 'new' | 'recommended' | 'activityType' | 'ageGroup' | 'favorites' | 'ai';
     title?: string;
     subtitle?: string;
     activityType?: string;
@@ -47,6 +47,8 @@ type RouteParams = {
     ageMin?: number;
     ageMax?: number;
     ageGroupName?: string;
+    activityIds?: string[]; // For AI recommendations
+    fromScreen?: string; // Track where we came from for back navigation
   };
 };
 
@@ -54,7 +56,9 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'UnifiedResults'>>();
 
-  const type = route?.params?.type || 'budget';
+  const activityIds = route?.params?.activityIds;
+  const fromScreen = route?.params?.fromScreen;
+  const type = activityIds ? 'ai' : (route?.params?.type || 'budget');
   const customTitle = route?.params?.title;
   const customSubtitle = route?.params?.subtitle;
   const activityType = route?.params?.activityType;
@@ -112,6 +116,10 @@ const UnifiedResultsScreenTest: React.FC = () => {
         title: 'Recommended for You',
         image: HeaderImages.recommended,
       },
+      ai: {
+        title: customTitle || 'AI Recommendations',
+        image: HeaderImages.recommended,
+      },
     };
 
     return configMap[type] || configMap.budget;
@@ -128,7 +136,27 @@ const UnifiedResultsScreenTest: React.FC = () => {
         setLoadingMore(true);
       }
 
-      if (type === 'favorites') {
+      if (type === 'ai' && activityIds && activityIds.length > 0) {
+        // Load AI-recommended activities by IDs
+        const activityService = ActivityService.getInstance();
+
+        // Fetch full activity details for each ID
+        const activityPromises = activityIds.map(async (id) => {
+          try {
+            const activity = await activityService.getActivityDetails(id);
+            return activity;
+          } catch (error) {
+            console.error(`Error loading activity ${id}:`, error);
+            return null;
+          }
+        });
+        const fetchedActivities = await Promise.all(activityPromises);
+        const validActivities = fetchedActivities.filter((a): a is Activity => a !== null);
+
+        setActivities(validActivities);
+        setTotalCount(validActivities.length);
+        setHasMore(false); // AI results don't paginate
+      } else if (type === 'favorites') {
         // Load favorite activities (no pagination for favorites)
         if (!user) {
           setActivities([]);

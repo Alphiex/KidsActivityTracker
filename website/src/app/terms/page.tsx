@@ -82,7 +82,7 @@ export default function TermsPage() {
 
               <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">Free and Premium Tiers</h3>
               <p className="text-gray-600 leading-relaxed">
-                The App offers both free (&quot;Discovery&quot;) and paid (&quot;Family Pro&quot;) subscription tiers. Free tier users have access to basic features with certain limitations. Premium subscribers have access to unlimited features.
+                The App offers both free (&quot;Discovery&quot;) and paid (&quot;Premium&quot;) subscription tiers. Free tier users have access to basic features with certain limitations. Premium subscribers have access to unlimited features.
               </p>
 
               <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">Subscription Terms</h3>

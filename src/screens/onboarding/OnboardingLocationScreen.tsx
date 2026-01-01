@@ -176,14 +176,14 @@ const OnboardingLocationScreen: React.FC = () => {
         locationPermissionAsked: true,
       });
     }
-    navigation.navigate('OnboardingComplete');
+    navigation.navigate('OnboardingSubscription');
   };
 
   const handleSkip = async () => {
     await preferencesService.updatePreferences({
       locationPermissionAsked: true,
     });
-    navigation.navigate('OnboardingComplete');
+    navigation.navigate('OnboardingSubscription');
   };
 
   const handleBack = () => {

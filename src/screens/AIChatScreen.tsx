@@ -16,11 +16,20 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import aiService, { ChatMessage, ChatQuota } from '../services/aiService';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
+import {
+  addMessage,
+  setMessages,
+  setConversationId,
+  setTurnsRemaining as setTurnsRemainingAction,
+  setLastActivityIds,
+  clearChat,
+} from '../store/slices/chatSlice';
 import PreferencesService from '../services/preferencesService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
 import { aiRobotImage } from '../assets/images';
+import useSubscription from '../hooks/useSubscription';
 
 /**
  * Calculate age from date of birth string
@@ -115,20 +124,31 @@ const AIChatScreen = () => {
 
   // Generate personalized prompts based on user data
   const suggestedPrompts = useMemo(() => {
-    const locationName = preferences.savedAddress?.city ||
+    const savedAddr = preferences.savedAddress as any;
+    const locationName = savedAddr?.city || savedAddr?.locality ||
                          (preferences.locationIds?.[0] ? undefined : undefined);
     const favoriteTypes = preferences.preferredActivityTypes || [];
     return generatePersonalizedPrompts(children, locationName, favoriteTypes);
   }, [children, preferences]);
 
-  // State
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Subscription
+  const { isPremium, openPaywall } = useSubscription();
+
+  // Redux dispatch
+  const dispatch = useAppDispatch();
+
+  // Redux persisted state
+  const messages = useAppSelector((state) => state.chat.messages);
+  const conversationId = useAppSelector((state) => state.chat.conversationId);
+  const turnsRemaining = useAppSelector((state) => state.chat.turnsRemaining);
+  const lastActivityIds = useAppSelector((state) => state.chat.lastActivityIds);
+
+  // Local state (doesn't need persistence)
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const [quota, setQuota] = useState<ChatQuota | null>(null);
-  const [turnsRemaining, setTurnsRemaining] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   // Animation for typing indicator
   const typingAnim = useRef(new Animated.Value(0)).current;
@@ -181,7 +201,7 @@ const AIChatScreen = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    dispatch(addMessage(userMessage));
     setInputText('');
     setIsLoading(true);
     setError(null);
@@ -193,8 +213,8 @@ const AIChatScreen = () => {
         children.map((c) => c.id)
       );
 
-      setConversationId(response.conversationId);
-      setTurnsRemaining(response.turnsRemaining);
+      dispatch(setConversationId(response.conversationId));
+      dispatch(setTurnsRemainingAction(response.turnsRemaining));
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -206,7 +226,15 @@ const AIChatScreen = () => {
         blocked: response.blocked,
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      dispatch(addMessage(assistantMessage));
+
+      // Store activity IDs for "View All" functionality
+      if (response.activities && response.activities.length > 0) {
+        const activityIds = response.activities
+          .map((a: any) => a.id)
+          .filter((id: string) => id);
+        dispatch(setLastActivityIds(activityIds));
+      }
 
       // Update quota
       if (response.quota) {
@@ -214,26 +242,24 @@ const AIChatScreen = () => {
       }
     } catch (err: any) {
       console.error('[AIChatScreen] Chat error:', err.message);
-      // Show error briefly, then auto-clear
-      setError(err.message || 'Failed to get response');
-      setTimeout(() => setError(null), 5000);
-      // Keep user message but add error indicator
-      setMessages((prev) => {
-        const updated = [...prev];
-        if (updated.length > 0) {
-          const lastMsg = updated[updated.length - 1];
-          if (lastMsg.role === 'user') {
-            // Add assistant error response
-            updated.push({
-              id: (Date.now() + 1).toString(),
-              role: 'assistant',
-              content: "I couldn't process that request. Please try again.",
-              timestamp: new Date(),
-            });
-          }
-        }
-        return updated;
-      });
+      const errorMessage = err.message || 'Failed to get response';
+
+      // Check if rate limited
+      if (errorMessage.toLowerCase().includes('rate limit') || err?.response?.status === 429) {
+        setIsRateLimited(true);
+        setError('You\'ve reached your message limit. Upgrade to Premium for unlimited access.');
+      } else {
+        setError(errorMessage);
+        setTimeout(() => setError(null), 5000);
+      }
+      // Add assistant error response
+      const errorAssistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I couldn't process that request. Please try again.",
+        timestamp: new Date(),
+      };
+      dispatch(addMessage(errorAssistantMessage));
     } finally {
       setIsLoading(false);
     }
@@ -251,10 +277,19 @@ const AIChatScreen = () => {
     if (conversationId) {
       aiService.endConversation(conversationId);
     }
-    setMessages([]);
-    setConversationId(null);
-    setTurnsRemaining(null);
+    dispatch(clearChat());
     setError(null);
+  };
+
+  // Handle "View All" activities - navigate to results screen with activity IDs
+  const handleViewAllActivities = (activityIds: string[]) => {
+    if (activityIds.length > 0) {
+      navigation.navigate('UnifiedResults' as never, {
+        activityIds,
+        title: 'AI Recommendations',
+        fromScreen: 'AIChat',
+      } as never);
+    }
   };
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
@@ -283,28 +318,63 @@ const AIChatScreen = () => {
           {/* Activity Cards */}
           {item.activities && item.activities.length > 0 && (
             <View style={styles.activitiesContainer}>
-              <Text style={styles.activitiesLabel}>
-                Found {item.activities.length} activities:
-              </Text>
+              <View style={styles.activitiesHeader}>
+                <Text style={styles.activitiesLabel}>
+                  Found {item.activities.length} {item.activities.length === 1 ? 'activity' : 'activities'}:
+                </Text>
+                {item.activities!.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.viewAllButton}
+                    onPress={() => handleViewAllActivities(item.activities!.map((a: any) => a.id).filter(Boolean))}
+                  >
+                    <Text style={styles.viewAllText}>View All</Text>
+                    <Icon name="arrow-right" size={14} color="#E8638B" />
+                  </TouchableOpacity>
+                )}
+              </View>
               {item.activities.slice(0, 3).map((activity, index) => (
                 <TouchableOpacity
                   key={activity.id || index}
                   style={styles.activityCard}
                   onPress={() => handleActivityPress(activity)}
                 >
-                  <Text style={styles.activityName} numberOfLines={1}>
-                    {activity.name}
-                  </Text>
-                  <Text style={styles.activityMeta} numberOfLines={1}>
-                    {activity.provider?.name} {activity.cost ? `• $${activity.cost}` : ''}
-                  </Text>
-                  <Icon name="chevron-right" size={16} color="#999" style={styles.activityChevron} />
+                  <View style={styles.activityCardContent}>
+                    <Text style={styles.activityName} numberOfLines={1}>
+                      {activity.name}
+                    </Text>
+                    <Text style={styles.activityMeta} numberOfLines={1}>
+                      {activity.provider || activity.provider?.name}
+                      {activity.price && typeof activity.price === 'number' ? ` • $${activity.price}` : ''}
+                      {activity.cost ? ` • $${activity.cost}` : ''}
+                    </Text>
+                    {(activity.dates || activity.schedule) && (
+                      <Text style={styles.activityDates} numberOfLines={1}>
+                        {activity.dates || activity.schedule}
+                      </Text>
+                    )}
+                    {activity.status && (
+                      <View style={[
+                        styles.statusBadge,
+                        activity.status === 'Open' && styles.statusOpen,
+                        activity.status === 'Waitlist' && styles.statusWaitlist,
+                      ]}>
+                        <Text style={styles.statusText}>{activity.status}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Icon name="chevron-right" size={20} color="#E8638B" style={styles.activityChevron} />
                 </TouchableOpacity>
               ))}
-              {item.activities.length > 3 && (
-                <Text style={styles.moreActivities}>
-                  +{item.activities.length - 3} more activities
-                </Text>
+              {item.activities!.length > 3 && (
+                <TouchableOpacity
+                  style={styles.viewMoreButton}
+                  onPress={() => handleViewAllActivities(item.activities!.map((a: any) => a.id).filter(Boolean))}
+                >
+                  <Text style={styles.viewMoreText}>
+                    View {item.activities!.length - 3} more activities
+                  </Text>
+                  <Icon name="chevron-right" size={16} color="#E8638B" />
+                </TouchableOpacity>
               )}
             </View>
           )}
@@ -380,7 +450,8 @@ const AIChatScreen = () => {
         {/* Sub-header with turns and new chat */}
         <View style={styles.subHeader}>
           <View style={styles.subHeaderLeft}>
-            {turnsRemaining !== null && (
+            {/* Only show turns remaining for non-premium users */}
+            {!isPremium && turnsRemaining !== null && (
               <Text style={styles.turnsText}>{turnsRemaining} turns remaining</Text>
             )}
           </View>
@@ -392,8 +463,8 @@ const AIChatScreen = () => {
           )}
         </View>
 
-        {/* Quota Warning */}
-        {quota && !quota.allowed && quota.message && (
+        {/* Quota Warning - only for non-premium users */}
+        {!isPremium && quota && !quota.allowed && quota.message && (
           <View style={styles.quotaWarning}>
             <Icon name="alert-circle" size={16} color="#FFF" />
             <Text style={styles.quotaWarningText}>
@@ -402,11 +473,25 @@ const AIChatScreen = () => {
           </View>
         )}
 
-        {/* Error */}
+        {/* Error / Rate Limit Banner */}
         {error && (
-          <View style={styles.errorBanner}>
-            <Icon name="alert-circle" size={16} color="#FFF" />
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorBanner, isRateLimited && styles.rateLimitBanner]}>
+            <View style={styles.errorContent}>
+              <Icon name={isRateLimited ? 'crown' : 'alert-circle'} size={16} color="#FFF" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+            {isRateLimited && !isPremium && (
+              <TouchableOpacity
+                style={styles.upgradeSmallButton}
+                onPress={() => {
+                  setError(null);
+                  setIsRateLimited(false);
+                  openPaywall();
+                }}
+              >
+                <Text style={styles.upgradeSmallButtonText}>Upgrade</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -530,10 +615,30 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 8,
   },
+  rateLimitBanner: {
+    backgroundColor: '#E8638B',
+  },
+  errorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
   errorText: {
     color: '#FFF',
     fontSize: 13,
     flex: 1,
+  },
+  upgradeSmallButton: {
+    backgroundColor: '#FFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  upgradeSmallButtonText: {
+    color: '#E8638B',
+    fontSize: 13,
+    fontWeight: '600',
   },
   messagesList: {
     padding: 16,
@@ -604,32 +709,88 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#EBEBEB',
   },
+  activitiesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   activitiesLabel: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 8,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontSize: 13,
+    color: '#E8638B',
+    fontWeight: '500',
   },
   activityCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8F9FA',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 6,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#EBEBEB',
+  },
+  activityCardContent: {
+    flex: 1,
   },
   activityName: {
-    flex: 1,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#333',
+    marginBottom: 2,
   },
   activityMeta: {
     fontSize: 12,
     color: '#666',
-    marginLeft: 8,
+    marginBottom: 2,
+  },
+  activityDates: {
+    fontSize: 11,
+    color: '#888',
+    marginTop: 2,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+    backgroundColor: '#F0F0F0',
+  },
+  statusOpen: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusWaitlist: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#333',
   },
   activityChevron: {
-    marginLeft: 4,
+    marginLeft: 8,
+  },
+  viewMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 4,
+  },
+  viewMoreText: {
+    fontSize: 13,
+    color: '#E8638B',
+    fontWeight: '500',
   },
   moreActivities: {
     fontSize: 12,

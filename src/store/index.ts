@@ -17,13 +17,14 @@ import authReducer from './slices/authSlice';
 import childrenReducer from './slices/childrenSlice';
 import childActivitiesReducer from './slices/childActivitiesSlice';
 import subscriptionReducer from './slices/subscriptionSlice';
+import chatReducer from './slices/chatSlice';
 
 // Persist configuration
 const persistConfig = {
   key: 'root',
   version: 1,
   storage: AsyncStorage,
-  whitelist: ['auth', 'children', 'subscription'], // Persist auth, children, and subscription state
+  whitelist: ['auth', 'children', 'subscription', 'chat'], // Persist auth, children, subscription, and chat state
 };
 
 const rootReducer = combineReducers({
@@ -31,6 +32,7 @@ const rootReducer = combineReducers({
   children: childrenReducer,
   childActivities: childActivitiesReducer,
   subscription: subscriptionReducer,
+  chat: chatReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

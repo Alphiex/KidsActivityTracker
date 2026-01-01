@@ -29,6 +29,7 @@ import { authService } from '../services/authService';
 import useSubscription from '../hooks/useSubscription';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import { revenueCatService } from '../services/revenueCatService';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { locationService } from '../services/locationService';
 import { EnhancedAddress, isEnhancedAddress } from '../types/preferences';
@@ -86,6 +87,28 @@ const ProfileScreenModern = () => {
     location: user?.location || '',
   });
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
+
+  // Get subscription details
+  const expirationDate = revenueCatService.getExpirationDate();
+  const billingCycle = revenueCatService.getBillingCycle(revenueCatService.state.customerInfo!);
+
+  const formatExpirationDate = (date: Date | null): string => {
+    if (!date) return '';
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const handleManageSubscription = () => {
+    // Open device subscription settings (required by Apple/Google)
+    if (Platform.OS === 'ios') {
+      Linking.openURL('https://apps.apple.com/account/subscriptions');
+    } else {
+      Linking.openURL('https://play.google.com/store/account/subscriptions');
+    }
+  };
 
   // Load saved address from preferences on mount
   useEffect(() => {
@@ -435,6 +458,12 @@ const ProfileScreenModern = () => {
                     ? 'Unlimited access to all features'
                     : 'Upgrade to unlock premium features'}
                 </Text>
+                {/* Subscription expiration info */}
+                {isPremium && expirationDate && (
+                  <Text style={styles.subscriptionExpiry}>
+                    {isTrialing ? 'Trial ends' : `Renews ${billingCycle === 'annual' ? 'annually' : 'monthly'}`}: {formatExpirationDate(expirationDate)}
+                  </Text>
+                )}
               </View>
               {!isPremium && (
                 <TouchableOpacity
@@ -445,6 +474,18 @@ const ProfileScreenModern = () => {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Manage Subscription Button - Only for Premium users */}
+            {isPremium && (
+              <TouchableOpacity
+                style={styles.manageSubscriptionButton}
+                onPress={handleManageSubscription}
+              >
+                <Icon name="cog-outline" size={18} color={ModernColors.textLight} />
+                <Text style={styles.manageSubscriptionText}>Manage Subscription</Text>
+                <Icon name="chevron-right" size={18} color={ModernColors.textLight} />
+              </TouchableOpacity>
+            )}
 
             {/* Usage Stats */}
             {!isPremium && usage && (
@@ -994,6 +1035,29 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
   },
   subscriptionDescription: {
+    fontSize: 14,
+    color: ModernColors.textLight,
+  },
+  subscriptionExpiry: {
+    fontSize: 12,
+    color: ModernColors.textLight,
+    marginTop: 4,
+  },
+  manageSubscriptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: ModernColors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    gap: 8,
+  },
+  manageSubscriptionText: {
+    flex: 1,
     fontSize: 14,
     color: ModernColors.textLight,
   },

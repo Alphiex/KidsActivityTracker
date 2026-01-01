@@ -243,9 +243,8 @@ const DashboardScreenModern = () => {
         }
       }
 
-      // Apply price range preferences (only if changed from defaults)
-      if (preferences.priceRange &&
-          (preferences.priceRange.min > 0 || preferences.priceRange.max < 1000)) {
+      // Apply price range preferences (only if not unlimited - 10000+ means unlimited)
+      if (preferences.priceRange && preferences.priceRange.max < 10000) {
         filterParams.costMin = preferences.priceRange.min;
         filterParams.costMax = preferences.priceRange.max;
       }
@@ -401,9 +400,8 @@ const DashboardScreenModern = () => {
         }
       }
 
-      // Apply price range preferences (only if changed from defaults)
-      if (preferences.priceRange &&
-          (preferences.priceRange.min > 0 || preferences.priceRange.max < 1000)) {
+      // Apply price range preferences (only if not unlimited - 10000+ means unlimited)
+      if (preferences.priceRange && preferences.priceRange.max < 10000) {
         filterParams.costMin = preferences.priceRange.min;
         filterParams.costMax = preferences.priceRange.max;
       }

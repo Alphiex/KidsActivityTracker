@@ -78,9 +78,20 @@ export const searchActivitiesTool = new DynamicStructuredTool({
     const prisma = getPrisma();
 
     try {
-      // Build where clause
+      // Build where clause - only show activities with open registration and not expired
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       const where: any = {
         isActive: true,
+        registrationStatus: {
+          in: ['Open', 'Waitlist', 'Available'],
+        },
+        // Exclude activities that have already ended
+        OR: [
+          { dateEnd: null }, // No end date
+          { dateEnd: { gte: today } }, // End date is today or in the future
+        ],
       };
 
       // Age filtering in database - activity is suitable if child's age falls within activity's range
@@ -178,6 +189,20 @@ export const searchActivitiesTool = new DynamicStructuredTool({
         provider: a.provider?.name,
         schedule: formatSchedule(a),
         status: a.registrationStatus ?? 'Unknown',
+        spotsAvailable: a.spotsAvailable,
+        totalSpots: a.totalSpots,
+        spotsText: a.spotsAvailable !== null && a.totalSpots !== null
+          ? `${a.spotsAvailable} of ${a.totalSpots} spots`
+          : a.spotsAvailable !== null
+            ? `${a.spotsAvailable} spots available`
+            : null,
+        startDate: a.dateStart ? a.dateStart.toISOString().split('T')[0] : null,
+        endDate: a.dateEnd ? a.dateEnd.toISOString().split('T')[0] : null,
+        dates: a.dateStart && a.dateEnd
+          ? `${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${a.dateEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+          : a.dateStart
+            ? `Starts ${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+            : 'Ongoing',
       }));
 
       if (result.length === 0) {
