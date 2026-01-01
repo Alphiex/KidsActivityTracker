@@ -50,6 +50,7 @@ import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 import AIRecommendationsScreen from '../screens/AIRecommendationsScreen';
+import AIChatScreen from '../screens/AIChatScreen';
 import WeeklyPlannerScreen from '../screens/WeeklyPlannerScreen';
 import WaitingListScreen from '../screens/WaitingListScreen';
 import MapSearchScreen from '../screens/MapSearchScreen';
@@ -97,6 +98,7 @@ const HomeStack = () => (
     <Stack.Screen name="FeaturedPartners" component={FeaturedPartnersScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
+    <Stack.Screen name="AIChat" component={AIChatScreen} />
     <Stack.Screen name="WeeklyPlanner" component={WeeklyPlannerScreen} />
     <Stack.Screen name="MapSearch" component={MapSearchScreen} />
     <Stack.Screen name="WaitingList" component={WaitingListScreen} />

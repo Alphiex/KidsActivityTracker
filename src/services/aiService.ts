@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
-import { 
-  AIRecommendationRequest, 
-  AIRecommendationResponse, 
+import {
+  AIRecommendationRequest,
+  AIRecommendationResponse,
   AIHealthStatus,
   ParseSearchResponse,
   ExplainActivityResponse,
@@ -9,6 +9,40 @@ import {
   ActivityExplanation,
   WeeklySchedule,
 } from '../types/ai';
+
+// Chat types
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  activities?: any[];
+  followUpPrompts?: string[];
+  blocked?: boolean;
+}
+
+export interface ChatResponse {
+  conversationId: string;
+  text: string;
+  activities: any[];
+  followUpPrompts: string[];
+  turnsRemaining: number;
+  blocked?: boolean;
+  reason?: string;
+  quota: {
+    daily: { used: number; limit: number };
+    monthly: { used: number; limit: number };
+  };
+  latencyMs: number;
+}
+
+export interface ChatQuota {
+  allowed: boolean;
+  isPro: boolean;
+  daily: { used: number; limit: number };
+  monthly: { used: number; limit: number };
+  message?: string;
+}
 
 /**
  * AI Service - Handles AI-powered recommendation features
@@ -310,6 +344,93 @@ class AIService {
         schedule: null,
         error: 'Failed to generate weekly schedule'
       };
+    }
+  }
+
+  // ============================================================
+  // CHAT METHODS - Conversational AI
+  // ============================================================
+
+  /**
+   * Send a chat message to the AI assistant
+   *
+   * @param message - User's message
+   * @param conversationId - Optional conversation ID to continue
+   * @param childIds - Optional specific children to focus on
+   * @returns AI response with activities and follow-up prompts
+   */
+  async chat(
+    message: string,
+    conversationId?: string,
+    childIds?: string[]
+  ): Promise<ChatResponse> {
+    try {
+      console.log('[AIService] Sending chat message:', { message, conversationId });
+
+      const response = await apiClient.post<ChatResponse>(
+        '/api/v1/ai/chat',
+        {
+          message,
+          conversationId,
+          childIds,
+          childSelectionMode: childIds?.length ? 'manual' : 'auto',
+        },
+        { timeout: 60000 } // 60 second timeout for AI chat
+      );
+
+      console.log('[AIService] Chat response:', {
+        conversationId: response.conversationId,
+        activitiesCount: response.activities?.length || 0,
+        turnsRemaining: response.turnsRemaining,
+        blocked: response.blocked,
+      });
+
+      return response;
+    } catch (error: any) {
+      console.error('[AIService] Chat error:', error);
+
+      // Handle quota exceeded
+      if (error?.response?.status === 429) {
+        const data = error.response.data;
+        throw new Error(data?.message || 'AI quota exceeded. Please upgrade to Pro for more queries.');
+      }
+
+      // Handle unauthorized
+      if (error?.response?.status === 401) {
+        throw new Error('Please log in to use AI chat.');
+      }
+
+      throw new Error('Failed to get AI response. Please try again.');
+    }
+  }
+
+  /**
+   * Get user's AI quota status
+   */
+  async getChatQuota(): Promise<ChatQuota> {
+    try {
+      const response = await apiClient.get<{ quota: ChatQuota }>('/api/v1/ai/chat/quota');
+      return response.quota;
+    } catch (error) {
+      console.error('[AIService] Error getting quota:', error);
+      return {
+        allowed: false,
+        isPro: false,
+        daily: { used: 0, limit: 3 },
+        monthly: { used: 0, limit: 30 },
+        message: 'Unable to fetch quota',
+      };
+    }
+  }
+
+  /**
+   * Clear/end a conversation
+   */
+  async endConversation(conversationId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/v1/ai/chat/${conversationId}`);
+    } catch (error) {
+      console.error('[AIService] Error ending conversation:', error);
     }
   }
 }

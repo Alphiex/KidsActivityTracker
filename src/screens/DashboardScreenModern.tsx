@@ -29,6 +29,7 @@ import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import LinearGradient from 'react-native-linear-gradient';
 import TrialCountdownBanner from '../components/TrialCountdownBanner';
+import ScreenBackground from '../components/ScreenBackground';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
 
@@ -833,14 +834,15 @@ const DashboardScreenModern = () => {
       {/* Tab Navigation - Fixed at top */}
       <TopTabNavigation />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#E8638B" />
-        </View>
-      ) : (
-        <>
-      {/* Fixed Header with Search */}
-      <View style={styles.fixedHeader}>
+      <ScreenBackground>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#E8638B" />
+          </View>
+        ) : (
+          <>
+        {/* Fixed Header with Search */}
+        <View style={styles.fixedHeader}>
         {/* Search Bar */}
         <View style={styles.searchRow}>
           <TouchableOpacity
@@ -891,13 +893,11 @@ const DashboardScreenModern = () => {
           </View>
         )}
 
-        {/* AI Recommendations Banner - with robot overlay */}
+        {/* AI Chat Banner - with robot overlay */}
         <View style={styles.aiBannerWrapper}>
           <TouchableOpacity
             style={styles.aiBanner}
-            onPress={() => navigation.navigate('AIRecommendations', {
-              search_intent: 'Find the best activities for my family this weekend'
-            })}
+            onPress={() => navigation.navigate('AIChat' as never)}
             activeOpacity={0.9}
           >
             <LinearGradient
@@ -907,8 +907,8 @@ const DashboardScreenModern = () => {
               style={styles.aiBannerGradient}
             >
               <View style={styles.aiBannerTextContainer}>
-                <Text style={styles.aiBannerTitle}>AI Recommendations</Text>
-                <Text style={styles.aiBannerSubtitle}>Personalized picks for your family</Text>
+                <Text style={styles.aiBannerTitle}>AI Assistant</Text>
+                <Text style={styles.aiBannerSubtitle}>Chat to find perfect activities</Text>
               </View>
               <Icon name="chevron-right" size={22} color="#FFFFFF" />
             </LinearGradient>
@@ -1130,8 +1130,9 @@ const DashboardScreenModern = () => {
         currentCount={subscriptionWaitlistCount}
         limit={waitlistLimit}
       />
-        </>
-      )}
+          </>
+        )}
+      </ScreenBackground>
     </SafeAreaView>
   );
 };
