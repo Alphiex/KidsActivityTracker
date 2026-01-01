@@ -58,11 +58,27 @@ class ApiClient {
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        // If we get a 401, the token is invalid (Firebase should have refreshed it)
-        // This likely means the user's session has been revoked
+        // If we get a 401, check if we should log out
         if (error.response?.status === 401) {
-          console.log('[API] 401 received, clearing auth state');
-          store.dispatch(clearAuth());
+          const url = error.config?.url || '';
+
+          // Don't log out for endpoints that handle auth errors gracefully
+          // These endpoints catch 401s and show appropriate UI instead
+          const gracefulAuthEndpoints = [
+            '/api/v1/ai/chat/quota',
+            '/api/v1/ai/chat',
+            '/api/v1/ai/recommendations',
+            '/api/v1/ai/weekly-plan',
+          ];
+
+          const shouldSkipLogout = gracefulAuthEndpoints.some(endpoint => url.includes(endpoint));
+
+          if (shouldSkipLogout) {
+            console.log('[API] 401 received for graceful endpoint, not logging out:', url);
+          } else {
+            console.log('[API] 401 received, clearing auth state:', url);
+            store.dispatch(clearAuth());
+          }
         }
 
         return Promise.reject(error);
