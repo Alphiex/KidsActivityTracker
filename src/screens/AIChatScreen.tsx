@@ -13,6 +13,7 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import aiService, { ChatMessage, ChatQuota } from '../services/aiService';
@@ -312,9 +313,12 @@ const AIChatScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <View style={styles.emptyAvatarContainer}>
+      <LinearGradient
+        colors={['#FFB5C5', '#E8638B']}
+        style={styles.emptyAvatarContainer}
+      >
         <Image source={aiRobotImage} style={styles.emptyAvatar} />
-      </View>
+      </LinearGradient>
       <Text style={styles.emptyTitle}>Hi! I'm your Activity Assistant</Text>
       <Text style={styles.emptySubtitle}>
         Ask me anything about finding activities for your kids. I can help with recommendations,
@@ -651,22 +655,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyAvatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   emptyAvatar: {
-    width: 60,
-    height: 60,
+    width: 65,
+    height: 65,
     resizeMode: 'contain',
   },
   emptyTitle: {
