@@ -20,7 +20,7 @@ import { sendPasswordReset, clearError } from '../../store/slices/authSlice';
 
 // App-consistent colors
 const appColors = {
-  primary: '#14B8A6',
+  primary: '#E8638B',
   text: '#1F2937',
   textSecondary: '#6B7280',
   background: '#FFFFFF',

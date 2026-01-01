@@ -16,7 +16,7 @@ import PreferencesService from '../services/preferencesService';
 import NotificationService, { NotificationPreferences } from '../services/notificationService';
 
 const ModernColors = {
-  primary: '#14B8A6',
+  primary: '#E8638B',
   text: '#222222',
   textLight: '#717171',
   border: '#DDDDDD',

@@ -1,18 +1,18 @@
 export const Colors = {
-  // Primary colors
-  primary: '#4A90E2',
-  primaryDark: '#357ABD',
-  primaryLight: '#6BA3E5',
-  
-  // Secondary colors
-  secondary: '#50E3C2',
-  secondaryDark: '#3DBEA0',
-  secondaryLight: '#6FE8CE',
-  
-  // Accent colors
-  accent: '#F5A623',
-  accentDark: '#D4901F',
-  accentLight: '#F7B84C',
+  // Primary colors - Pink Pastel theme
+  primary: '#E8638B',
+  primaryDark: '#D53F8C',
+  primaryLight: '#FFB5C5',
+
+  // Secondary colors - Soft blue (complementary)
+  secondary: '#7C9EF5',
+  secondaryDark: '#5B7FE5',
+  secondaryLight: '#A5BFFA',
+
+  // Accent colors - Warm coral
+  accent: '#FFD166',
+  accentDark: '#F5B800',
+  accentLight: '#FFE5A0',
   
   // Status colors
   success: '#7ED321',
@@ -67,18 +67,18 @@ export const Colors = {
     'Music': '#9C27B0',
     'Sports': '#FF9800',
     'Skating': '#03A9F4',
-    'Visual Arts': '#14B8A6',
-    'Dance': '#2DD4BF',
+    'Visual Arts': '#E8638B',
+    'Dance': '#FFB5C5',
     'Martial Arts': '#F44336',
     'Camps': '#4A90E2',
   } as { [key: string]: string },
   
-  // Gradient colors
+  // Gradient colors - Pink Pastel theme
   gradients: {
-    primary: ['#4A90E2', '#357ABD'],
-    secondary: ['#50E3C2', '#3DBEA0'],
-    sunset: ['#F5A623', '#F76B1C'],
-    ocean: ['#4A90E2', '#00BCD4'],
+    primary: ['#FFB5C5', '#E8638B', '#D53F8C'],
+    secondary: ['#A5BFFA', '#7C9EF5', '#5B7FE5'],
+    sunset: ['#FFE5A0', '#FFD166', '#F5B800'],
+    ocean: ['#A5BFFA', '#7C9EF5'],
     forest: ['#8BC34A', '#689F38'],
   }
 };

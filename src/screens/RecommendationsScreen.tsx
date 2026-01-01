@@ -98,7 +98,7 @@ const RecommendationsScreen = () => {
 
   const renderHeader = () => (
     <LinearGradient
-      colors={['#14B8A6', '#0D9488']}
+      colors={['#E8638B', '#D53F8C']}
       style={styles.header}
     >
       <View style={styles.headerContent}>
@@ -126,7 +126,7 @@ const RecommendationsScreen = () => {
         onPress={() => navigation.navigate('Settings')}
       >
         <LinearGradient
-          colors={['#14B8A6', '#0D9488']}
+          colors={['#E8638B', '#D53F8C']}
           style={styles.settingsButtonGradient}
         >
           <Icon name="cog" size={20} color="#fff" />

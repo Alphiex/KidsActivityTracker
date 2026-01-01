@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  ImageBackground,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -23,6 +25,8 @@ import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
 import { useTheme } from '../contexts/ThemeContext';
 import { safeToISOString } from '../utils/safeAccessors';
+
+const SearchHeaderImage = require('../assets/images/search-header.png');
 
 type SearchResultsRouteProp = RouteProp<{
   SearchResults: {
@@ -225,7 +229,7 @@ const SearchResultsScreen = () => {
     
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color="#14B8A6" />
+        <ActivityIndicator size="small" color="#E8638B" />
         <Text style={styles.loadingFooterText}>Loading more activities...</Text>
       </View>
     );
@@ -248,49 +252,66 @@ const SearchResultsScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#14B8A6" />
+          <ActivityIndicator size="large" color="#E8638B" />
           <Text style={styles.loadingText}>Finding activities...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <ImageBackground
+        source={SearchHeaderImage}
+        style={styles.heroSection}
+        imageStyle={styles.heroImageStyle}
+      >
+        <LinearGradient
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
+          style={styles.heroGradient}
+        >
+          {/* Back Button and Filter */}
+          <View style={styles.heroTopRow}>
+            <TouchableOpacity style={styles.backButtonHero} onPress={handleBackToSearch}>
+              <View style={styles.backButtonInner}>
+                <Icon name="arrow-left" size={22} color="#333" />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterButtonHero} onPress={handleBackToSearch}>
+              <View style={styles.backButtonInner}>
+                <Icon name="tune" size={22} color="#E8638B" />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Title and Count */}
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>Search Results</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countNumber}>{totalCount.toLocaleString()}</Text>
+              <Text style={styles.countLabel}>activities</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with back button and title */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackToSearch} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color="#222222" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Search Results</Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {getActiveFiltersText()}
-          </Text>
-        </View>
-        
-        <TouchableOpacity onPress={handleBackToSearch} style={styles.filterButton}>
-          <Icon name="tune" size={24} color="#14B8A6" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Results count bar */}
-      <View style={styles.resultsCountBar}>
-        <Text style={styles.resultsCount}>
-          {totalCount.toLocaleString()} {totalCount === 1 ? 'activity' : 'activities'} found
-        </Text>
-      </View>
-
       {/* Results list */}
       {activities.length === 0 ? (
-        renderEmptyState()
+        <>
+          {renderHeader()}
+          {renderEmptyState()}
+        </>
       ) : (
         <FlatList
           data={activities}
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={activities.length > 1 ? styles.columnWrapper : undefined}
+          ListHeaderComponent={renderHeader}
           renderItem={({ item, index }) => (
             <ActivityCard
               activity={item}
@@ -308,8 +329,8 @@ const SearchResultsScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#14B8A6"
-              colors={['#14B8A6']}
+              tintColor="#E8638B"
+              colors={['#E8638B']}
             />
           }
           onEndReached={loadMoreResults}
@@ -329,7 +350,7 @@ const SearchResultsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
@@ -343,63 +364,83 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  headerContainer: {
+    marginBottom: 12,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F7F7F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
+  heroSection: {
+    height: height * 0.28,
+    width: '100%',
   },
-  headerContent: {
+  heroImageStyle: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  heroGradient: {
     flex: 1,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    justifyContent: 'space-between',
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#222222',
-    marginBottom: 2,
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#717171',
-    lineHeight: 18,
-  },
-  filterButton: {
+  backButtonHero: {},
+  filterButtonHero: {},
+  backButtonInner: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F7F7F7',
-    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     justifyContent: 'center',
-    marginLeft: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  resultsCountBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#F9F9F9',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+  heroContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
-  resultsCount: {
-    fontSize: 16,
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: 'white',
+    flex: 1,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  countNumber: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#E8638B',
+  },
+  countLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#222222',
+    color: '#718096',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -440,11 +481,11 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   refineSearchButton: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     borderRadius: 12,
     paddingHorizontal: 32,
     paddingVertical: 14,
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

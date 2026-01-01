@@ -49,7 +49,7 @@ export const activityTypeColors: { [key: string]: string[] } = {
   'Skating & Wheels': ['#03A9F4', '#0288D1'],
   
   // Arts & Movement - Blue/Purple tones
-  'Dance': ['#14B8A6', '#0D9488'],
+  'Dance': ['#E8638B', '#D53F8C'],
   'Gymnastics & Movement': ['#9C27B0', '#7B1FA2'],
   'Performing Arts': ['#673AB7', '#512DA8'],
   'Visual Arts': ['#FF5722', '#E64A19'],

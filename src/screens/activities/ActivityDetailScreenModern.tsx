@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   ImageBackground,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -32,7 +33,7 @@ import AssignActivityToChildModal from '../../components/activities/AssignActivi
 import { formatActivityPrice, cleanActivityName } from '../../utils/formatters';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
 import { shareActivityViaEmail } from '../../utils/sharing';
-import { getActivityImageByKey } from '../../assets/images';
+import { getActivityImageByKey, aiRobotImage } from '../../assets/images';
 import { getActivityImageKey } from '../../utils/activityHelpers';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../../theme/modernTheme';
 import { ActivityExplanation } from '../../components/ai/ActivityExplanation';
@@ -489,7 +490,7 @@ const ActivityDetailScreenModern = () => {
                   <Icon name={isOnWaitlist ? 'bell-ring' : 'bell-outline'} size={22} color={isOnWaitlist ? '#FFB800' : '#000'} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerButton} onPress={handleToggleFavorite}>
-                  <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#14B8A6' : '#000'} />
+                  <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#E8638B' : '#000'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -514,7 +515,7 @@ const ActivityDetailScreenModern = () => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#14B8A6', '#0D9488', '#0F766E']}
+                  colors={['#FFB5C5', '#E8638B', '#D53F8C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.featuredButtonGradient}
@@ -544,7 +545,7 @@ const ActivityDetailScreenModern = () => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#14B8A6', '#0D9488', '#0F766E']}
+                  colors={['#FFB5C5', '#E8638B', '#D53F8C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.calendarButtonGradient}
@@ -563,7 +564,7 @@ const ActivityDetailScreenModern = () => {
               {/* Share Button with icon overlay */}
               <View style={styles.miniButtonWrapper}>
                 <View style={styles.miniIconOverlayLeft}>
-                  <Icon name="email-outline" size={18} color="#14B8A6" />
+                  <Icon name="email-outline" size={18} color="#E8638B" />
                 </View>
                 <TouchableOpacity
                   style={styles.miniButton}
@@ -581,7 +582,7 @@ const ActivityDetailScreenModern = () => {
                   <Icon
                     name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
                     size={18}
-                    color={isOnWaitlist ? '#FFB800' : '#14B8A6'}
+                    color={isOnWaitlist ? '#FFB800' : '#E8638B'}
                   />
                 </View>
                 <TouchableOpacity
@@ -1046,7 +1047,7 @@ const styles = StyleSheet.create({
   featuredButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -1082,14 +1083,22 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#0D9488',
+    backgroundColor: '#D53F8C',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0D9488',
+    shadowColor: '#D53F8C',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 8,
+  },
+  registerRobotOverlay: {
+    position: 'absolute',
+    right: -15,
+    top: -20,
+    width: 70,
+    height: 70,
+    resizeMode: 'contain',
   },
   // Calendar button styles
   calendarButtonWrapper: {
@@ -1100,7 +1109,7 @@ const styles = StyleSheet.create({
   calendarButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -1125,11 +1134,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#0D9488',
+    backgroundColor: '#D53F8C',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
-    shadowColor: '#0D9488',
+    shadowColor: '#D53F8C',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -1153,8 +1162,8 @@ const styles = StyleSheet.create({
     paddingLeft: 28,
     paddingRight: 12,
     borderWidth: 1.5,
-    borderColor: '#14B8A6',
-    shadowColor: '#14B8A6',
+    borderColor: '#E8638B',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -1165,7 +1174,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFB800',
   },
   miniButtonTitle: {
-    color: '#14B8A6',
+    color: '#E8638B',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1173,7 +1182,7 @@ const styles = StyleSheet.create({
     color: '#B45309',
   },
   miniButtonSubtitle: {
-    color: '#0D9488',
+    color: '#D53F8C',
     fontSize: 11,
     fontWeight: '500',
     opacity: 0.8,
@@ -1191,11 +1200,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#14B8A6',
+    borderColor: '#E8638B',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,

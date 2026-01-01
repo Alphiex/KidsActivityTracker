@@ -115,7 +115,7 @@ const OnboardingAgeScreen: React.FC = () => {
                 <Icon
                   name={age.icon}
                   size={28}
-                  color={isSelected ? '#FFFFFF' : '#14B8A6'}
+                  color={isSelected ? '#FFFFFF' : '#E8638B'}
                 />
               </View>
               <View style={styles.ageTextContainer}>
@@ -143,7 +143,7 @@ const OnboardingAgeScreen: React.FC = () => {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['#14B8A6', '#0D9488']}
+            colors={['#E8638B', '#D53F8C']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.nextButton}
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   stepDotActive: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     width: 24,
   },
   title: {
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   ageCardSelected: {
     backgroundColor: '#FEF2F2',
-    borderColor: '#14B8A6',
+    borderColor: '#E8638B',
   },
   iconContainer: {
     width: 56,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   iconContainerSelected: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
   },
   ageTextContainer: {
     flex: 1,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   ageLabelSelected: {
-    color: '#14B8A6',
+    color: '#E8638B',
   },
   ageRange: {
     fontSize: 14,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -275,12 +275,12 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   nextButton: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

@@ -44,7 +44,7 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   const fitScoreColor = recommendation.fit_score >= 90
     ? '#10B981'
     : recommendation.fit_score >= 70
-      ? '#14B8A6'
+      ? '#E8638B'
       : '#6B7280';
 
   // Get image source for activity

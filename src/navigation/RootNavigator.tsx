@@ -174,7 +174,7 @@ const MainTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#14B8A6',
+        tabBarActiveTintColor: '#E8638B',
         tabBarInactiveTintColor: '#717171',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',

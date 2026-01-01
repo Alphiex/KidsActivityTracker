@@ -1,21 +1,21 @@
 export const ModernColors = {
-  // Primary palette - teal (accessible and kid-friendly)
-  primary: '#14B8A6',
-  primaryLight: '#2DD4BF',
-  primaryDark: '#0D9488',
-  primaryGradient: ['#14B8A6', '#0D9488'],
-  
-  // Secondary palette - blue (matches v0)
-  secondary: '#14B8A6',
-  secondaryLight: '#93C5FD',
-  secondaryDark: '#0D9488',
-  secondaryGradient: ['#14B8A6', '#0D9488'],
-  
-  // Accent palette - yellow (matches v0)
-  accent: '#FBBf24',
-  accentLight: '#FCD34D',
-  accentDark: '#F59E0B',
-  accentGradient: ['#FBBf24', '#F59E0B'],
+  // Primary palette - pink pastel (modern & playful)
+  primary: '#E8638B',
+  primaryLight: '#FFB5C5',
+  primaryDark: '#D53F8C',
+  primaryGradient: ['#FFB5C5', '#E8638B', '#D53F8C'],
+
+  // Secondary palette - soft blue (complementary)
+  secondary: '#7C9EF5',
+  secondaryLight: '#A5BFFA',
+  secondaryDark: '#5B7FE5',
+  secondaryGradient: ['#A5BFFA', '#7C9EF5', '#5B7FE5'],
+
+  // Accent palette - warm coral (matches pink theme)
+  accent: '#FFD166',
+  accentLight: '#FFE5A0',
+  accentDark: '#F5B800',
+  accentGradient: ['#FFE5A0', '#FFD166', '#F5B800'],
   
   // Success palette - green (matches v0)
   success: '#10B981',

@@ -98,7 +98,7 @@ const AllActivityTypesScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#14B8A6" />
+        <ActivityIndicator size="large" color="#E8638B" />
         <Text style={styles.loadingText}>Loading activity types...</Text>
       </View>
     );
@@ -107,7 +107,7 @@ const AllActivityTypesScreen: React.FC = () => {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <Icon name="alert-circle" size={60} color="#14B8A6" />
+        <Icon name="alert-circle" size={60} color="#E8638B" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadActivityTypes}>
           <Text style={styles.retryButtonText}>Try Again</Text>
@@ -141,8 +141,8 @@ const AllActivityTypesScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#14B8A6']}
-            tintColor="#14B8A6"
+            colors={['#E8638B']}
+            tintColor="#E8638B"
           />
         }
         ListHeaderComponent={
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

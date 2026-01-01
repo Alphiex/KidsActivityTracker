@@ -94,7 +94,7 @@ const AIRecommendButton: React.FC<AIRecommendButtonProps> = ({
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#14B8A6', '#0F766E']}
+          colors={['#FFB5C5', '#E8638B', '#D53F8C']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.featuredButton}
@@ -130,7 +130,7 @@ const AIRecommendButton: React.FC<AIRecommendButtonProps> = ({
       style={{ opacity: disabled ? 0.5 : 1 }}
     >
       <LinearGradient
-        colors={['#14B8A6', '#0D9488']}
+        colors={['#FFB5C5', '#E8638B', '#D53F8C']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.primaryButton}
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 28,
     gap: 8,
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     minHeight: 72,
     justifyContent: 'center',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,

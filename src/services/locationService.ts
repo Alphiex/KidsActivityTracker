@@ -2,12 +2,14 @@ import { Platform, PermissionsAndroid, Linking, Alert } from 'react-native';
 import Geolocation, { GeolocationResponse, GeolocationError } from '@react-native-community/geolocation';
 import { geocodeAddress } from '../utils/geocoding';
 import { preferencesService } from './preferencesService';
+import { EnhancedAddress, LegacyAddress, isEnhancedAddress, isLegacyAddress } from '../types/preferences';
 
 export interface LocationCoordinates {
   latitude: number;
   longitude: number;
 }
 
+// Keep for backward compatibility
 export interface SavedAddress {
   address: string;
   latitude: number;
@@ -140,13 +142,83 @@ class LocationService {
 
   /**
    * Get the user's saved address from preferences
+   * Returns legacy format for backward compatibility
    */
   getSavedAddress(): SavedAddress | null {
     const prefs = preferencesService.getPreferences();
-    if (prefs.savedAddress?.address && prefs.savedAddress?.latitude && prefs.savedAddress?.longitude) {
-      return prefs.savedAddress;
+    const saved = prefs.savedAddress;
+
+    if (!saved) return null;
+
+    // Handle enhanced address format
+    if (isEnhancedAddress(saved)) {
+      if (saved.latitude && saved.longitude) {
+        return {
+          address: saved.formattedAddress,
+          latitude: saved.latitude,
+          longitude: saved.longitude,
+        };
+      }
+      return null;
     }
+
+    // Handle legacy format
+    if (isLegacyAddress(saved)) {
+      if (saved.address && saved.latitude && saved.longitude) {
+        return saved;
+      }
+    }
+
     return null;
+  }
+
+  /**
+   * Get the enhanced address from preferences (new format)
+   */
+  getEnhancedAddress(): EnhancedAddress | null {
+    const prefs = preferencesService.getPreferences();
+    const saved = prefs.savedAddress;
+
+    if (!saved) return null;
+
+    // Already enhanced format
+    if (isEnhancedAddress(saved)) {
+      return saved;
+    }
+
+    // Migrate legacy format
+    if (isLegacyAddress(saved)) {
+      return {
+        formattedAddress: saved.address,
+        latitude: saved.latitude,
+        longitude: saved.longitude,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Save an enhanced address to preferences
+   */
+  async saveEnhancedAddress(address: EnhancedAddress): Promise<boolean> {
+    try {
+      console.log('[LocationService] Saving enhanced address:', address.formattedAddress);
+
+      await preferencesService.updatePreferences({
+        savedAddress: address,
+        locationSource: 'saved_address',
+        // Also update preferredLocation with city if available
+        ...(address.city && { preferredLocation: address.city }),
+      });
+
+      console.log('[LocationService] Enhanced address saved successfully');
+      return true;
+    } catch (error) {
+      console.error('[LocationService] Error saving enhanced address:', error);
+      return false;
+    }
   }
 
   /**

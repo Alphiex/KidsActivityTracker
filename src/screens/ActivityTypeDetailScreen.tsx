@@ -367,7 +367,7 @@ const ActivityTypeDetailScreen = () => {
     if (isLoadingMore) {
       return (
         <View style={styles.footerLoader}>
-          <ActivityIndicator size="small" color="#14B8A6" />
+          <ActivityIndicator size="small" color="#E8638B" />
           <Text style={styles.loadingMoreText}>Loading more activities...</Text>
         </View>
       );
@@ -390,7 +390,7 @@ const ActivityTypeDetailScreen = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#14B8A6" />
+        <ActivityIndicator size="large" color="#E8638B" />
         <Text style={styles.loadingText}>Loading {typeName} activities...</Text>
       </View>
     );
@@ -399,7 +399,7 @@ const ActivityTypeDetailScreen = () => {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <Icon name="alert-circle" size={60} color="#14B8A6" />
+        <Icon name="alert-circle" size={60} color="#E8638B" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => loadTypeDetails()}>
           <Text style={styles.retryButtonText}>Try Again</Text>
@@ -435,8 +435,8 @@ const ActivityTypeDetailScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadTypeDetails()}
-              colors={['#14B8A6']}
-              tintColor="#14B8A6"
+              colors={['#E8638B']}
+              tintColor="#E8638B"
             />
           }
           contentContainerStyle={styles.listContent}
@@ -448,7 +448,7 @@ const ActivityTypeDetailScreen = () => {
                 onPress={() => selectSubtype(null)}
                 activeOpacity={0.7}
               >
-                <Icon name="view-list" size={20} color="#14B8A6" />
+                <Icon name="view-list" size={20} color="#E8638B" />
                 <Text style={styles.viewAllText}>View All {typeName}</Text>
                 <Text style={styles.viewAllCount}>({totalCount} activities)</Text>
                 <Icon name="chevron-right" size={20} color="#717171" />
@@ -489,8 +489,8 @@ const ActivityTypeDetailScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#14B8A6']}
-            tintColor="#14B8A6"
+            colors={['#E8638B']}
+            tintColor="#E8638B"
           />
         }
         contentContainerStyle={styles.listContent}
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

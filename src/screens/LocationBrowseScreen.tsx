@@ -61,7 +61,7 @@ const LocationBrowseScreen = () => {
   const [currentOffset, setCurrentOffset] = useState(0);
 
   const locationColors = [
-    ['#14B8A6', '#2DD4BF'],
+    ['#E8638B', '#FFB5C5'],
     ['#4ECDC4', '#44A08D'],
     ['#A8E6CF', '#7FD1B3'],
     ['#FFD93D', '#FFB73D'],
@@ -308,7 +308,7 @@ const LocationBrowseScreen = () => {
 
   const renderHeader = () => (
     <LinearGradient
-      colors={['#14B8A6', '#0D9488']}
+      colors={['#E8638B', '#D53F8C']}
       style={styles.header}
     >
       {selectedLocation ? (

@@ -11,7 +11,9 @@ import {
   Platform,
   Linking,
   SafeAreaView,
+  Image,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { Calendar, Agenda } from 'react-native-calendars';
 import { getWeek, subMonths, subWeeks } from 'date-fns';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -46,6 +48,7 @@ import calendarExportService from '../services/calendarExportService';
 import AddEventModal, { CustomEvent } from '../components/calendar/AddEventModal';
 import useSubscription from '../hooks/useSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
+import { aiRobotImage } from '../assets/images';
 
 type ViewMode = 'month' | 'week' | 'day' | 'agenda';
 
@@ -1116,13 +1119,23 @@ const CalendarScreenModernFixed = () => {
           </TouchableOpacity>
         ))}
       </View>
-      <TouchableOpacity
-        style={styles.aiPlanButton}
-        onPress={() => navigation.navigate('WeeklyPlanner' as never)}
-      >
-        <Icon name="robot" size={16} color="#FFFFFF" />
-        <Text style={styles.aiPlanButtonText}>AI Plan</Text>
-      </TouchableOpacity>
+      <View style={styles.aiPlanButtonWrapper}>
+        <TouchableOpacity
+          style={styles.aiPlanButtonContainer}
+          onPress={() => navigation.navigate('WeeklyPlanner' as never)}
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={['#FFB5C5', '#E8638B', '#D53F8C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.aiPlanButton}
+          >
+            <Text style={styles.aiPlanButtonText}>AI Plan</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <Image source={aiRobotImage} style={styles.aiPlanRobotImage} />
+      </View>
     </View>
   );
 
@@ -2419,20 +2432,41 @@ const styles = StyleSheet.create({
   viewModeTextActive: {
     color: '#FFFFFF',
   },
+  aiPlanButtonWrapper: {
+    position: 'relative',
+    marginLeft: 6,
+    paddingRight: 15,
+  },
+  aiPlanButtonContainer: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    shadowColor: '#E8638B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   aiPlanButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#8B5CF6',
     paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingRight: 20,
+    borderRadius: 10,
     gap: 4,
-    marginLeft: 6,
   },
   aiPlanButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  aiPlanRobotImage: {
+    position: 'absolute',
+    right: -5,
+    top: -12,
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
   weekContainer: {
     flex: 1,

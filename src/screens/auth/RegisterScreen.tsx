@@ -325,7 +325,7 @@ const RegisterScreen: React.FC = () => {
               style={[styles.registerButtonContainer, isLoading && styles.disabledButton]}
             >
               <LinearGradient
-                colors={['#14B8A6', '#0D9488']}
+                colors={['#E8638B', '#D53F8C']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.registerButton}
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginTop: 8,
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLink: {
-    color: '#14B8A6',
+    color: '#E8638B',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   termsLink: {
-    color: '#14B8A6',
+    color: '#E8638B',
     fontWeight: '500',
   },
 });

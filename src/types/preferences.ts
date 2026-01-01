@@ -29,6 +29,50 @@ export interface HierarchicalProvince {
 
 export type CheckboxState = 'unchecked' | 'checked' | 'indeterminate';
 
+// Enhanced address structure for full address storage
+export interface EnhancedAddress {
+  // Display
+  formattedAddress: string;        // Full formatted address from Google
+  displayName?: string;            // User-friendly short name
+
+  // Coordinates (required)
+  latitude: number;
+  longitude: number;
+
+  // Address Components (all optional)
+  streetNumber?: string;
+  streetName?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;                  // Province/State
+  postalCode?: string;
+  country?: string;
+  countryCode?: string;            // 2-letter ISO code
+
+  // Google Places metadata
+  placeId?: string;                // Google Place ID for future lookups
+  types?: string[];                // Place types from Google
+
+  // Timestamps
+  updatedAt: string;
+}
+
+// Legacy address format for backward compatibility
+export interface LegacyAddress {
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+// Helper type guard
+export function isEnhancedAddress(address: any): address is EnhancedAddress {
+  return address && 'formattedAddress' in address && 'latitude' in address;
+}
+
+export function isLegacyAddress(address: any): address is LegacyAddress {
+  return address && 'address' in address && !('formattedAddress' in address);
+}
+
 export interface UserPreferences {
   // Basic preferences
   id: string;
@@ -44,11 +88,7 @@ export interface UserPreferences {
   distanceFilterEnabled: boolean; // Whether distance filtering is active
   distanceRadiusKm: number; // Radius in km (5, 10, 25, 50, 100)
   locationSource: 'gps' | 'saved_address'; // Location source preference
-  savedAddress?: {
-    address: string;
-    latitude: number;
-    longitude: number;
-  };
+  savedAddress?: EnhancedAddress | LegacyAddress; // Supports both formats for backward compatibility
   locationPermissionAsked: boolean; // Whether we've asked for location permission
   
   // Age preferences

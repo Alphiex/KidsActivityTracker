@@ -10,16 +10,26 @@ import {
   Image,
   Dimensions,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityCard from '../components/ActivityCard';
 import { Activity } from '../types';
 import ActivityService from '../services/activityService';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
-import { placeholderImages } from '../assets/images/placeholder-images';
 import FavoritesService from '../services/favoritesService';
 import { useAppSelector } from '../store';
+
+// Header images
+const HeaderImages = {
+  search: require('../assets/images/search-header.png'),
+  recommended: require('../assets/images/recommended-header.png'),
+  favorites: require('../assets/images/favorites-header.png'),
+  new: require('../assets/images/new-header.png'),
+  browse: require('../assets/images/browse-header.png'),
+};
 
 const { width, height } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -68,10 +78,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
     if (type === 'favorites') {
       return {
         title: 'Your Favorites',
-        subtitle: 'Activities you love',
-        icon: 'heart',
-        image: placeholderImages.recommended,
-        description: 'All your saved activities in one place',
+        image: HeaderImages.favorites,
         isFavorites: true,
       };
     }
@@ -79,44 +86,29 @@ const UnifiedResultsScreenTest: React.FC = () => {
     if (type === 'activityType') {
       return {
         title: customTitle || subtype || activityType || 'Activities',
-        subtitle: customSubtitle || `${activityType || 'All'} activities`,
-        icon: 'shape',
-        image: placeholderImages.recommended,
-        description: `Explore ${subtype || activityType || 'all'} activities in your area`,
+        image: HeaderImages.browse,
       };
     }
 
     if (type === 'ageGroup') {
       return {
         title: customTitle || ageGroupName || 'Age Group',
-        subtitle: customSubtitle || 'Perfect for this age range',
-        icon: 'human-child',
-        image: placeholderImages.budget,
-        description: `Activities suitable for ${ageGroupName || 'this age group'}`,
+        image: HeaderImages.browse,
       };
     }
 
-    const configMap = {
+    const configMap: Record<string, { title: string; image: any }> = {
       budget: {
         title: 'Budget Friendly',
-        subtitle: 'Amazing activities under $20',
-        icon: 'tag',
-        image: placeholderImages.budget,
-        description: 'Discover affordable fun for the whole family',
+        image: HeaderImages.browse,
       },
       new: {
         title: 'New This Week',
-        subtitle: 'Fresh activities just added',
-        icon: 'new-box',
-        image: placeholderImages.new,
-        description: 'Be the first to try these exciting new activities',
+        image: HeaderImages.new,
       },
       recommended: {
         title: 'Recommended for You',
-        subtitle: 'Personalized based on your preferences',
-        icon: '',
-        image: placeholderImages.recommended,
-        description: 'Hand-picked activities we think you\'ll love',
+        image: HeaderImages.recommended,
       },
     };
 
@@ -319,38 +311,32 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
     return (
       <View style={styles.headerContainer}>
-        <View style={styles.heroSection}>
-          {config.image && <Image source={config.image} style={styles.heroImage} />}
-          <View style={styles.heroOverlay} />
-          <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
-            <View style={styles.backButtonInner}>
-              <Icon name="arrow-left" size={20} color={ModernColors.text} />
-            </View>
-          </TouchableOpacity>
-          <View style={styles.heroContent}>
-            {config.icon ? (
-              <View style={[styles.iconBadge, config.isFavorites && styles.favoritesIconBadge]}>
-                <Icon name={config.icon} size={24} color={config.isFavorites ? '#14B8A6' : 'white'} />
+        <ImageBackground
+          source={config.image}
+          style={styles.heroSection}
+          imageStyle={styles.heroImageStyle}
+        >
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
+            style={styles.heroGradient}
+          >
+            {/* Back Button */}
+            <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
+              <View style={styles.backButtonInner}>
+                <Icon name="arrow-left" size={22} color="#333" />
               </View>
-            ) : null}
-            <Text style={styles.heroTitle}>{String(config.title || '')}</Text>
-            <Text style={styles.heroSubtitle}>{String(config.subtitle || '')}</Text>
-          </View>
-        </View>
-        <View style={styles.statsSection}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{String(totalCount)}</Text>
-            <Text style={styles.statLabel}>Activities</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{String(activities.length)}</Text>
-            <Text style={styles.statLabel}>Loaded</Text>
-          </View>
-        </View>
-        <View style={styles.descriptionSection}>
-          <Text style={styles.description}>{String(config.description || '')}</Text>
-        </View>
+            </TouchableOpacity>
+
+            {/* Title and Count */}
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>{String(config.title || '')}</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countNumber}>{totalCount.toLocaleString()}</Text>
+                <Text style={styles.countLabel}>activities</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
       </View>
     );
   };
@@ -419,7 +405,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ModernColors.background,
+    backgroundColor: '#F8FAFC',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -429,104 +415,78 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   headerContainer: {
-    marginBottom: ModernSpacing.lg,
+    marginBottom: ModernSpacing.md,
   },
   heroSection: {
-    height: height * 0.25,
-    position: 'relative',
-  },
-  heroImage: {
+    height: height * 0.28,
     width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
   },
-  heroOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '70%',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+  heroImageStyle: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  heroGradient: {
+    flex: 1,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingTop: ModernSpacing.xl,
+    paddingHorizontal: ModernSpacing.lg,
+    paddingBottom: ModernSpacing.lg,
+    justifyContent: 'space-between',
   },
   backButtonHero: {
-    position: 'absolute',
-    top: ModernSpacing.xl,
-    left: ModernSpacing.lg,
-    zIndex: 10,
+    alignSelf: 'flex-start',
   },
   backButtonInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.95)',
     justifyContent: 'center',
     alignItems: 'center',
-    ...ModernShadows.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   heroContent: {
-    position: 'absolute',
-    bottom: ModernSpacing.lg,
-    left: ModernSpacing.lg,
-    right: ModernSpacing.lg,
-  },
-  iconBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: ModernSpacing.sm,
-  },
-  favoritesIconBadge: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
   heroTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: 'white',
-    marginBottom: 4,
-  },
-  heroSubtitle: {
-    fontSize: ModernTypography.sizes.base,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  statsSection: {
-    flexDirection: 'row',
-    backgroundColor: ModernColors.surface,
-    paddingVertical: ModernSpacing.md,
-    paddingHorizontal: ModernSpacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
-  },
-  statItem: {
     flex: 1,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  statNumber: {
-    fontSize: ModernTypography.sizes.xl,
-    fontWeight: 'bold',
-    color: ModernColors.text,
-    marginBottom: 4,
+  countNumber: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#E8638B',
   },
-  statLabel: {
-    fontSize: ModernTypography.sizes.sm,
-    color: ModernColors.textSecondary,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: ModernColors.border,
-    marginHorizontal: ModernSpacing.md,
-  },
-  descriptionSection: {
-    paddingHorizontal: ModernSpacing.lg,
-    paddingVertical: ModernSpacing.md,
-    backgroundColor: ModernColors.surface,
-  },
-  description: {
-    fontSize: ModernTypography.sizes.base,
-    color: ModernColors.textSecondary,
-    textAlign: 'center',
+  countLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#718096',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   loadingContainer: {
     flex: 1,

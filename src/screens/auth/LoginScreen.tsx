@@ -244,7 +244,7 @@ const LoginScreen: React.FC = () => {
               style={[styles.loginButtonContainer, isLoading && styles.disabledButton]}
             >
               <LinearGradient
-                colors={['#14B8A6', '#0D9488']}
+                colors={['#E8638B', '#D53F8C']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.loginButton}
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: '#14B8A6',
+    color: '#E8638B',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   loginButtonContainer: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   registerLink: {
-    color: '#14B8A6',
+    color: '#E8638B',
     fontSize: 15,
     fontWeight: '600',
   },

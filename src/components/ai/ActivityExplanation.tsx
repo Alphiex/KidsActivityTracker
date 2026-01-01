@@ -49,13 +49,13 @@ const getCategoryColor = (category: string): string => {
     case 'Physical':
       return '#10B981'; // green
     case 'Social':
-      return '#14B8A6'; // blue
+      return '#E8638B'; // pink
     case 'Cognitive':
       return '#8B5CF6'; // purple
     case 'Creative':
       return '#F59E0B'; // amber
     case 'Emotional':
-      return '#14B8A6'; // blue
+      return '#E8638B'; // pink
     default:
       return '#6B7280'; // gray
   }
@@ -191,7 +191,7 @@ export const ActivityExplanation: React.FC<ActivityExplanationProps> = ({
       <View style={styles.compactWrapper}>
         <TouchableOpacity style={styles.compactButton} onPress={handleToggle} activeOpacity={0.8}>
           <LinearGradient
-            colors={['#14B8A6', '#0D9488']}
+            colors={['#E8638B', '#D53F8C']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.compactGradient}
@@ -215,7 +215,7 @@ export const ActivityExplanation: React.FC<ActivityExplanationProps> = ({
       <View style={styles.headerWrapper}>
         <TouchableOpacity style={styles.header} onPress={handleToggle} activeOpacity={0.8}>
           <LinearGradient
-            colors={['#14B8A6', '#0D9488', '#0F766E']}
+            colors={['#E8638B', '#D53F8C', '#D53F8C']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
@@ -239,7 +239,7 @@ export const ActivityExplanation: React.FC<ActivityExplanationProps> = ({
         <View style={styles.content}>
           {isLoading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#14B8A6" />
+              <ActivityIndicator size="small" color="#E8638B" />
               <Text style={styles.loadingText}>Analyzing activity...</Text>
             </View>
           )}
@@ -275,17 +275,18 @@ export const ActivityExplanation: React.FC<ActivityExplanationProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'transparent',
     borderRadius: 16,
-    overflow: 'hidden',
+    marginTop: 35, // Space for robot overflow
   },
   headerWrapper: {
     position: 'relative',
+    zIndex: 1,
   },
   header: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -296,7 +297,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 18,
-    paddingRight: 80, // Space for robot image
+    paddingRight: 95, // Space for robot image
   },
   headerContent: {
     flex: 1,
@@ -313,11 +314,12 @@ const styles = StyleSheet.create({
   },
   robotImageOverlay: {
     position: 'absolute',
-    right: 0,
-    top: -20,
-    width: 85,
-    height: 85,
+    right: -10,
+    top: -40,
+    width: 110,
+    height: 110,
     resizeMode: 'contain',
+    zIndex: 10,
   },
   content: {
     paddingHorizontal: 16,
@@ -354,7 +356,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 14,
-    color: '#14B8A6',
+    color: '#E8638B',
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -462,7 +464,7 @@ const styles = StyleSheet.create({
   compactButton: {
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,

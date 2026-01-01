@@ -36,8 +36,8 @@ interface ThemeContextType {
 }
 
 const lightColors: ThemeColors = {
-  primary: '#14B8A6',
-  primaryDark: '#0D9488',
+  primary: '#E8638B',
+  primaryDark: '#D53F8C',
   background: '#f5f5f5',
   surface: '#ffffff',
   surfaceVariant: '#f0f0f0',
@@ -51,17 +51,17 @@ const lightColors: ThemeColors = {
   cardBackground: '#ffffff',
   headerBackground: '#ffffff',
   tabBarBackground: '#ffffff',
-  tabBarActive: '#14B8A6',
+  tabBarActive: '#E8638B',
   tabBarInactive: '#999999',
-  gradientStart: '#14B8A6',
-  gradientEnd: '#0D9488',
+  gradientStart: '#FFB5C5',
+  gradientEnd: '#D53F8C',
   inputBackground: '#ffffff',
   shadowColor: '#000000',
 };
 
 const darkColors: ThemeColors = {
-  primary: '#2DD4BF',
-  primaryDark: '#14B8A6',
+  primary: '#FFB5C5',
+  primaryDark: '#E8638B',
   background: '#0f0f0f',
   surface: '#1a1a1a',
   surfaceVariant: '#262626',
@@ -75,10 +75,10 @@ const darkColors: ThemeColors = {
   cardBackground: '#1a1a1a',
   headerBackground: '#1a1a1a',
   tabBarBackground: '#1a1a1a',
-  tabBarActive: '#2DD4BF',
+  tabBarActive: '#FFB5C5',
   tabBarInactive: '#666666',
-  gradientStart: '#2DD4BF',
-  gradientEnd: '#14B8A6',
+  gradientStart: '#FFB5C5',
+  gradientEnd: '#E8638B',
   inputBackground: '#262626',
   shadowColor: '#000000',
 };

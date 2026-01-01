@@ -49,15 +49,15 @@ const OnboardingCompleteScreen: React.FC = () => {
 
         <View style={styles.features}>
           <View style={styles.featureItem}>
-            <Icon name="magnify" size={24} color="#14B8A6" />
+            <Icon name="magnify" size={24} color="#E8638B" />
             <Text style={styles.featureText}>Discover activities tailored to your interests</Text>
           </View>
           <View style={styles.featureItem}>
-            <Icon name="calendar-check" size={24} color="#14B8A6" />
+            <Icon name="calendar-check" size={24} color="#E8638B" />
             <Text style={styles.featureText}>Keep track of schedules and deadlines</Text>
           </View>
           <View style={styles.featureItem}>
-            <Icon name="bell-ring" size={24} color="#14B8A6" />
+            <Icon name="bell-ring" size={24} color="#E8638B" />
             <Text style={styles.featureText}>Get notified about new activities</Text>
           </View>
         </View>
@@ -137,13 +137,13 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   startButton: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     height: 56,
     borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

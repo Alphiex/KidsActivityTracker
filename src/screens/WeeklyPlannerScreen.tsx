@@ -20,7 +20,7 @@ const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 // Colors for children
 const CHILD_COLORS = [
-  '#14B8A6', // teal
+  '#E8638B', // teal
   '#10B981', // green
   '#F59E0B', // amber
   '#06B6D4', // cyan
@@ -318,7 +318,7 @@ const WeeklyPlannerScreen = () => {
           </View>
         )}
         <View style={styles.summaryCard}>
-          <Icon name="account-group" size={24} color="#14B8A6" />
+          <Icon name="account-group" size={24} color="#E8638B" />
           <View>
             <Text style={styles.summaryValue}>{childIds.length}</Text>
             <Text style={styles.summaryLabel}>Children</Text>

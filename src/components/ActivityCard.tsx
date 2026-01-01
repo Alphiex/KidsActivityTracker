@@ -420,7 +420,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <Icon
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={18}
-              color={isFavorite ? '#14B8A6' : '#FFF'}
+              color={isFavorite ? '#E8638B' : '#FFF'}
             />
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={handleWaitlistToggle}>

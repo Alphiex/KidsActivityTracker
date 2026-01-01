@@ -84,7 +84,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#14B8A6" />
+          <ActivityIndicator size="large" color="#E8638B" />
         </View>
       ) : (
         <ScrollView
@@ -105,7 +105,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
                   <Icon
                     name={type.iconName || 'tag'}
                     size={24}
-                    color={isSelected ? '#FFFFFF' : '#14B8A6'}
+                    color={isSelected ? '#FFFFFF' : '#E8638B'}
                   />
                 </View>
                 <Text style={[styles.typeName, isSelected && styles.typeNameSelected]} numberOfLines={2}>
@@ -129,7 +129,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['#14B8A6', '#0D9488']}
+            colors={['#E8638B', '#D53F8C']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.nextButton}
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   stepDotActive: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     width: 24,
   },
   title: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   typeCardSelected: {
     backgroundColor: '#FEF2F2',
-    borderColor: '#14B8A6',
+    borderColor: '#E8638B',
   },
   iconContainer: {
     width: 48,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   iconContainerSelected: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
   },
   typeName: {
     fontSize: 12,
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   typeNameSelected: {
-    color: '#14B8A6',
+    color: '#E8638B',
     fontWeight: '600',
   },
   checkmark: {
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   nextButtonContainer: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

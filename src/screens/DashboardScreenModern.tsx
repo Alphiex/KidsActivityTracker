@@ -704,7 +704,7 @@ const DashboardScreenModern = () => {
               <Icon
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={16}
-                color={isFavorite ? "#14B8A6" : "#FFF"}
+                color={isFavorite ? "#E8638B" : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -785,7 +785,7 @@ const DashboardScreenModern = () => {
           {/* Combined days and time row */}
           {(daysOfWeekText || timeText) && (
             <View style={styles.daysRow}>
-              <Icon name="calendar-week" size={12} color="#14B8A6" />
+              <Icon name="calendar-week" size={12} color="#E8638B" />
               <Text style={styles.daysText}>
                 {daysOfWeekText}{daysOfWeekText && timeText ? ' • ' : ''}{timeText ? timeText : ''}
               </Text>
@@ -822,7 +822,7 @@ const DashboardScreenModern = () => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#14B8A6" />
+          <ActivityIndicator size="large" color="#E8638B" />
         </View>
       ) : (
         <>
@@ -883,7 +883,7 @@ const DashboardScreenModern = () => {
             activeOpacity={0.9}
           >
             <LinearGradient
-              colors={['#14B8A6', '#0D9488', '#0F766E']}
+              colors={['#FFB5C5', '#E8638B', '#D53F8C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.aiBannerGradient}
@@ -939,7 +939,7 @@ const DashboardScreenModern = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {loading ? (
               <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#14B8A6" />
+                <ActivityIndicator size="small" color="#E8638B" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
               </View>
             ) : recommendedActivities.length > 0 ? (
@@ -966,7 +966,7 @@ const DashboardScreenModern = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {loading ? (
               <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#14B8A6" />
+                <ActivityIndicator size="small" color="#E8638B" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
               </View>
             ) : newActivities.length > 0 ? (
@@ -993,7 +993,7 @@ const DashboardScreenModern = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {loading ? (
               <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#14B8A6" />
+                <ActivityIndicator size="small" color="#E8638B" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
               </View>
             ) : budgetFriendlyActivities.length > 0 ? (
@@ -1182,7 +1182,7 @@ const styles = StyleSheet.create({
   aiBanner: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#14B8A6',
+    shadowColor: '#E8638B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1386,7 +1386,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
-    backgroundColor: '#14B8A6' + '15',
+    backgroundColor: '#E8638B' + '15',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
@@ -1395,7 +1395,7 @@ const styles = StyleSheet.create({
   daysText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#14B8A6',
+    color: '#E8638B',
     marginLeft: 4,
     letterSpacing: 0.5,
   },
@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
   },
   // Sponsor section styles
   sponsoredBadge: {
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -1496,7 +1496,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#E8638B',
   },
   featuredBadgeText: {
     fontSize: 10,

@@ -25,7 +25,7 @@ import { getActivityImageByKey } from '../assets/images';
 
 // Airbnb-style colors
 const ModernColors = {
-  primary: '#14B8A6',
+  primary: '#E8638B',
   secondary: '#00A699',
   text: '#222222',
   textLight: '#717171',

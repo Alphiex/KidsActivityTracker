@@ -6,8 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  TextInput,
-  ActivityIndicator,
   Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +18,8 @@ import {
   RadiusOption,
   LocationPermissionStatus
 } from '../../services/locationService';
+import { AddressAutocomplete } from '../../components/AddressAutocomplete';
+import { EnhancedAddress } from '../../types/preferences';
 
 const DistancePreferencesScreen = () => {
   const navigation = useNavigation();
@@ -34,12 +34,11 @@ const DistancePreferencesScreen = () => {
   const [locationSource, setLocationSource] = useState<'gps' | 'saved_address'>(
     currentPreferences.locationSource || 'gps'
   );
-  const [addressInput, setAddressInput] = useState(
-    currentPreferences.savedAddress?.address || ''
+  const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(
+    locationService.getEnhancedAddress()
   );
   const [locationStatus, setLocationStatus] = useState<LocationPermissionStatus>('unavailable');
   const [checkingLocation, setCheckingLocation] = useState(false);
-  const [savingAddress, setSavingAddress] = useState(false);
 
   useEffect(() => {
     checkLocationStatus();
@@ -74,19 +73,12 @@ const DistancePreferencesScreen = () => {
     }
   };
 
-  const handleSaveAddress = async () => {
-    if (!addressInput.trim()) return;
-
-    setSavingAddress(true);
-    try {
-      const success = await locationService.geocodeAndSaveAddress(addressInput.trim());
-      if (success) {
-        setLocationSource('saved_address');
-      }
-    } catch (error) {
-      console.error('[DistancePreferences] Error saving address:', error);
-    } finally {
-      setSavingAddress(false);
+  const handleAddressSelect = async (address: EnhancedAddress | null) => {
+    setSelectedAddress(address);
+    if (address) {
+      // Save the address immediately when selected
+      await locationService.saveEnhancedAddress(address);
+      setLocationSource('saved_address');
     }
   };
 
@@ -276,55 +268,26 @@ const DistancePreferencesScreen = () => {
                 />
               </TouchableOpacity>
 
-              {/* Address Input */}
+              {/* Address Autocomplete */}
               {locationSource === 'saved_address' && (
                 <View style={[styles.addressContainer, { borderColor: colors.border }]}>
-                  <Text style={[styles.addressLabel, { color: colors.text }]}>
-                    Your Address
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.addressInput,
-                      {
-                        color: colors.text,
-                        backgroundColor: colors.background,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                    placeholder="e.g., 123 Main St, Vancouver, BC"
-                    placeholderTextColor={colors.textSecondary}
-                    value={addressInput}
-                    onChangeText={setAddressInput}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    multiline
-                    numberOfLines={2}
+                  <AddressAutocomplete
+                    value={selectedAddress}
+                    onAddressSelect={handleAddressSelect}
+                    label="Your Address"
+                    placeholder="Search for your address..."
+                    country={['ca', 'us']}
+                    showFallbackOption={true}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.saveAddressButton,
-                      {
-                        backgroundColor: addressInput.trim() ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={handleSaveAddress}
-                    disabled={savingAddress || !addressInput.trim()}
-                  >
-                    {savingAddress ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Icon name="map-marker-check" size={18} color="#fff" />
-                        <Text style={styles.saveAddressButtonText}>
-                          Save & Verify Address
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                  {hasSavedAddress && savedAddress.address !== addressInput && (
-                    <Text style={[styles.savedAddressNote, { color: colors.textSecondary }]}>
-                      Current saved address: {savedAddress.address.substring(0, 50)}...
-                    </Text>
+                  {selectedAddress?.city && (
+                    <View style={styles.addressDetailsRow}>
+                      <Icon name="map-marker" size={16} color={colors.textSecondary} />
+                      <Text style={[styles.addressDetailsText, { color: colors.textSecondary }]}>
+                        {[selectedAddress.city, selectedAddress.state, selectedAddress.postalCode]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -449,38 +412,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
   },
-  addressLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  addressInput: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-    fontSize: 15,
-    textAlignVertical: 'top',
-    minHeight: 60,
-  },
-  saveAddressButton: {
+  addressDetailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 8,
-  },
-  saveAddressButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  savedAddressNote: {
-    fontSize: 12,
     marginTop: 8,
-    fontStyle: 'italic',
+    gap: 6,
+  },
+  addressDetailsText: {
+    fontSize: 13,
   },
 });
 

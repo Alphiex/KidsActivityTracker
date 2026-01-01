@@ -21,7 +21,7 @@ import childrenService, { Child as ServiceChild, SharedChild as ServiceSharedChi
 
 // Airbnb-style colors
 const ModernColors = {
-  primary: '#14B8A6',
+  primary: '#E8638B',
   secondary: '#00A699',
   text: '#222222',
   textLight: '#717171',
