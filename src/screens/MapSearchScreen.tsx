@@ -8,27 +8,32 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Animated,
+  Image,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Activity } from '../types';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
-import { ClusterMarker, MapActivityCard } from '../components/map';
+import { ClusterMarker } from '../components/map';
 import { Colors } from '../theme';
 
-const { width, height } = Dimensions.get('window');
-const BOTTOM_SHEET_HEIGHT = height * 0.45;
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.75;
+const CARD_MARGIN = 8;
 
-// Default region (Vancouver area)
-const DEFAULT_REGION: Region = {
-  latitude: 49.2827,
-  longitude: -123.1207,
-  latitudeDelta: 0.15,
-  longitudeDelta: 0.15,
+// Canada-wide default region (centered on Canada)
+const CANADA_REGION: Region = {
+  latitude: 56.1304,
+  longitude: -106.3468,
+  latitudeDelta: 40,
+  longitudeDelta: 40,
 };
+
+// City-level zoom for user location
+const USER_LOCATION_DELTA = 0.15;
 
 // Threshold for grouping activities at "same" location (in degrees, ~100m)
 const CLUSTER_THRESHOLD = 0.001;
@@ -92,12 +97,75 @@ const MapSearchScreen = () => {
   // State
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCluster, setSelectedCluster] = useState<LocationCluster | null>(null);
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
-  const bottomSheetAnim = useRef(new Animated.Value(0)).current;
+  const [initialRegion, setInitialRegion] = useState<Region>(CANADA_REGION);
+  const [region, setRegion] = useState<Region>(CANADA_REGION);
+  const [locationLoaded, setLocationLoaded] = useState(false);
+  const [visibleActivities, setVisibleActivities] = useState<Activity[]>([]);
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  const listRef = useRef<FlatList>(null);
+  const regionChangeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get user preferences for filtering
   const preferences = preferencesService.getPreferences();
+
+  // Determine initial region based on priority: GPS > preferences > Canada
+  useEffect(() => {
+    const determineInitialRegion = async () => {
+      // Priority 1: Try to get user's current GPS location
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const userRegion: Region = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            latitudeDelta: USER_LOCATION_DELTA,
+            longitudeDelta: USER_LOCATION_DELTA,
+          };
+          if (__DEV__) console.log('[MapSearch] Using GPS location:', userRegion);
+          setInitialRegion(userRegion);
+          setRegion(userRegion);
+          setLocationLoaded(true);
+
+          // Animate map to user location
+          if (mapRef.current) {
+            mapRef.current.animateToRegion(userRegion, 500);
+          }
+        },
+        (error) => {
+          if (__DEV__) console.log('[MapSearch] GPS location error:', error.message);
+
+          // Priority 2: Check for saved address in preferences
+          if (preferences.savedAddress &&
+              preferences.savedAddress.latitude &&
+              preferences.savedAddress.longitude) {
+            const prefRegion: Region = {
+              latitude: preferences.savedAddress.latitude,
+              longitude: preferences.savedAddress.longitude,
+              latitudeDelta: USER_LOCATION_DELTA,
+              longitudeDelta: USER_LOCATION_DELTA,
+            };
+            if (__DEV__) console.log('[MapSearch] Using saved address:', prefRegion);
+            setInitialRegion(prefRegion);
+            setRegion(prefRegion);
+            setLocationLoaded(true);
+
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(prefRegion, 500);
+            }
+          } else {
+            // Priority 3: Default to Canada-wide view
+            if (__DEV__) console.log('[MapSearch] Using Canada default region');
+            setInitialRegion(CANADA_REGION);
+            setRegion(CANADA_REGION);
+            setLocationLoaded(true);
+          }
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+    };
+
+    determineInitialRegion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter activities based on user preferences (only apply non-default filters)
   const filteredActivities = useMemo(() => {
@@ -139,19 +207,48 @@ const MapSearchScreen = () => {
     return clusterActivities(filteredActivities);
   }, [filteredActivities]);
 
-  useEffect(() => {
-    loadActivities();
+  // Filter activities visible within current map viewport
+  const getVisibleActivities = useCallback((activities: Activity[], mapRegion: Region): Activity[] => {
+    const { latitude, longitude, latitudeDelta, longitudeDelta } = mapRegion;
+    const minLat = latitude - latitudeDelta / 2;
+    const maxLat = latitude + latitudeDelta / 2;
+    const minLng = longitude - longitudeDelta / 2;
+    const maxLng = longitude + longitudeDelta / 2;
+
+    return activities.filter(a =>
+      a.latitude != null && a.longitude != null &&
+      a.latitude >= minLat && a.latitude <= maxLat &&
+      a.longitude >= minLng && a.longitude <= maxLng
+    );
   }, []);
 
+  // Update visible activities when region changes (debounced)
+  const updateVisibleActivities = useCallback((newRegion: Region) => {
+    if (regionChangeTimeout.current) {
+      clearTimeout(regionChangeTimeout.current);
+    }
+    regionChangeTimeout.current = setTimeout(() => {
+      const visible = getVisibleActivities(filteredActivities, newRegion);
+      // Limit to 50 for performance, sorted by distance from center
+      const sorted = visible.sort((a, b) => {
+        const distA = Math.abs(a.latitude! - newRegion.latitude) + Math.abs(a.longitude! - newRegion.longitude);
+        const distB = Math.abs(b.latitude! - newRegion.latitude) + Math.abs(b.longitude! - newRegion.longitude);
+        return distA - distB;
+      });
+      setVisibleActivities(sorted.slice(0, 50));
+    }, 300);
+  }, [filteredActivities, getVisibleActivities]);
+
+  // Initial visible activities update when activities load
   useEffect(() => {
-    // Animate bottom sheet
-    Animated.spring(bottomSheetAnim, {
-      toValue: selectedCluster ? 1 : 0,
-      useNativeDriver: true,
-      friction: 8,
-      tension: 65,
-    }).start();
-  }, [selectedCluster, bottomSheetAnim]);
+    if (filteredActivities.length > 0 && locationLoaded) {
+      updateVisibleActivities(region);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredActivities, locationLoaded]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadActivities(); }, []);
 
   const loadActivities = async () => {
     try {
@@ -165,23 +262,23 @@ const MapSearchScreen = () => {
 
       if (__DEV__) console.log('[MapSearch] Loading activities with filters:', filters);
 
-      const result = await activityService.searchActivities(filters);
-      
+      const activities = await activityService.searchActivities(filters);
+
       if (__DEV__) {
         console.log('[MapSearch] API returned:', {
-          total: result.activities?.length || 0,
-          sample: result.activities?.[0] ? {
-            id: result.activities[0].id,
-            name: result.activities[0].name,
-            lat: result.activities[0].latitude,
-            lng: result.activities[0].longitude,
+          total: activities?.length || 0,
+          sample: activities?.[0] ? {
+            id: activities[0].id,
+            name: activities[0].name,
+            lat: activities[0].latitude,
+            lng: activities[0].longitude,
           } : null,
         });
       }
 
       // Filter to only activities with valid coordinates
       // Check both activity-level coords and nested location object
-      const activitiesWithLocation = (result.activities || []).map((a: Activity) => {
+      const activitiesWithLocation = (activities || []).map((a: Activity) => {
         // Try to get coordinates from activity or from nested location
         let lat = a.latitude;
         let lng = a.longitude;
@@ -202,9 +299,9 @@ const MapSearchScreen = () => {
       
       if (__DEV__) {
         console.log('[MapSearch] Activities with valid coordinates:', activitiesWithLocation.length);
-        if (activitiesWithLocation.length === 0 && result.activities?.length > 0) {
+        if (activitiesWithLocation.length === 0 && activities?.length > 0) {
           // Log sample activity to debug
-          const sample = result.activities[0];
+          const sample = activities[0];
           console.log('[MapSearch] Sample activity location data:', {
             actLat: sample.latitude,
             actLng: sample.longitude,
@@ -224,9 +321,9 @@ const MapSearchScreen = () => {
         
         setTimeout(() => {
           mapRef.current?.fitToCoordinates(coords, {
-            edgePadding: { top: 100, right: 50, bottom: 100, left: 50 },
+            edgePadding: { top: 100, right: 50, bottom: 100, left: 50 } as any,
             animated: true,
-          });
+          } as any);
         }, 500);
       }
     } catch (error) {
@@ -236,14 +333,40 @@ const MapSearchScreen = () => {
     }
   };
 
-  const handleClusterPress = useCallback((cluster: LocationCluster) => {
-    setSelectedCluster(cluster);
-    
-    // Zoom to cluster location
-    if (mapRef.current) {
+  // Handle tapping a marker on the map - scroll list to show the card
+  const handleMarkerPress = useCallback((cluster: LocationCluster) => {
+    // If cluster has only one activity, select it and scroll to it
+    if (cluster.activities.length === 1) {
+      const activity = cluster.activities[0];
+      setSelectedActivityId(activity.id);
+
+      // Find index in visible activities
+      const index = visibleActivities.findIndex(a => a.id === activity.id);
+      if (index >= 0 && listRef.current) {
+        listRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
+    } else {
+      // Zoom in on cluster to see individual markers
+      if (mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: cluster.latitude,
+          longitude: cluster.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 300);
+      }
+    }
+  }, [visibleActivities]);
+
+  // Handle tapping a card in the list - center map on activity
+  const handleCardPress = useCallback((activity: Activity) => {
+    setSelectedActivityId(activity.id);
+
+    // Center map on activity
+    if (mapRef.current && activity.latitude && activity.longitude) {
       mapRef.current.animateToRegion({
-        latitude: cluster.latitude,
-        longitude: cluster.longitude,
+        latitude: activity.latitude,
+        longitude: activity.longitude,
         latitudeDelta: 0.02,
         longitudeDelta: 0.02,
       }, 300);
@@ -254,13 +377,25 @@ const MapSearchScreen = () => {
     (navigation as any).navigate('ActivityDetail', { activity });
   }, [navigation]);
 
-  const handleMapPress = useCallback(() => {
-    setSelectedCluster(null);
-  }, []);
-
   const handleMyLocation = useCallback(() => {
-    mapRef.current?.animateToRegion(DEFAULT_REGION, 500);
-  }, []);
+    // Try to get current location, fall back to initial region
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const userRegion: Region = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          latitudeDelta: USER_LOCATION_DELTA,
+          longitudeDelta: USER_LOCATION_DELTA,
+        };
+        mapRef.current?.animateToRegion(userRegion, 500);
+      },
+      () => {
+        // Fall back to initial region if GPS fails
+        mapRef.current?.animateToRegion(initialRegion, 500);
+      },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 30000 }
+    );
+  }, [initialRegion]);
 
   const handleFitAll = useCallback(() => {
     if (clusters.length > 0 && mapRef.current) {
@@ -269,25 +404,67 @@ const MapSearchScreen = () => {
         longitude: c.longitude,
       }));
       mapRef.current.fitToCoordinates(coords, {
-        edgePadding: { top: 100, right: 50, bottom: 100, left: 50 },
+        edgePadding: { top: 50, right: 50, bottom: 250, left: 50 } as any,
         animated: true,
-      });
+      } as any);
     }
-    setSelectedCluster(null);
+    setSelectedActivityId(null);
   }, [clusters]);
 
-  const bottomSheetTranslateY = bottomSheetAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [BOTTOM_SHEET_HEIGHT + 50, 0],
-  });
+  // Handle region change - update visible activities
+  const handleRegionChange = useCallback((newRegion: Region) => {
+    setRegion(newRegion);
+    updateVisibleActivities(newRegion);
+  }, [updateVisibleActivities]);
 
-  const renderActivityItem = useCallback(({ item }: { item: Activity }) => (
-    <MapActivityCard
-      activity={item}
-      onPress={() => handleActivityPress(item)}
-      onClose={() => {}}
-    />
-  ), [handleActivityPress]);
+  // Render horizontal activity card
+  const renderActivityCard = useCallback(({ item }: { item: Activity }) => {
+    const isSelected = selectedActivityId === item.id;
+    const locationName = typeof item.location === 'string'
+      ? item.location
+      : item.location?.name || item.locationName || '';
+
+    return (
+      <TouchableOpacity
+        style={[styles.activityCard, isSelected && styles.activityCardSelected]}
+        onPress={() => handleCardPress(item)}
+        onLongPress={() => handleActivityPress(item)}
+        activeOpacity={0.9}
+      >
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+        ) : (
+          <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+            <Icon name="image-off" size={24} color="#CCC" />
+          </View>
+        )}
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+          {locationName && (
+            <View style={styles.cardLocation}>
+              <Icon name="map-marker" size={12} color="#666" />
+              <Text style={styles.cardLocationText} numberOfLines={1}>{locationName}</Text>
+            </View>
+          )}
+          <View style={styles.cardMeta}>
+            {item.price != null && (
+              <Text style={styles.cardPrice}>${item.price}</Text>
+            )}
+            {item.ageMin != null && item.ageMax != null && (
+              <Text style={styles.cardAge}>Ages {item.ageMin}-{item.ageMax}</Text>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.viewDetailsButton}
+            onPress={() => handleActivityPress(item)}
+          >
+            <Text style={styles.viewDetailsText}>View Details</Text>
+            <Icon name="chevron-right" size={16} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  }, [selectedActivityId, handleCardPress, handleActivityPress]);
 
   const keyExtractor = useCallback((item: Activity) => item.id, []);
 
@@ -309,19 +486,18 @@ const MapSearchScreen = () => {
         </View>
       </View>
 
-      {/* Map */}
-      <View style={styles.mapContainer}>
+      {/* Map Section - 55% of screen */}
+      <View style={styles.mapSection}>
         <MapView
           ref={mapRef}
-          style={styles.map}
-          initialRegion={DEFAULT_REGION}
           provider={PROVIDER_GOOGLE}
-          onPress={handleMapPress}
+          style={styles.map}
+          initialRegion={initialRegion}
           showsUserLocation
           showsMyLocationButton={false}
           showsCompass
           rotateEnabled={false}
-          onRegionChangeComplete={setRegion}
+          onRegionChangeComplete={handleRegionChange}
         >
           {clusters.map((cluster) => (
             <ClusterMarker
@@ -329,8 +505,8 @@ const MapSearchScreen = () => {
               latitude={cluster.latitude}
               longitude={cluster.longitude}
               count={cluster.activities.length}
-              onPress={() => handleClusterPress(cluster)}
-              isSelected={selectedCluster?.id === cluster.id}
+              onPress={() => handleMarkerPress(cluster)}
+              isSelected={cluster.activities.some(a => a.id === selectedActivityId)}
             />
           ))}
         </MapView>
@@ -343,51 +519,12 @@ const MapSearchScreen = () => {
           </View>
         )}
 
-        {/* Empty State - Shows as a card, not full overlay */}
-        {!loading && clusters.length === 0 && (
-          <View style={styles.emptyStateCard}>
-            <Icon name="map-marker-question" size={24} color="#666" />
-            <View style={styles.emptyStateCardContent}>
-              <Text style={styles.emptyStateCardTitle}>No activities to display</Text>
-              <Text style={styles.emptyStateCardText}>
-                Location data is being added to activities.
-              </Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.emptyStateCardButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.emptyStateCardButtonText}>List View</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Stats Badge */}
-        {!loading && clusters.length > 0 && (
-          <View style={styles.statsBadge}>
-            <Icon name="map-marker-multiple" size={16} color="#FFF" />
-            <Text style={styles.statsText}>
-              {filteredActivities.length} activities at {clusters.length} locations
-            </Text>
-          </View>
-        )}
-
-        {/* Filter indicator */}
-        {!loading && allActivities.length !== filteredActivities.length && (
-          <View style={styles.filterIndicator}>
-            <Icon name="filter" size={14} color={Colors.primary} />
-            <Text style={styles.filterIndicatorText}>
-              Filtered ({allActivities.length - filteredActivities.length} hidden)
-            </Text>
-          </View>
-        )}
-
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.actionButton} onPress={handleMyLocation}>
             <Icon name="crosshairs-gps" size={22} color={Colors.primary} />
           </TouchableOpacity>
-          
+
           {clusters.length > 0 && (
             <TouchableOpacity style={styles.actionButton} onPress={handleFitAll}>
               <Icon name="fit-to-screen-outline" size={20} color={Colors.primary} />
@@ -396,61 +533,74 @@ const MapSearchScreen = () => {
         </View>
       </View>
 
-      {/* Bottom Sheet - Activity List */}
-      <Animated.View 
-        style={[
-          styles.bottomSheet,
-          { transform: [{ translateY: bottomSheetTranslateY }] }
-        ]}
-        pointerEvents={selectedCluster ? 'auto' : 'none'}
-      >
-        {/* Handle */}
-        <View style={styles.bottomSheetHandle}>
-          <View style={styles.handleBar} />
-        </View>
-
-        {/* Header */}
-        {selectedCluster && (
-          <View style={styles.bottomSheetHeader}>
-            <View style={styles.bottomSheetTitleRow}>
-              <Icon name="map-marker" size={20} color={Colors.primary} />
-              <Text style={styles.bottomSheetTitle} numberOfLines={1}>
-                {selectedCluster.locationName}
+      {/* List Section - 45% of screen */}
+      <View style={styles.listSection}>
+        {/* List Header */}
+        <View style={styles.listHeader}>
+          <View style={styles.listHeaderRow}>
+            <Icon name="map-marker-multiple" size={18} color={Colors.primary} />
+            <Text style={styles.listHeaderText}>
+              {visibleActivities.length} {visibleActivities.length === 1 ? 'activity' : 'activities'} in this area
+            </Text>
+          </View>
+          {allActivities.length !== filteredActivities.length && (
+            <View style={styles.filterBadge}>
+              <Icon name="filter" size={12} color={Colors.primary} />
+              <Text style={styles.filterBadgeText}>
+                {allActivities.length - filteredActivities.length} hidden
               </Text>
             </View>
-            <Text style={styles.bottomSheetSubtitle}>
-              {selectedCluster.activities.length} {selectedCluster.activities.length === 1 ? 'activity' : 'activities'}
-            </Text>
-            <TouchableOpacity 
-              style={styles.closeBottomSheet} 
-              onPress={() => setSelectedCluster(null)}
-            >
-              <Icon name="close" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Activity List */}
-        {selectedCluster && (
-          <FlatList
-            data={selectedCluster.activities}
-            renderItem={renderActivityItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={10}
-          />
-        )}
-      </Animated.View>
-
-      {/* Tap hint when no cluster selected */}
-      {!loading && !selectedCluster && clusters.length > 0 && (
-        <View style={styles.hintContainer}>
-          <Icon name="gesture-tap" size={18} color="#666" />
-          <Text style={styles.hintText}>Tap a marker to see activities</Text>
+          )}
         </View>
-      )}
+
+        {/* Horizontal Activity List */}
+        {!loading && visibleActivities.length > 0 ? (
+          <FlatList
+            ref={listRef}
+            data={visibleActivities}
+            renderItem={renderActivityCard}
+            keyExtractor={keyExtractor}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}
+            snapToInterval={CARD_WIDTH + CARD_MARGIN * 2}
+            decelerationRate="fast"
+            initialNumToRender={3}
+            maxToRenderPerBatch={5}
+            getItemLayout={(_, index) => ({
+              length: CARD_WIDTH + CARD_MARGIN * 2,
+              offset: (CARD_WIDTH + CARD_MARGIN * 2) * index,
+              index,
+            })}
+            onScrollToIndexFailed={(info) => {
+              // Fallback for scroll failures
+              const wait = new Promise(resolve => setTimeout(resolve, 100));
+              wait.then(() => {
+                listRef.current?.scrollToOffset({
+                  offset: info.averageItemLength * info.index,
+                  animated: true,
+                });
+              });
+            }}
+          />
+        ) : !loading && clusters.length === 0 ? (
+          <View style={styles.emptyListState}>
+            <Icon name="map-marker-question" size={40} color="#CCC" />
+            <Text style={styles.emptyListTitle}>No activities found</Text>
+            <Text style={styles.emptyListSubtitle}>
+              Try zooming out or changing your filters
+            </Text>
+          </View>
+        ) : !loading && visibleActivities.length === 0 ? (
+          <View style={styles.emptyListState}>
+            <Icon name="gesture-swipe" size={40} color="#CCC" />
+            <Text style={styles.emptyListTitle}>Pan or zoom the map</Text>
+            <Text style={styles.emptyListSubtitle}>
+              Activities will appear as they come into view
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </SafeAreaView>
   );
 };
@@ -494,8 +644,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.primary + '15',
   },
-  mapContainer: {
-    flex: 1,
+  // Map section - 55% of screen
+  mapSection: {
+    flex: 0.55,
     position: 'relative',
   },
   map: {
@@ -512,188 +663,170 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  emptyStateCard: {
+  actionButtons: {
     position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
+    right: 12,
+    bottom: 12,
+    gap: 10,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
     elevation: 4,
   },
-  emptyStateCardContent: {
-    flex: 1,
-    marginLeft: 12,
+  // List section - 45% of screen
+  listSection: {
+    flex: 0.45,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    marginTop: -20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
   },
-  emptyStateCardTitle: {
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  listHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  listHeaderText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  filterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  filterBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  horizontalListContent: {
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  // Activity card styles
+  activityCard: {
+    width: CARD_WIDTH,
+    marginHorizontal: CARD_MARGIN,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  activityCardSelected: {
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
+  cardImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#F5F5F5',
+  },
+  cardImagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardContent: {
+    padding: 12,
+  },
+  cardTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#222',
+    lineHeight: 20,
   },
-  emptyStateCardText: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
-  emptyStateCardButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  emptyStateCardButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statsBadge: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
+  cardLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    marginTop: 6,
+    gap: 4,
   },
-  statsText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  filterIndicator: {
-    position: 'absolute',
-    top: 60,
-    left: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  filterIndicatorText: {
-    color: Colors.primary,
+  cardLocationText: {
     fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  actionButtons: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    gap: 12,
-  },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: BOTTOM_SHEET_HEIGHT,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  bottomSheetHandle: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  handleBar: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#DDD',
-    borderRadius: 2,
-  },
-  bottomSheetHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  bottomSheetTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  bottomSheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#222222',
+    color: '#666',
     flex: 1,
   },
-  bottomSheetSubtitle: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 4,
-    marginLeft: 28,
-  },
-  closeBottomSheet: {
-    position: 'absolute',
-    top: 0,
-    right: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F5F5F5',
+  cardMeta: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 8,
+    gap: 12,
   },
-  listContent: {
-    paddingTop: 12,
-    paddingBottom: 24,
+  cardPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primary,
   },
-  hintContainer: {
-    position: 'absolute',
-    bottom: 24,
-    left: 0,
-    right: 0,
+  cardAge: {
+    fontSize: 12,
+    color: '#666',
+  },
+  viewDetailsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    marginTop: 10,
+    paddingVertical: 8,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: 8,
+    gap: 4,
   },
-  hintText: {
+  viewDetailsText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  // Empty state styles
+  emptyListState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyListTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 12,
+  },
+  emptyListSubtitle: {
     fontSize: 14,
     color: '#666',
-    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });
 
