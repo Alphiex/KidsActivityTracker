@@ -575,4 +575,28 @@ router.get('/plans', verifyToken, requireAdmin, async (req: Request, res: Respon
   }
 });
 
+/**
+ * @route   POST /api/admin/partners/cleanup-expired
+ * @desc    Cleanup expired partner subscriptions and unflag their activities
+ * @access  Admin
+ */
+router.post('/cleanup-expired', verifyToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { cleanupExpiredSubscriptions } = await import('../services/stripeService');
+    const result = await cleanupExpiredSubscriptions();
+
+    res.json({
+      success: true,
+      message: 'Cleanup completed',
+      ...result
+    });
+  } catch (error: any) {
+    console.error('[AdminPartners] Error in cleanup:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to cleanup expired subscriptions'
+    });
+  }
+});
+
 export default router;

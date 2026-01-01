@@ -88,6 +88,7 @@ check_or_create_secret "database-url" "DATABASE_URL"
 check_or_create_secret "jwt-access-secret" "JWT_ACCESS_SECRET"
 check_or_create_secret "jwt-refresh-secret" "JWT_REFRESH_SECRET"
 check_or_create_secret "openai-api-key" "OPENAI_API_KEY"
+check_or_create_secret "FIREBASE_SERVICE_ACCOUNT" "FIREBASE_SERVICE_ACCOUNT"
 
 echo ""
 
@@ -97,7 +98,7 @@ gcloud builds submit --tag "$IMAGE" .
 
 # Step 2: Deploy to Cloud Run with ALL secrets and config
 echo -e "${GREEN}Step 2: Deploying to Cloud Run...${NC}"
-echo -e "${BLUE}Configuring secrets: DATABASE_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, OPENAI_API_KEY${NC}"
+echo -e "${BLUE}Configuring secrets: DATABASE_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, OPENAI_API_KEY, FIREBASE_SERVICE_ACCOUNT${NC}"
 echo -e "${BLUE}Environment: NODE_ENV=$NODE_ENV${NC}"
 
 gcloud run deploy $SERVICE_NAME \
@@ -112,7 +113,7 @@ gcloud run deploy $SERVICE_NAME \
     --min-instances 0 \
     --max-instances 10 \
     --set-env-vars "NODE_ENV=$NODE_ENV" \
-    --set-secrets "DATABASE_URL=database-url:latest,JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,OPENAI_API_KEY=openai-api-key:latest"
+    --set-secrets "DATABASE_URL=database-url:latest,JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,OPENAI_API_KEY=openai-api-key:latest,FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest"
 
 # Step 3: Verify deployment
 echo -e "${GREEN}Step 3: Verifying deployment...${NC}"

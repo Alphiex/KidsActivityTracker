@@ -221,25 +221,57 @@ npx prisma migrate status
 
 ## Secrets Management
 
-### Current Setup
+### Required Secrets
 
-Environment variables set directly in Cloud Run.
+The following secrets must be configured in GCP Secret Manager and linked to Cloud Run:
 
-### Recommended: Secret Manager
+| Secret Name | Description | Required |
+|-------------|-------------|----------|
+| `database-url` | PostgreSQL connection string | Yes |
+| `jwt-access-secret` | JWT signing key for access tokens | Yes |
+| `jwt-refresh-secret` | JWT signing key for refresh tokens | Yes |
+| `openai-api-key` | OpenAI API key for AI features | Yes |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase Admin SDK service account JSON | Yes |
+
+### Using the Deploy Script
+
+The `deploy-backend.sh` script automatically verifies and links all required secrets:
 
 ```bash
-# Create secret
-gcloud secrets create jwt-secret --data-file=./jwt-secret.txt
+cd server
+./deploy-backend.sh           # Development mode
+./deploy-backend.sh --production  # Production mode
+```
 
-# Grant access
-gcloud secrets add-iam-policy-binding jwt-secret \
+### Manual Secret Management
+
+```bash
+# Create a secret
+gcloud secrets create SECRET_NAME --data-file=./secret-value.txt
+
+# Or from string
+echo -n "secret-value" | gcloud secrets create SECRET_NAME --data-file=-
+
+# Grant Cloud Run access
+gcloud secrets add-iam-policy-binding SECRET_NAME \
   --member serviceAccount:SERVICE_ACCOUNT \
   --role roles/secretmanager.secretAccessor
 
-# Use in Cloud Run
+# Link to Cloud Run (include ALL secrets to avoid overwriting)
 gcloud run services update kids-activity-api \
-  --set-secrets "JWT_SECRET=jwt-secret:latest"
+  --region us-central1 \
+  --update-secrets "DATABASE_URL=database-url:latest,JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,OPENAI_API_KEY=openai-api-key:latest,FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest"
 ```
+
+### Firebase Service Account Setup
+
+1. Go to Firebase Console > Project Settings > Service Accounts
+2. Click "Generate new private key"
+3. Save the JSON file
+4. Create the secret:
+   ```bash
+   gcloud secrets create FIREBASE_SERVICE_ACCOUNT --data-file=./firebase-service-account.json
+   ```
 
 ## Scaling Configuration
 
@@ -302,5 +334,5 @@ gcloud run services logs read kids-activity-api \
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: December 2025
+**Document Version**: 4.1
+**Last Updated**: January 2026

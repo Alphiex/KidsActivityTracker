@@ -102,10 +102,19 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       ...params,
       limit: (params.limit || 20) * 3 // Fetch more to account for filtering
     });
-    
-    // Filter for featured activities only
+
+    const now = new Date();
+
+    // Filter for featured activities only - must be featured AND not expired
     const featuredActivities = (result.activities || [])
-      .filter((a: any) => a.isFeatured)
+      .filter((a: any) => {
+        if (!a.isFeatured) return false;
+        // Check if featured period has expired
+        if (a.featuredEndDate && new Date(a.featuredEndDate) < now) {
+          return false;
+        }
+        return true;
+      })
       .slice(0, params.limit || 20);
 
     res.json({

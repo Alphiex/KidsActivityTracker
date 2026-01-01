@@ -154,19 +154,48 @@ router.post('/revenuecat', async (req: Request, res: Response) => {
 
 /**
  * POST /api/webhooks/stripe
- * Handle Stripe subscription events (if using Stripe directly)
+ * Handle Stripe subscription events for partner payments
+ *
+ * IMPORTANT: This route must receive raw body for signature verification.
+ * The raw body middleware is configured in server.ts
  */
 router.post('/stripe', async (req: Request, res: Response) => {
   try {
-    // TODO: Implement Stripe webhook handling if needed
-    // For now, we're using RevenueCat which handles Stripe internally
+    const { constructWebhookEvent, handleWebhookEvent } = await import('../services/stripeService');
 
-    console.log('[Stripe Webhook] Event received:', req.body.type);
+    const signature = req.headers['stripe-signature'] as string;
+
+    if (!signature) {
+      console.error('[Stripe Webhook] No signature header');
+      return res.status(400).json({ error: 'Missing stripe-signature header' });
+    }
+
+    // Get raw body (set by express.raw() middleware)
+    const rawBody = (req as any).rawBody;
+
+    if (!rawBody) {
+      console.error('[Stripe Webhook] No raw body available - check middleware configuration');
+      return res.status(400).json({ error: 'Raw body not available' });
+    }
+
+    let event;
+    try {
+      event = constructWebhookEvent(rawBody, signature);
+    } catch (err: any) {
+      console.error('[Stripe Webhook] Signature verification failed:', err.message);
+      return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
+    }
+
+    console.log(`[Stripe Webhook] Event received: ${event.type}`);
+
+    // Handle the event
+    await handleWebhookEvent(event);
 
     res.status(200).json({ received: true });
   } catch (error: any) {
     console.error('[Stripe Webhook Error]', error);
-    res.status(200).json({ received: true, error: error.message });
+    // Return 500 so Stripe will retry
+    res.status(500).json({ error: error.message });
   }
 });
 

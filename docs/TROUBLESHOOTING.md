@@ -79,6 +79,65 @@ xcrun simctl shutdown all
 xcrun simctl erase all
 ```
 
+## Authentication Issues
+
+### Firebase Auth "internal-error" on iOS
+
+**Problem**: Login fails with "An internal error has occurred" on iOS.
+
+**Cause**: AppDelegate.mm imports `<FirebaseCore/FirebaseCore.h>` instead of the umbrella header.
+
+**Solution**: Use the Firebase umbrella header in `ios/KidsActivityTracker/AppDelegate.mm`:
+```objc
+// CORRECT - includes all Firebase modules
+#import <Firebase.h>
+
+// WRONG - only includes Core, not Auth
+#import <FirebaseCore/FirebaseCore.h>
+```
+
+### Backend Returns 503 "Authentication service unavailable"
+
+**Problem**: Mobile app authenticates with Firebase but backend sync fails with 503.
+
+**Cause**: `FIREBASE_SERVICE_ACCOUNT` secret not linked to Cloud Run.
+
+**Solution**:
+```bash
+# Verify secret exists
+gcloud secrets list --filter="name:FIREBASE"
+
+# Link to Cloud Run (include ALL secrets)
+gcloud run services update kids-activity-api \
+  --region=us-central1 \
+  --update-secrets="DATABASE_URL=database-url:latest,JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,OPENAI_API_KEY=openai-api-key:latest,FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest"
+```
+
+### Apple Sign-In Not Working
+
+**Problem**: "Continue with Apple" button doesn't work or returns error.
+
+**Checklist**:
+1. **Firebase Console**: Authentication > Sign-in method > Apple must be **Enabled**
+2. **Apple Developer Portal**: App ID must have "Sign in with Apple" capability
+3. **iOS Entitlements**: `com.apple.developer.applesignin` must be in entitlements file
+4. **Real Device**: Apple Sign-In may not work reliably on simulator
+
+**Verify entitlements**:
+```bash
+plutil -p ios/KidsActivityTracker/KidsActivityTracker.entitlements
+# Should show: "com.apple.developer.applesignin" => ["Default"]
+```
+
+### Google Sign-In Fails
+
+**Problem**: Google Sign-In returns error or doesn't show account picker.
+
+**Solutions**:
+1. Verify `webClientId` in `firebaseAuthService.ts` matches Firebase Console
+2. Check `REVERSED_CLIENT_ID` URL scheme in Info.plist
+3. Ensure GoogleService-Info.plist is in the iOS bundle
+
 ## Backend Issues
 
 ### Database Connection Errors
@@ -389,5 +448,5 @@ cd ios && pod install && cd ..
 
 ---
 
-**Document Version**: 4.1
-**Last Updated**: December 2025
+**Document Version**: 4.2
+**Last Updated**: January 2026

@@ -25,7 +25,6 @@ import ShareChildScreen from '../screens/ShareChildScreen';
 import ProfileScreen from '../screens/ProfileScreenModern';
 import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenModern';
 import FilterScreen from '../screens/FilterScreen';
-import SiteAccountsScreen from '../screens/SiteAccountsScreen';
 import ActivityListScreen from '../screens/ActivityListScreen';
 import NewActivitiesScreen from '../screens/NewActivitiesScreen';
 import OnboardingNavigator from './OnboardingNavigator';
@@ -142,7 +141,6 @@ const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProfileMain" component={ProfileScreen} />
     <Stack.Screen name="Children" component={ChildrenNavigator} />
-    <Stack.Screen name="SiteAccounts" component={SiteAccountsScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
     <Stack.Screen name="ActivityTypePreferences" component={ActivityTypePreferencesScreen} />

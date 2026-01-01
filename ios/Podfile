@@ -14,6 +14,9 @@ use_frameworks! :linkage => :static
 # Disable flipper as it conflicts with static frameworks
 $RNFirebaseAsStaticFramework = true
 
+# Use Analytics without Ad IDs - required for Kids apps
+$RNFirebaseAnalyticsWithoutAdIdSupport = true
+
 # Build Hermes from source to include dSYM for crash symbolication
 ENV['RCT_BUILD_HERMES_FROM_SOURCE'] = '1' if ENV['ARCHIVE_BUILD'] == '1'
 

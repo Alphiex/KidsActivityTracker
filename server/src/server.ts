@@ -140,6 +140,14 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
+
+// Stripe webhook needs raw body for signature verification
+// This middleware must come BEFORE express.json()
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), (req, res, next) => {
+  (req as any).rawBody = req.body;
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined')); // Logging
@@ -387,8 +395,35 @@ app.use((req, res) => {
   });
 });
 
+// Schedule daily cleanup of expired partner subscriptions
+const schedulePartnerCleanup = async () => {
+  try {
+    const { cleanupExpiredSubscriptions } = await import('./services/stripeService');
+
+    // Run cleanup on startup
+    console.log('[Scheduler] Running initial partner subscription cleanup...');
+    await cleanupExpiredSubscriptions();
+
+    // Run cleanup every 6 hours (in milliseconds)
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    setInterval(async () => {
+      console.log('[Scheduler] Running scheduled partner subscription cleanup...');
+      try {
+        await cleanupExpiredSubscriptions();
+      } catch (error) {
+        console.error('[Scheduler] Cleanup failed:', error);
+      }
+    }, SIX_HOURS);
+  } catch (error) {
+    console.warn('[Scheduler] Could not initialize partner cleanup:', error);
+  }
+};
+
 // Start server
 const server = app.listen(PORT as number, '0.0.0.0', () => {
+  // Schedule cleanup after server starts
+  schedulePartnerCleanup();
+
   console.log(`
 ╔═══════════════════════════════════════════════════╗
 ║                                                   ║

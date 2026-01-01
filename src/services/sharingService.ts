@@ -87,58 +87,86 @@ class SharingService {
   async shareChild(child: Child, email: string, permissions: SharedChild['permissions']): Promise<SharingInvitation> {
     await this.waitForInit();
 
-    // Check if already shared with this email
-    const existingShare = this.sharedChildren.find(
-      sc => sc.childId === child.id && sc.sharedWithEmail === email
-    );
-
-    if (existingShare && existingShare.status === 'accepted') {
-      throw new Error('Child already shared with this email');
-    }
-
     // Get current user from auth context
     const user = getCurrentUser();
-    const userId = user?.id || 'unknown';
     const userName = user?.name || user?.email || 'Unknown User';
 
-    // Create invitation
-    const invitation: SharingInvitation = {
-      id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      fromUserId: userId,
-      fromUserName: userName,
-      toEmail: email,
-      childId: child.id,
-      childName: child.name,
-      permissions,
-      status: 'pending',
-      sentAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    };
+    try {
+      // Call backend API to create and send invitation email
+      const response = await apiClient.post<{
+        success: boolean;
+        invitation: {
+          id: string;
+          token: string;
+          recipientEmail: string;
+          childId: string;
+          status: string;
+          expiresAt: string;
+          createdAt: string;
+        };
+        message: string;
+      }>('/api/invitations', {
+        recipientEmail: email,
+        childId: child.id,
+        permissions,
+        message: `${userName} wants to share ${child.name}'s activities with you`,
+      });
 
-    this.sentInvitations.push(invitation);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to send invitation');
+      }
 
-    // Create shared child record
-    const sharedChild: SharedChild = {
-      id: `sc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      childId: child.id,
-      sharedByUserId: userId,
-      sharedWithEmail: email,
-      permissions,
-      status: 'pending',
-      sharedAt: new Date(),
-      expiresAt: invitation.expiresAt,
-    };
+      // Create local invitation record for UI
+      const invitation: SharingInvitation = {
+        id: response.invitation.id,
+        fromUserId: user?.id || 'unknown',
+        fromUserName: userName,
+        toEmail: email,
+        childId: child.id,
+        childName: child.name,
+        permissions,
+        status: 'pending',
+        sentAt: new Date(response.invitation.createdAt),
+        expiresAt: new Date(response.invitation.expiresAt),
+      };
 
-    this.sharedChildren.push(sharedChild);
-    await this.saveData();
+      this.sentInvitations.push(invitation);
 
-    // TODO: Send actual email invitation
-    Alert.alert(
-      'Invitation Sent',
-      `An invitation to view ${child.name}'s activities has been sent to ${email}. They have 7 days to accept.`
-    );
+      // Create shared child record for local tracking
+      const sharedChild: SharedChild = {
+        id: `sc_${response.invitation.id}`,
+        childId: child.id,
+        sharedByUserId: user?.id || 'unknown',
+        sharedWithEmail: email,
+        permissions,
+        status: 'pending',
+        sharedAt: new Date(),
+        expiresAt: invitation.expiresAt,
+      };
 
-    return invitation;
+      this.sharedChildren.push(sharedChild);
+      await this.saveData();
+
+      // Show success message
+      Alert.alert(
+        'Invitation Sent',
+        `An email invitation has been sent to ${email}. They have 7 days to accept.`
+      );
+
+      return invitation;
+    } catch (error: any) {
+      console.error('Error sending invitation:', error);
+
+      // Handle specific error cases
+      if (error.message?.includes('already shared')) {
+        throw new Error('Child already shared with this email');
+      }
+      if (error.message?.includes('pending invitation')) {
+        throw new Error('A pending invitation already exists for this email');
+      }
+
+      throw new Error(error.message || 'Failed to send invitation. Please try again.');
+    }
   }
 
   async acceptInvitation(invitationId: string): Promise<void> {

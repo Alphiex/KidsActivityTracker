@@ -804,6 +804,8 @@ model Vendor {
 
   // Portal authentication
   passwordHash        String?
+  resetToken          String?
+  resetTokenExpiry    DateTime?
 
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt

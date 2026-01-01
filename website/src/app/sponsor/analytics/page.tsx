@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { sponsorApi } from '@/lib/sponsorApi';
 
 interface AnalyticsData {
   period: { start: string; end: string };
@@ -26,10 +27,22 @@ interface AnalyticsData {
   };
 }
 
+interface ActivityAnalytics {
+  activityId: string;
+  name: string;
+  activityType: string | null;
+  location: string | null;
+  city: string | null;
+  impressions: number;
+  clicks: number;
+  ctr: string;
+}
+
 type DateRange = '7d' | '30d' | '90d';
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [activityData, setActivityData] = useState<ActivityAnalytics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
 
@@ -40,21 +53,22 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('sponsor_token');
       const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
+      const startDateStr = startDate.toISOString();
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/sponsor/analytics?startDate=${startDate.toISOString()}`,
-        {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      );
+      // Fetch both general analytics and activity-level analytics
+      const [generalResult, activityResult] = await Promise.all([
+        sponsorApi.getAnalytics(startDateStr),
+        sponsorApi.getActivityAnalytics(startDateStr, undefined, 20)
+      ]);
 
-      if (response.ok) {
-        const result = await response.json();
-        setData(result.analytics);
+      if (generalResult.success) {
+        setData(generalResult.analytics);
+      }
+      if (activityResult.success) {
+        setActivityData(activityResult.activities);
       }
     } catch (err) {
       console.error('Failed to load analytics');
@@ -219,6 +233,91 @@ export default function AnalyticsPage() {
             <p className="text-gray-400 text-center py-4">No city data</p>
           )}
         </div>
+      </div>
+
+      {/* Activity Performance Table */}
+      <div className="bg-white rounded-xl shadow p-6 mt-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Activity Performance</h2>
+        <p className="text-gray-500 text-sm mb-4">
+          See how each of your activities is performing with impressions, clicks, and click-through rates.
+        </p>
+
+        {activityData.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Activity
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Impressions
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Clicks
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    CTR
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {activityData.map((activity) => (
+                  <tr key={activity.activityId} className="hover:bg-gray-50">
+                    <td className="px-4 py-4">
+                      <p className="font-medium text-gray-900 truncate max-w-xs" title={activity.name}>
+                        {activity.name}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-gray-600 capitalize">
+                        {activity.activityType?.replace(/_/g, ' ') || '-'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <p className="text-gray-600 truncate max-w-xs">
+                        {activity.location || activity.city || '-'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span className="text-gray-900 font-medium">
+                        {activity.impressions.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span className="text-gray-900 font-medium">
+                        {activity.clicks.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span className={`font-medium ${
+                        parseFloat(activity.ctr) >= 2 ? 'text-green-600' :
+                        parseFloat(activity.ctr) >= 1 ? 'text-yellow-600' :
+                        'text-gray-600'
+                      }`}>
+                        {activity.ctr}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-400">
+            <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <p>No activity data available for this period.</p>
+            <p className="text-sm mt-1">Activity performance will appear once your activities receive impressions.</p>
+          </div>
+        )}
       </div>
     </div>
   );

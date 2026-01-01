@@ -16,8 +16,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
-// TODO: Install these dependencies
-// import * as ImagePicker from 'react-native-image-picker';
+// react-native-image-picker is installed and loaded dynamically in handlePickImage
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {

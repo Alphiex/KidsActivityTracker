@@ -51,8 +51,10 @@ const loadRevenueCatUI = async (): Promise<boolean> => {
 };
 
 // RevenueCat API Keys - loaded from environment variables
+// iOS: appl_* key from RevenueCat dashboard
+// Android: goog_* key from RevenueCat dashboard (falls back to iOS key if not set)
+// Note: For production Android builds, set REVENUECAT_ANDROID_API_KEY in .env
 const REVENUECAT_IOS_API_KEY = Config.REVENUECAT_IOS_API_KEY || '';
-// TODO: Add Android production key (goog_*) when ready
 const REVENUECAT_ANDROID_API_KEY = Config.REVENUECAT_ANDROID_API_KEY || Config.REVENUECAT_IOS_API_KEY || '';
 
 // Get the appropriate API key based on platform

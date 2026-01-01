@@ -2,14 +2,11 @@
  * Analytics Service
  * Tracks subscription-related events and user behavior
  *
- * This is a provider-agnostic implementation that can be connected to:
- * - Firebase Analytics
- * - Mixpanel
- * - Amplitude
- * - Custom analytics backend
+ * Connected to Firebase Analytics for production tracking.
  */
 
 import { Platform } from 'react-native';
+import { firebaseAnalyticsService } from './firebaseAnalyticsService';
 
 // Event types for subscription tracking
 export type SubscriptionEvent =
@@ -68,8 +65,8 @@ class AnalyticsService {
   private userProperties: UserProperties = {};
   private eventQueue: Array<{ event: string; properties: EventProperties }> = [];
 
-  // Analytics provider (can be swapped)
-  private provider: 'console' | 'firebase' | 'mixpanel' | 'amplitude' = 'console';
+  // Analytics provider - using Firebase
+  private provider: 'console' | 'firebase' | 'mixpanel' | 'amplitude' = 'firebase';
 
   /**
    * Initialize analytics with user ID
@@ -78,12 +75,11 @@ class AnalyticsService {
     this.userId = userId || null;
     this.userProperties.platform = Platform.OS;
 
-    // TODO: Initialize actual analytics SDK here
-    // Example for Firebase:
-    // await analytics().setUserId(userId);
+    // Set user ID in Firebase Analytics
+    await firebaseAnalyticsService.setUserId(userId || null);
 
     this.isInitialized = true;
-    console.log('[Analytics] Initialized', { userId });
+    console.log('[Analytics] Initialized with Firebase', { userId: userId ? 'set' : 'none' });
 
     // Flush queued events
     this.flushQueue();
@@ -95,11 +91,8 @@ class AnalyticsService {
   setUserProperties(properties: Partial<UserProperties>): void {
     this.userProperties = { ...this.userProperties, ...properties };
 
-    // TODO: Set properties in actual analytics SDK
-    // Example for Firebase:
-    // await analytics().setUserProperties(properties);
-
-    console.log('[Analytics] User properties updated:', this.userProperties);
+    // Set properties in Firebase Analytics
+    firebaseAnalyticsService.setUserProperties(this.userProperties);
   }
 
   /**
@@ -129,16 +122,16 @@ class AnalyticsService {
   private logEvent(event: string, properties: EventProperties): void {
     switch (this.provider) {
       case 'firebase':
-        // TODO: Implement Firebase Analytics
-        // analytics().logEvent(event, properties);
+        // Log to Firebase Analytics
+        firebaseAnalyticsService.logEvent(event, properties);
         break;
       case 'mixpanel':
-        // TODO: Implement Mixpanel
-        // Mixpanel.track(event, properties);
+        // Mixpanel not implemented
+        console.log(`[Analytics:Mixpanel] ${event}`, properties);
         break;
       case 'amplitude':
-        // TODO: Implement Amplitude
-        // Amplitude.logEvent(event, properties);
+        // Amplitude not implemented
+        console.log(`[Analytics:Amplitude] ${event}`, properties);
         break;
       case 'console':
       default:
@@ -214,6 +207,9 @@ class AnalyticsService {
     currency: string,
     isTrialConversion: boolean = false
   ): void {
+    // Use Firebase's built-in purchase event for revenue tracking
+    firebaseAnalyticsService.logPurchase(productId, price, currency);
+
     this.track('purchase_completed', {
       productId,
       price,
@@ -339,12 +335,16 @@ class AnalyticsService {
   }
 
   trackUserRegistered(method: 'email' | 'google' | 'apple'): void {
+    // Use Firebase's built-in sign_up event for better analytics
+    firebaseAnalyticsService.logSignUp(method);
     this.track('user_registered', {
       method,
     });
   }
 
   trackUserLoggedIn(method: 'email' | 'google' | 'apple'): void {
+    // Use Firebase's built-in login event for better analytics
+    firebaseAnalyticsService.logLogin(method);
     this.track('user_logged_in', {
       method,
     });

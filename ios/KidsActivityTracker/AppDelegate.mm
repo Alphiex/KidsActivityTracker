@@ -4,26 +4,25 @@
 #import <React/RCTLinkingManager.h>
 #import <UserNotifications/UserNotifications.h>
 
-// Firebase and Google Maps - framework imports for static frameworks
-#import <FirebaseCore/FirebaseCore.h>
-#import <FirebaseMessaging/FirebaseMessaging.h>
+// Firebase umbrella header includes all Firebase modules (Core, Auth, Messaging, etc.)
+#import <Firebase.h>
 #import <GoogleMaps/GoogleMaps.h>
 
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+  // Initialize Firebase FIRST - must be before any other Firebase-related code
+  NSLog(@"[Firebase] Initializing Firebase...");
+  [FIRApp configure];
+  NSLog(@"[Firebase] Firebase configured successfully");
+
   // Initialize Google Maps - API key should be set in environment or Info.plist
   NSString *googleMapsApiKey = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"GOOGLE_MAPS_API_KEY"];
   if (googleMapsApiKey && googleMapsApiKey.length > 0) {
     [GMSServices provideAPIKey:googleMapsApiKey];
   } else {
     NSLog(@"Warning: GOOGLE_MAPS_API_KEY not found in Info.plist");
-  }
-
-  // Initialize Firebase
-  if ([FIRApp defaultApp] == nil) {
-    [FIRApp configure];
   }
 
   self.moduleName = @"KidsActivityTracker";

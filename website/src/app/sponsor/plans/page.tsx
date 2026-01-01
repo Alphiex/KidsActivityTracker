@@ -1,21 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface Plan {
-  id: string;
-  name: string;
-  tier: string;
-  monthlyPrice: string;
-  yearlyPrice: string;
-  impressionLimit: number | null;
-  features: {
-    priority?: boolean;
-    analytics?: boolean;
-    targeting?: boolean;
-    badge?: string;
-  };
-}
+import { sponsorApi, Plan } from '@/lib/sponsorApi';
 
 interface CurrentSubscription {
   plan: Plan | null;
@@ -26,6 +12,10 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<CurrentSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -33,33 +23,48 @@ export default function PlansPage() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('sponsor_token');
-
       const [plansRes, sponsorRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sponsor/plans`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sponsor/auth/me`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }),
+        sponsorApi.getPlans(),
+        sponsorApi.getCurrentSponsor(),
       ]);
 
-      if (plansRes.ok) {
-        const data = await plansRes.json();
-        setPlans(data.plans);
+      if (plansRes.success) {
+        setPlans(plansRes.plans);
       }
 
-      if (sponsorRes.ok) {
-        const data = await sponsorRes.json();
+      if (sponsorRes.success) {
         setCurrentPlan({
-          plan: data.sponsor.plan,
-          status: data.sponsor.subscriptionStatus,
+          plan: sponsorRes.sponsor.plan,
+          status: sponsorRes.sponsor.subscriptionStatus,
         });
       }
     } catch (err) {
       console.error('Failed to load plans');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!selectedPlan) return;
+
+    setIsSubmitting(true);
+    try {
+      // Create Stripe Checkout session and redirect
+      const result = await sponsorApi.createCheckoutSession({
+        tier: selectedPlan.tier as 'bronze' | 'silver' | 'gold',
+        billingCycle,
+      });
+
+      if (result.success && result.checkoutUrl) {
+        // Redirect to Stripe Checkout
+        window.location.href = result.checkoutUrl;
+      } else {
+        throw new Error('Failed to create checkout session');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to start checkout');
+      setIsSubmitting(false);
     }
   };
 
@@ -201,10 +206,7 @@ export default function PlansPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => {
-                      // TODO: Integrate with RevenueCat
-                      alert('Contact support to upgrade your plan');
-                    }}
+                    onClick={() => setSelectedPlan(plan)}
                     className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
                   >
                     {currentPlan?.plan ? 'Upgrade' : 'Subscribe'}
@@ -215,6 +217,92 @@ export default function PlansPage() {
           );
         })}
       </div>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md mx-4">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckIcon />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Request Submitted!</h3>
+              <p className="text-gray-600 mb-6">{successMessage}</p>
+              <button
+                onClick={() => setSuccessMessage(null)}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscribe Modal */}
+      {selectedPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md mx-4 w-full">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Subscribe to {selectedPlan.name}
+            </h3>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Billing Cycle
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setBillingCycle('monthly')}
+                    className={`p-3 border rounded-lg text-center transition-colors ${
+                      billingCycle === 'monthly'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">{formatPrice(selectedPlan.monthlyPrice)}</div>
+                    <div className="text-sm text-gray-500">per month</div>
+                  </button>
+                  <button
+                    onClick={() => setBillingCycle('annual')}
+                    className={`p-3 border rounded-lg text-center transition-colors ${
+                      billingCycle === 'annual'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-semibold">{formatPrice(selectedPlan.yearlyPrice)}</div>
+                    <div className="text-sm text-gray-500">per year</div>
+                    <div className="text-xs text-green-600 font-medium">Save 2 months</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-6">
+              You&apos;ll be redirected to our secure payment page to complete your subscription.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedPlan(null)}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubscribe}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? 'Redirecting...' : 'Continue to Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {plans.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl shadow">

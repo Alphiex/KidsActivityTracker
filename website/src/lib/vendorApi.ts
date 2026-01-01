@@ -87,6 +87,36 @@ export async function getProfile() {
   return fetchWithAuth('/api/vendor/:vendorId/profile');
 }
 
+export async function forgotPassword(email: string) {
+  const response = await fetch(`${API_BASE}/api/vendor/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || error.error || 'Request failed');
+  }
+
+  return response.json();
+}
+
+export async function resetPassword(token: string, password: string) {
+  const response = await fetch(`${API_BASE}/api/vendor/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Reset failed' }));
+    throw new Error(error.message || error.error || 'Reset failed');
+  }
+
+  return response.json();
+}
+
 // ==================== Activities ====================
 
 export interface VendorActivity {
