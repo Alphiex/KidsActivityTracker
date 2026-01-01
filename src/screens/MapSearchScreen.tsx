@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Image,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -17,11 +18,14 @@ import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
+import FavoritesService from '../services/favoritesService';
+import WaitlistService from '../services/waitlistService';
 import { ClusterMarker } from '../components/map';
 import { Colors } from '../theme';
+import { getActivityImageKey } from '../utils/activityHelpers';
+import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
-import ActivityCard from '../components/ActivityCard';
 
 type MapSearchRouteProp = RouteProp<{
   MapSearch: {
@@ -485,24 +489,163 @@ const MapSearchScreen = () => {
     updateVisibleActivities(newRegion);
   }, [updateVisibleActivities]);
 
-  // Render horizontal activity card using standard ActivityCard component
+  // Favorites and waitlist services for action buttons
+  const favoritesService = FavoritesService.getInstance();
+  const waitlistService = WaitlistService.getInstance();
+
+  // Render horizontal activity card with action buttons
   const renderActivityCard = useCallback(({ item }: { item: Activity }) => {
     const isSelected = selectedActivityId === item.id;
+    const isFavorite = favoritesService.isFavorite(item.id);
+    const isOnWaitlist = waitlistService.isOnWaitlist(item.id);
+
+    const locationName = typeof item.location === 'string'
+      ? item.location
+      : item.location?.name || item.locationName || '';
+
+    // Get activity image
+    const activityTypeName = typeof item.activityType === 'string'
+      ? item.activityType
+      : (item.activityType as any)?.name || item.category || 'general';
+    const subcategory = (item as any).activitySubtype?.name || item.subcategory;
+    const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
+    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
+
+    // Format date range
+    let dateRangeText = '';
+    if (item.dateStart && item.dateEnd) {
+      const start = new Date(item.dateStart);
+      const end = new Date(item.dateEnd);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateRangeText = `${startStr} - ${endStr}`;
+    } else if ((item as any).dateRange?.start && (item as any).dateRange?.end) {
+      const start = new Date((item as any).dateRange.start);
+      const end = new Date((item as any).dateRange.end);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateRangeText = `${startStr} - ${endStr}`;
+    }
+
+    // Format time
+    let timeText = '';
+    if (item.startTime && item.endTime) {
+      timeText = `${item.startTime} - ${item.endTime}`;
+    } else if (item.startTime) {
+      timeText = item.startTime;
+    }
+
+    // Format age range
+    const ageText = item.ageMin != null && item.ageMax != null
+      ? `Ages ${item.ageMin}-${item.ageMax}`
+      : item.ageMin != null
+      ? `Ages ${item.ageMin}+`
+      : '';
+
+    // Format price
+    const priceText = item.price != null ? `$${item.price.toFixed(2)}` :
+                      item.cost != null ? `$${item.cost.toFixed(2)}` : 'Free';
+
+    const handleToggleFavorite = () => {
+      favoritesService.toggleFavorite(item);
+    };
+
+    const handleToggleWaitlist = async () => {
+      await waitlistService.toggleWaitlist(item);
+    };
 
     return (
-      <View style={[
-        styles.activityCardWrapper,
-        isSelected && styles.activityCardSelected,
-      ]}>
-        <ActivityCard
-          activity={item}
-          onPress={() => handleActivityPress(item)}
-          containerStyle={styles.activityCard}
-          imageHeight={75} // 25% smaller than original 100px to make room for text
-        />
-      </View>
+      <TouchableOpacity
+        style={[styles.activityCard, isSelected && styles.activityCardSelected]}
+        onPress={() => handleActivityPress(item)}
+        activeOpacity={0.9}
+      >
+        {/* Image with action buttons */}
+        <View style={styles.cardImageContainer}>
+          <Image source={imageSource} style={styles.cardImage} resizeMode="cover" />
+
+          {/* Price overlay */}
+          <View style={styles.priceOverlay}>
+            <Text style={styles.priceText}>{priceText}</Text>
+            {(item.price != null || item.cost != null) && ((item.price ?? 0) > 0 || (item.cost ?? 0) > 0) && (
+              <Text style={styles.priceLabel}>per child</Text>
+            )}
+          </View>
+
+          {/* Action buttons */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity style={styles.cardActionButton} onPress={handleToggleFavorite}>
+              <Icon
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={16}
+                color={isFavorite ? '#E8638B' : '#FFF'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cardActionButton} onPress={handleToggleWaitlist}>
+              <Icon
+                name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
+                size={16}
+                color={isOnWaitlist ? '#FFB800' : '#FFF'}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Card content */}
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+
+          {locationName ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="map-marker" size={12} color={Colors.primary} />
+              <Text style={styles.cardInfoText} numberOfLines={1}>{locationName}</Text>
+            </View>
+          ) : null}
+
+          {dateRangeText ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="calendar" size={12} color="#717171" />
+              <Text style={styles.cardInfoText}>{dateRangeText}</Text>
+            </View>
+          ) : null}
+
+          {timeText ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="clock-outline" size={12} color="#717171" />
+              <Text style={styles.cardInfoText}>{timeText}</Text>
+            </View>
+          ) : null}
+
+          {ageText ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="account-child" size={12} color="#717171" />
+              <Text style={styles.cardInfoText}>{ageText}</Text>
+            </View>
+          ) : null}
+
+          {item.spotsAvailable != null && item.spotsAvailable >= 0 && item.spotsAvailable <= 10 && (
+            <View style={[
+              styles.spotsBadge,
+              item.spotsAvailable <= 3 && styles.spotsBadgeUrgent,
+              item.spotsAvailable === 0 && styles.spotsBadgeFull,
+            ]}>
+              <Icon
+                name={item.spotsAvailable === 0 ? "close-circle" : item.spotsAvailable <= 3 ? "alert-circle" : "information"}
+                size={12}
+                color={item.spotsAvailable === 0 ? "#D93025" : item.spotsAvailable <= 3 ? "#D93025" : Colors.primary}
+              />
+              <Text style={[
+                styles.spotsText,
+                item.spotsAvailable <= 3 && styles.spotsTextUrgent,
+              ]}>
+                {item.spotsAvailable === 0 ? 'FULL' : `${item.spotsAvailable} ${item.spotsAvailable === 1 ? 'spot' : 'spots'} left`}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
-  }, [selectedActivityId, handleActivityPress]);
+  }, [selectedActivityId, handleActivityPress, favoritesService, waitlistService]);
 
   const keyExtractor = useCallback((item: Activity) => item.id, []);
 
@@ -841,20 +984,111 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 12,
   },
-  // Activity card wrapper for selection highlighting
-  activityCardWrapper: {
+  // Activity card styles
+  activityCard: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_MARGIN,
-  },
-  // Activity card container style passed to ActivityCard
-  activityCard: {
-    marginBottom: 0, // Override default margin
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
   },
   activityCardSelected: {
     borderWidth: 2,
     borderColor: Colors.primary,
-    borderRadius: 18,
+  },
+  cardImageContainer: {
+    position: 'relative',
+    height: 100,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F5F5F5',
+  },
+  priceOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+  },
+  priceText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  priceLabel: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    opacity: 0.9,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  actionButtonsRow: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 12,
+    padding: 2,
+  },
+  cardActionButton: {
+    padding: 4,
+    marginHorizontal: 1,
+  },
+  cardContent: {
+    padding: 10,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#222',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  cardInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+    gap: 4,
+  },
+  cardInfoText: {
+    fontSize: 11,
+    color: '#717171',
+    flex: 1,
+  },
+  spotsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 6,
+    gap: 3,
+    alignSelf: 'flex-start',
+  },
+  spotsBadgeUrgent: {
+    backgroundColor: '#D93025' + '15',
+  },
+  spotsBadgeFull: {
+    backgroundColor: '#D93025' + '20',
+  },
+  spotsText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  spotsTextUrgent: {
+    color: '#D93025',
   },
   // Empty state styles
   emptyListState: {
