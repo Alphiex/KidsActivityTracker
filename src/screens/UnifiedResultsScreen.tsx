@@ -34,8 +34,6 @@ const HeaderImages = {
 };
 
 const { width, height } = Dimensions.get('window');
-const CARD_GAP = 12;
-const CARD_WIDTH = (width - 32 - CARD_GAP) / 2; // 16px padding on each side, gap between cards
 
 type RouteParams = {
   UnifiedResults: {
@@ -318,7 +316,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
     }
   };
 
-  const renderActivity = ({ item, index }: { item: Activity; index: number }) => {
+  const renderActivity = ({ item }: { item: Activity }) => {
     if (!item || !item.id) return null;
     const isFavorite = favoriteIds.has(item.id);
     return (
@@ -328,10 +326,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
-        containerStyle={{
-          width: CARD_WIDTH,
-          marginRight: index % 2 === 0 ? CARD_GAP : 0,
-        }}
+        imageHeight={100}
       />
     );
   };
@@ -352,13 +347,20 @@ const UnifiedResultsScreenTest: React.FC = () => {
             colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
             style={isFavoritesScreen ? styles.heroGradientFlat : styles.heroGradient}
           >
-            {/* Back Button - hidden for favorites since it's accessed from bottom tab */}
+            {/* Back Button and Filter - hidden for favorites since it's accessed from bottom tab */}
             {!isFavoritesScreen && (
-              <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
-                <View style={styles.backButtonInner}>
-                  <Icon name="arrow-left" size={22} color="#333" />
-                </View>
-              </TouchableOpacity>
+              <View style={styles.heroTopRow}>
+                <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
+                  <View style={styles.backButtonInner}>
+                    <Icon name="arrow-left" size={22} color="#333" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.filterButtonHero} onPress={() => navigation.navigate('SearchMain')}>
+                  <View style={styles.backButtonInner}>
+                    <Icon name="tune" size={22} color="#E8638B" />
+                  </View>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Title and Count */}
@@ -416,9 +418,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
           data={activities}
           renderItem={renderActivity}
           keyExtractor={(item) => String(item.id)}
-          numColumns={2}
           contentContainerStyle={styles.listContent}
-          columnWrapperStyle={styles.columnWrapper}
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
           onEndReached={handleLoadMore}
@@ -437,14 +437,6 @@ const UnifiedResultsScreenTest: React.FC = () => {
             </View>
           }
         />
-
-        {/* Floating Filter Button - Always visible */}
-        <TouchableOpacity
-          style={styles.floatingFilterButton}
-          onPress={() => navigation.navigate('SearchMain')}
-        >
-          <Icon name="filter-variant" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
       </ScreenBackground>
     </SafeAreaView>
   );
@@ -459,14 +451,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-  columnWrapper: {
-    justifyContent: 'flex-start',
-  },
   headerContainer: {
     marginBottom: ModernSpacing.md,
   },
   heroSection: {
-    height: height * 0.28,
+    height: height * 0.14,
     width: '100%',
   },
   heroSectionShort: {
@@ -497,9 +486,13 @@ const styles = StyleSheet.create({
     paddingBottom: ModernSpacing.md,
     justifyContent: 'flex-end',
   },
-  backButtonHero: {
-    alignSelf: 'flex-start',
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
+  backButtonHero: {},
+  filterButtonHero: {},
   backButtonInner: {
     width: 44,
     height: 44,
@@ -587,22 +580,6 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: ModernTypography.sizes.sm,
     color: ModernColors.textSecondary,
-  },
-  floatingFilterButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#E8638B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#E8638B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
 });
 

@@ -15,9 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import ScreenBackground from '../components/ScreenBackground';
 import TopTabNavigation from '../components/TopTabNavigation';
 
-const { width, height } = Dimensions.get('window');
-const CARD_GAP = 12;
-const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
+const { height } = Dimensions.get('window');
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
@@ -318,19 +316,14 @@ const SearchResultsScreen = () => {
           <FlatList
           data={activities}
           keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={activities.length > 1 ? styles.columnWrapper : undefined}
           ListHeaderComponent={renderHeader}
-          renderItem={({ item, index }) => (
+          renderItem={({ item }) => (
             <ActivityCard
               activity={item}
               onPress={() => handleActivityPress(item)}
               isFavorite={favoriteIds.has(item.id)}
               onFavoritePress={() => toggleFavorite(item)}
-              containerStyle={{
-                width: CARD_WIDTH,
-                marginRight: index % 2 === 0 ? CARD_GAP : 0,
-              }}
+              imageHeight={100}
             />
           )}
           showsVerticalScrollIndicator={false}
@@ -352,11 +345,6 @@ const SearchResultsScreen = () => {
           initialNumToRender={10}
         />
         )}
-
-        {/* Floating Filter Button - Always visible */}
-        <TouchableOpacity style={styles.floatingFilterButton} onPress={handleBackToSearch}>
-          <Icon name="filter-variant" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -385,7 +373,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   heroSection: {
-    height: height * 0.28,
+    height: height * 0.14,
     width: '100%',
   },
   heroImageStyle: {
@@ -463,9 +451,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
-  columnWrapper: {
-    justifyContent: 'flex-start',
-  },
   loadingFooter: {
     paddingVertical: 20,
     alignItems: 'center',
@@ -512,22 +497,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  floatingFilterButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#E8638B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#E8638B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
 });
 
