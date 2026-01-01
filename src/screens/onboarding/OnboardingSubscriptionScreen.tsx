@@ -16,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { revenueCatService, PRODUCT_IDS } from '../../services/revenueCatService';
 import { useAppDispatch } from '../../store';
 import { fetchSubscription, startTrial, checkTrialEligibility } from '../../store/slices/subscriptionSlice';
+import ScreenBackground from '../../components/ScreenBackground';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -132,11 +133,12 @@ const OnboardingSubscriptionScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Header */}
         <View style={styles.header}>
           <LinearGradient
@@ -252,14 +254,17 @@ const OnboardingSubscriptionScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  safeArea: {
+    flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -293,7 +298,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   featuresContainer: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -340,8 +345,8 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: 'rgba(243, 244, 246, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
   },
   trialButton: {
     borderRadius: 12,

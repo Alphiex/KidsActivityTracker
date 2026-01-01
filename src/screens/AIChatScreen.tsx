@@ -294,6 +294,7 @@ const AIChatScreen = () => {
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.role === 'user';
+    const hasActivities = item.activities && item.activities.length > 0;
 
     return (
       <View style={[styles.messageContainer, isUser ? styles.userMessageContainer : styles.assistantMessageContainer]}>
@@ -311,16 +312,12 @@ const AIChatScreen = () => {
             item.blocked && styles.blockedBubble,
           ]}
         >
-          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-            {item.content}
-          </Text>
-
-          {/* Activity Cards */}
-          {item.activities && item.activities.length > 0 && (
+          {/* Activity Cards - Show ABOVE text for better UX */}
+          {hasActivities && (
             <View style={styles.activitiesContainer}>
               <View style={styles.activitiesHeader}>
                 <Text style={styles.activitiesLabel}>
-                  Found {item.activities.length} {item.activities.length === 1 ? 'activity' : 'activities'}:
+                  Found {item.activities!.length} {item.activities!.length === 1 ? 'activity' : 'activities'}
                 </Text>
                 {item.activities!.length > 1 && (
                   <TouchableOpacity
@@ -332,7 +329,7 @@ const AIChatScreen = () => {
                   </TouchableOpacity>
                 )}
               </View>
-              {item.activities.slice(0, 3).map((activity, index) => (
+              {item.activities!.slice(0, 3).map((activity: any, index: number) => (
                 <TouchableOpacity
                   key={activity.id || index}
                   style={styles.activityCard}
@@ -342,25 +339,45 @@ const AIChatScreen = () => {
                     <Text style={styles.activityName} numberOfLines={1}>
                       {activity.name}
                     </Text>
-                    <Text style={styles.activityMeta} numberOfLines={1}>
-                      {activity.provider || activity.provider?.name}
-                      {activity.price && typeof activity.price === 'number' ? ` • $${activity.price}` : ''}
-                      {activity.cost ? ` • $${activity.cost}` : ''}
-                    </Text>
-                    {(activity.dates || activity.schedule) && (
-                      <Text style={styles.activityDates} numberOfLines={1}>
-                        {activity.dates || activity.schedule}
+                    <View style={styles.activityMetaRow}>
+                      <Text style={styles.activityMeta} numberOfLines={1}>
+                        {activity.provider || activity.provider?.name}
                       </Text>
-                    )}
-                    {activity.status && (
-                      <View style={[
-                        styles.statusBadge,
-                        activity.status === 'Open' && styles.statusOpen,
-                        activity.status === 'Waitlist' && styles.statusWaitlist,
-                      ]}>
-                        <Text style={styles.statusText}>{activity.status}</Text>
+                      {(activity.price || activity.cost) && (
+                        <Text style={styles.activityPrice}>
+                          ${activity.price || activity.cost}
+                        </Text>
+                      )}
+                    </View>
+                    {(activity.dates || activity.schedule) && (
+                      <View style={styles.activityDateRow}>
+                        <Icon name="calendar-outline" size={12} color="#888" />
+                        <Text style={styles.activityDates} numberOfLines={1}>
+                          {activity.dates || activity.schedule}
+                        </Text>
                       </View>
                     )}
+                    <View style={styles.activityBadgesRow}>
+                      {activity.status && (
+                        <View style={[
+                          styles.statusBadge,
+                          activity.status === 'Open' && styles.statusOpen,
+                          activity.status === 'Waitlist' && styles.statusWaitlist,
+                        ]}>
+                          <Text style={[
+                            styles.statusText,
+                            activity.status === 'Open' && styles.statusTextOpen,
+                            activity.status === 'Waitlist' && styles.statusTextWaitlist,
+                          ]}>{activity.status}</Text>
+                        </View>
+                      )}
+                      {activity.spotsText && (
+                        <View style={styles.spotsBadge}>
+                          <Icon name="account-group-outline" size={10} color="#6B7280" />
+                          <Text style={styles.spotsText}>{activity.spotsText}</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <Icon name="chevron-right" size={20} color="#E8638B" style={styles.activityChevron} />
                 </TouchableOpacity>
@@ -377,6 +394,17 @@ const AIChatScreen = () => {
                 </TouchableOpacity>
               )}
             </View>
+          )}
+
+          {/* AI Response Text - Show BELOW activities */}
+          {item.content && (
+            <Text style={[
+              styles.messageText,
+              isUser && styles.userMessageText,
+              hasActivities && styles.aiResponseText,
+            ]}>
+              {item.content}
+            </Text>
           )}
 
           {/* Follow-up Prompts */}
@@ -704,10 +732,10 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   activitiesContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#EBEBEB',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EBEBEB',
   },
   activitiesHeader: {
     flexDirection: 'row',
@@ -746,24 +774,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  activityMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   activityMeta: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 2,
+    flex: 1,
+  },
+  activityPrice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E8638B',
+    marginLeft: 8,
+  },
+  activityDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
   },
   activityDates: {
     fontSize: 11,
     color: '#888',
-    marginTop: 2,
+    flex: 1,
+  },
+  activityBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   statusBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginTop: 4,
     backgroundColor: '#F0F0F0',
   },
   statusOpen: {
@@ -776,6 +825,30 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#333',
+  },
+  statusTextOpen: {
+    color: '#166534',
+  },
+  statusTextWaitlist: {
+    color: '#92400E',
+  },
+  spotsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+  },
+  spotsText: {
+    fontSize: 10,
+    color: '#6B7280',
+  },
+  aiResponseText: {
+    marginTop: 0,
+    fontSize: 14,
+    color: '#555',
   },
   activityChevron: {
     marginLeft: 8,
