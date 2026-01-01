@@ -19,6 +19,7 @@ import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { ClusterMarker } from '../components/map';
 import { Colors } from '../theme';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
@@ -470,21 +471,8 @@ const MapSearchScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#222" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Map View</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.filterButton} 
-            onPress={() => (navigation as any).navigate('Filters')}
-          >
-            <Icon name="tune-variant" size={22} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Top Tab Navigation */}
+      <TopTabNavigation />
 
       {/* Map Section - 55% of screen */}
       <View style={styles.mapSection}>

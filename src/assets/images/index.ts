@@ -1,92 +1,96 @@
-// Direct image mapping by key
+// UI Images
+export const aiRobotImage = require('./ai-robot.png');
+
+// Direct image mapping by key - organized by activity type directories
 export const activityImageMap: { [key: string]: any } = {
   // Swimming & Aquatics
-  swimming: require('./activities/swimming.jpg'),
-  water_safety: require('./activities/water_safety.jpg'),
-  diving: require('./activities/diving.jpg'),
-  
+  swimming: require('./activities/swimming_aquatics/swimming.jpg'),
+
   // Team Sports
-  basketball: require('./activities/basketball.jpg'),
-  soccer: require('./activities/soccer.jpg'),
-  tennis: require('./activities/tennis.jpg'),
-  badminton: require('./activities/badminton.jpg'),
-  volleyball: require('./activities/volleyball.jpg'),
-  hockey: require('./activities/hockey.jpg'),
-  baseball: require('./activities/baseball.jpg'),
-  sports_general: require('./activities/sports_general.jpg'),
-  racquet_sports: require('./activities/racquet_sports.jpg'),
-  
-  // Dance & Movement
-  dance: require('./activities/dance.jpg'),
-  ballet: require('./activities/ballet.jpg'),
-  hip_hop_dance: require('./activities/hip_hop_dance.jpg'),
-  cheerleading: require('./activities/cheerleading.jpg'),
-  
-  // Arts & Crafts
-  arts_crafts: require('./activities/arts_crafts.jpg'),
-  pottery: require('./activities/pottery.jpg'),
-  painting: require('./activities/painting.jpg'),
-  crafts: require('./activities/crafts.jpg'),
-  theater: require('./activities/theater.jpg'),
-  
-  // Music
-  music: require('./activities/music.jpg'),
-  piano: require('./activities/piano.jpg'),
-  guitar: require('./activities/guitar.jpg'),
-  drums: require('./activities/drums.jpg'),
-  
-  // Fitness & Wellness
-  fitness: require('./activities/fitness.jpg'),
-  yoga: require('./activities/yoga.jpg'),
-  climbing: require('./activities/climbing.jpg'),
-  gym: require('./activities/gym.jpg'),
-  running: require('./activities/running.jpg'),
-  gymnastics: require('./activities/gymnastics.jpg'),
-  
+  soccer: require('./activities/team_sports/soccer.jpg'),
+  hockey: require('./activities/team_sports/hockey.jpg'),
+  football: require('./activities/team_sports/football.jpg'),
+  lacrosse: require('./activities/team_sports/lacrosse.jpg'),
+  sports_general: require('./activities/team_sports/sports_general.jpg'),
+
+  // Individual Sports
+  running: require('./activities/individual_sports/running.jpg'),
+  climbing: require('./activities/individual_sports/climbing.jpg'),
+  archery: require('./activities/individual_sports/archery.jpg'),
+
+  // Racquet Sports
+  racquet_sports: require('./activities/racquet_sports/racquet_sports.jpg'),
+
   // Martial Arts
-  martial_arts: require('./activities/martial_arts.jpg'),
-  karate: require('./activities/karate.jpg'),
-  
-  // Educational
-  stem: require('./activities/stem.jpg'),
-  cooking: require('./activities/cooking.jpg'),
-  science: require('./activities/science.jpg'),
-  leadership: require('./activities/leadership.jpg'),
-  language: require('./activities/language.jpg'),
-  reading: require('./activities/reading.jpg'),
-  
-  // Outdoor & Camps
-  summer_camp: require('./activities/summer_camp.jpg'),
-  outdoor: require('./activities/outdoor.jpg'),
-  nature: require('./activities/nature.jpg'),
-  playground: require('./activities/playground.jpg'),
-  hiking: require('./activities/hiking.jpg'),
-  skiing: require('./activities/skiing.jpg'),
-  
-  // Early Years
-  early_years: require('./activities/early_years.jpg'),
-  toddler_play: require('./activities/toddler_play.jpg'),
-  preschool: require('./activities/preschool.jpg'),
-  kids_activities: require('./activities/kids_activities.jpg'),
-  
-  // Special Programs
-  kids_night_out: require('./activities/kids_night_out.jpg'),
-  youth_activities: require('./activities/youth_activities.jpg'),
-  
-  // Skating
-  ice_skating: require('./activities/ice_skating.jpg'),
-  skateboarding: require('./activities/skateboarding.jpg'),
-  
-  // General
-  recreation_center: require('./activities/recreation_center.jpg'),
-  community_center: require('./activities/community_center.jpg'),
-  family_fun: require('./activities/family_fun.jpg'),
-  
+  karate: require('./activities/martial_arts/karate.jpg'),
+  taekwondo: require('./activities/martial_arts/taekwondo.jpg'),
+
+  // Dance
+  ballet: require('./activities/dance/ballet.jpg'),
+  hip_hop_dance: require('./activities/dance/hip_hop_dance.jpg'),
+
+  // Visual Arts
+  arts_crafts: require('./activities/visual_arts/arts_crafts.jpg'),
+  pottery: require('./activities/visual_arts/pottery.jpg'),
+  crafts: require('./activities/visual_arts/crafts.jpg'),
+  drawing: require('./activities/visual_arts/drawing.jpg'),
+
+  // Music
+  music: require('./activities/music/music.jpg'),
+  choir: require('./activities/music/choir.jpg'),
+
+  // Performing Arts
+  theater: require('./activities/performing_arts/theater.jpg'),
+
+  // Skating & Wheels
+  skateboarding: require('./activities/skating_wheels/skateboarding.jpg'),
+  bmx: require('./activities/skating_wheels/bmx.jpg'),
+  scooter: require('./activities/skating_wheels/scooter.jpg'),
+
+  // STEM & Education
+  stem: require('./activities/stem_education/stem.jpg'),
+  science: require('./activities/stem_education/science.jpg'),
+  reading: require('./activities/stem_education/reading.jpg'),
+  coding: require('./activities/stem_education/coding.jpg'),
+  robotics: require('./activities/stem_education/robotics.jpg'),
+
+  // Fitness & Wellness
+  yoga: require('./activities/fitness_wellness/yoga.jpg'),
+  meditation: require('./activities/fitness_wellness/meditation.jpg'),
+
+  // Outdoor & Adventure
+  nature: require('./activities/outdoor_adventure/nature.jpg'),
+  hiking: require('./activities/outdoor_adventure/hiking.jpg'),
+  skiing: require('./activities/outdoor_adventure/skiing.jpg'),
+  camping: require('./activities/outdoor_adventure/camping.jpg'),
+
+  // Language & Culture
+  language: require('./activities/language_culture/language.jpg'),
+  french: require('./activities/language_culture/french.jpg'),
+  spanish: require('./activities/language_culture/spanish.jpg'),
+
+  // Special Needs Programs
+  recreation_center: require('./activities/special_needs/recreation_center.jpg'),
+  community_center: require('./activities/special_needs/community_center.jpg'),
+
+  // Life Skills & Leadership
+  leadership: require('./activities/life_skills/leadership.jpg'),
+
+  // Early Development
+  early_years: require('./activities/early_development/early_years.jpg'),
+  toddler_play: require('./activities/early_development/toddler_play.jpg'),
+  preschool: require('./activities/early_development/preschool.jpg'),
+  kids_activities: require('./activities/early_development/kids_activities.jpg'),
+  sensory_play: require('./activities/early_development/sensory_play.jpg'),
+
+  // Other / General
+  family_fun: require('./activities/other/family_fun.jpg'),
+  youth_activities: require('./activities/other/youth_activities.jpg'),
+
   // Legacy mappings (kept for backward compatibility)
-  camps: require('./activities/summer_camp.jpg'),
-  sports: require('./activities/sports_general.jpg'),
-  visual_arts: require('./activities/arts_crafts.jpg'),
-  learn_and_play: require('./activities/kids_activities.jpg'),
+  sports: require('./activities/multi_sport/sports_general.jpg'),
+  visual_arts: require('./activities/visual_arts/arts_crafts.jpg'),
+  learn_and_play: require('./activities/early_development/kids_activities.jpg'),
 };
 
 // Get image by key with fallback

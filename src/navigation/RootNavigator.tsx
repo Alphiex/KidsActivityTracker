@@ -198,15 +198,15 @@ const MainTabs = () => {
       }}
     >
     <Tab.Screen
-      name="Explore"
+      name="Filters"
       component={HomeStack}
       options={{
-        tabBarLabel: 'Explore',
+        tabBarLabel: 'Filters',
         tabBarIcon: ({ color, size, focused }) => (
-          <Icon 
-            name={focused ? "compass" : "compass-outline"} 
-            color={color} 
-            size={26} 
+          <Icon
+            name="magnify"
+            color={color}
+            size={26}
           />
         ),
       }}

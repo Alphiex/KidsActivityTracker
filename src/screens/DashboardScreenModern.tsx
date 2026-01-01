@@ -17,7 +17,7 @@ import ActivityService from '../services/activityService';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
-import { getActivityImageByKey } from '../assets/images';
+import { getActivityImageByKey, aiRobotImage } from '../assets/images';
 import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
@@ -459,37 +459,37 @@ const DashboardScreenModern = () => {
         id: 1,
         name: '0-2 years',
         range: '0-2',
-        image: require('../assets/images/activities/toddler_play.jpg'),
+        image: require('../assets/images/activities/early_development/toddler_play.jpg'),
       },
       {
         id: 2,
         name: '3-5 years',
         range: '3-5',
-        image: require('../assets/images/activities/preschool.jpg'),
+        image: require('../assets/images/activities/early_development/preschool.jpg'),
       },
       {
         id: 3,
         name: '6-8 years',
         range: '6-8',
-        image: require('../assets/images/activities/kids_activities.jpg'),
+        image: require('../assets/images/activities/early_development/kids_activities.jpg'),
       },
       {
         id: 4,
         name: '9-12 years',
         range: '9-12',
-        image: require('../assets/images/activities/youth_activities.jpg'),
+        image: require('../assets/images/activities/other/youth_activities.jpg'),
       },
       {
         id: 5,
         name: '13+ years',
         range: '13+',
-        image: require('../assets/images/activities/leadership.jpg'),
+        image: require('../assets/images/activities/life_skills/leadership.jpg'),
       },
       {
         id: 6,
         name: 'All Ages',
         range: 'all',
-        image: require('../assets/images/activities/family_fun.jpg'),
+        image: require('../assets/images/activities/other/family_fun.jpg'),
       },
     ]);
   };
@@ -842,14 +842,6 @@ const DashboardScreenModern = () => {
               <Text style={styles.searchText}>Search Activities</Text>
             </View>
           </TouchableOpacity>
-          
-          {/* Map Button */}
-          <TouchableOpacity
-            style={styles.mapButton}
-            onPress={() => handleNavigate('MapSearch')}
-          >
-            <Icon name="map" size={22} color="#FF385C" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -890,20 +882,27 @@ const DashboardScreenModern = () => {
           onPress={() => navigation.navigate('AIRecommendations', {
             search_intent: 'Find the best activities for my family this weekend'
           })}
+          activeOpacity={0.9}
         >
           <LinearGradient
-            colors={['#8B5CF6', '#6366F1']}
+            colors={['#8B5CF6', '#6366F1', '#4F46E5']}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.aiBannerGradient}
           >
-            <View style={styles.aiBannerContent}>
-              <Icon name="auto-fix" size={24} color="#fff" />
-              <View style={styles.aiBannerText}>
-                <Text style={styles.aiBannerTitle}>AI-Powered Recommendations</Text>
-                <Text style={styles.aiBannerSubtitle}>Get personalized picks just for your family</Text>
+            <View style={styles.aiBannerRow}>
+              <View style={styles.aiRobotContainer}>
+                <Image source={aiRobotImage} style={styles.aiRobotImage} />
               </View>
-              <Icon name="chevron-right" size={20} color="#fff" />
+              <View style={styles.aiBannerTextContainer}>
+                <Text style={styles.aiBannerTitle}>AI-Powered Recommendations</Text>
+                <Text style={styles.aiBannerSubtitle}>Get personalized activity picks based on your family's interests</Text>
+              </View>
+            </View>
+            <View style={styles.aiTryButton}>
+              <Icon name="sparkles" size={16} color="#FFFFFF" />
+              <Text style={styles.aiTryButtonText}>Ask AI for Suggestions</Text>
+              <Icon name="chevron-right" size={18} color="#FFFFFF" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -1136,6 +1135,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    zIndex: 50,
   },
   scrollView: {
     flex: 1,
@@ -1147,9 +1147,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 20,
-    marginTop: 10,
+    marginTop: 15,
     marginBottom: 10,
     gap: 10,
+    zIndex: 60,
   },
   searchBar: {
     flex: 1,
@@ -1166,21 +1167,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mapButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
   searchContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1193,36 +1179,66 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   aiBanner: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 24,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   aiBannerGradient: {
     padding: 16,
   },
-  aiBannerContent: {
+  aiBannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
-  aiBannerText: {
+  aiRobotContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  aiRobotImage: {
+    width: 50,
+    height: 50,
+    resizeMode: 'contain',
+  },
+  aiBannerTextContainer: {
     flex: 1,
   },
   aiBannerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   aiBannerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 18,
+  },
+  aiTryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 14,
+    alignSelf: 'flex-start',
+  },
+  aiTryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+    marginHorizontal: 8,
   },
   waitlistBanner: {
     marginHorizontal: 20,

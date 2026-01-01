@@ -28,6 +28,7 @@ import {
   AILoadingState,
   AIErrorState,
 } from '../components/ai';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 interface RouteParams {
   search_intent?: string;
@@ -318,7 +319,8 @@ const AIRecommendationsScreen = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {renderHeader()}
+      {/* Top Tab Navigation */}
+      <TopTabNavigation />
 
       {loading ? (
         <AILoadingState message="Finding the best activities for you..." />
