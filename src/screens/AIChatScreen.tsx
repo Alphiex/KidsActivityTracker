@@ -651,15 +651,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyAvatarContainer: {
-    width: 100,
-    height: 100,
+    width: 65,
+    height: 65,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   emptyAvatar: {
-    width: 100,
-    height: 100,
+    width: 65,
+    height: 65,
     resizeMode: 'contain',
   },
   emptyTitle: {
