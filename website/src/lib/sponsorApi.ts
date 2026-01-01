@@ -273,8 +273,14 @@ class SponsorApiClient {
       totals: { impressions: number; clicks: number; ctr: string };
       timeSeries: Array<{ date: string; impressionsTotal: number; clicksTotal: number }>;
       breakdown: {
-        byPlacement: { impressions: unknown[]; clicks: unknown[] };
-        byCity: { impressions: unknown[]; clicks: unknown[] };
+        byPlacement: {
+          impressions: Array<{ placement: string; _count: number }>;
+          clicks: Array<{ placement: string; _count: number }>;
+        };
+        byCity: {
+          impressions: Array<{ city: string; _count: number }>;
+          clicks: Array<{ city: string; _count: number }>;
+        };
       };
     };
   }> {
