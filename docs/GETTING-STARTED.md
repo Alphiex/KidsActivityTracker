@@ -54,24 +54,59 @@ cd ios && pod install && cd ..
 
 ### 3. Environment Configuration
 
+The app uses `react-native-config` for environment variables.
+
+#### Frontend Environment
+
 Create environment files:
 
 ```bash
-# Frontend environment
-cp .env.example .env
+# Copy example to create your config
+cp config/.env.example config/.env
+```
 
-# Backend environment
+Edit `config/.env` with your configuration:
+
+```env
+# API Configuration
+API_URL=https://kids-activity-api-4ev6yi22va-uc.a.run.app
+
+# Google Places API (required for address autocomplete)
+GOOGLE_PLACES_API_KEY=your_google_api_key_here
+
+# Skip authentication in development
+SKIP_AUTH=true
+```
+
+For production builds, also create `config/.env.production`:
+```env
+API_URL=https://kids-activity-api-4ev6yi22va-uc.a.run.app
+GOOGLE_PLACES_API_KEY=your_google_api_key_here
+```
+
+#### iOS-Specific Configuration (gitignored)
+
+Create `ios/Config.local.xcconfig`:
+```
+GOOGLE_MAPS_API_KEY = your_google_api_key_here
+```
+
+Update both GoogleService-Info.plist files with your Firebase API key:
+- `ios/GoogleService-Info.plist`
+- `ios/KidsActivityTracker/GoogleService-Info.plist`
+
+After creating/modifying `.env` files, regenerate iOS config:
+```bash
+cd ios && pod install && cd ..
+```
+
+#### Backend Environment
+
+```bash
 cp server/.env.example server/.env
 ```
 
-Edit `.env` files with your configuration:
-
-**Frontend (.env)**:
-```env
-API_URL=http://localhost:3000
-```
-
-**Backend (server/.env)**:
+Edit `server/.env`:
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/kidsactivity
 JWT_SECRET=your-secret-key-min-32-chars

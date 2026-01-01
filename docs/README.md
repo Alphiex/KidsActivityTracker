@@ -108,9 +108,10 @@ KidsActivityTracker/
 
 | Environment | URL |
 |-------------|-----|
-| Production API | https://kids-activity-api-205843686007.us-central1.run.app |
-| API Health Check | https://kids-activity-api-205843686007.us-central1.run.app/health |
-| API Documentation | https://kids-activity-api-205843686007.us-central1.run.app/api-docs |
+| Production API | https://kids-activity-api-4ev6yi22va-uc.a.run.app |
+| API Health Check | https://kids-activity-api-4ev6yi22va-uc.a.run.app/health |
+| API Documentation | https://kids-activity-api-4ev6yi22va-uc.a.run.app/api-docs |
+| Website | https://website-4ev6yi22va-uc.a.run.app |
 
 ## Contributing
 

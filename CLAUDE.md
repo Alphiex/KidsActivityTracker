@@ -83,8 +83,34 @@ npm run typecheck   # Check for TypeScript errors
 - Format: "9:30 am - 12:00 pm"
 
 ## API Configuration
-- API endpoint: `https://kids-activity-api-205843686007.us-central1.run.app`
+- API endpoint: `https://kids-activity-api-4ev6yi22va-uc.a.run.app`
 - Database: PostgreSQL on Google Cloud SQL
+
+## Environment Variables (react-native-config)
+
+The app uses `react-native-config` for environment variables. Configuration files:
+
+### Development
+- `config/.env` - Development environment (symlinked to `.env`)
+- Contains: `API_URL`, `GOOGLE_PLACES_API_KEY`, `SKIP_AUTH`
+
+### Production
+- `config/.env.production` - Production environment (symlinked to `.env.production`)
+- Must contain `GOOGLE_PLACES_API_KEY` for App Store builds
+
+### iOS-Specific Configuration (gitignored)
+These files must exist locally for builds:
+- `ios/Config.local.xcconfig` - Contains `GOOGLE_MAPS_API_KEY`
+- `ios/GoogleService-Info.plist` - Firebase config with `API_KEY`
+- `ios/KidsActivityTracker/GoogleService-Info.plist` - Duplicate for Xcode
+
+### Regenerating Environment
+After changing `.env` files, regenerate the iOS config:
+```bash
+cd ios && pod install && cd ..
+```
+
+This updates `node_modules/react-native-config/ios/ReactNativeConfig/GeneratedDotEnv.m`
 
 ## Coverage Statistics (December 2025)
 - **112,000+** activities from **81 cities** across **8 provinces**

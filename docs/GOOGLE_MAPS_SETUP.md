@@ -17,6 +17,30 @@ Enable these APIs in Google Cloud Console:
 
 > **Note**: The app uses the legacy Places API for address autocomplete. As of March 2025, new Google Cloud projects may only have access to the "Places API (New)". If your project was created before March 2025, enable the standard "Places API".
 
+## Environment Configuration
+
+The app uses `react-native-config` for environment variables. The Google Places API key is loaded from `.env` files.
+
+### Setting Up Environment Files
+
+1. **Development** (`config/.env`):
+```env
+API_URL=https://kids-activity-api-4ev6yi22va-uc.a.run.app
+GOOGLE_PLACES_API_KEY=your_api_key_here
+SKIP_AUTH=true
+```
+
+2. **Production** (`config/.env.production`):
+```env
+API_URL=https://kids-activity-api-4ev6yi22va-uc.a.run.app
+GOOGLE_PLACES_API_KEY=your_api_key_here
+```
+
+After modifying `.env` files, regenerate the iOS native config:
+```bash
+cd ios && pod install && cd ..
+```
+
 ## Local Development Setup
 
 ### Android
@@ -31,18 +55,20 @@ This file is gitignored and won't be committed.
 
 ### iOS
 
-Create `ios/Config.local.xcconfig` with your API key:
-
+**1. Create `ios/Config.local.xcconfig`:**
 ```
 GOOGLE_MAPS_API_KEY = your_ios_api_key_here
 ```
 
-This file is gitignored and won't be committed.
+**2. Update `ios/GoogleService-Info.plist` and `ios/KidsActivityTracker/GoogleService-Info.plist`:**
 
-Then in Xcode:
-1. Open the project settings
-2. Go to Build Settings
-3. Add `GOOGLE_MAPS_API_KEY` as a user-defined setting (or it will be read from the xcconfig)
+Both files need the correct `API_KEY` value for Firebase/Google services:
+```xml
+<key>API_KEY</key>
+<string>your_api_key_here</string>
+```
+
+All these files are gitignored and won't be committed.
 
 ## CI/CD Setup
 
