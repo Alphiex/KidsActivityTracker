@@ -181,21 +181,28 @@ export default function AICapabilities() {
           </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="text-center mt-12">
-          <p className="text-gray-400 mb-6">
-            Experience the future of activity discovery
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <a
-              href="#download"
-              className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl"
-            >
-              Try AI Search Free
-              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </a>
+        {/* Example Results Section */}
+        <div className="mt-16">
+          <div className="text-center mb-8">
+            <h3 className="text-xl font-semibold text-gray-300 mb-2">See AI in Action</h3>
+            <p className="text-gray-500">Real examples of what our AI can find for you</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-white/5 rounded-xl p-4 border border-gray-700">
+              <div className="text-purple-400 text-sm font-medium mb-2">Query</div>
+              <p className="text-white text-sm mb-3">&quot;swimming for toddlers on weekends&quot;</p>
+              <div className="text-green-400 text-xs">✓ Found 47 matching activities</div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-4 border border-gray-700">
+              <div className="text-purple-400 text-sm font-medium mb-2">Query</div>
+              <p className="text-white text-sm mb-3">&quot;art classes under $50 for 8 year old&quot;</p>
+              <div className="text-green-400 text-xs">✓ Found 23 matching activities</div>
+            </div>
+            <div className="bg-white/5 rounded-xl p-4 border border-gray-700">
+              <div className="text-purple-400 text-sm font-medium mb-2">Query</div>
+              <p className="text-white text-sm mb-3">&quot;soccer camps this summer near me&quot;</p>
+              <div className="text-green-400 text-xs">✓ Found 12 matching activities</div>
+            </div>
           </div>
         </div>
       </div>

@@ -14,19 +14,19 @@ const screenshots: Screenshot[] = [
   {
     id: 'discover',
     title: 'Discover Activities',
-    description: 'Browse hundreds of activities filtered by age, type, and location',
+    description: 'Browse personalized recommendations and trending activities for your kids',
     image: '/images/screenshots/dashboard.png',
   },
   {
     id: 'calendar',
     title: 'Track Schedules',
-    description: 'Keep all your children\'s activities organized in one place',
+    description: 'Keep all your children\'s activities organized in one beautiful calendar',
     image: '/images/screenshots/calendar.png',
   },
   {
-    id: 'filter',
-    title: 'Smart Filtering',
-    description: 'Find the perfect activity with powerful search filters',
+    id: 'map',
+    title: 'Activity Map',
+    description: 'Find activities near you with our interactive map view',
     image: '/images/screenshots/filters.png',
   },
   {
@@ -84,7 +84,7 @@ export default function AppScreenshots() {
                           <div className="text-center p-6">
                             <div className="w-16 h-16 mx-auto mb-4 bg-purple-200 rounded-2xl flex items-center justify-center">
                               <span className="text-3xl">
-                                {activeIndex === 0 ? '🔍' : activeIndex === 1 ? '📅' : activeIndex === 2 ? '⚙️' : '📋'}
+                                {activeIndex === 0 ? '🔍' : activeIndex === 1 ? '📅' : activeIndex === 2 ? '🗺️' : '📋'}
                               </span>
                             </div>
                             <p className="text-gray-600 font-medium">
@@ -125,7 +125,7 @@ export default function AppScreenshots() {
                     }`}
                   >
                     <span className="text-2xl">
-                      {index === 0 ? '🔍' : index === 1 ? '📅' : index === 2 ? '⚙️' : '📋'}
+                      {index === 0 ? '🔍' : index === 1 ? '📅' : index === 2 ? '🗺️' : '📋'}
                     </span>
                   </div>
                   <div>

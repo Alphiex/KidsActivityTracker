@@ -13,6 +13,9 @@ You need **two separate API keys** from the [Google Cloud Console](https://conso
 Enable these APIs in Google Cloud Console:
 - Maps SDK for iOS
 - Maps SDK for Android
+- **Places API** (for address autocomplete)
+
+> **Note**: The app uses the legacy Places API for address autocomplete. As of March 2025, new Google Cloud projects may only have access to the "Places API (New)". If your project was created before March 2025, enable the standard "Places API".
 
 ## Local Development Setup
 
@@ -81,3 +84,68 @@ keytool -list -v -keystore your-release-key.keystore -alias your-key-alias
 - Verify the API key restrictions match your app's bundle ID / package name
 - Check that the correct APIs are enabled
 - Wait a few minutes after creating/modifying keys for changes to propagate
+
+### Address autocomplete not working
+- Ensure **Places API** is enabled in Google Cloud Console
+- Verify your API key allows Places API requests
+- Check the key restrictions include your app's bundle ID / package name
+- For new projects (post-March 2025), you may need to use "Places API (New)" instead
+
+## Address Autocomplete
+
+The app uses `react-native-google-places-autocomplete` for address search with suggestions.
+
+### Configuration
+
+The Places API key is configured in `src/config/google.ts`:
+
+```typescript
+export const GOOGLE_PLACES_CONFIG = {
+  API_KEY: 'your_api_key_here',
+  DEFAULT_QUERY: {
+    language: 'en',
+    components: 'country:ca|country:us',
+  },
+  DEBOUNCE_DELAY: 300,
+};
+```
+
+### Features
+- Real-time address suggestions as user types
+- Full address parsing (street, city, province, postal code, coordinates)
+- Fallback to manual entry if API fails
+- Restricted to Canada and US addresses
+
+### Component Usage
+
+```typescript
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+
+<AddressAutocomplete
+  value={selectedAddress}
+  onAddressSelect={handleAddressSelect}
+  placeholder="Search for your address..."
+  country={['ca', 'us']}
+  showFallbackOption={true}
+/>
+```
+
+### EnhancedAddress Type
+
+The autocomplete returns an `EnhancedAddress` object with full details:
+
+```typescript
+interface EnhancedAddress {
+  formattedAddress: string;
+  latitude: number;
+  longitude: number;
+  streetNumber?: string;
+  streetName?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  placeId?: string;
+  updatedAt: string;
+}
+```

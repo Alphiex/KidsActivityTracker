@@ -53,7 +53,7 @@ POWERFUL SMART SEARCH
 Filter by your child's age, activity type, location, day of the week, budget, and distance. Our intelligent filters help you find exactly what you're looking for in seconds.
 
 DISTANCE-BASED DISCOVERY
-Find activities within your preferred radius - from 5km to 100km. Save multiple locations (home, work, school, grandparents) and search from any of them instantly.
+Find activities within your preferred radius - from 5km to 100km. Use GPS or enter your address with smart autocomplete suggestions. Save your home, work, or any location and search from any of them instantly.
 
 MULTIPLE CHILD PROFILES
 Create personalized profiles for each of your children with their birthdate, interests, allergies, and special needs. Get tailored recommendations that match each child perfectly.
@@ -130,9 +130,11 @@ kids Canada,children activities,Toronto camps,Vancouver swimming,Calgary sports,
 ```
 NEW IN THIS VERSION:
 
-DISTANCE-BASED SEARCH
+DISTANCE-BASED SEARCH WITH ADDRESS AUTOCOMPLETE
 - Find activities within your preferred radius (5km to 100km)
-- Save multiple locations: home, work, school, grandparents
+- Smart address autocomplete: start typing and get instant suggestions
+- Use GPS or enter any address manually
+- Save your home, work, or any location for quick access
 - Automatic sorting by distance from your chosen location
 
 ENHANCED AI RECOMMENDATIONS
@@ -165,7 +167,7 @@ Thank you for using Kids Activity Tracker!
 ## Promotional Text (170 characters, can be updated without new submission)
 
 ```
-NEW: Distance-based search finds activities near you! AI-powered recommendations + 100,000 activities across 73 Canadian cities. Start discovering today!
+NEW: Address autocomplete for instant location search! Enter your address, set your radius, and find nearby activities. AI-powered + 100,000 activities across 79 Canadian cities.
 ```
 
 ---
@@ -385,7 +387,7 @@ We do not use any data for tracking users across apps or websites.
 1. **Only Canadian-focused app** - Built specifically for Canadian families
 2. **AI-powered search** - Natural language queries understood
 3. **Family sharing** - Coordinate with co-parents seamlessly
-4. **Distance filtering** - Find activities near any saved location
+4. **Smart address autocomplete** - Start typing and get instant location suggestions with distance filtering
 5. **Real-time availability** - Never miss registration deadlines
 
 ### Target Audience

@@ -21,6 +21,11 @@ src/
 │   ├── ActivityCard.tsx           # Activity display card
 │   ├── modern/
 │   │   └── ActivityCardModern.tsx # Modern styled card
+│   ├── AddressAutocomplete/       # Address search with suggestions
+│   │   ├── AddressAutocomplete.tsx  # Main component
+│   │   ├── types.ts               # Type definitions
+│   │   ├── utils.ts               # Helper functions
+│   │   └── index.ts               # Barrel export
 │   ├── calendar/                  # Calendar components
 │   ├── children/                  # Child profile components
 │   ├── filters/
@@ -249,6 +254,46 @@ interface HierarchicalSelectProps {
 }
 ```
 
+### AddressAutocomplete
+
+Google Places-powered address search with suggestions:
+```typescript
+interface AddressAutocompleteProps {
+  value: EnhancedAddress | null;
+  onAddressSelect: (address: EnhancedAddress | null) => void;
+  placeholder?: string;
+  label?: string;
+  country?: string | string[];  // e.g., ['ca', 'us']
+  showClearButton?: boolean;
+  showFallbackOption?: boolean;  // Show "Enter manually" option
+  disabled?: boolean;
+  error?: string;
+}
+```
+
+Features:
+- Real-time suggestions as user types (300ms debounce)
+- Full address parsing (street, city, province, postal code, coordinates)
+- Fallback to manual entry with Nominatim geocoding
+- Theme-aware styling via `useTheme()`
+- Selected address display with clear button
+
+Usage:
+```typescript
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { EnhancedAddress } from '../types/preferences';
+
+const [address, setAddress] = useState<EnhancedAddress | null>(null);
+
+<AddressAutocomplete
+  value={address}
+  onAddressSelect={setAddress}
+  placeholder="Search for your address..."
+  country={['ca', 'us']}
+  showFallbackOption={true}
+/>
+```
+
 ## API Integration
 
 ### API Service
@@ -322,11 +367,20 @@ export const locationService = {
   // Get current GPS coordinates
   async getCurrentLocation(): Promise<Coordinates | null> { ... },
 
-  // Geocode an address to coordinates
-  async geocodeAddress(address: string): Promise<GeocodedAddress | null> { ... },
+  // Get saved address (legacy format for backward compatibility)
+  getSavedAddress(): SavedAddress | null { ... },
 
-  // Calculate distance between two points (Haversine formula)
-  calculateDistance(from: Coordinates, to: Coordinates): number { ... }
+  // Get enhanced address (new format with full details)
+  getEnhancedAddress(): EnhancedAddress | null { ... },
+
+  // Save enhanced address from autocomplete
+  async saveEnhancedAddress(address: EnhancedAddress): Promise<boolean> { ... },
+
+  // Get effective location (GPS or saved address based on preference)
+  async getEffectiveLocation(): Promise<EffectiveLocation | null> { ... },
+
+  // Get distance filter params for API calls
+  async getDistanceFilterParams(): Promise<{ userLat?, userLon?, radiusKm? }> { ... }
 };
 ```
 
@@ -443,6 +497,7 @@ npm run lint -- --fix
 | `react-native-reanimated` | Animations |
 | `react-native-calendars` | Calendar UI |
 | `react-native-maps` | Map integration |
+| `react-native-google-places-autocomplete` | Address search |
 | `lucide-react-native` | Icons |
 | `react-hook-form` | Form handling |
 | `date-fns` | Date utilities |

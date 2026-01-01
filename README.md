@@ -10,6 +10,8 @@ Kids Activity Tracker helps parents find, track, and manage recreational activit
 
 - **Activity Discovery**: Browse 100,000+ activities with smart filtering (age, location, date, cost)
 - **79 Cities Supported**: Coverage across 10 provinces from coast to coast
+- **Address Autocomplete**: Start typing your address and get instant suggestions with full address parsing
+- **Distance Filtering**: Find activities within your radius (5-100km) from GPS or saved address
 - **Child Profiles**: Manage multiple children with personalized recommendations
 - **Calendar Integration**: Track activities with week/month views and color-coded child assignments
 - **Favorites**: Save and organize activities you're interested in

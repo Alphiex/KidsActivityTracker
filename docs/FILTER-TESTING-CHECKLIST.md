@@ -63,11 +63,36 @@ Comprehensive manual testing guide for validating filter functionality across Fi
 | Test ID | Test Case | Steps | Expected Result | Pass/Fail |
 |---------|-----------|-------|-----------------|-----------|
 | DIST-01 | Distance disabled by default | Open Distance section | Toggle is off | |
-| DIST-02 | Enable distance filter | Toggle distance on | GPS permission prompt (if not granted) | |
-| DIST-03 | Distance slider appears | Enable distance filter | Slider shows (default 25km) | |
-| DIST-04 | Adjust distance radius | Drag slider to 50km | Label updates to "50 km" | |
-| DIST-05 | Distance disabled state | Toggle off | Slider hidden, "Disabled" shown | |
-| DIST-06 | GPS unavailable handling | Deny location permission | Appropriate error/guidance shown | |
+| DIST-02 | Enable distance filter | Toggle distance on | Location source options appear | |
+| DIST-03 | Radius selector appears | Enable distance filter | Radius chips shown (5/10/25/50/100 km) | |
+| DIST-04 | Select radius | Tap "50 km" chip | Chip highlights, radius updates | |
+| DIST-05 | GPS option works | Tap "Use GPS Location" | Permission prompt if not granted | |
+| DIST-06 | GPS permission granted | Grant location permission | GPS option shows "Location access granted" | |
+| DIST-07 | GPS permission denied | Deny location permission | Message shows "Tap to enable" | |
+| DIST-08 | GPS permission blocked | Block permission in settings | Message shows "Permission blocked - tap to open settings" | |
+| DIST-09 | Saved address option | Tap "Use Saved Address" | Address autocomplete section appears | |
+| DIST-10 | Distance disabled state | Toggle off | Location options hidden | |
+
+### Address Autocomplete Section
+
+| Test ID | Test Case | Steps | Expected Result | Pass/Fail |
+|---------|-----------|-------|-----------------|-----------|
+| ADDR-01 | Autocomplete loads | Select "Use Saved Address" | Address input appears with search icon | |
+| ADDR-02 | Typing shows suggestions | Type "123 Main" | Dropdown with address suggestions appears | |
+| ADDR-03 | Suggestions debounced | Type rapidly | Suggestions appear after typing stops (300ms) | |
+| ADDR-04 | Minimum 3 characters | Type "12" | No suggestions shown | |
+| ADDR-05 | Select address from dropdown | Tap on suggestion | Address selected, input shows formatted address | |
+| ADDR-06 | Address details parsed | Select address | City, province, postal code extracted correctly | |
+| ADDR-07 | Coordinates captured | Select address | Latitude/longitude stored | |
+| ADDR-08 | Selected address display | After selection | Shows address with checkmark icon and clear button | |
+| ADDR-09 | Clear selected address | Tap X button on selected address | Address cleared, input returns | |
+| ADDR-10 | Manual entry fallback | Tap "Enter address manually" | Manual entry form appears | |
+| ADDR-11 | Manual entry geocoding | Enter address manually, tap Verify | Address geocoded and saved | |
+| ADDR-12 | Manual entry back button | In manual mode, tap Back | Returns to autocomplete view | |
+| ADDR-13 | API error handling | Disconnect network, type | "Address search is currently unavailable" shown | |
+| ADDR-14 | No results message | Search gibberish like "xyzabc123" | "No addresses found" message shown | |
+| ADDR-15 | Address persists | Select address, leave screen, return | Same address still selected | |
+| ADDR-16 | Canada/US restriction | Type "London, UK" | No UK results, only Canada/US | |
 
 ### Budget Section
 
@@ -208,8 +233,11 @@ Test that applying filters returns correct activity results.
 | 6 | Swimming + Ages 6-10 | Combine filters, search | Swimming for school-age kids | |
 | 7 | Free + Vancouver | Combine filters, search | Free activities in Vancouver | |
 | 8 | Sports + Saturday + Morning | Combine filters, search | Weekend morning sports | |
-| 9 | All filters active | Set all filters, search | Highly filtered results (may be 0) | |
-| 10 | Clear all + verify reset | Clear all, search | All activities shown | |
+| 9 | Distance: 10km from address | Enter address via autocomplete, set 10km | Only nearby activities | |
+| 10 | Distance: GPS + 25km | Enable GPS, set 25km | Activities within GPS radius | |
+| 11 | Address + Swimming | Enter address, select Swimming | Nearby swimming activities | |
+| 12 | All filters active | Set all filters, search | Highly filtered results (may be 0) | |
+| 13 | Clear all + verify reset | Clear all, search | All activities shown | |
 
 ---
 
@@ -221,6 +249,9 @@ Test that applying filters returns correct activity results.
 | CROSS-02 | Search filters are independent | Use Search, return to Dashboard | Dashboard preferences unchanged | |
 | CROSS-03 | Activity type lists match | Compare FiltersScreen and SearchScreen | Same activity types in both | |
 | CROSS-04 | Age range behavior consistent | Compare age sliders in both screens | Same min/max constraints | |
+| CROSS-05 | Address syncs from Onboarding | Set address in Onboarding | Same address in Distance Preferences | |
+| CROSS-06 | Address syncs to Preferences | Change address in Preferences | Used for distance filtering in Dashboard | |
+| CROSS-07 | Onboarding address autocomplete | Go through Onboarding, enter address | Autocomplete works same as Preferences | |
 
 ---
 
@@ -235,6 +266,11 @@ Test that applying filters returns correct activity results.
 | EDGE-05 | Long text in search | Enter 100+ character search | Text handled, no crash | |
 | EDGE-06 | Special characters in search | Search "swimming & art's" | Handled correctly | |
 | EDGE-07 | Filter persistence after crash | Set filters, force close app | Filters restored on reopen | |
+| EDGE-08 | Address offline | Type address while offline | "Address search unavailable" message | |
+| EDGE-09 | Rapid address typing | Type very fast in autocomplete | Debounce prevents excessive API calls | |
+| EDGE-10 | Very long address | Enter 200+ character address manually | Address truncated or handled gracefully | |
+| EDGE-11 | Address with special chars | Enter "123 St. Mary's Rd #5" | Handled correctly | |
+| EDGE-12 | Legacy address migration | User with old address format | Migrated to EnhancedAddress format | |
 
 ---
 
@@ -262,7 +298,8 @@ Test that applying filters returns correct activity results.
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Created**: December 2025
 **Last Updated**: December 2025
+**Changes in 1.1**: Added Address Autocomplete testing section
 
