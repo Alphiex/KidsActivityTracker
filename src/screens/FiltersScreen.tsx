@@ -1785,8 +1785,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 15,
     backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
   },
   headerContent: {
     alignItems: 'center',
@@ -1804,8 +1802,6 @@ const styles = StyleSheet.create({
   quickFiltersContainer: {
     backgroundColor: 'transparent',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
   },
   quickFiltersContent: {
     paddingHorizontal: 16,
@@ -1894,15 +1890,17 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
   },
   sectionsContainer: {
     paddingTop: 10,
     paddingBottom: 20,
   },
   sectionContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     marginVertical: 8,
+    marginHorizontal: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1939,7 +1937,7 @@ const styles = StyleSheet.create({
   sectionContent: {
     padding: 20,
     paddingTop: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
   },
   optionsGrid: {
     flexDirection: 'row',
@@ -2232,9 +2230,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFF8F0',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE0CC',
+    marginHorizontal: 12,
+    marginTop: 8,
+    backgroundColor: 'rgba(255, 248, 240, 0.9)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 224, 204, 0.5)',
   },
   globalPreferenceContent: {
     flexDirection: 'row',
