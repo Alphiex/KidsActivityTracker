@@ -16,6 +16,7 @@ import { Activity } from '../../types';
 import { Child } from '../../store/slices/childrenSlice';
 import childrenService, { ChildActivity } from '../../services/childrenService';
 import { shareActivityViaEmail } from '../../utils/sharing';
+import useSmartPaywallTrigger from '../../hooks/useSmartPaywallTrigger';
 
 interface AssignActivityToChildModalProps {
   visible: boolean;
@@ -26,6 +27,7 @@ interface AssignActivityToChildModalProps {
 const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivityToChildModalProps) => {
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { onCalendarAdd } = useSmartPaywallTrigger();
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [assignedChildren, setAssignedChildren] = useState<{ [childId: string]: ChildActivity | null }>({});
@@ -124,8 +126,10 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
           ...prev,
           [child.id]: newAssignment,
         }));
+        // Trigger smart paywall on first calendar add
+        onCalendarAdd();
         Alert.alert(
-          'Success', 
+          'Success',
           `Activity assigned to ${child.name}`,
           [
             { text: 'OK', style: 'default' },

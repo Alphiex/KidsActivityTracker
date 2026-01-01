@@ -26,6 +26,10 @@ interface SubscriptionState {
   isTrialing: boolean;
   trialDaysRemaining: number | null;
 
+  // Trial eligibility (abuse prevention)
+  trialEligible: boolean | null; // null = not checked yet
+  trialUsedAt: string | null; // ISO date string if trial already used
+
   // Available plans
   availablePlans: SubscriptionPlan[];
 
@@ -33,6 +37,7 @@ interface SubscriptionState {
   isLoading: boolean;
   isLoadingPlans: boolean;
   isPurchasing: boolean;
+  isCheckingTrialEligibility: boolean;
 
   // Error state
   error: string | null;
@@ -48,10 +53,13 @@ const initialState: SubscriptionState = {
   usage: null,
   isTrialing: false,
   trialDaysRemaining: null,
+  trialEligible: null,
+  trialUsedAt: null,
   availablePlans: [],
   isLoading: false,
   isLoadingPlans: false,
   isPurchasing: false,
+  isCheckingTrialEligibility: false,
   error: null,
   lastFetched: null,
 };
@@ -124,6 +132,14 @@ export const cancelSubscription = createAsyncThunk(
   'subscription/cancelSubscription',
   async () => {
     const response = await subscriptionService.cancelSubscription();
+    return response;
+  }
+);
+
+export const checkTrialEligibility = createAsyncThunk(
+  'subscription/checkTrialEligibility',
+  async () => {
+    const response = await subscriptionService.checkTrialEligibility();
     return response;
   }
 );
@@ -292,6 +308,22 @@ const subscriptionSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message || 'Failed to cancel subscription';
       });
+
+    // Check Trial Eligibility
+    builder
+      .addCase(checkTrialEligibility.pending, (state) => {
+        state.isCheckingTrialEligibility = true;
+      })
+      .addCase(checkTrialEligibility.fulfilled, (state, action) => {
+        state.isCheckingTrialEligibility = false;
+        state.trialEligible = action.payload.eligible;
+        state.trialUsedAt = action.payload.trialUsedAt || null;
+      })
+      .addCase(checkTrialEligibility.rejected, (state) => {
+        state.isCheckingTrialEligibility = false;
+        // Default to eligible if check fails (fail open)
+        state.trialEligible = true;
+      });
   },
 });
 
@@ -389,3 +421,12 @@ export const selectWaitlistLimit = (state: { subscription?: SubscriptionState })
   const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
   return limits.maxWaitlistItems;
 };
+
+export const selectTrialEligible = (state: { subscription?: SubscriptionState }): boolean | null =>
+  state.subscription?.trialEligible ?? null;
+
+export const selectTrialUsedAt = (state: { subscription?: SubscriptionState }): string | null =>
+  state.subscription?.trialUsedAt ?? null;
+
+export const selectTrialDaysRemaining = (state: { subscription?: SubscriptionState }): number | null =>
+  state.subscription?.trialDaysRemaining ?? null;

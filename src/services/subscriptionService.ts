@@ -54,6 +54,13 @@ interface CancelResponse {
   limits: PlanFeatures;
 }
 
+interface TrialEligibilityResponse {
+  success: boolean;
+  eligible: boolean;
+  reason?: string;
+  trialUsedAt?: string;
+}
+
 interface PlansResponse {
   success: boolean;
   plans: SubscriptionPlan[];
@@ -244,6 +251,23 @@ class SubscriptionService {
     } catch (error: any) {
       console.error('[SubscriptionService] Failed to cancel subscription:', error.message);
       throw new Error(error.response?.data?.error || 'Failed to cancel subscription');
+    }
+  }
+
+  /**
+   * Check if user is eligible for a free trial
+   * Returns false if they've already used their trial
+   */
+  async checkTrialEligibility(): Promise<TrialEligibilityResponse> {
+    try {
+      const response = await this.api.get<TrialEligibilityResponse>(
+        '/api/subscriptions/trial-eligibility'
+      );
+      return response;
+    } catch (error: any) {
+      console.error('[SubscriptionService] Failed to check trial eligibility:', error.message);
+      // Default to eligible if check fails (fail open for better UX)
+      return { success: true, eligible: true };
     }
   }
 }

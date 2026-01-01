@@ -341,11 +341,85 @@ router.post('/cancel', verifyToken, async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/subscriptions/trial-eligibility
+ * Check if user is eligible for a free trial (hasn't used trial before)
+ */
+router.get('/trial-eligibility', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const eligibility = await subscriptionService.checkTrialEligibility(req.user!.id);
+
+    res.json({
+      success: true,
+      eligible: eligibility.eligible,
+      reason: eligibility.reason,
+      trialUsedAt: eligibility.trialUsedAt
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to check trial eligibility'
+    });
+  }
+});
+
+/**
+ * POST /api/subscriptions/record-trial
+ * Record that user started a trial (called after RevenueCat confirms trial)
+ */
+router.post(
+  '/record-trial',
+  verifyToken,
+  [
+    body('deviceId').optional().isString()
+  ],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.body;
+
+      // Check if already used trial
+      const eligibility = await subscriptionService.checkTrialEligibility(req.user!.id);
+      if (!eligibility.eligible) {
+        return res.status(400).json({
+          success: false,
+          error: eligibility.reason || 'Trial already used',
+          trialUsedAt: eligibility.trialUsedAt
+        });
+      }
+
+      // Record the trial start
+      await subscriptionService.recordTrialStart(req.user!.id, deviceId);
+
+      res.json({
+        success: true,
+        message: 'Trial recorded successfully'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to record trial'
+      });
+    }
+  }
+);
+
+/**
  * POST /api/subscriptions/start-trial
- * Start a premium trial for the user
+ * Start a premium trial for the user (development/testing only)
+ * Note: In production, trials are initiated via App Store/RevenueCat
  */
 router.post('/start-trial', verifyToken, async (req: Request, res: Response) => {
   try {
+    // Check trial eligibility first
+    const eligibility = await subscriptionService.checkTrialEligibility(req.user!.id);
+    if (!eligibility.eligible) {
+      return res.status(400).json({
+        success: false,
+        error: eligibility.reason || 'Trial already used',
+        trialUsedAt: eligibility.trialUsedAt
+      });
+    }
+
     const info = await subscriptionService.getUserSubscriptionInfo(req.user!.id);
 
     // Check if user already has or had premium
@@ -355,6 +429,9 @@ router.post('/start-trial', verifyToken, async (req: Request, res: Response) => 
         error: 'You already have a premium subscription'
       });
     }
+
+    // Record trial usage
+    await subscriptionService.recordTrialStart(req.user!.id);
 
     // Create trial subscription
     const subscription = await subscriptionService.createSubscription({

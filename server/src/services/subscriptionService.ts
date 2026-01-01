@@ -428,6 +428,49 @@ export class SubscriptionService {
   }
 
   /**
+   * Check if user is eligible for a free trial
+   * Returns false if they've already used their trial
+   */
+  async checkTrialEligibility(userId: string): Promise<{
+    eligible: boolean;
+    reason?: string;
+    trialUsedAt?: Date;
+  }> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { trialUsedAt: true, email: true }
+    });
+
+    if (!user) {
+      return { eligible: false, reason: 'User not found' };
+    }
+
+    if (user.trialUsedAt) {
+      return {
+        eligible: false,
+        reason: 'Trial already used',
+        trialUsedAt: user.trialUsedAt
+      };
+    }
+
+    return { eligible: true };
+  }
+
+  /**
+   * Record that user has started their free trial
+   * Called when RevenueCat confirms a trial purchase
+   */
+  async recordTrialStart(userId: string, deviceId?: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        trialUsedAt: new Date(),
+        trialDeviceId: deviceId || null
+      }
+    });
+  }
+
+  /**
    * Ensure user has a subscription record (create free if missing)
    * Call this after user registration
    */

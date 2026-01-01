@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import {
 } from '../../store/slices/childrenSlice';
 import { ChildAvatar } from '../../components/children';
 import childrenService from '../../services/childrenService';
+import useSmartPaywallTrigger from '../../hooks/useSmartPaywallTrigger';
 
 type ChildrenStackParamList = {
   ChildrenList: undefined;
@@ -50,6 +51,7 @@ const AddEditChildScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const children = useAppSelector(selectAllChildren);
   const loading = useAppSelector(selectChildrenLoading);
+  const { onChildAdded } = useSmartPaywallTrigger();
 
   const isEdit = !!route.params?.childId;
   const existingChild = isEdit
@@ -251,6 +253,10 @@ const AddEditChildScreen: React.FC = () => {
         }
       } else {
         const result = await dispatch(addChild(childData)).unwrap();
+
+        // Trigger smart paywall after first child is added
+        const newChildCount = children.length + 1;
+        onChildAdded(newChildCount);
 
         // Upload avatar for new child
         if (result && avatarUri && avatarUri.startsWith('file://')) {

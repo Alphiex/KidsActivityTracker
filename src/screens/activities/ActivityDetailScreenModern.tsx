@@ -26,6 +26,7 @@ import FavoritesService from '../../services/favoritesService';
 import WaitlistService from '../../services/waitlistService';
 import childrenService from '../../services/childrenService';
 import useWaitlistSubscription from '../../hooks/useWaitlistSubscription';
+import useSmartPaywallTrigger from '../../hooks/useSmartPaywallTrigger';
 import UpgradePromptModal from '../../components/UpgradePromptModal';
 import RegisterChildModal from '../../components/activities/RegisterChildModal';
 import ChildActivityStatus from '../../components/activities/ChildActivityStatus';
@@ -61,6 +62,7 @@ const ActivityDetailScreenModern = () => {
     waitlistLimit,
     syncWaitlistCount,
   } = useWaitlistSubscription();
+  const { onFavoriteAdded } = useSmartPaywallTrigger();
   const [loading, setLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showChildAssignModal, setShowChildAssignModal] = useState(false);
@@ -191,6 +193,9 @@ const ActivityDetailScreenModern = () => {
 
     if (newFavoriteState) {
       favoritesService.addFavorite(activity);
+      // Trigger smart paywall at 5 favorites milestone
+      const newFavoriteCount = favoritesService.getFavoriteCount();
+      onFavoriteAdded(newFavoriteCount);
     } else {
       favoritesService.removeFavorite(activity.id);
     }

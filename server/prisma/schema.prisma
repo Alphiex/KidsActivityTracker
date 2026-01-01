@@ -491,6 +491,10 @@ model User {
   preferences         Json            @default("{}")
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @default(now()) @updatedAt
+
+  // Trial abuse prevention
+  trialUsedAt         DateTime?       // When user started their free trial (null if never used)
+  trialDeviceId       String?         // Device fingerprint used for trial
   sharedWithMe        ActivityShare[] @relation("SharedWithUser")
   myShares            ActivityShare[] @relation("SharingUser")
   children            Child[]

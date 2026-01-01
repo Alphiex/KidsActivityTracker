@@ -28,9 +28,14 @@ import useFavoriteSubscription from '../hooks/useFavoriteSubscription';
 import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import LinearGradient from 'react-native-linear-gradient';
+import TrialCountdownBanner from '../components/TrialCountdownBanner';
+import { useSelector } from 'react-redux';
+import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
+  const isTrialing = useSelector(selectIsTrialing);
+  const trialDaysRemaining = useSelector(selectTrialDaysRemaining);
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
@@ -862,6 +867,11 @@ const DashboardScreenModern = () => {
         )}
         scrollEventThrottle={16}
       >
+        {/* Trial Countdown Banner - shown when user is trialing */}
+        <TrialCountdownBanner
+          isTrialing={isTrialing}
+          daysRemaining={trialDaysRemaining ?? 0}
+        />
 
         {/* Featured Partners / Sponsor Section - only shown when sponsors exist */}
         {sponsoredActivities.length > 0 && (

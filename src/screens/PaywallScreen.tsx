@@ -15,7 +15,6 @@ import {
   Alert,
   Linking,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -26,15 +25,14 @@ import { useAppSelector, useAppDispatch } from '../store';
 import {
   selectCurrentTier,
   selectIsTrialing,
-  selectLimits,
+  selectTrialEligible,
   fetchSubscription,
   startTrial,
+  checkTrialEligibility,
 } from '../store/slices/subscriptionSlice';
-import { revenueCatService, getPaywallResult, PaywallResultType } from '../services/revenueCatService';
+import { revenueCatService, getPaywallResult } from '../services/revenueCatService';
 import { analyticsService } from '../services/analyticsService';
-import { abTestService, PAYWALL_VARIANTS } from '../services/abTestService';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { abTestService } from '../services/abTestService';
 
 type BillingCycle = 'monthly' | 'annual';
 
@@ -72,6 +70,19 @@ const PRO_FEATURES: ProFeature[] = [
     highlight: true,
   },
   {
+    icon: 'robot-happy',
+    title: 'AI Recommendations',
+    description: 'Get personalized activity suggestions powered by AI',
+    highlight: true,
+    badge: 'AI',
+  },
+  {
+    icon: 'brain',
+    title: 'Smart Search',
+    description: 'Natural language search - just describe what you\'re looking for',
+    badge: 'AI',
+  },
+  {
     icon: 'calendar-export',
     title: 'Calendar Export',
     description: 'Sync activities to Google Calendar, Apple Calendar & more',
@@ -104,6 +115,8 @@ const QUICK_COMPARE = [
   { feature: 'Child profiles', free: '2', pro: 'Unlimited' },
   { feature: 'Favorite activities', free: '10', pro: 'Unlimited' },
   { feature: 'Family sharing', free: '1', pro: 'Unlimited' },
+  { feature: 'AI recommendations', free: '3/day', pro: 'Unlimited' },
+  { feature: 'Smart AI search', free: '-', pro: 'Yes' },
   { feature: 'Saved searches', free: '-', pro: '10+' },
   { feature: 'Calendar export', free: '-', pro: 'Yes' },
   { feature: 'Advanced filters', free: '-', pro: 'Yes' },
@@ -128,8 +141,15 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
 
   const currentTier = useAppSelector(selectCurrentTier);
   const isTrialing = useAppSelector(selectIsTrialing);
-  const limits = useAppSelector(selectLimits);
+  const trialEligible = useAppSelector(selectTrialEligible);
   const { isPurchasing } = useAppSelector((state) => state.subscription);
+
+  // Check trial eligibility on mount
+  useEffect(() => {
+    if (trialEligible === null && !isTrialing) {
+      dispatch(checkTrialEligibility());
+    }
+  }, [trialEligible, isTrialing, dispatch]);
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
   const [offerings, setOfferings] = useState<any>(null);
@@ -146,18 +166,8 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
   // Check if we should use RevenueCat UI paywall
   const useRevenueCatUI = route?.params?.useRevenueCatUI ?? USE_REVENUECAT_PAYWALL;
 
-  // A/B test variants
+  // A/B test variant for analytics
   const headlineVariant = abTestService.getVariant('paywall_headline');
-  const trialCtaVariant = abTestService.getVariant('trial_cta');
-
-  // Get variant content
-  const headlineContent = PAYWALL_VARIANTS.paywall_headline[
-    headlineVariant as keyof typeof PAYWALL_VARIANTS.paywall_headline
-  ] || PAYWALL_VARIANTS.paywall_headline.control;
-
-  const trialCtaText = PAYWALL_VARIANTS.trial_cta[
-    trialCtaVariant as keyof typeof PAYWALL_VARIANTS.trial_cta
-  ] || PAYWALL_VARIANTS.trial_cta.control;
 
   // Start animations on mount
   useEffect(() => {
@@ -192,6 +202,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
     pulseAnimation.start();
 
     return () => pulseAnimation.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // If using RevenueCat UI, present it immediately
@@ -199,6 +210,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
     if (useRevenueCatUI && !showingRevenueCatPaywall) {
       presentRevenueCatPaywall();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useRevenueCatUI]);
 
   // Track paywall view on mount (for custom paywall)
@@ -332,6 +344,16 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
   };
 
   const handleStartTrial = async () => {
+    // Check eligibility first
+    if (trialEligible === false) {
+      Alert.alert(
+        'Trial Already Used',
+        'You\'ve already used your free trial. Subscribe now to unlock all premium features!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     try {
       await dispatch(startTrial()).unwrap();
 
@@ -344,7 +366,15 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Unable to start trial. Please try again.');
+      // Check if error is about trial already used
+      if (error.message?.includes('Trial already used')) {
+        Alert.alert(
+          'Trial Already Used',
+          'You\'ve already used your free trial. Subscribe now to unlock all premium features!'
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Unable to start trial. Please try again.');
+      }
     }
   };
 
@@ -353,7 +383,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
 
     try {
       setIsRestoring(true);
-      const customerInfo = await revenueCatService.restorePurchases();
+      await revenueCatService.restorePurchases();
       await dispatch(fetchSubscription());
 
       const hasPro = revenueCatService.isPro();
@@ -388,6 +418,13 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
     const timeSpent = Date.now() - paywallOpenTime;
     analyticsService.trackPaywallDismissed('paywall_screen', timeSpent);
     navigation.goBack();
+  };
+
+  // Get formatted trial end date (7 days from now)
+  const getTrialEndDate = () => {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 7);
+    return endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   // If using RevenueCat UI, show loading while presenting
@@ -622,7 +659,31 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
           </View>
         </View>
 
-        {/* Testimonial/Trust Section */}
+        {/* Social Proof Section */}
+        <View style={[styles.socialProofSection, { backgroundColor: isDark ? '#1a1a2e' : '#FFF5F7' }]}>
+          <View style={styles.socialProofHeader}>
+            <View style={styles.ratingStars}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Icon key={star} name="star" size={18} color="#FFB800" />
+              ))}
+            </View>
+            <Text style={[styles.ratingText, { color: colors.text }]}>4.8 on App Store</Text>
+          </View>
+          <Text style={[styles.testimonialText, { color: colors.text }]}>
+            "Finally an app that makes finding activities for my kids easy! The filters save me so much time."
+          </Text>
+          <Text style={[styles.testimonialAuthor, { color: colors.textSecondary }]}>
+            — Sarah M., Mom of 3
+          </Text>
+          <View style={styles.familiesCount}>
+            <Icon name="account-group" size={20} color="#E8638B" />
+            <Text style={[styles.familiesCountText, { color: colors.textSecondary }]}>
+              Join 10,000+ families using Kids Activity Tracker
+            </Text>
+          </View>
+        </View>
+
+        {/* Trust Badges Section */}
         <View style={styles.trustSection}>
           <View style={styles.trustItem}>
             <Icon name="shield-check" size={24} color={colors.success} />
@@ -639,7 +700,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
           <View style={styles.trustItem}>
             <Icon name="refresh" size={24} color={colors.success} />
             <Text style={[styles.trustText, { color: colors.textSecondary }]}>
-              7-day free trial
+              {trialEligible !== false ? '7-day free trial' : 'No commitment'}
             </Text>
           </View>
         </View>
@@ -690,17 +751,27 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
               </TouchableOpacity>
             </Animated.View>
 
-            {!isTrialing && (
+            {!isTrialing && trialEligible !== false && (
               <TouchableOpacity
                 style={styles.trialButton}
                 onPress={handleStartTrial}
                 disabled={isPurchasing}
               >
                 <Text style={styles.trialButtonText}>
-                  {trialCtaText}
+                  Start 7-Day Free Trial
+                </Text>
+                <Text style={styles.trialSubtext}>
+                  No charge until {getTrialEndDate()}
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Auto-renewal notice */}
+            <Text style={[styles.renewalNotice, { color: colors.textSecondary }]}>
+              {billingCycle === 'annual'
+                ? `Renews automatically at ${annualPrice}/year. Cancel anytime.`
+                : `Renews automatically at ${monthlyPrice}/month. Cancel anytime.`}
+            </Text>
 
             <TouchableOpacity
               style={styles.restoreButton}
@@ -965,6 +1036,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  // Social proof styles
+  socialProofSection: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  socialProofHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    marginRight: 8,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  testimonialText: {
+    fontSize: 15,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  testimonialAuthor: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  familiesCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  familiesCountText: {
+    fontSize: 13,
+    marginLeft: 8,
+  },
   trustSection: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1029,10 +1140,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#E8638B',
   },
+  trialSubtext: {
+    fontSize: 12,
+    color: '#E8638B',
+    marginTop: 4,
+    opacity: 0.8,
+  },
+  renewalNotice: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 20,
+    lineHeight: 16,
+  },
   restoreButton: {
     paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
   restoreButtonText: {
     fontSize: 14,

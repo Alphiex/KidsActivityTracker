@@ -20,6 +20,13 @@ import Purchases, {
 import { store } from '../store';
 import { fetchSubscription, verifyPurchase } from '../store/slices/subscriptionSlice';
 import { SubscriptionTier } from '../types/subscription';
+import apiClient from './apiClient';
+
+interface TrialEligibility {
+  eligible: boolean;
+  reason?: string;
+  trialUsedAt?: string;
+}
 
 // Lazy load RevenueCat UI to avoid Android linking errors
 let RevenueCatUI: any = null;
@@ -318,7 +325,7 @@ class RevenueCatService {
       console.log('[RevenueCat] Paywall if needed result:', result);
 
       // Refresh customer info after paywall
-      const customerInfo = await this.getCustomerInfo();
+      await this.getCustomerInfo();
 
       return this.isPro();
     } catch (error: any) {
@@ -487,6 +494,11 @@ class RevenueCatService {
       const proEntitlement = customerInfo.entitlements.active[ENTITLEMENTS.PRO];
 
       if (tier === 'premium' && proEntitlement) {
+        // Check if this is a trial purchase - record it for abuse prevention
+        if (proEntitlement.periodType === 'TRIAL') {
+          await this.recordTrialStart();
+        }
+
         // Verify purchase with backend
         await store.dispatch(
           verifyPurchase({
@@ -596,6 +608,78 @@ class RevenueCatService {
     } catch (error: any) {
       console.error('[RevenueCat] Failed to set display name:', error.message);
     }
+  }
+
+  /**
+   * Check if user is eligible for a free trial
+   * Returns false if they've already used their trial
+   */
+  async checkTrialEligibility(): Promise<TrialEligibility> {
+    try {
+      const response = await apiClient.get('/subscriptions/trial-eligibility');
+      return {
+        eligible: response.data.eligible,
+        reason: response.data.reason,
+        trialUsedAt: response.data.trialUsedAt,
+      };
+    } catch (error: any) {
+      console.error('[RevenueCat] Failed to check trial eligibility:', error.message);
+      // Default to eligible if we can't check (fail open for better UX)
+      // The backend will still prevent abuse when they try to start
+      return { eligible: true };
+    }
+  }
+
+  /**
+   * Record that user started a trial
+   * Called after RevenueCat confirms a trial purchase
+   */
+  async recordTrialStart(deviceId?: string): Promise<boolean> {
+    try {
+      await apiClient.post('/subscriptions/record-trial', { deviceId });
+      console.log('[RevenueCat] Trial start recorded');
+      return true;
+    } catch (error: any) {
+      console.error('[RevenueCat] Failed to record trial start:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Check if current subscription is a trial
+   */
+  isTrialing(): boolean {
+    const proEntitlement = this.state.customerInfo?.entitlements.active[ENTITLEMENTS.PRO];
+    if (!proEntitlement) return false;
+
+    // RevenueCat uses periodType to indicate trial
+    return proEntitlement.periodType === 'TRIAL';
+  }
+
+  /**
+   * Get trial end date if user is trialing
+   */
+  getTrialEndDate(): Date | null {
+    if (!this.isTrialing()) return null;
+
+    const proEntitlement = this.state.customerInfo?.entitlements.active[ENTITLEMENTS.PRO];
+    if (!proEntitlement?.expirationDate) return null;
+
+    return new Date(proEntitlement.expirationDate);
+  }
+
+  /**
+   * Get days remaining in trial
+   */
+  getTrialDaysRemaining(): number | null {
+    const endDate = this.getTrialEndDate();
+    if (!endDate) return null;
+
+    const now = new Date();
+    const diffMs = endDate.getTime() - now.getTime();
+    if (diffMs <= 0) return 0;
+
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   }
 }
 
