@@ -13,9 +13,12 @@ import {
   RefreshControl,
   Platform,
   Switch,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppSelector } from '../store';
 import childrenService, { Child as ServiceChild, SharedChild as ServiceSharedChild } from '../services/childrenService';
@@ -24,6 +27,9 @@ import { EnhancedAddress } from '../types/preferences';
 import { locationService } from '../services/locationService';
 import ScreenBackground from '../components/ScreenBackground';
 import TopTabNavigation from '../components/TopTabNavigation';
+import { friendsFamilyHeaderImage } from '../assets/images';
+
+const { width, height } = Dimensions.get('window');
 
 type FriendsAndFamilyRouteParams = {
   FriendsAndFamily: {
@@ -288,13 +294,31 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
         {/* Top Tab Navigation */}
         <TopTabNavigation />
 
-        {/* Header */}
-        <View style={styles.header}>
-        <Text style={styles.headerTitle}>Friends & Family</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddChild}>
-          <Icon name="plus" size={24} color={ModernColors.text} />
-        </TouchableOpacity>
-      </View>
+        {/* Hero Header */}
+        <View style={styles.heroContainer}>
+          <ImageBackground
+            source={friendsFamilyHeaderImage}
+            style={styles.heroSection}
+            imageStyle={styles.heroImageStyle}
+          >
+            <LinearGradient
+              colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
+              style={styles.heroGradient}
+            >
+              {/* Add Button */}
+              <TouchableOpacity style={styles.heroAddButton} onPress={handleAddChild}>
+                <View style={styles.heroAddButtonInner}>
+                  <Icon name="plus" size={22} color="#333" />
+                </View>
+              </TouchableOpacity>
+
+              {/* Title */}
+              <View style={styles.heroContent}>
+                <Text style={styles.heroTitle}>Friends & Family</Text>
+              </View>
+            </LinearGradient>
+          </ImageBackground>
+        </View>
 
       {/* Tabs */}
       <View style={styles.tabs}>
@@ -809,25 +833,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ModernColors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  heroContainer: {
+    marginBottom: 0,
+  },
+  heroSection: {
+    height: height * 0.14,
+    width: width,
+  },
+  heroImageStyle: {
+    borderRadius: 0,
+  },
+  heroGradient: {
+    flex: 1,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.borderLight,
   },
-  backButton: {
-    padding: 5,
+  heroAddButton: {
+    alignSelf: 'flex-end',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: ModernColors.text,
+  heroAddButtonInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  addButton: {
-    padding: 5,
+  heroContent: {
+    alignItems: 'flex-start',
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   tabs: {
     flexDirection: 'row',
