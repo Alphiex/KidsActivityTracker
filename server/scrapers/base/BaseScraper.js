@@ -107,6 +107,20 @@ class BaseScraper {
       changedActivities: []
     };
 
+    // Filter out adult/senior activities
+    const originalCount = activities.length;
+    activities = activities.filter(activity => {
+      const name = (activity.name || '').toLowerCase();
+      const description = (activity.description || '').toLowerCase();
+      const isAdultSenior = name.includes('adult') || name.includes('senior') ||
+                           description.includes('adult') || description.includes('senior');
+      return !isAdultSenior;
+    });
+
+    if (activities.length < originalCount) {
+      console.log(`🚫 Filtered out ${originalCount - activities.length} adult/senior activities`);
+    }
+
     console.log(`💾 Saving ${activities.length} activities to database...`);
 
     // Track IDs of activities processed in this scrape run
@@ -363,6 +377,20 @@ class BaseScraper {
       newActivities: [],
       changedActivities: []
     };
+
+    // Filter out adult/senior activities
+    const originalCount = activities.length;
+    activities = activities.filter(activity => {
+      const name = (activity.name || '').toLowerCase();
+      const description = (activity.description || '').toLowerCase();
+      const isAdultSenior = name.includes('adult') || name.includes('senior') ||
+                           description.includes('adult') || description.includes('senior');
+      return !isAdultSenior;
+    });
+
+    if (activities.length < originalCount) {
+      console.log(`🚫 Filtered out ${originalCount - activities.length} adult/senior activities`);
+    }
 
     console.log(`💾 Batch saving ${activities.length} activities to database...`);
     const startTime = Date.now();

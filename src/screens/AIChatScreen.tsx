@@ -329,59 +329,72 @@ const AIChatScreen = () => {
                   </TouchableOpacity>
                 )}
               </View>
-              {item.activities!.slice(0, 3).map((activity: any, index: number) => (
-                <TouchableOpacity
-                  key={activity.id || index}
-                  style={styles.activityCard}
-                  onPress={() => handleActivityPress(activity)}
-                >
-                  <View style={styles.activityCardContent}>
-                    <Text style={styles.activityName} numberOfLines={1}>
-                      {activity.name}
-                    </Text>
-                    <View style={styles.activityMetaRow}>
-                      <Text style={styles.activityMeta} numberOfLines={1}>
-                        {activity.provider || activity.provider?.name}
+              {item.activities!.slice(0, 3).map((activity: any, index: number) => {
+                // Format cost - show "Free" for 0 or null, otherwise format as currency
+                const cost = activity.price ?? activity.cost;
+                const costDisplay = cost === null || cost === undefined || cost === 0 || cost === 'Contact for price'
+                  ? 'Free'
+                  : typeof cost === 'number'
+                    ? `$${cost.toFixed(0)}`
+                    : cost;
+
+                return (
+                  <TouchableOpacity
+                    key={activity.id || index}
+                    style={styles.activityCard}
+                    onPress={() => handleActivityPress(activity)}
+                  >
+                    <View style={styles.activityCardContent}>
+                      {/* Activity Name */}
+                      <Text style={styles.activityName} numberOfLines={2}>
+                        {activity.name}
                       </Text>
-                      {(activity.price || activity.cost) && (
-                        <Text style={styles.activityPrice}>
-                          ${activity.price || activity.cost}
-                        </Text>
+
+                      {/* Location */}
+                      {(activity.location || activity.locationName) && (
+                        <View style={styles.activityLocationRow}>
+                          <Icon name="map-marker" size={12} color="#E8638B" />
+                          <Text style={styles.activityLocation} numberOfLines={1}>
+                            {activity.locationName || activity.location}
+                          </Text>
+                        </View>
                       )}
-                    </View>
-                    {(activity.dates || activity.schedule) && (
-                      <View style={styles.activityDateRow}>
-                        <Icon name="calendar-outline" size={12} color="#888" />
-                        <Text style={styles.activityDates} numberOfLines={1}>
-                          {activity.dates || activity.schedule}
-                        </Text>
+
+                      {/* Dates & Time */}
+                      {(activity.dates || activity.schedule) && (
+                        <View style={styles.activityDateRow}>
+                          <Icon name="calendar-outline" size={12} color="#888" />
+                          <Text style={styles.activityDates} numberOfLines={1}>
+                            {activity.dates || activity.schedule}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Bottom row: Spots, Cost, Distance */}
+                      <View style={styles.activityBottomRow}>
+                        {activity.spotsText && (
+                          <View style={styles.spotsBadge}>
+                            <Icon name="account-group-outline" size={10} color="#6B7280" />
+                            <Text style={styles.spotsText}>{activity.spotsText}</Text>
+                          </View>
+                        )}
+                        <View style={[styles.costBadge, costDisplay === 'Free' && styles.costBadgeFree]}>
+                          <Text style={[styles.costText, costDisplay === 'Free' && styles.costTextFree]}>
+                            {costDisplay}
+                          </Text>
+                        </View>
+                        {activity.distanceText && (
+                          <View style={styles.distanceBadge}>
+                            <Icon name="map-marker-outline" size={10} color="#4F46E5" />
+                            <Text style={styles.distanceText}>{activity.distanceText}</Text>
+                          </View>
+                        )}
                       </View>
-                    )}
-                    <View style={styles.activityBadgesRow}>
-                      {activity.status && (
-                        <View style={[
-                          styles.statusBadge,
-                          activity.status === 'Open' && styles.statusOpen,
-                          activity.status === 'Waitlist' && styles.statusWaitlist,
-                        ]}>
-                          <Text style={[
-                            styles.statusText,
-                            activity.status === 'Open' && styles.statusTextOpen,
-                            activity.status === 'Waitlist' && styles.statusTextWaitlist,
-                          ]}>{activity.status}</Text>
-                        </View>
-                      )}
-                      {activity.spotsText && (
-                        <View style={styles.spotsBadge}>
-                          <Icon name="account-group-outline" size={10} color="#6B7280" />
-                          <Text style={styles.spotsText}>{activity.spotsText}</Text>
-                        </View>
-                      )}
                     </View>
-                  </View>
-                  <Icon name="chevron-right" size={20} color="#E8638B" style={styles.activityChevron} />
-                </TouchableOpacity>
-              ))}
+                    <Icon name="chevron-right" size={20} color="#E8638B" style={styles.activityChevron} />
+                  </TouchableOpacity>
+                );
+              })}
               {item.activities!.length > 3 && (
                 <TouchableOpacity
                   style={styles.viewMoreButton}
@@ -775,23 +788,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 4,
+    lineHeight: 18,
   },
-  activityMetaRow: {
+  activityLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 4,
     marginBottom: 4,
   },
-  activityMeta: {
+  activityLocation: {
     fontSize: 12,
     color: '#666',
     flex: 1,
-  },
-  activityPrice: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#E8638B',
-    marginLeft: 8,
   },
   activityDateRow: {
     flexDirection: 'row',
@@ -804,10 +812,28 @@ const styles = StyleSheet.create({
     color: '#888',
     flex: 1,
   },
-  activityBadgesRow: {
+  activityBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  costBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 4,
+  },
+  costBadgeFree: {
+    backgroundColor: '#DCFCE7',
+  },
+  costText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  costTextFree: {
+    color: '#166534',
   },
   statusBadge: {
     paddingHorizontal: 6,
@@ -844,6 +870,19 @@ const styles = StyleSheet.create({
   spotsText: {
     fontSize: 10,
     color: '#6B7280',
+  },
+  distanceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 4,
+  },
+  distanceText: {
+    fontSize: 10,
+    color: '#4F46E5',
   },
   aiResponseText: {
     marginTop: 0,

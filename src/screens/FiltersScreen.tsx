@@ -28,6 +28,7 @@ import UpgradePromptModal from '../components/UpgradePromptModal';
 import { LockedFeature } from '../components/PremiumBadge';
 import DistanceFilterSection from '../components/filters/DistanceFilterSection';
 import AddressAutocomplete from '../components/AddressAutocomplete/AddressAutocomplete';
+import { getActivityTypeIcon } from '../utils/activityTypeIcons';
 
 interface ExpandableSection {
   id: string;
@@ -315,11 +316,30 @@ const FiltersScreen = () => {
     if (!preferences) return;
 
     const currentTypes = preferences.preferredActivityTypes || [];
-    const updatedTypes = currentTypes.includes(activityTypeCode)
-      ? currentTypes.filter(code => code !== activityTypeCode)
-      : [...currentTypes, activityTypeCode];
+    const currentSubtypes = preferences.preferredSubtypes || [];
+    const isCurrentlySelected = currentTypes.includes(activityTypeCode);
 
-    updatePreferences({ preferredActivityTypes: updatedTypes });
+    // Find the activity type to get its subtypes
+    const activityType = activityTypes.find(t => t.code === activityTypeCode);
+    const subtypeCodes = activityType?.subtypes?.map(s => s.code) || [];
+
+    if (isCurrentlySelected) {
+      // Deselecting - remove type and all its subtypes
+      const updatedTypes = currentTypes.filter(code => code !== activityTypeCode);
+      const updatedSubtypes = currentSubtypes.filter(code => !subtypeCodes.includes(code));
+      updatePreferences({
+        preferredActivityTypes: updatedTypes,
+        preferredSubtypes: updatedSubtypes
+      });
+    } else {
+      // Selecting - add type and all its subtypes
+      const updatedTypes = [...currentTypes, activityTypeCode];
+      const updatedSubtypes = [...new Set([...currentSubtypes, ...subtypeCodes])];
+      updatePreferences({
+        preferredActivityTypes: updatedTypes,
+        preferredSubtypes: updatedSubtypes
+      });
+    }
   };
 
   const toggleLocation = (locationName: string) => {
@@ -681,6 +701,8 @@ const FiltersScreen = () => {
           const isTypeSelected = preferences?.preferredActivityTypes?.includes(type.code);
           const isExpanded = expandedActivityTypes.has(type.code);
           const hasSubtypes = type.subtypes && type.subtypes.length > 0;
+          // Use proper icon from activityTypeIcons mapping
+          const iconName = getActivityTypeIcon(type.name);
 
           return (
             <View key={type.code} style={styles.activityTypeContainer}>
@@ -694,21 +716,15 @@ const FiltersScreen = () => {
                   onPress={() => toggleActivityType(type.code)}
                 >
                   <Icon
-                    name={type.iconName || 'tag'}
-                    size={18}
-                    color={isTypeSelected ? '#FFFFFF' : '#717171'}
+                    name={iconName}
+                    size={20}
+                    color={isTypeSelected ? '#FFFFFF' : '#E8638B'}
                   />
                   <Text style={[
                     styles.activityTypeText,
                     isTypeSelected && styles.activityTypeTextActive,
                   ]}>
                     {type.name}
-                  </Text>
-                  <Text style={[
-                    styles.activityTypeCount,
-                    isTypeSelected && styles.activityTypeCountActive,
-                  ]}>
-                    ({type.activityCount})
                   </Text>
                 </TouchableOpacity>
 
@@ -746,12 +762,6 @@ const FiltersScreen = () => {
                           isSubtypeSelected && styles.subtypeTextActive,
                         ]}>
                           {subtype.name}
-                        </Text>
-                        <Text style={[
-                          styles.subtypeCount,
-                          isSubtypeSelected && styles.subtypeCountActive,
-                        ]}>
-                          ({subtype.activityCount})
                         </Text>
                       </TouchableOpacity>
                     );
@@ -2458,13 +2468,6 @@ const styles = StyleSheet.create({
   activityTypeTextActive: {
     color: '#FFFFFF',
   },
-  activityTypeCount: {
-    fontSize: 13,
-    color: '#717171',
-  },
-  activityTypeCountActive: {
-    color: 'rgba(255,255,255,0.8)',
-  },
   expandSubtypesButton: {
     width: 36,
     height: 36,
@@ -2501,13 +2504,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   subtypeTextActive: {
-    color: '#E8638B',
-  },
-  subtypeCount: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  subtypeCountActive: {
     color: '#E8638B',
   },
   // Location section styles

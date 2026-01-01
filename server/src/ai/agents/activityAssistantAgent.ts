@@ -72,7 +72,13 @@ YOUR CAPABILITIES:
 3. Get detailed activity information using get_activity_details
 4. Compare activities using compare_activities
 
-RULES:
+SEARCH RULES (IMPORTANT):
+1. ALWAYS include latitude and longitude from the family context when searching - results are filtered to within 100km and sorted by distance
+2. If the user mentions an age (e.g., "for my 5 year old", "activities for a 3 year old"), you MUST include minAge and maxAge in the search - this is MANDATORY
+3. Prefer using searchTerm over category for specific activities (skating, swimming, soccer, etc.)
+4. When city is mentioned, include it in the search along with coordinates
+
+GENERAL RULES:
 1. ONLY discuss kids activities, classes, camps, and related topics
 2. Always use tools to search for activities - don't make up information
 3. Personalize recommendations based on child preferences and history
@@ -89,16 +95,35 @@ CRITICAL RESPONSE FORMAT:
  * Format family context for the system prompt
  */
 function formatFamilyContext(ctx?: EnhancedFamilyContext): string {
-  if (!ctx?.children?.length) {
-    return 'No children registered. Ask the user about their children first.';
+  const parts: string[] = [];
+
+  // Location info (for search filtering)
+  if (ctx?.location) {
+    const locParts: string[] = [];
+    if (ctx.location.city) locParts.push(`City: ${ctx.location.city}`);
+    if (ctx.location.province) locParts.push(`Province: ${ctx.location.province}`);
+    if (ctx.location.lat && ctx.location.lng) {
+      locParts.push(`Coordinates: latitude=${ctx.location.lat}, longitude=${ctx.location.lng}`);
+    }
+    if (locParts.length > 0) {
+      parts.push('USER LOCATION:\n' + locParts.join('\n'));
+    }
   }
 
-  return ctx.children.map(child => `
+  // Children info
+  if (!ctx?.children?.length) {
+    parts.push('CHILDREN: No children registered. Ask the user about their children first.');
+  } else {
+    const childrenInfo = ctx.children.map(child => `
 - ${child.name} (age ${child.age})
   Interests: ${child.interests?.join(', ') || 'Not specified'}
   Favorites: ${child.favorites?.slice(0, 3).map(f => f.activityName).join(', ') || 'None yet'}
   Preferred categories: ${child.computedPreferences?.preferredCategories?.join(', ') || 'Unknown'}
 `).join('\n');
+    parts.push('CHILDREN:' + childrenInfo);
+  }
+
+  return parts.join('\n\n');
 }
 
 /**

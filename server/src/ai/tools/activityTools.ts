@@ -58,23 +58,40 @@ function expandSearchTerms(term: string): string[] {
 }
 
 /**
+ * Calculate distance between two points using Haversine formula
+ * Returns distance in kilometers
+ */
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
  * Tool: Search Activities
  * Searches the activity database with various filters
  */
 export const searchActivitiesTool = new DynamicStructuredTool({
   name: 'search_activities',
-  description: 'Search for kids activities. IMPORTANT: Use searchTerm for specific activity types like skating, hockey, soccer, swimming lessons, piano, etc. The category field is only for broad database categories.',
+  description: 'Search for kids activities. IMPORTANT: Use searchTerm for specific activity types like skating, hockey, soccer, swimming lessons, piano, etc. The category field is only for broad database categories. When the user mentions an age, you MUST include it in minAge/maxAge.',
   schema: z.object({
     searchTerm: z.string().optional().describe('RECOMMENDED: Search term for activity name - use this for specific activities like "skating", "swimming", "soccer", "piano", "dance", "hockey", "gymnastics", etc.'),
     city: z.string().optional().describe('City name to search in (e.g., "North Vancouver", "Vancouver", "Burnaby")'),
-    minAge: z.number().optional().describe('Child\'s age - activities suitable for this age will be returned'),
-    maxAge: z.number().optional().describe('Child\'s age - usually same as minAge for a single child'),
+    latitude: z.number().optional().describe('User\'s latitude for distance-based filtering and sorting'),
+    longitude: z.number().optional().describe('User\'s longitude for distance-based filtering and sorting'),
+    minAge: z.number().optional().describe('REQUIRED when user mentions age - Child\'s age for filtering activities'),
+    maxAge: z.number().optional().describe('REQUIRED when user mentions age - usually same as minAge for a single child'),
     category: z.string().optional().describe('Database category - rarely needed, searchTerm is preferred'),
     maxPrice: z.number().optional().describe('Maximum price in dollars'),
     daysOfWeek: z.array(z.string()).optional().describe('Preferred days (e.g., ["Saturday", "Sunday"])'),
     limit: z.number().optional().default(10).describe('Number of results to return (max 20)'),
   }),
-  func: async ({ category, minAge, maxAge, city, maxPrice, daysOfWeek, searchTerm, limit }) => {
+  func: async ({ category, minAge, maxAge, city, maxPrice, daysOfWeek, searchTerm, limit, latitude, longitude }) => {
     const prisma = getPrisma();
 
     try {
@@ -161,49 +178,134 @@ export const searchActivitiesTool = new DynamicStructuredTool({
 
       console.log('[searchActivities] Query where:', JSON.stringify(where, null, 2));
 
+      // Fetch more results initially if we need to filter by distance
+      const fetchLimit = (latitude && longitude) ? Math.min((limit || 10) * 5, 100) : Math.min(limit || 10, 20);
+
       const activities = await prisma.activity.findMany({
         where,
         include: {
           location: true,
           provider: { select: { name: true } },
         },
-        take: Math.min(limit || 10, 20),
+        take: fetchLimit,
         orderBy: [
           { registrationStatus: 'asc' }, // Open registration first
           { name: 'asc' },
         ],
       });
 
-      // Activities are already filtered by age in the query
-      const filteredActivities = activities;
+      // Calculate distance and filter by 100km max if coordinates provided
+      const MAX_DISTANCE_KM = 100;
+      let activitiesWithDistance = activities.map(a => {
+        let distance: number | null = null;
+        if (latitude && longitude && a.location?.latitude && a.location?.longitude) {
+          distance = calculateDistanceKm(
+            latitude,
+            longitude,
+            a.location.latitude,
+            a.location.longitude
+          );
+        }
+        return { ...a, distance };
+      });
 
-      // Format response
-      const result = filteredActivities.map(a => ({
-        id: a.id,
-        name: a.name,
-        category: a.category,
-        price: a.cost ?? 'Contact for price',
-        ageRange: a.ageMin || a.ageMax ? `${a.ageMin ?? 0}-${a.ageMax ?? 18} years` : 'All ages',
-        location: a.location?.city ?? 'Various locations',
-        locationName: a.location?.name,
-        provider: a.provider?.name,
-        schedule: formatSchedule(a),
-        status: a.registrationStatus ?? 'Unknown',
-        spotsAvailable: a.spotsAvailable,
-        totalSpots: a.totalSpots,
-        spotsText: a.spotsAvailable !== null && a.totalSpots !== null
-          ? `${a.spotsAvailable} of ${a.totalSpots} spots`
-          : a.spotsAvailable !== null
-            ? `${a.spotsAvailable} spots available`
+      // Filter by distance if coordinates provided (100km max)
+      if (latitude && longitude) {
+        activitiesWithDistance = activitiesWithDistance.filter(a => {
+          // Include if no location data (can't calculate distance) or within 100km
+          if (a.distance === null) return true;
+          return a.distance <= MAX_DISTANCE_KM;
+        });
+
+        // Sort by distance (closest first), then by registration status
+        activitiesWithDistance.sort((a, b) => {
+          // Activities with distance come before those without
+          if (a.distance !== null && b.distance === null) return -1;
+          if (a.distance === null && b.distance !== null) return 1;
+          if (a.distance !== null && b.distance !== null) {
+            return a.distance - b.distance;
+          }
+          // Fall back to registration status ordering
+          return 0;
+        });
+      }
+
+      // Apply the limit after distance filtering
+      const filteredActivities = activitiesWithDistance.slice(0, Math.min(limit || 10, 20));
+
+      // Format response with smart location extraction
+      const result = filteredActivities.map(a => {
+        // Smart location extraction - try multiple sources
+        let locationDisplay = 'Various locations';
+        let locationName = null;
+
+        // Priority 1: Use location relation if available
+        if (a.location) {
+          locationName = a.location.name || null;
+          if (a.location.address && a.location.city) {
+            locationDisplay = `${a.location.address}, ${a.location.city}`;
+          } else if (a.location.name && a.location.city) {
+            locationDisplay = `${a.location.name}, ${a.location.city}`;
+          } else if (a.location.city) {
+            locationDisplay = a.location.city;
+          } else if (a.location.name) {
+            locationDisplay = a.location.name;
+          }
+        }
+
+        // Priority 2: Check if location info is in description (common pattern)
+        if (locationDisplay === 'Various locations' && a.description) {
+          // Look for common location patterns like "at [Location Name]" or "Location: [Name]"
+          const locationPatterns = [
+            /(?:at|location:|held at|venue:)\s*([^.,:]+(?:centre|center|arena|pool|park|school|gym|hall|facility|library|studio)[^.,:]*)/i,
+            /(?:at|location:|held at|venue:)\s*([A-Z][^.,:]+(?:,\s*[A-Z][^.,:]+)?)/,
+          ];
+          for (const pattern of locationPatterns) {
+            const match = a.description.match(pattern);
+            if (match && match[1]) {
+              locationDisplay = match[1].trim();
+              break;
+            }
+          }
+        }
+
+        // Priority 3: Use provider name as location hint
+        if (locationDisplay === 'Various locations' && a.provider?.name) {
+          locationDisplay = a.provider.name;
+        }
+
+        return {
+          id: a.id,
+          name: a.name,
+          category: a.category,
+          price: a.cost ?? 0, // Return 0 instead of string for proper handling
+          ageRange: a.ageMin || a.ageMax ? `${a.ageMin ?? 0}-${a.ageMax ?? 18} years` : 'All ages',
+          location: locationDisplay,
+          locationName: locationName || a.location?.name,
+          locationCity: a.location?.city,
+          provider: a.provider?.name,
+          schedule: formatSchedule(a),
+          status: a.registrationStatus ?? 'Unknown',
+          spotsAvailable: a.spotsAvailable,
+          totalSpots: a.totalSpots,
+          spotsText: a.spotsAvailable !== null && a.totalSpots !== null
+            ? `${a.spotsAvailable} of ${a.totalSpots} spots`
+            : a.spotsAvailable !== null
+              ? `${a.spotsAvailable} spots available`
+              : null,
+          startDate: a.dateStart ? a.dateStart.toISOString().split('T')[0] : null,
+          endDate: a.dateEnd ? a.dateEnd.toISOString().split('T')[0] : null,
+          dates: a.dateStart && a.dateEnd
+            ? `${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${a.dateEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+            : a.dateStart
+              ? `Starts ${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : 'Ongoing',
+          distance: a.distance !== null ? Math.round(a.distance * 10) / 10 : null,
+          distanceText: a.distance !== null
+            ? a.distance < 1 ? 'Less than 1 km away' : `${Math.round(a.distance)} km away`
             : null,
-        startDate: a.dateStart ? a.dateStart.toISOString().split('T')[0] : null,
-        endDate: a.dateEnd ? a.dateEnd.toISOString().split('T')[0] : null,
-        dates: a.dateStart && a.dateEnd
-          ? `${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${a.dateEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-          : a.dateStart
-            ? `Starts ${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-            : 'Ongoing',
-      }));
+        };
+      });
 
       if (result.length === 0) {
         return JSON.stringify({

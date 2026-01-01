@@ -610,9 +610,9 @@ const ActivityDetailScreenModern = () => {
           <View style={styles.statusCard}>
             <View style={styles.statusIndicator}>
               <Icon
-                name={getStatusIcon(activity.registrationStatus || 'Unknown')}
+                name={getStatusIcon(activity.registrationStatus || 'Open')}
                 size={20}
-                color={getStatusColor(activity.registrationStatus || 'Unknown')}
+                color={getStatusColor(activity.registrationStatus || 'Open')}
               />
               <View style={styles.statusTextContainer}>
                 <Text style={styles.statusLabel}>Registration Status</Text>

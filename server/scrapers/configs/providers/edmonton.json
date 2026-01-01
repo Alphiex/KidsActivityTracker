@@ -17,9 +17,9 @@
     },
     "fetchDetailPages": true,
     "rateLimits": {
-      "requestsPerMinute": 60,
-      "concurrentRequests": 5,
-      "delayBetweenPages": 1000
+      "requestsPerMinute": 120,
+      "concurrentRequests": 10,
+      "delayBetweenPages": 500
     },
     "timeout": 90000,
     "retries": 3,

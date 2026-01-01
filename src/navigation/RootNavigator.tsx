@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StatusBar, View, Text, ActivityIndicator } from 'react-native';
+import { StatusBar, View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { NavigationContainer, NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -168,32 +168,110 @@ const screenOptions = {
   },
 };
 
+// Screens that belong to top navigation (shouldn't highlight bottom tabs)
+const TOP_TAB_SCREENS = ['Dashboard', 'MapSearch', 'AIChat', 'AIRecommendations', 'Calendar', 'WeeklyPlanner'];
+
+// Get the current route name from nested navigation state
+const getActiveRouteName = (state: any): string => {
+  if (!state) return '';
+  const route = state.routes[state.index];
+  if (route.state) {
+    return getActiveRouteName(route.state);
+  }
+  return route.name;
+};
+
+// Custom tab bar component that only highlights when on actual bottom tab screens
+const CustomTabBar = ({ state, descriptors, navigation }: any) => {
+  const activeRouteName = getActiveRouteName(state);
+  const isTopTabActive = TOP_TAB_SCREENS.includes(activeRouteName);
+
+  return (
+    <View style={customTabBarStyles.container}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel ?? options.title ?? route.name;
+
+        // Determine if this tab should be highlighted
+        // Only highlight if we're NOT on a top tab screen AND this is the focused tab
+        const isFocused = state.index === index;
+        const shouldHighlight = !isTopTabActive && isFocused;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        // Get icon based on route
+        let iconName = 'tune-variant';
+        if (route.name === 'Favourites') iconName = shouldHighlight ? 'heart' : 'heart-outline';
+        else if (route.name === 'FriendsAndFamily') iconName = shouldHighlight ? 'account-group' : 'account-group-outline';
+        else if (route.name === 'Profile') iconName = shouldHighlight ? 'account' : 'account-outline';
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={shouldHighlight ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            onPress={onPress}
+            style={customTabBarStyles.tab}
+          >
+            <Icon
+              name={iconName}
+              size={26}
+              color={shouldHighlight ? '#E8638B' : '#717171'}
+            />
+            <Text style={[
+              customTabBarStyles.label,
+              { color: shouldHighlight ? '#E8638B' : '#717171' }
+            ]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
+
+const customTabBarStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#EBEBEB',
+    height: 85,
+    paddingBottom: 10,
+    paddingTop: 10,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+});
+
 const MainTabs = () => {
   const { colors } = useTheme();
-  
+
   return (
     <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: '#E8638B',
-        tabBarInactiveTintColor: '#717171',
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#EBEBEB',
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 85,
-          paddingBottom: 10,
-          paddingTop: 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-          marginTop: 2,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 5,
-        },
         headerShown: false,
       }}
     >

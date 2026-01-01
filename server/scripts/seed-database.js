@@ -8,16 +8,17 @@ async function seedDatabase() {
 
   try {
     // Seed ActivityType table
+    // NOTE: Use the canonical activity type names from server/src/constants/activityTypes.js
     console.log('📚 Creating activity types...');
     const activityTypes = [
-      { code: 'swimming', name: 'Swimming', description: 'Water-based activities and swimming lessons', iconName: 'swimmer', displayOrder: 1 },
-      { code: 'team-sports', name: 'Team Sports', description: 'Team-based sports like soccer, basketball, hockey', iconName: 'football', displayOrder: 2 },
-      { code: 'individual-sports', name: 'Individual Sports', description: 'Individual sports like tennis, golf, gymnastics', iconName: 'tennis', displayOrder: 3 },
+      { code: 'swimming-aquatics', name: 'Swimming & Aquatics', description: 'Water-based activities and swimming lessons', iconName: 'swim', displayOrder: 1 },
+      { code: 'team-sports', name: 'Team Sports', description: 'Team-based sports like soccer, basketball, hockey', iconName: 'basketball', displayOrder: 2 },
+      { code: 'individual-sports', name: 'Individual Sports', description: 'Individual sports like tennis, golf, gymnastics', iconName: 'run', displayOrder: 3 },
       { code: 'visual-arts', name: 'Visual Arts', description: 'Visual arts, crafts, and creative activities', iconName: 'palette', displayOrder: 4 },
       { code: 'music', name: 'Music', description: 'Music lessons and performances', iconName: 'music-note', displayOrder: 5 },
-      { code: 'dance', name: 'Dance', description: 'Dance classes and performances', iconName: 'walk', displayOrder: 6 },
-      { code: 'martial-arts', name: 'Martial Arts', description: 'Karate, Kung Fu, and other martial arts', iconName: 'flash', displayOrder: 7 },
-      { code: 'camps', name: 'Camps', description: 'Day camps and holiday programs', iconName: 'home', displayOrder: 8 }
+      { code: 'dance', name: 'Dance', description: 'Dance classes and performances', iconName: 'dance-ballroom', displayOrder: 6 },
+      { code: 'martial-arts', name: 'Martial Arts', description: 'Karate, Kung Fu, and other martial arts', iconName: 'karate', displayOrder: 7 },
+      { code: 'camps', name: 'Camps', description: 'Day camps and holiday programs', iconName: 'tent', displayOrder: 8 }
     ];
 
     for (const type of activityTypes) {
@@ -48,8 +49,8 @@ async function seedDatabase() {
         registrationUrl: 'https://example.com/register/swim-001',
         registrationStatus: 'Open',
         spotsAvailable: 5,
-        activityType: 'Swimming',
-        category: 'Swimming',
+        activityType: 'Swimming & Aquatics',
+        category: 'Swimming & Aquatics',
         provider: 'North Vancouver Recreation & Culture'
       },
       {

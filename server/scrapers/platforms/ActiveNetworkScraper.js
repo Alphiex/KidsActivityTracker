@@ -2002,7 +2002,7 @@ class ActiveNetworkScraper extends BaseScraper {
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
 
-      const batchSize = 10; // Increased for better parallelization (1000+ activities)
+      const batchSize = 20; // Increased for better parallelization
       let enhanced = 0;
       let withDates = 0;
       let withTimes = 0;
@@ -2020,8 +2020,8 @@ class ActiveNetworkScraper extends BaseScraper {
               await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
               await page.goto(activity.registrationUrl, { waitUntil: 'networkidle2', timeout: 45000 });
 
-              // Wait for page content to fully render (reduced for faster processing)
-              await new Promise(r => setTimeout(r, 2000));
+              // Wait for page content to fully render (optimized)
+              await new Promise(r => setTimeout(r, 1000));
 
               // === CLICK "VIEW FEE DETAILS" BUTTON IF PRESENT ===
               // Many ActiveNetwork sites hide the actual cost behind this button
@@ -2577,8 +2577,8 @@ class ActiveNetworkScraper extends BaseScraper {
           }
         });
 
-        // Rate limit between batches
-        await new Promise(r => setTimeout(r, 1500));
+        // Rate limit between batches (optimized)
+        await new Promise(r => setTimeout(r, 500));
       }
 
       this.logProgress(`Detail enhancement complete:`);
