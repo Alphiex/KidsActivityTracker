@@ -1399,15 +1399,6 @@ class PerfectMindScraper extends BaseScraper {
       return activities;
     }
 
-    // Skip detail fetching for very large datasets (>5000 activities)
-    // These cause browser crashes and timeouts - the extracted data is sufficient
-    const maxActivitiesForDetails = this.config.scraperConfig.maxActivitiesForDetails || 5000;
-    if (activities.length > maxActivitiesForDetails) {
-      this.logProgress(`Skipping detail fetching for ${activities.length} activities (threshold: ${maxActivitiesForDetails})`);
-      this.logProgress('Extracted data is sufficient for large datasets');
-      return activities;
-    }
-
     // Only fetch details for activities with registration URLs
     const activitiesWithUrls = activities.filter(a => a.registrationUrl);
 

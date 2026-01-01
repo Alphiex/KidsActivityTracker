@@ -19,6 +19,8 @@ import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { ClusterMarker } from '../components/map';
 import { Colors } from '../theme';
+import { getActivityImageKey } from '../utils/activityHelpers';
+import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 
 const { width } = Dimensions.get('window');
@@ -425,47 +427,112 @@ const MapSearchScreen = () => {
       ? item.location
       : item.location?.name || item.locationName || '';
 
+    // Get activity image using the same logic as Dashboard
+    const activityTypeName = typeof item.activityType === 'string'
+      ? item.activityType
+      : (item.activityType as any)?.name || item.category || 'general';
+    const subcategory = (item as any).activitySubtype?.name || item.subcategory;
+    const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
+    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
+
+    // Format date range like Dashboard
+    let dateRangeText = '';
+    if (item.dateStart && item.dateEnd) {
+      const start = new Date(item.dateStart);
+      const end = new Date(item.dateEnd);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateRangeText = `${startStr} - ${endStr}`;
+    } else if ((item as any).dateRange?.start && (item as any).dateRange?.end) {
+      const start = new Date((item as any).dateRange.start);
+      const end = new Date((item as any).dateRange.end);
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateRangeText = `${startStr} - ${endStr}`;
+    } else if (item.dates) {
+      dateRangeText = item.dates;
+    }
+
+    // Format time like Dashboard
+    let timeText = '';
+    if (item.startTime && item.endTime) {
+      timeText = `${item.startTime} - ${item.endTime}`;
+    } else if (item.startTime) {
+      timeText = item.startTime;
+    }
+
+    // Format age range
+    const ageText = item.ageMin != null && item.ageMax != null
+      ? `Ages ${item.ageMin}-${item.ageMax}`
+      : item.ageMin != null
+      ? `Ages ${item.ageMin}+`
+      : '';
+
     return (
       <TouchableOpacity
         style={[styles.activityCard, isSelected && styles.activityCardSelected]}
-        onPress={() => handleCardPress(item)}
-        onLongPress={() => handleActivityPress(item)}
+        onPress={() => handleActivityPress(item)}
         activeOpacity={0.9}
       >
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-        ) : (
-          <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-            <Icon name="image-off" size={24} color="#CCC" />
+        <Image source={imageSource} style={styles.cardImage} resizeMode="cover" />
+        {item.price != null && (
+          <View style={styles.priceTag}>
+            <Text style={styles.priceTagText}>${item.price}</Text>
           </View>
         )}
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-          {locationName && (
-            <View style={styles.cardLocation}>
-              <Icon name="map-marker" size={12} color="#666" />
-              <Text style={styles.cardLocationText} numberOfLines={1}>{locationName}</Text>
+
+          {locationName ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="map-marker" size={12} color="#717171" />
+              <Text style={styles.cardInfoText} numberOfLines={1}>{locationName}</Text>
+            </View>
+          ) : null}
+
+          {dateRangeText ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="calendar" size={12} color="#717171" />
+              <Text style={styles.cardInfoText}>{dateRangeText}</Text>
+            </View>
+          ) : null}
+
+          {timeText ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="clock-outline" size={12} color="#717171" />
+              <Text style={styles.cardInfoText}>{timeText}</Text>
+            </View>
+          ) : null}
+
+          {ageText ? (
+            <View style={styles.cardInfoRow}>
+              <Icon name="account-child" size={12} color="#717171" />
+              <Text style={styles.cardInfoText}>{ageText}</Text>
+            </View>
+          ) : null}
+
+          {item.spotsAvailable != null && item.spotsAvailable > 0 && item.spotsAvailable <= 10 && (
+            <View style={[
+              styles.spotsBadge,
+              item.spotsAvailable <= 3 && styles.spotsBadgeUrgent,
+            ]}>
+              <Icon
+                name={item.spotsAvailable <= 3 ? "alert-circle" : "information"}
+                size={12}
+                color={item.spotsAvailable <= 3 ? "#D93025" : Colors.primary}
+              />
+              <Text style={[
+                styles.spotsText,
+                item.spotsAvailable <= 3 && styles.spotsTextUrgent,
+              ]}>
+                {item.spotsAvailable} {item.spotsAvailable === 1 ? 'spot left' : 'spots left'}
+              </Text>
             </View>
           )}
-          <View style={styles.cardMeta}>
-            {item.price != null && (
-              <Text style={styles.cardPrice}>${item.price}</Text>
-            )}
-            {item.ageMin != null && item.ageMax != null && (
-              <Text style={styles.cardAge}>Ages {item.ageMin}-{item.ageMax}</Text>
-            )}
-          </View>
-          <TouchableOpacity
-            style={styles.viewDetailsButton}
-            onPress={() => handleActivityPress(item)}
-          >
-            <Text style={styles.viewDetailsText}>View Details</Text>
-            <Icon name="chevron-right" size={16} color={Colors.primary} />
-          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
-  }, [selectedActivityId, handleCardPress, handleActivityPress]);
+  }, [selectedActivityId, handleActivityPress]);
 
   const keyExtractor = useCallback((item: Activity) => item.id, []);
 
@@ -743,9 +810,19 @@ const styles = StyleSheet.create({
     height: 100,
     backgroundColor: '#F5F5F5',
   },
-  cardImagePlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  priceTag: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  priceTagText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   cardContent: {
     padding: 12,
@@ -755,47 +832,40 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#222',
     lineHeight: 20,
+    marginBottom: 4,
   },
-  cardLocation: {
+  cardInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 4,
     gap: 4,
   },
-  cardLocationText: {
+  cardInfoText: {
     fontSize: 12,
-    color: '#666',
+    color: '#717171',
     flex: 1,
   },
-  cardMeta: {
+  spotsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 12,
-  },
-  cardPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  cardAge: {
-    fontSize: 12,
-    color: '#666',
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    paddingVertical: 8,
-    backgroundColor: Colors.primary + '10',
-    borderRadius: 8,
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginTop: 6,
     gap: 4,
+    alignSelf: 'flex-start',
   },
-  viewDetailsText: {
-    fontSize: 13,
+  spotsBadgeUrgent: {
+    backgroundColor: '#D93025' + '15',
+  },
+  spotsText: {
+    fontSize: 11,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  spotsTextUrgent: {
+    color: '#D93025',
   },
   // Empty state styles
   emptyListState: {

@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { MMKV } from 'react-native-mmkv';
+import { UIManager, NativeModules, Platform } from 'react-native';
 import RootNavigator from './src/navigation/RootNavigator';
 import NetworkStatus from './src/components/NetworkStatus';
 import { store, persistor } from './src/store';
@@ -12,6 +13,18 @@ import ActivityService from './src/services/activityService';
 import { revenueCatService } from './src/services/revenueCatService';
 import { pushNotificationService } from './src/services/pushNotificationService';
 import { deepLinkService } from './src/services/deepLinkService';
+
+// Debug: Check Google Maps native module availability
+if (__DEV__ && Platform.OS === 'ios') {
+  console.log('=== Google Maps Native Module Debug ===');
+  const googleMapConfig = UIManager.getViewManagerConfig('RNMGoogleMap');
+  console.log('RNMGoogleMap ViewManager:', googleMapConfig ? 'INSTALLED' : 'NOT INSTALLED');
+  console.log('RNMGoogleMapViewModule:', NativeModules.RNMGoogleMapViewModule ? 'EXISTS' : 'NULL');
+  const mapModules = Object.keys(NativeModules).filter(k =>
+    k.toLowerCase().includes('map') || k.toLowerCase().includes('google')
+  );
+  console.log('Map-related NativeModules:', mapModules);
+}
 
 // Lazy MMKV initialization for Android JSI compatibility
 let _defaultStorage: MMKV | null = null;

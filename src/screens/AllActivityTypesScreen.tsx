@@ -74,7 +74,7 @@ const AllActivityTypesScreen: React.FC = () => {
 
   const renderActivityType = ({ item, index }: { item: ActivityType; index: number }) => {
     const imageKey = getActivityImageKey(item.name, item.code);
-    const imageSource = getActivityImageByKey(imageKey);
+    const imageSource = getActivityImageByKey(imageKey, item.name);
 
     return (
       <TouchableOpacity

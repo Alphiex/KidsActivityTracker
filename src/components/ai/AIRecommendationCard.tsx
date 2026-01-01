@@ -53,11 +53,14 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
       ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
       : (activity.activityType as any)?.name;
 
-    return getActivityImageByKey(getActivityImageKey(
-      activity.category || activityType || '',
-      activity.subcategory,
-      activity.name
-    ));
+    return getActivityImageByKey(
+      getActivityImageKey(
+        activity.category || activityType || '',
+        activity.subcategory,
+        activity.name
+      ),
+      activityType // Pass activity type for fallback
+    );
   };
 
   // Format date range
@@ -195,7 +198,34 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
         <View style={styles.infoRow}>
           <Icon name="account-child" size={16} color={Colors.primary} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            Ages {activity.ageRange?.min ?? activity.ageMin ?? 0} - {activity.ageRange?.max ?? activity.ageMax ?? 18} years
+            {(() => {
+              const minAge = activity.ageRange?.min ?? activity.ageMin;
+              const maxAge = activity.ageRange?.max ?? activity.ageMax;
+
+              // No age data - show unknown
+              if (minAge === undefined && maxAge === undefined) {
+                return 'Ages not specified';
+              }
+              if (minAge === null && maxAge === null) {
+                return 'Ages not specified';
+              }
+
+              const min = minAge ?? 0;
+              const max = maxAge ?? 99;
+
+              // All ages (very wide range like 0-99 or 0-100)
+              if (min <= 1 && max >= 90) {
+                return 'All ages';
+              }
+
+              // Same age
+              if (min === max) {
+                return `Age ${min} years`;
+              }
+
+              // Normal range
+              return `Ages ${min}-${max} years`;
+            })()}
           </Text>
         </View>
 

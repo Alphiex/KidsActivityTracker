@@ -19,6 +19,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../contexts/ThemeContext';
 import aiService from '../services/aiService';
 import PreferencesService from '../services/preferencesService';
+import locationService from '../services/locationService';
+import { useAppSelector } from '../store';
 import { AIRecommendation, AIRecommendationResponse, AISourceType } from '../types/ai';
 import { Activity } from '../types';
 import {
@@ -45,7 +47,10 @@ const AIRecommendationsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const { colors, isDark } = useTheme();
-  
+
+  // Get children from Redux store
+  const children = useAppSelector((state) => state.children?.children || []);
+
   // State
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,10 +58,34 @@ const AIRecommendationsScreen = () => {
   const [response, setResponse] = useState<AIRecommendationResponse | null>(null);
   const [activities, setActivities] = useState<Map<string, Activity>>(new Map());
   const [source, setSource] = useState<AISourceType>('heuristic');
-  
+  const [userLocation, setUserLocation] = useState<{ city?: string; latitude?: number; longitude?: number } | null>(null);
+
   // Get params from route - use useMemo to prevent new object references on every render
   const searchIntent = route.params?.search_intent || 'Find the best activities for my family';
   const filters = useMemo(() => route.params?.filters || {}, [route.params?.filters]);
+
+  // Calculate age range from children
+  const childrenAgeRange = useMemo(() => {
+    if (!children || children.length === 0) return null;
+
+    const ages = children.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    if (ages.length === 0) return null;
+
+    return {
+      min: Math.max(0, Math.min(...ages) - 1), // Allow 1 year younger
+      max: Math.min(18, Math.max(...ages) + 1), // Allow 1 year older
+    };
+  }, [children]);
   
   /**
    * Fetch AI recommendations
@@ -70,18 +99,48 @@ const AIRecommendationsScreen = () => {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
 
+      // Get user's effective location (GPS or saved address)
+      let locationData: { city?: string; latitude?: number; longitude?: number } = {};
+      try {
+        const effectiveLocation = await locationService.getEffectiveLocation();
+        if (effectiveLocation) {
+          locationData = {
+            latitude: effectiveLocation.latitude,
+            longitude: effectiveLocation.longitude,
+          };
+        }
+      } catch (locError) {
+        console.warn('[AIRecommendationsScreen] Could not get location:', locError);
+      }
+
+      // Store location for display
+      setUserLocation({
+        ...locationData,
+        city: preferences.preferredLocation,
+      });
+
+      // Use children's age range if available, otherwise fall back to preferences
+      const ageMin = childrenAgeRange?.min ?? preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min;
+      const ageMax = childrenAgeRange?.max ?? preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max;
+
       // Merge user preferences with route filters
       const enrichedFilters = {
         ...filters,
-        // Add age range from preferences if not already set
-        ageMin: filters.ageMin ?? (preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min),
-        ageMax: filters.ageMax ?? (preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max),
+        // Add age range from children or preferences
+        ageMin: filters.ageMin ?? ageMin,
+        ageMax: filters.ageMax ?? ageMax,
         // Add location from preferences if available
         city: filters.city ?? preferences.preferredLocation,
+        // Add GPS coordinates if available (for 20km radius filtering)
+        ...(locationData.latitude && locationData.longitude ? {
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          radiusKm: 20, // Default 20km radius for AI recommendations
+        } : {}),
         // Add preferred activity types if not specified
         activityTypes: filters.activityTypes ?? preferences.preferredActivityTypes,
-        // Add day preferences
-        dayOfWeek: filters.dayOfWeek ?? preferences.daysOfWeek,
+        // Add day preferences - only if user has specific preferences set
+        dayOfWeek: filters.dayOfWeek ?? (preferences.daysOfWeek?.length < 7 ? preferences.daysOfWeek : undefined),
         // Add price preferences
         costMax: filters.costMax ?? preferences.priceRange?.max,
       };
@@ -129,7 +188,7 @@ const AIRecommendationsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchIntent, filters]);
+  }, [searchIntent, filters, childrenAgeRange]);
   
   /**
    * Handle pull to refresh
@@ -210,16 +269,28 @@ const AIRecommendationsScreen = () => {
     // Build context from preferences and filters
     const contextItems: string[] = [];
 
-    // Age range - prefer preferences, fall back to filters
-    const ageMin = preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min ?? filters.ageMin;
-    const ageMax = preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max ?? filters.ageMax;
-    if (ageMin !== undefined || ageMax !== undefined) {
-      const min = ageMin ?? 0;
-      const max = ageMax ?? 18;
-      if (min === max) {
-        contextItems.push(`Age ${min}`);
+    // Age range - prefer children's ages, then preferences, then filters
+    if (childrenAgeRange) {
+      // Show children's names if available
+      const childNames = children.slice(0, 2).map(c => c.name).join(', ');
+      if (childNames) {
+        contextItems.push(`For ${childNames}${children.length > 2 ? ` +${children.length - 2}` : ''}`);
+      }
+      if (childrenAgeRange.min === childrenAgeRange.max) {
+        contextItems.push(`Age ${childrenAgeRange.min}`);
       } else {
-        contextItems.push(`Ages ${min}-${max}`);
+        contextItems.push(`Ages ${childrenAgeRange.min}-${childrenAgeRange.max}`);
+      }
+    } else {
+      // Fall back to preferences
+      const ageMin = preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min ?? filters.ageMin;
+      const ageMax = preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max ?? filters.ageMax;
+      if (ageMin !== undefined && ageMax !== undefined && !(ageMin === 0 && ageMax === 18)) {
+        if (ageMin === ageMax) {
+          contextItems.push(`Age ${ageMin}`);
+        } else {
+          contextItems.push(`Ages ${ageMin}-${ageMax}`);
+        }
       }
     }
 
@@ -232,10 +303,10 @@ const AIRecommendationsScreen = () => {
       if (cat) contextItems.push(cat);
     }
 
-    // Days of week - prefer preferences
-    const days = preferences.daysOfWeek?.length > 0 ? preferences.daysOfWeek : filters.dayOfWeek;
-    if (days?.length > 0) {
-      if (days.includes('Saturday') && days.includes('Sunday')) {
+    // Days of week - only show if not all days selected
+    const days = filters.dayOfWeek || (preferences.daysOfWeek?.length < 7 ? preferences.daysOfWeek : null);
+    if (days && days.length > 0 && days.length < 7) {
+      if (days.length === 2 && days.includes('Saturday') && days.includes('Sunday')) {
         contextItems.push('Weekends');
       } else if (days.length <= 2) {
         contextItems.push(days.join(', '));
@@ -244,10 +315,15 @@ const AIRecommendationsScreen = () => {
       }
     }
 
-    // Location - prefer preferences
-    const location = preferences.preferredLocation || filters.location || filters.city;
+    // Location - show city from preferences or GPS
+    const location = userLocation?.city || preferences.preferredLocation || filters.location || filters.city;
     if (location) {
       contextItems.push(location);
+    }
+
+    // Show 20km radius indicator if using GPS
+    if (userLocation?.latitude && userLocation?.longitude) {
+      contextItems.push('Within 20km');
     }
 
     return (
@@ -293,10 +369,10 @@ const AIRecommendationsScreen = () => {
         activity={activity}
         source={source}
         onPress={() => handleActivityPress(rec.activity_id)}
-        showExplanation={false}
+        showExplanation={true}
         containerStyle={{
-          width: CARD_WIDTH,
-          marginRight: index % 2 === 0 ? CARD_GAP : 0,
+          width: '100%',
+          marginBottom: 16,
         }}
       />
     );
@@ -335,9 +411,7 @@ const AIRecommendationsScreen = () => {
           data={recommendationsData}
           renderItem={renderRecommendationItem}
           keyExtractor={(item) => item.activity_id}
-          numColumns={2}
           contentContainerStyle={styles.listContent}
-          columnWrapperStyle={recommendationsData.length > 1 ? styles.columnWrapper : undefined}
           ListHeaderComponent={renderSearchContext}
           ListEmptyComponent={renderEmptyState}
           refreshControl={

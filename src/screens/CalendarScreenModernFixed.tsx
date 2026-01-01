@@ -1892,18 +1892,17 @@ const CalendarScreenModernFixed = () => {
     </Modal>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={ModernColors.primary} />
-        <Text style={styles.loadingText}>Loading calendar...</Text>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <TopTabNavigation />
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={ModernColors.primary} />
+          <Text style={styles.loadingText}>Loading calendar...</Text>
+        </View>
+      ) : (
+        <>
 
       {/* Bulk Selection Toolbar */}
       {selectionMode && (
@@ -2205,6 +2204,8 @@ const CalendarScreenModernFixed = () => {
       >
         <Icon name="plus" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+        </>
+      )}
     </SafeAreaView>
   );
 };

@@ -71,7 +71,7 @@ export const OptimizedActivityImage: React.FC<OptimizedActivityImageProps> = ({
       {hasError && (
         <View style={[styles.errorOverlay, style]}>
           <Image
-            source={require('../assets/images/activities/recreation_center.jpg')}
+            source={require('../assets/images/activities/other/recreation_center.jpg')}
             style={[styles.image, style]}
             resizeMode={resizeMode}
             fadeDuration={0}

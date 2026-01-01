@@ -494,14 +494,6 @@ const DashboardScreenModern = () => {
     ]);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF385C" />
-      </View>
-    );
-  }
-
   const handleNavigate = (screen: string, params?: any) => {
     try {
       navigation.navigate(screen as any, params);
@@ -518,7 +510,7 @@ const DashboardScreenModern = () => {
       : (activity.activityType as any)?.name || activity.category || 'general';
     const subcategory = activity.activitySubtype?.name || activity.subcategory;
     const imageKey = getActivityImageKey(activityTypeName, subcategory, activity.name);
-    const imageSource = getActivityImageByKey(imageKey);
+    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
     const isFavorite = favoriteIds.has(activity.id);
 
     // Format date range display
@@ -829,6 +821,12 @@ const DashboardScreenModern = () => {
       {/* Tab Navigation - Fixed at top */}
       <TopTabNavigation />
 
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF385C" />
+        </View>
+      ) : (
+        <>
       {/* Fixed Header with Search */}
       <View style={styles.fixedHeader}>
         {/* Search Bar */}
@@ -876,7 +874,7 @@ const DashboardScreenModern = () => {
           </View>
         )}
 
-        {/* AI Recommendations Banner */}
+        {/* AI Recommendations Banner - Compact */}
         <TouchableOpacity
           style={styles.aiBanner}
           onPress={() => navigation.navigate('AIRecommendations', {
@@ -895,14 +893,10 @@ const DashboardScreenModern = () => {
                 <Image source={aiRobotImage} style={styles.aiRobotImage} />
               </View>
               <View style={styles.aiBannerTextContainer}>
-                <Text style={styles.aiBannerTitle}>AI-Powered Recommendations</Text>
-                <Text style={styles.aiBannerSubtitle}>Get personalized activity picks based on your family's interests</Text>
+                <Text style={styles.aiBannerTitle}>AI Recommendations</Text>
+                <Text style={styles.aiBannerSubtitle}>Personalized picks for your family</Text>
               </View>
-            </View>
-            <View style={styles.aiTryButton}>
-              <Icon name="sparkles" size={16} color="#FFFFFF" />
-              <Text style={styles.aiTryButtonText}>Ask AI for Suggestions</Text>
-              <Icon name="chevron-right" size={18} color="#FFFFFF" />
+              <Icon name="chevron-right" size={22} color="#FFFFFF" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -1029,7 +1023,7 @@ const DashboardScreenModern = () => {
             {activityTypes.map((type) => {
               // Use getActivityImageKey with type name to get proper image mapping
               const imageKey = getActivityImageKey(type.name, type.code);
-              const imageSource = getActivityImageByKey(imageKey);
+              const imageSource = getActivityImageByKey(imageKey, type.name);
               return (
                 <TouchableOpacity
                   key={type.id}
@@ -1115,6 +1109,8 @@ const DashboardScreenModern = () => {
         currentCount={subscriptionWaitlistCount}
         limit={waitlistLimit}
       />
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -1180,65 +1176,49 @@ const styles = StyleSheet.create({
   },
   aiBanner: {
     marginHorizontal: 16,
-    marginBottom: 24,
-    borderRadius: 20,
+    marginBottom: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   aiBannerGradient: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   aiBannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   aiRobotContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   aiRobotImage: {
-    width: 50,
-    height: 50,
+    width: 28,
+    height: 28,
     resizeMode: 'contain',
   },
   aiBannerTextContainer: {
     flex: 1,
   },
   aiBannerTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 1,
   },
   aiBannerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 18,
-  },
-  aiTryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginTop: 14,
-    alignSelf: 'flex-start',
-  },
-  aiTryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-    marginHorizontal: 8,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   waitlistBanner: {
     marginHorizontal: 20,
@@ -1315,7 +1295,7 @@ const styles = StyleSheet.create({
   },
   cardImageContainer: {
     width: '100%',
-    height: 200,
+    height: 100,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#F0F0F0',

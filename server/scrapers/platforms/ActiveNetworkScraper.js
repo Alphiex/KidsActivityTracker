@@ -1984,15 +1984,6 @@ class ActiveNetworkScraper extends BaseScraper {
       return activities;
     }
 
-    // Skip detail fetching for very large datasets (>5000 activities)
-    // API data is comprehensive enough for these cases and detail fetching would take hours
-    const maxActivitiesForDetails = this.config.scraperConfig.maxActivitiesForDetails || 5000;
-    if (activities.length > maxActivitiesForDetails) {
-      this.logProgress(`Skipping detail fetching for ${activities.length} activities (threshold: ${maxActivitiesForDetails})`);
-      this.logProgress('API data is sufficient for large datasets');
-      return activities;
-    }
-
     // Only fetch details for activities with registration URLs
     const activitiesWithUrls = activities.filter(a => a.registrationUrl);
 

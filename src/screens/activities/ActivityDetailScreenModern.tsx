@@ -451,11 +451,17 @@ const ActivityDetailScreenModern = () => {
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* Hero Section with Image */}
         <ImageBackground
-          source={getActivityImageByKey(getActivityImageKey(
-            activity.category || '',
-            activity.subcategory,
-            activity.name
-          )) || require('../../assets/images/activities/sports_general.jpg')}
+          source={getActivityImageByKey(
+            getActivityImageKey(
+              activity.category || '',
+              activity.subcategory,
+              activity.name
+            ),
+            // Pass activity type for fallback
+            Array.isArray(activity.activityType)
+              ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+              : (activity.activityType as any)?.name
+          ) || require('../../assets/images/activities/multi_sport/sports_general.jpg')}
           style={styles.heroImage}
           resizeMode="cover"
         >

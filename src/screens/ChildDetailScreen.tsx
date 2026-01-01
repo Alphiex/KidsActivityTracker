@@ -335,7 +335,7 @@ const ChildDetailScreen: React.FC = () => {
     });
 
     const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
-    const imageSource = getActivityImageByKey(imageKey);
+    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
 
     const handleShare = async () => {
       try {

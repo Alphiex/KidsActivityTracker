@@ -2,8 +2,10 @@
 
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTLinkingManager.h>
-#import <Firebase.h>
 #import <UserNotifications/UserNotifications.h>
+
+// Firebase and Google Maps - framework imports for static frameworks
+#import <FirebaseCore/FirebaseCore.h>
 #import <FirebaseMessaging/FirebaseMessaging.h>
 #import <GoogleMaps/GoogleMaps.h>
 

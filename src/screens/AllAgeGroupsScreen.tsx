@@ -35,7 +35,7 @@ const AllAgeGroupsScreen: React.FC = () => {
       ageMin: 0,
       ageMax: 2,
       description: 'Infant & Toddler programs',
-      image: require('../assets/images/activities/toddler_play.jpg'),
+      image: require('../assets/images/activities/early_development/toddler_play.jpg'),
     },
     {
       id: 2,
@@ -44,7 +44,7 @@ const AllAgeGroupsScreen: React.FC = () => {
       ageMin: 3,
       ageMax: 5,
       description: 'Preschool activities',
-      image: require('../assets/images/activities/preschool.jpg'),
+      image: require('../assets/images/activities/early_development/preschool.jpg'),
     },
     {
       id: 3,
@@ -53,7 +53,7 @@ const AllAgeGroupsScreen: React.FC = () => {
       ageMin: 6,
       ageMax: 8,
       description: 'Early elementary programs',
-      image: require('../assets/images/activities/kids_activities.jpg'),
+      image: require('../assets/images/activities/early_development/kids_activities.jpg'),
     },
     {
       id: 4,
@@ -62,7 +62,7 @@ const AllAgeGroupsScreen: React.FC = () => {
       ageMin: 9,
       ageMax: 12,
       description: 'Pre-teen activities',
-      image: require('../assets/images/activities/youth_activities.jpg'),
+      image: require('../assets/images/activities/other/youth_activities.jpg'),
     },
     {
       id: 5,
@@ -71,7 +71,7 @@ const AllAgeGroupsScreen: React.FC = () => {
       ageMin: 13,
       ageMax: 18,
       description: 'Teen programs',
-      image: require('../assets/images/activities/leadership.jpg'),
+      image: require('../assets/images/activities/life_skills/leadership.jpg'),
     },
     {
       id: 6,
@@ -80,7 +80,7 @@ const AllAgeGroupsScreen: React.FC = () => {
       ageMin: 0,
       ageMax: 18,
       description: 'Family-friendly activities',
-      image: require('../assets/images/activities/family_fun.jpg'),
+      image: require('../assets/images/activities/other/family_fun.jpg'),
     },
   ];
 

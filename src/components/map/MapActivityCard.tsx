@@ -20,13 +20,15 @@ const MapActivityCard: React.FC<MapActivityCardProps> = ({
   onClose,
   showCloseButton = false,
 }) => {
-  const getImageKey = () => {
-    const category = activity.category || (
-      Array.isArray(activity.activityType)
-        ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
-        : (activity.activityType as any)?.name
-    ) || '';
-    return getActivityImageKey(category, activity.subcategory, activity.name);
+  const getImageKeyAndType = () => {
+    const activityType = Array.isArray(activity.activityType)
+      ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+      : (activity.activityType as any)?.name;
+    const category = activity.category || activityType || '';
+    return {
+      key: getActivityImageKey(category, activity.subcategory, activity.name),
+      type: activityType,
+    };
   };
 
   return (
@@ -39,7 +41,10 @@ const MapActivityCard: React.FC<MapActivityCardProps> = ({
       
       <View style={styles.imageContainer}>
         <Image
-          source={getActivityImageByKey(getImageKey())}
+          source={(() => {
+            const { key, type } = getImageKeyAndType();
+            return getActivityImageByKey(key, type);
+          })()}
           style={styles.image}
           resizeMode="cover"
         />

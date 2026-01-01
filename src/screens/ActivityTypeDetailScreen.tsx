@@ -279,7 +279,7 @@ const ActivityTypeDetailScreen = () => {
 
   const renderSubtypeCard = ({ item }: { item: Subtype }) => {
     const imageKey = getActivityImageKey(item.name, item.code);
-    const imageSource = getActivityImageByKey(imageKey);
+    const imageSource = getActivityImageByKey(imageKey, activityType?.name);
 
     return (
       <TouchableOpacity

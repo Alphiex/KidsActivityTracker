@@ -32,12 +32,15 @@ end
 
 # Linkage is configured globally above with use_frameworks!
 
+# Enable Google Maps for react-native-maps
+ENV['RNM_GOOGLE_MAPS_ENABLED'] = '1'
+
 target 'KidsActivityTracker' do
   config = use_native_modules!
 
-  # Google Maps for react-native-maps (required for Android parity)
-  pod 'GoogleMaps', '~> 7.4'
-  pod 'Google-Maps-iOS-Utils', '~> 4.2'
+  # Google Maps for react-native-maps - use the separate google-maps podspec
+  # Let react-native-google-maps manage GoogleMaps SDK dependencies
+  pod 'react-native-google-maps', :path => '../node_modules/react-native-maps'
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -64,6 +67,13 @@ target 'KidsActivityTracker' do
       target.build_configurations.each do |config|
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+
+        # Enable Google Maps for react-native-maps and react-native-google-maps
+        if target.name == 'react-native-maps' || target.name == 'react-native-google-maps'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'HAVE_GOOGLE_MAPS=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'HAVE_GOOGLE_MAPS_UTILS=1'
+        end
 
         # Remove duplicate -lc++ from OTHER_LDFLAGS
         if config.build_settings['OTHER_LDFLAGS']
@@ -101,7 +111,19 @@ target 'KidsActivityTracker' do
     # Fix Folly build errors by disabling problematic templates
     __apply_Xcode_16_3_RC_post_install_workaround(installer)
 
+    # Fix Swift architecture compatibility issues with GoogleMapsUtils, FirebaseAuth, etc.
+    # For Apple Silicon simulators, only build for the active architecture (arm64)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
+        if config.name == 'Debug'
+          config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+        end
+      end
+    end
+
     # Include custom Config.xcconfig in Pods xcconfig files for API keys
+    # Also fix EXCLUDED_ARCHS to exclude x86_64 instead of arm64 for Apple Silicon
     pods_project_path = installer.sandbox.project_path
     target_support_files = "#{pods_project_path}/../Target Support Files/Pods-KidsActivityTracker"
 
@@ -111,7 +133,28 @@ target 'KidsActivityTracker' do
         content = File.read(xcconfig_path)
         include_line = '#include "../../../Config.xcconfig"'
         unless content.include?(include_line)
-          File.write(xcconfig_path, "#{include_line}\n#{content}")
+          content = "#{include_line}\n#{content}"
+        end
+        # Fix EXCLUDED_ARCHS to exclude x86_64 instead of arm64 for Apple Silicon simulators
+        content = content.gsub('EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64', 'EXCLUDED_ARCHS[sdk=iphonesimulator*] = x86_64')
+        File.write(xcconfig_path, content)
+      end
+    end
+
+    # CRITICAL: Add HAVE_GOOGLE_MAPS to react-native-google-maps xcconfig files
+    # The podspec compiler_flags don't propagate correctly, so we modify xcconfig directly
+    google_maps_support_files = "#{pods_project_path}/../Target Support Files/react-native-google-maps"
+    ['debug', 'release'].each do |config|
+      xcconfig_path = "#{google_maps_support_files}/react-native-google-maps.#{config}.xcconfig"
+      if File.exist?(xcconfig_path)
+        content = File.read(xcconfig_path)
+        unless content.include?('HAVE_GOOGLE_MAPS=1')
+          content = content.gsub(
+            /GCC_PREPROCESSOR_DEFINITIONS = \$\(inherited\) COCOAPODS=1/,
+            'GCC_PREPROCESSOR_DEFINITIONS = $(inherited) COCOAPODS=1 HAVE_GOOGLE_MAPS=1 HAVE_GOOGLE_MAPS_UTILS=1'
+          )
+          File.write(xcconfig_path, content)
+          puts "Updated #{xcconfig_path} with HAVE_GOOGLE_MAPS=1"
         end
       end
     end

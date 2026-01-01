@@ -147,7 +147,7 @@ const FeaturedPartnersScreen: React.FC = () => {
       : (activity.activityType as any)?.name || activity.category || 'general';
     const subcategory = activity.activitySubtype?.name || activity.subcategory;
     const imageKey = getActivityImageKey(activityTypeName, subcategory, activity.name);
-    const imageSource = getActivityImageByKey(imageKey);
+    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
     const isFavorite = favoriteIds.has(activity.id);
     const price = activity.cost || 0;
 
