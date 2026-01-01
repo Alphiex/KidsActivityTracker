@@ -41,6 +41,8 @@ interface ActivityCardProps {
   onFavoriteLimitReached?: () => void;
   // Custom container style for grid layouts
   containerStyle?: any;
+  // Custom image height (default: 200)
+  imageHeight?: number;
   // Waitlist support
   isOnWaitlist?: boolean;
   onWaitlistPress?: () => void;
@@ -57,6 +59,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   canAddFavorite = true,
   onFavoriteLimitReached,
   containerStyle,
+  imageHeight = 200,
   isOnWaitlist: externalIsOnWaitlist,
   onWaitlistPress,
   canAddToWaitlist = true,
@@ -352,7 +355,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       }}
       activeOpacity={0.9}
     >
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { height: imageHeight }]}>
         <OptimizedActivityImage
           source={getActivityImageByKey(
             getActivityImageKey(

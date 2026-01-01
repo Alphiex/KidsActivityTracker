@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -20,10 +19,9 @@ import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { ClusterMarker } from '../components/map';
 import { Colors } from '../theme';
-import { getActivityImageKey } from '../utils/activityHelpers';
-import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import ActivityCard from '../components/ActivityCard';
 
 type MapSearchRouteProp = RouteProp<{
   MapSearch: {
@@ -487,117 +485,22 @@ const MapSearchScreen = () => {
     updateVisibleActivities(newRegion);
   }, [updateVisibleActivities]);
 
-  // Render horizontal activity card
+  // Render horizontal activity card using standard ActivityCard component
   const renderActivityCard = useCallback(({ item }: { item: Activity }) => {
     const isSelected = selectedActivityId === item.id;
-    const locationName = typeof item.location === 'string'
-      ? item.location
-      : item.location?.name || item.locationName || '';
-
-    // Get activity image using the same logic as Dashboard
-    const activityTypeName = typeof item.activityType === 'string'
-      ? item.activityType
-      : (item.activityType as any)?.name || item.category || 'general';
-    const subcategory = (item as any).activitySubtype?.name || item.subcategory;
-    const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
-    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
-
-    // Format date range like Dashboard
-    let dateRangeText = '';
-    if (item.dateStart && item.dateEnd) {
-      const start = new Date(item.dateStart);
-      const end = new Date(item.dateEnd);
-      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRangeText = `${startStr} - ${endStr}`;
-    } else if ((item as any).dateRange?.start && (item as any).dateRange?.end) {
-      const start = new Date((item as any).dateRange.start);
-      const end = new Date((item as any).dateRange.end);
-      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRangeText = `${startStr} - ${endStr}`;
-    } else if (item.dates) {
-      dateRangeText = item.dates;
-    }
-
-    // Format time like Dashboard
-    let timeText = '';
-    if (item.startTime && item.endTime) {
-      timeText = `${item.startTime} - ${item.endTime}`;
-    } else if (item.startTime) {
-      timeText = item.startTime;
-    }
-
-    // Format age range
-    const ageText = item.ageMin != null && item.ageMax != null
-      ? `Ages ${item.ageMin}-${item.ageMax}`
-      : item.ageMin != null
-      ? `Ages ${item.ageMin}+`
-      : '';
 
     return (
-      <TouchableOpacity
-        style={[styles.activityCard, isSelected && styles.activityCardSelected]}
-        onPress={() => handleActivityPress(item)}
-        activeOpacity={0.9}
-      >
-        <Image source={imageSource} style={styles.cardImage} resizeMode="cover" />
-        {item.price != null && (
-          <View style={styles.priceTag}>
-            <Text style={styles.priceTagText}>${item.price}</Text>
-          </View>
-        )}
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-
-          {locationName ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="map-marker" size={12} color="#717171" />
-              <Text style={styles.cardInfoText} numberOfLines={1}>{locationName}</Text>
-            </View>
-          ) : null}
-
-          {dateRangeText ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="calendar" size={12} color="#717171" />
-              <Text style={styles.cardInfoText}>{dateRangeText}</Text>
-            </View>
-          ) : null}
-
-          {timeText ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="clock-outline" size={12} color="#717171" />
-              <Text style={styles.cardInfoText}>{timeText}</Text>
-            </View>
-          ) : null}
-
-          {ageText ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="account-child" size={12} color="#717171" />
-              <Text style={styles.cardInfoText}>{ageText}</Text>
-            </View>
-          ) : null}
-
-          {item.spotsAvailable != null && item.spotsAvailable > 0 && item.spotsAvailable <= 10 && (
-            <View style={[
-              styles.spotsBadge,
-              item.spotsAvailable <= 3 && styles.spotsBadgeUrgent,
-            ]}>
-              <Icon
-                name={item.spotsAvailable <= 3 ? "alert-circle" : "information"}
-                size={12}
-                color={item.spotsAvailable <= 3 ? "#D93025" : Colors.primary}
-              />
-              <Text style={[
-                styles.spotsText,
-                item.spotsAvailable <= 3 && styles.spotsTextUrgent,
-              ]}>
-                {item.spotsAvailable} {item.spotsAvailable === 1 ? 'spot left' : 'spots left'}
-              </Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+      <View style={[
+        styles.activityCardWrapper,
+        isSelected && styles.activityCardSelected,
+      ]}>
+        <ActivityCard
+          activity={item}
+          onPress={() => handleActivityPress(item)}
+          containerStyle={styles.activityCard}
+          imageHeight={150} // 25% smaller than default 200
+        />
+      </View>
     );
   }, [selectedActivityId, handleActivityPress]);
 
@@ -938,84 +841,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 12,
   },
-  // Activity card styles
-  activityCard: {
+  // Activity card wrapper for selection highlighting
+  activityCardWrapper: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_MARGIN,
-    backgroundColor: '#FFFFFF',
+  },
+  // Activity card container style passed to ActivityCard
+  activityCard: {
+    marginBottom: 0, // Override default margin
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
   },
   activityCardSelected: {
     borderWidth: 2,
     borderColor: Colors.primary,
-  },
-  cardImage: {
-    width: '100%',
-    height: 100,
-    backgroundColor: '#F5F5F5',
-  },
-  priceTag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  priceTagText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  cardContent: {
-    padding: 12,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  cardInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 4,
-  },
-  cardInfoText: {
-    fontSize: 12,
-    color: '#717171',
-    flex: 1,
-  },
-  spotsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary + '15',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginTop: 6,
-    gap: 4,
-    alignSelf: 'flex-start',
-  },
-  spotsBadgeUrgent: {
-    backgroundColor: '#D93025' + '15',
-  },
-  spotsText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  spotsTextUrgent: {
-    color: '#D93025',
+    borderRadius: 18,
   },
   // Empty state styles
   emptyListState: {
