@@ -194,9 +194,9 @@ const CalendarScreenModernFixed = () => {
         // Continue with empty shared array if 404 or other error
       }
 
-      // Get date range for fetching scheduled activities
+      // Get date range for fetching scheduled activities (12 months ahead)
       const startDate = startOfMonth(new Date());
-      const endDate = endOfMonth(addMonths(new Date(), 2));
+      const endDate = endOfMonth(addMonths(new Date(), 12));
 
       // Fetch scheduled activities for all children with full activity details
       let scheduledActivities: any[] = [];
@@ -1326,13 +1326,14 @@ const CalendarScreenModernFixed = () => {
           onDayLongPress={handleDayLongPress}
           onMonthChange={(month: any) => {
             console.log('[Calendar] onMonthChange to:', month.dateString);
-            // Don't change selected date on month change, just stay in current view
+            // Sync selectedDate when month changes to keep calendar and state in sync
+            setSelectedDate(month.dateString);
           }}
           markedDates={markedDates}
           markingType={'multi-dot'}
           hideArrows={true}
           hideExtraDays={false}
-          disableMonthChange={true}
+          disableMonthChange={false}
           theme={{
             backgroundColor: ModernColors.background,
             calendarBackground: ModernColors.background,
