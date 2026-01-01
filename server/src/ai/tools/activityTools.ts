@@ -46,8 +46,25 @@ export const searchActivitiesTool = new DynamicStructuredTool({
         isActive: true,
       };
 
-      if (category) {
-        where.category = { contains: category, mode: 'insensitive' };
+      // Age filtering in database - activity is suitable if child's age falls within activity's range
+      // Child age (minAge/maxAge params) should be within activity's ageMin-ageMax range
+      if (minAge !== undefined || maxAge !== undefined) {
+        const childAge = maxAge ?? minAge ?? 5; // Use the age we're searching for
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { ageMin: null }, // No min age restriction
+              { ageMin: { lte: childAge } }, // Activity accepts this age
+            ],
+          },
+          {
+            OR: [
+              { ageMax: null }, // No max age restriction
+              { ageMax: { gte: childAge } }, // Activity accepts this age
+            ],
+          },
+        ];
       }
 
       if (city) {
@@ -58,12 +75,36 @@ export const searchActivitiesTool = new DynamicStructuredTool({
         where.cost = { lte: maxPrice };
       }
 
-      if (searchTerm) {
-        where.OR = [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { description: { contains: searchTerm, mode: 'insensitive' } },
+      // Handle category and searchTerm together
+      if (searchTerm && category) {
+        // Search term OR category match
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { name: { contains: searchTerm, mode: 'insensitive' } },
+              { description: { contains: searchTerm, mode: 'insensitive' } },
+              { category: { contains: category, mode: 'insensitive' } },
+              { category: { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          },
         ];
+      } else if (searchTerm) {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { name: { contains: searchTerm, mode: 'insensitive' } },
+              { description: { contains: searchTerm, mode: 'insensitive' } },
+              { category: { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          },
+        ];
+      } else if (category) {
+        where.category = { contains: category, mode: 'insensitive' };
       }
+
+      console.log('[searchActivities] Query where:', JSON.stringify(where, null, 2));
 
       const activities = await prisma.activity.findMany({
         where,
@@ -78,16 +119,8 @@ export const searchActivitiesTool = new DynamicStructuredTool({
         ],
       });
 
-      // Filter by age range in memory
-      const filteredActivities = activities.filter(a => {
-        const activityMin = a.ageMin ?? 0;
-        const activityMax = a.ageMax ?? 99;
-
-        if (minAge !== undefined && activityMax < minAge) return false;
-        if (maxAge !== undefined && activityMin > maxAge) return false;
-
-        return true;
-      });
+      // Activities are already filtered by age in the query
+      const filteredActivities = activities;
 
       // Format response
       const result = filteredActivities.map(a => ({
