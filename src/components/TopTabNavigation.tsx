@@ -8,20 +8,22 @@ const TabIcon = ({ emoji }: { emoji: string }) => {
   return <Text style={styles.iconEmoji}>{emoji}</Text>;
 };
 
-type TabName = 'Dashboard' | 'MapSearch' | 'AIChat' | 'Calendar';
+type TabName = 'Dashboard' | 'MapSearch' | 'AIChat' | 'Calendar' | null;
 
 const TopTabNavigation = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
   // Determine active tab based on current route
+  // Returns null for screens that shouldn't show an active tab
   const getActiveTab = (): TabName => {
     const routeName = route.name;
     if (routeName === 'Dashboard' || routeName === 'Explore') return 'Dashboard';
     if (routeName === 'MapSearch') return 'MapSearch';
     if (routeName === 'AIChat' || routeName === 'AIRecommendations') return 'AIChat';
     if (routeName === 'Calendar') return 'Calendar';
-    return 'Dashboard';
+    // Return null for Preferences, Favourites, Friends & Family screens
+    return null;
   };
 
   const activeTab = getActiveTab();

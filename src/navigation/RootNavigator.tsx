@@ -198,18 +198,26 @@ const MainTabs = () => {
       }}
     >
     <Tab.Screen
-      name="Filters"
+      name="FiltersTab"
       component={HomeStack}
       options={{
-        tabBarLabel: 'Filters',
+        tabBarLabel: 'Preferences',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon
-            name="magnify"
+            name="tune-variant"
             color={color}
             size={26}
           />
         ),
       }}
+      listeners={({ navigation }) => ({
+        tabPress: (e) => {
+          // Prevent default behavior
+          e.preventDefault();
+          // Navigate to Filters screen within HomeStack
+          navigation.navigate('FiltersTab', { screen: 'Filters' });
+        },
+      })}
     />
     <Tab.Screen
       name="Favourites"

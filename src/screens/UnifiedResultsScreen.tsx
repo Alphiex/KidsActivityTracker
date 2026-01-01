@@ -22,6 +22,7 @@ import ActivityService from '../services/activityService';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
 import FavoritesService from '../services/favoritesService';
 import { useAppSelector } from '../store';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 // Header images
 const HeaderImages = {
@@ -78,7 +79,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const getConfig = () => {
     if (type === 'favorites') {
       return {
-        title: 'Your Favorites',
+        title: 'Your Favourites',
         image: HeaderImages.favorites,
         isFavorites: true,
       };
@@ -310,23 +311,27 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const renderHeader = () => {
     if (!config) return null;
 
+    const isFavoritesScreen = type === 'favorites';
+
     return (
       <View style={styles.headerContainer}>
         <ImageBackground
           source={config.image}
-          style={styles.heroSection}
-          imageStyle={styles.heroImageStyle}
+          style={[styles.heroSection, isFavoritesScreen && styles.heroSectionShort]}
+          imageStyle={isFavoritesScreen ? styles.heroImageStyleFlat : styles.heroImageStyle}
         >
           <LinearGradient
             colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
-            style={styles.heroGradient}
+            style={isFavoritesScreen ? styles.heroGradientFlat : styles.heroGradient}
           >
-            {/* Back Button */}
-            <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
-              <View style={styles.backButtonInner}>
-                <Icon name="arrow-left" size={22} color="#333" />
-              </View>
-            </TouchableOpacity>
+            {/* Back Button - hidden for favorites since it's accessed from bottom tab */}
+            {!isFavoritesScreen && (
+              <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
+                <View style={styles.backButtonInner}>
+                  <Icon name="arrow-left" size={22} color="#333" />
+                </View>
+              </TouchableOpacity>
+            )}
 
             {/* Title and Count */}
             <View style={styles.heroContent}>
@@ -372,9 +377,13 @@ const UnifiedResultsScreenTest: React.FC = () => {
     return null;
   };
 
+  const isFavoritesScreen = type === 'favorites';
+
   return (
     <SafeAreaView style={styles.container}>
       <ScreenBackground>
+        {/* Show TopTabNavigation for favorites (accessed from bottom tab) */}
+        {isFavoritesScreen && <TopTabNavigation />}
         <FlatList
           data={activities}
           renderItem={renderActivity}
@@ -424,9 +433,17 @@ const styles = StyleSheet.create({
     height: height * 0.28,
     width: '100%',
   },
+  heroSectionShort: {
+    height: height * 0.14,
+    marginHorizontal: -16,
+    width: width,
+  },
   heroImageStyle: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  heroImageStyleFlat: {
+    borderRadius: 0,
   },
   heroGradient: {
     flex: 1,
@@ -436,6 +453,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: ModernSpacing.lg,
     paddingBottom: ModernSpacing.lg,
     justifyContent: 'space-between',
+  },
+  heroGradientFlat: {
+    flex: 1,
+    paddingTop: ModernSpacing.md,
+    paddingHorizontal: ModernSpacing.lg,
+    paddingBottom: ModernSpacing.md,
+    justifyContent: 'flex-end',
   },
   backButtonHero: {
     alignSelf: 'flex-start',

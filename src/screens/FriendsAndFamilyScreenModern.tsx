@@ -23,6 +23,7 @@ import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { EnhancedAddress } from '../types/preferences';
 import { locationService } from '../services/locationService';
 import ScreenBackground from '../components/ScreenBackground';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 type FriendsAndFamilyRouteParams = {
   FriendsAndFamily: {
@@ -284,14 +285,11 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScreenBackground>
+        {/* Top Tab Navigation */}
+        <TopTabNavigation />
+
         {/* Header */}
         <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Icon name="arrow-left" size={24} color={ModernColors.text} />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Friends & Family</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddChild}>
           <Icon name="plus" size={24} color={ModernColors.text} />
