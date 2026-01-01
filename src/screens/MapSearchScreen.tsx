@@ -154,7 +154,7 @@ const MapSearchScreen = () => {
   // Navigate to search screen for map-based search
   const handleOpenSearch = useCallback(() => {
     // Pass current map bounds to search screen
-    (navigation as any).navigate('Search', {
+    (navigation as any).navigate('SearchMain', {
       returnToMap: true,
       mapBounds: {
         latitude: region.latitude,
@@ -642,14 +642,14 @@ const MapSearchScreen = () => {
           </View>
         )}
 
-        {/* Search Button - Top Right */}
+        {/* Filter Button - Top Right */}
         <View style={styles.searchButtonContainer}>
           <TouchableOpacity
             style={[styles.actionButton, searchFilters && styles.searchButtonActive]}
             onPress={handleOpenSearch}
           >
             <Icon
-              name="magnify"
+              name="filter-variant"
               size={22}
               color={searchFilters ? '#fff' : Colors.primary}
             />
@@ -664,7 +664,7 @@ const MapSearchScreen = () => {
           )}
         </View>
 
-        {/* Search Active Indicator */}
+        {/* Filter Active Indicator */}
         {searchFilters && (
           <View style={styles.searchIndicator}>
             <Icon name="filter" size={14} color="#fff" />

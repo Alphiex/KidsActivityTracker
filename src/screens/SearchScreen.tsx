@@ -992,7 +992,7 @@ const SearchScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         {/* Header with close button */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Search</Text>
+          <Text style={styles.headerTitle}>{returnToMap ? 'Filter Activities' : 'Search'}</Text>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Icon name="close" size={24} color="#222222" />
           </TouchableOpacity>
@@ -1048,33 +1048,35 @@ const SearchScreen = () => {
           </TouchableOpacity>
 
           <View style={styles.searchActions}>
-            {/* AI Match Button with Robot */}
-            <TouchableOpacity
-              onPress={handleAISearch}
-              style={styles.aiMatchContainer}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={isPremium ? ['#FFB5C5', '#E8638B', '#D53F8C'] : ['#D1D5DB', '#9CA3AF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.aiMatchButton}
+            {/* AI Match Button with Robot - Hidden when filtering for map */}
+            {!returnToMap && (
+              <TouchableOpacity
+                onPress={handleAISearch}
+                style={styles.aiMatchContainer}
+                activeOpacity={0.8}
               >
-                <Text style={styles.aiMatchText}>AI Match</Text>
-                {!isPremium && (
-                  <Icon name="lock" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
-                )}
-              </LinearGradient>
-              <Image
-                source={aiRobotImage}
-                style={styles.robotImage}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={isPremium ? ['#FFB5C5', '#E8638B', '#D53F8C'] : ['#D1D5DB', '#9CA3AF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.aiMatchButton}
+                >
+                  <Text style={styles.aiMatchText}>AI Match</Text>
+                  {!isPremium && (
+                    <Icon name="lock" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                  )}
+                </LinearGradient>
+                <Image
+                  source={aiRobotImage}
+                  style={styles.robotImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-              <Icon name="magnify" size={20} color="#FFFFFF" />
-              <Text style={styles.searchButtonText}>Search</Text>
+              <Icon name={returnToMap ? 'filter-check' : 'magnify'} size={20} color="#FFFFFF" />
+              <Text style={styles.searchButtonText}>{returnToMap ? 'Apply Filters' : 'Search'}</Text>
             </TouchableOpacity>
           </View>
         </View>
