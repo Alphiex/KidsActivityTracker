@@ -16,7 +16,7 @@ interface PremiumBadgeProps {
   showIcon?: boolean;
   /** Whether tapping navigates to paywall */
   interactive?: boolean;
-  /** Custom text (default: "PRO") */
+  /** Custom text (default: "PREMIUM") */
   text?: string;
   /** Custom style */
   style?: object;
@@ -26,7 +26,7 @@ const PremiumBadge: React.FC<PremiumBadgeProps> = ({
   size = 'small',
   showIcon = true,
   interactive = true,
-  text = 'PRO',
+  text = 'PREMIUM',
   style,
 }) => {
   const navigation = useNavigation<any>();

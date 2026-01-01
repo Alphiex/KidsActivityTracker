@@ -143,7 +143,7 @@ const CustomerCenterScreen: React.FC = () => {
             />
             <View style={styles.statusTextContainer}>
               <Text style={[styles.statusTitle, { color: colors.text }]}>
-                {isPro ? 'KidsActivityTracker Pro' : 'Free Plan'}
+                {isPro ? 'KidsActivityTracker Premium' : 'Free Plan'}
               </Text>
               {isPro && isTrialing && (
                 <View style={[styles.trialBadge, { backgroundColor: colors.info }]}>

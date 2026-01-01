@@ -29,6 +29,9 @@ import { authService } from '../services/authService';
 import useSubscription from '../hooks/useSubscription';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { locationService } from '../services/locationService';
+import { EnhancedAddress, isEnhancedAddress } from '../types/preferences';
 
 const ProfileIllustration = require('../assets/images/profile-illustration.png');
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -82,6 +85,25 @@ const ProfileScreenModern = () => {
     name: user?.name || '',
     location: user?.location || '',
   });
+  const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
+
+  // Load saved address from preferences on mount
+  useEffect(() => {
+    const loadSavedAddress = () => {
+      const preferencesService = PreferencesService.getInstance();
+      const prefs = preferencesService.getPreferences();
+      if (prefs.savedAddress && isEnhancedAddress(prefs.savedAddress)) {
+        const enhancedAddr = prefs.savedAddress;
+        setSelectedAddress(enhancedAddr);
+        // Update profileData.location for display
+        setProfileData(prev => ({
+          ...prev,
+          location: enhancedAddr.formattedAddress || enhancedAddr.city || '',
+        }));
+      }
+    };
+    loadSavedAddress();
+  }, []);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -129,11 +151,16 @@ const ProfileScreenModern = () => {
       const token = await SecureStore.getAccessToken();
       if (!token) throw new Error('No token found');
 
+      // Get display location from selected address or manual entry
+      const displayLocation = selectedAddress
+        ? selectedAddress.city || selectedAddress.formattedAddress
+        : profileData.location;
+
       const response = await axios.put(
         `${API_CONFIG.BASE_URL}/api/v1/users/profile`,
         {
           name: profileData.name || undefined,
-          location: profileData.location || undefined,
+          location: displayLocation || undefined,
         },
         {
           headers: {
@@ -143,10 +170,16 @@ const ProfileScreenModern = () => {
       );
 
       if (response.data.success) {
+        // Save enhanced address to preferences if selected
+        if (selectedAddress) {
+          await locationService.saveEnhancedAddress(selectedAddress);
+        }
+
         dispatch(updateUserProfile({
           name: profileData.name,
-          location: profileData.location,
+          location: displayLocation,
         }));
+        setProfileData(prev => ({ ...prev, location: displayLocation || '' }));
         setIsEditingProfile(false);
         Alert.alert('Success', 'Profile updated successfully');
       }
@@ -383,12 +416,12 @@ const ProfileScreenModern = () => {
               <View style={styles.subscriptionInfo}>
                 <View style={styles.subscriptionTitleRow}>
                   <Text style={styles.subscriptionPlan}>
-                    {isPremium ? 'Family Pro' : 'Discovery'}
+                    {isPremium ? 'Premium' : 'Discovery'}
                   </Text>
                   {isPremium && (
                     <View style={styles.proBadge}>
                       <Icon name="crown" size={12} color="#FFFFFF" />
-                      <Text style={styles.proBadgeText}>PRO</Text>
+                      <Text style={styles.proBadgeText}>PREMIUM</Text>
                     </View>
                   )}
                   {isTrialing && (
@@ -586,14 +619,15 @@ const ProfileScreenModern = () => {
                 />
               </View>
 
-              <View style={styles.inputGroup}>
+              <View style={[styles.inputGroup, { zIndex: 10 }]}>
                 <Text style={styles.inputLabel}>Location (Optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={profileData.location}
-                  onChangeText={(text) => setProfileData({ ...profileData, location: text })}
-                  placeholder="Enter your location"
-                  placeholderTextColor={ModernColors.textLight}
+                <AddressAutocomplete
+                  value={selectedAddress}
+                  onAddressSelect={(address) => setSelectedAddress(address)}
+                  placeholder="Search for your address..."
+                  country={['ca', 'us']}
+                  showFallbackOption={true}
+                  containerStyle={{ marginBottom: 0 }}
                 />
               </View>
 

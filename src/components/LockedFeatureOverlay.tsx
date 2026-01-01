@@ -4,7 +4,7 @@
  * Shows content with a frosted glass overlay when locked, with:
  * - Semi-transparent white overlay
  * - Centered lock icon
- * - "PRO" badge
+ * - "PREMIUM" badge
  * - Tap to open paywall
  */
 
@@ -36,7 +36,7 @@ interface LockedFeatureOverlayProps {
   onPress?: () => void;
   /** Style for the container */
   style?: object;
-  /** Whether to show the PRO badge */
+  /** Whether to show the PREMIUM badge */
   showBadge?: boolean;
   /** Whether to show the lock icon */
   showLockIcon?: boolean;
@@ -135,7 +135,7 @@ const LockedFeatureOverlay: React.FC<LockedFeatureOverlayProps> = ({
         onPress={handlePress}
         activeOpacity={0.9}
       >
-        {/* PRO Badge in corner */}
+        {/* PREMIUM Badge in corner */}
         {showBadge && (
           <LinearGradient
             colors={['#FFB5C5', '#E8638B', '#D53F8C']}
@@ -144,7 +144,7 @@ const LockedFeatureOverlay: React.FC<LockedFeatureOverlayProps> = ({
             style={[styles.badge, sizeStyles.badgePadding]}
           >
             <Icon name="crown" size={12} color="#fff" style={styles.badgeIcon} />
-            <Text style={styles.badgeText}>PRO</Text>
+            <Text style={styles.badgeText}>PREMIUM</Text>
           </LinearGradient>
         )}
 
@@ -244,7 +244,7 @@ export const LockedFeatureSection: React.FC<LockedFeatureSectionProps> = ({
         style={styles.sectionBadge}
       >
         <Icon name="crown" size={10} color="#fff" style={styles.badgeIcon} />
-        <Text style={styles.sectionBadgeText}>PRO</Text>
+        <Text style={styles.sectionBadgeText}>PREMIUM</Text>
       </LinearGradient>
     </TouchableOpacity>
   );

@@ -1389,7 +1389,7 @@ const FiltersScreen = () => {
               <Text style={styles.globalPreferenceTitle}>Hide Closed or Full Activities</Text>
               {!hasAdvancedFilters && (
                 <View style={styles.proBadge}>
-                  <Text style={styles.proBadgeText}>PRO</Text>
+                  <Text style={styles.proBadgeText}>PREMIUM</Text>
                 </View>
               )}
             </View>

@@ -165,7 +165,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
       await revenueCatService.purchasePackage(pkg);
-      Alert.alert('Success', 'Welcome to KidsActivityTracker Pro!');
+      Alert.alert('Success', 'Welcome to KidsActivityTracker Premium!');
       return true;
     } catch (error: any) {
       if (error.message !== 'Purchase cancelled') {
@@ -190,7 +190,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
       await revenueCatService.purchasePackage(pkg);
-      Alert.alert('Success', 'Welcome to KidsActivityTracker Pro!');
+      Alert.alert('Success', 'Welcome to KidsActivityTracker Premium!');
       return true;
     } catch (error: any) {
       if (error.message !== 'Purchase cancelled') {

@@ -3,7 +3,7 @@
  * Handles in-app purchases and subscription management via RevenueCat SDK
  *
  * Configuration:
- * - Entitlement: KidsActivityTracker Pro
+ * - Entitlement: KidsActivityTracker Premium
  * - Products: monthly, yearly
  */
 
