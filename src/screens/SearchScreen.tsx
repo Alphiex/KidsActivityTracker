@@ -1036,8 +1036,10 @@ const SearchScreen = () => {
               />
             </View>
 
-            {/* Collapsible sections */}
-            {sections.map(section => renderExpandableSection(section))}
+            {/* Collapsible sections - hide location filters when filtering for map */}
+            {sections
+              .filter(section => !returnToMap || (section.id !== 'where' && section.id !== 'distance'))
+              .map(section => renderExpandableSection(section))}
           </View>
         </ScrollView>
 

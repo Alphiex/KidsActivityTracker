@@ -20,12 +20,14 @@ import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
 import WaitlistService from '../services/waitlistService';
+import { revenueCatService } from '../services/revenueCatService';
 import { ClusterMarker } from '../components/map';
 import { Colors } from '../theme';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 type MapSearchRouteProp = RouteProp<{
   MapSearch: {
@@ -125,6 +127,10 @@ const MapSearchScreen = () => {
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Preference-based filtering (default ON - filters by user's saved preferences)
+  const [usePreferencesFilter, setUsePreferencesFilter] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
   // Get user preferences for filtering
   const preferences = preferencesService.getPreferences();
 
@@ -152,6 +158,26 @@ const MapSearchScreen = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters]);
+
+  // Reload activities when preference filter toggle changes
+  useEffect(() => {
+    if (locationLoaded && !searchFilters) {
+      loadActivities();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usePreferencesFilter]);
+
+  // Handle toggling preference filter - requires premium to disable
+  const handleTogglePreferencesFilter = useCallback(() => {
+    if (usePreferencesFilter) {
+      // Trying to turn OFF preference filtering - check if premium
+      if (!revenueCatService.isPro()) {
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+    setUsePreferencesFilter(!usePreferencesFilter);
+  }, [usePreferencesFilter]);
 
   // Navigate to search screen for map-based search
   const handleOpenSearch = useCallback(() => {
@@ -399,6 +425,38 @@ const MapSearchScreen = () => {
     }
   };
 
+  // Build filters from user preferences
+  const buildPreferenceFilters = useCallback((): Record<string, unknown> => {
+    const prefs = preferencesService.getPreferences();
+    const filters: Record<string, unknown> = {};
+
+    // Age range filtering
+    if (prefs.ageRanges && prefs.ageRanges.length > 0) {
+      // Use the first age range (most common use case)
+      const ageRange = prefs.ageRanges[0];
+      if (ageRange.min > 0) filters.ageMin = ageRange.min;
+      if (ageRange.max < 18) filters.ageMax = ageRange.max;
+    }
+
+    // Activity type filtering
+    if (prefs.preferredActivityTypes && prefs.preferredActivityTypes.length > 0) {
+      filters.activityTypes = prefs.preferredActivityTypes;
+    }
+
+    // Price range filtering
+    if (prefs.priceRange) {
+      if (prefs.priceRange.min > 0) filters.priceMin = prefs.priceRange.min;
+      if (prefs.priceRange.max < 999999) filters.priceMax = prefs.priceRange.max;
+    }
+
+    // Hide full activities
+    if (prefs.hideFullActivities || prefs.hideClosedOrFull) {
+      filters.hideFullActivities = true;
+    }
+
+    return filters;
+  }, [preferencesService]);
+
   const loadActivities = async () => {
     try {
       setLoading(true);
@@ -408,6 +466,13 @@ const MapSearchScreen = () => {
         limit: 500, // Load more for map view
         hasCoordinates: true, // Only get activities with lat/lng
       };
+
+      // Apply user preference filters if enabled
+      if (usePreferencesFilter) {
+        const prefFilters = buildPreferenceFilters();
+        Object.assign(filters, prefFilters);
+        if (__DEV__) console.log('[MapSearch] Applying preference filters:', prefFilters);
+      }
 
       if (__DEV__) console.log('[MapSearch] Loading activities with filters:', filters);
 
@@ -720,6 +785,30 @@ const MapSearchScreen = () => {
           </View>
         )}
 
+        {/* My Preferences Toggle Chip - Top Left */}
+        <TouchableOpacity
+          style={[
+            styles.preferencesChip,
+            usePreferencesFilter && styles.preferencesChipActive,
+          ]}
+          onPress={handleTogglePreferencesFilter}
+        >
+          <Icon
+            name={usePreferencesFilter ? 'account-check' : 'account-off'}
+            size={16}
+            color={usePreferencesFilter ? '#fff' : Colors.primary}
+          />
+          <Text style={[
+            styles.preferencesChipText,
+            usePreferencesFilter && styles.preferencesChipTextActive,
+          ]}>
+            My Preferences
+          </Text>
+          {!revenueCatService.isPro() && !usePreferencesFilter && (
+            <Icon name="crown" size={12} color={Colors.primary} style={{ marginLeft: 2 }} />
+          )}
+        </TouchableOpacity>
+
         {/* Action Buttons - Bottom Right */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.actionButton} onPress={handleMyLocation}>
@@ -806,6 +895,13 @@ const MapSearchScreen = () => {
         ) : null}
       </View>
       </SafeAreaView>
+
+      {/* Upgrade Modal for Premium Features */}
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        feature="filters"
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </ScreenBackground>
   );
 };
@@ -933,6 +1029,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     flex: 1,
+  },
+  // Preferences toggle chip
+  preferencesChip: {
+    position: 'absolute',
+    top: 56,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  preferencesChipActive: {
+    backgroundColor: Colors.primary,
+  },
+  preferencesChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  preferencesChipTextActive: {
+    color: '#fff',
   },
   // List section - 45% of screen
   listSection: {
