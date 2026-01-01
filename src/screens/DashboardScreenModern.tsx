@@ -32,6 +32,7 @@ import LinearGradient from 'react-native-linear-gradient';
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
   const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
   const [budgetFriendlyActivities, setBudgetFriendlyActivities] = useState<Activity[]>([]);
@@ -91,6 +92,7 @@ const DashboardScreenModern = () => {
       // Reload all dashboard data when returning to the screen
       const reloadData = async () => {
         console.log('[Dashboard] Reloading data on focus...');
+        setReloading(true);
         try {
           await Promise.all([
             loadSponsoredActivities(),
@@ -101,6 +103,8 @@ const DashboardScreenModern = () => {
           console.log('[Dashboard] Data reload complete');
         } catch (error) {
           console.error('[Dashboard] Error reloading data:', error);
+        } finally {
+          setReloading(false);
         }
       };
 
@@ -256,14 +260,18 @@ const DashboardScreenModern = () => {
         itemsCount: response?.items?.length,
         firstItem: response?.items?.[0]?.name
       });
-      if (response?.items && Array.isArray(response.items)) {
+      if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
         // Shuffle results for variety on each load
         setRecommendedActivities(shuffleArray(response.items));
         console.log('Set recommended activities (shuffled):', response.items.length);
+      } else {
+        // Keep existing activities if API returns empty (don't clear on empty response)
+        console.log('Recommended activities: API returned empty, keeping existing data');
       }
     } catch (error) {
       console.error('Error loading recommended activities:', error);
-      setRecommendedActivities([]); // Set empty array on error
+      // Don't clear on error - keep existing data
+      console.log('Recommended activities: Error occurred, keeping existing data');
     }
   };
 
@@ -941,6 +949,11 @@ const DashboardScreenModern = () => {
               <View style={styles.emptyCard}>
                 <ActivityIndicator size="small" color="#E8638B" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
+              </View>
+            ) : reloading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#E8638B" />
+                <Text style={styles.emptyText}>Refreshing...</Text>
               </View>
             ) : recommendedActivities.length > 0 ? (
               recommendedActivities.map(renderActivityCard)

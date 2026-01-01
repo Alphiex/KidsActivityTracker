@@ -79,6 +79,8 @@
 	<string>We need access to your calendar to sync your kids' activities and set reminders.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>We need access to your calendar to sync your kids' activities and set reminders.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to find activities near you and provide distance-based recommendations.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find activities near you.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

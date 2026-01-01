@@ -6,9 +6,21 @@ import { safeMap, safeParseDate, safeString, safeNumber, isValidObject, safeFirs
 export type Child = StoreChild;
 import { Activity } from '../types';
 
+interface LocationDetails {
+  formattedAddress?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 interface ChildFormData {
   name: string;
   dateOfBirth: string;
+  location?: string;
+  locationDetails?: LocationDetails;
   interests?: string[];
   avatar?: string;
   allergies?: string[];

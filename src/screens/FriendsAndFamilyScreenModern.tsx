@@ -12,12 +12,22 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Switch,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppSelector } from '../store';
 import childrenService, { Child as ServiceChild, SharedChild as ServiceSharedChild } from '../services/childrenService';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { EnhancedAddress } from '../types/preferences';
+import { locationService } from '../services/locationService';
+
+type FriendsAndFamilyRouteParams = {
+  FriendsAndFamily: {
+    openAddChild?: boolean;
+  };
+};
 
 // Airbnb-style colors
 const ModernColors = {
@@ -57,6 +67,7 @@ interface SharedChild {
 
 const FriendsAndFamilyScreenModern: React.FC = () => {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<FriendsAndFamilyRouteParams, 'FriendsAndFamily'>>();
   const user = useAppSelector((state) => state.auth.user);
   const [children, setChildren] = useState<Child[]>([]);
   const [sharedChildren, setSharedChildren] = useState<SharedChild[]>([]);
@@ -69,6 +80,16 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
   useEffect(() => {
     loadChildren();
   }, []);
+
+  // Handle navigation param to open add child modal
+  useEffect(() => {
+    if (route.params?.openAddChild) {
+      setEditingChild(null);
+      setShowAddChildModal(true);
+      // Clear the param to prevent re-opening on navigation back
+      navigation.setParams({ openAddChild: undefined } as any);
+    }
+  }, [route.params?.openAddChild]);
 
   const loadChildren = async () => {
     setLoading(true);
@@ -374,10 +395,21 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [location, setLocation] = useState('');
+  const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
+  const [usePreferencesLocation, setUsePreferencesLocation] = useState(true);
+  const [preferencesAddress, setPreferencesAddress] = useState<EnhancedAddress | null>(null);
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
+
+  // Load preferences address on mount
+  useEffect(() => {
+    const loadPreferencesAddress = async () => {
+      const savedAddress = locationService.getEnhancedAddress();
+      setPreferencesAddress(savedAddress);
+    };
+    loadPreferencesAddress();
+  }, [visible]);
 
   useEffect(() => {
     if (child) {
@@ -392,14 +424,28 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       } else {
         setDateOfBirth('');
       }
-      setLocation(child.location || '');
+      // If child has location, try to create an EnhancedAddress from it
+      if (child.location) {
+        setSelectedAddress({
+          formattedAddress: child.location,
+          latitude: 0,
+          longitude: 0,
+          city: child.location,
+          updatedAt: new Date().toISOString(),
+        });
+        setUsePreferencesLocation(false);
+      } else {
+        setSelectedAddress(null);
+        setUsePreferencesLocation(true);
+      }
     } else {
       setName('');
       setDateOfBirth('');
-      setLocation(defaultLocation || '');
+      setSelectedAddress(null);
+      setUsePreferencesLocation(true);
       setSelectedDate(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
     }
-  }, [child, defaultLocation, visible]);
+  }, [child, visible]);
 
   const onDateChange = (event: any, date?: Date) => {
     // On Android, automatically close the picker after selection
@@ -432,7 +478,9 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   };
 
   const handleSave = async () => {
-    console.log('HandleSave called with:', { name, dateOfBirth, location });
+    // Determine effective address
+    const effectiveAddress = usePreferencesLocation ? preferencesAddress : selectedAddress;
+    console.log('HandleSave called with:', { name, dateOfBirth, effectiveAddress, usePreferencesLocation });
 
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a name');
@@ -453,6 +501,20 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       // Always provide a dateOfBirth in ISO 8601 format
       dateOfBirth: dateOfBirth ? `${dateOfBirth}T00:00:00.000Z` : formattedDate,
     };
+
+    // Add location data if available
+    if (effectiveAddress) {
+      childData.location = effectiveAddress.city || effectiveAddress.formattedAddress;
+      childData.locationDetails = {
+        formattedAddress: effectiveAddress.formattedAddress,
+        city: effectiveAddress.city,
+        state: effectiveAddress.state,
+        postalCode: effectiveAddress.postalCode,
+        country: effectiveAddress.country,
+        latitude: effectiveAddress.latitude,
+        longitude: effectiveAddress.longitude,
+      };
+    }
 
     console.log('Saving child data:', childData);
 
@@ -561,13 +623,50 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Location (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={location}
-                onChangeText={setLocation}
-                placeholder="City or area"
-                placeholderTextColor={ModernColors.textLight}
-              />
+
+              {/* Use Preferences Location Toggle */}
+              {preferencesAddress && (
+                <View style={styles.locationToggleRow}>
+                  <View style={styles.locationToggleContent}>
+                    <Icon name="home-map-marker" size={20} color={ModernColors.primary} />
+                    <View style={styles.locationToggleTextContainer}>
+                      <Text style={styles.locationToggleLabel}>Use saved location</Text>
+                      <Text style={styles.locationToggleValue} numberOfLines={1}>
+                        {preferencesAddress.city || preferencesAddress.formattedAddress}
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={usePreferencesLocation}
+                    onValueChange={setUsePreferencesLocation}
+                    trackColor={{ false: ModernColors.border, true: ModernColors.primary }}
+                    thumbColor={usePreferencesLocation ? '#fff' : '#f4f3f4'}
+                  />
+                </View>
+              )}
+
+              {/* Show address autocomplete when not using preferences location */}
+              {(!usePreferencesLocation || !preferencesAddress) && (
+                <View style={styles.addressAutocompleteContainer}>
+                  <AddressAutocomplete
+                    value={selectedAddress}
+                    onAddressSelect={setSelectedAddress}
+                    placeholder="Search for an address..."
+                    country={['ca', 'us']}
+                    showFallbackOption={true}
+                  />
+                </View>
+              )}
+
+              {/* Show current effective address */}
+              {usePreferencesLocation && preferencesAddress && (
+                <View style={styles.effectiveAddressRow}>
+                  <Icon name="map-marker-check" size={16} color={ModernColors.success} />
+                  <Text style={styles.effectiveAddressText}>
+                    {[preferencesAddress.city, preferencesAddress.state].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -864,6 +963,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: ModernColors.primary,
     fontWeight: '600',
+  },
+  locationToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: ModernColors.backgroundLight,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  locationToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationToggleTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationToggleLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ModernColors.text,
+  },
+  locationToggleValue: {
+    fontSize: 13,
+    color: ModernColors.textLight,
+    marginTop: 2,
+  },
+  addressAutocompleteContainer: {
+    marginTop: 8,
+    zIndex: 100,
+  },
+  effectiveAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  effectiveAddressText: {
+    fontSize: 13,
+    color: ModernColors.success,
+    marginLeft: 6,
   },
 });
 

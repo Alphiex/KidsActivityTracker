@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Activity } from '../../types';
 import { Child } from '../../store/slices/childrenSlice';
@@ -24,6 +25,7 @@ interface AssignActivityToChildModalProps {
 
 const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivityToChildModalProps) => {
   const { colors } = useTheme();
+  const navigation = useNavigation();
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [assignedChildren, setAssignedChildren] = useState<{ [childId: string]: ChildActivity | null }>({});
@@ -246,7 +248,8 @@ const AssignActivityToChildModal = ({ visible, activity, onClose }: AssignActivi
                 style={[styles.addChildButton, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   onClose();
-                  // Navigate to Friends & Family screen
+                  // Navigate to Friends & Family screen with param to open add child modal
+                  navigation.navigate('FriendsAndFamily' as never, { openAddChild: true } as never);
                 }}
               >
                 <Text style={styles.addChildButtonText}>Add Child</Text>
