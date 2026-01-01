@@ -29,7 +29,10 @@ const TopTabNavigation = () => {
   const activeTab = getActiveTab();
 
   const navigateToTab = (tab: TabName) => {
-    navigation.navigate(tab as never);
+    if (!tab) return;
+    // All top tab screens are in the HomeStack under FiltersTab
+    // Need to navigate to the tab first, then the screen within the stack
+    navigation.navigate('FiltersTab' as never, { screen: tab } as never);
   };
 
   return (
