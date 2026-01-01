@@ -1,4 +1,16 @@
 import { FamilyContext, ChildProfile, FamilyPreferences } from '../types/ai.types';
+import { EnhancedChildProfile, EnhancedFamilyContext } from '../agents/activityAssistantAgent';
+import { PrismaClient } from '../../../generated/prisma';
+
+// Singleton prisma for enhanced context builder
+let _prismaEnhanced: PrismaClient | null = null;
+
+function getPrismaEnhanced(): PrismaClient {
+  if (!_prismaEnhanced) {
+    _prismaEnhanced = new PrismaClient();
+  }
+  return _prismaEnhanced;
+}
 
 /**
  * Build family context from user data
@@ -160,4 +172,141 @@ export function buildContextFromFilters(filters: any): FamilyContext {
     },
     location: filters.location ? { city: filters.location } : undefined
   };
+}
+
+/**
+ * Build enhanced family context with favorites, calendar activities, and computed preferences
+ * Used by the chat agent for personalized recommendations
+ */
+export async function buildEnhancedFamilyContext(
+  userId: string,
+  selectedChildIds?: string[],
+  mode: 'specific' | 'all' | 'auto' = 'all'
+): Promise<EnhancedFamilyContext> {
+  const prisma = getPrismaEnhanced();
+
+  // Get user with preferences (location stored in preferences JSON)
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      preferences: true,
+    },
+  });
+
+  // Get children with their activities
+  const children = await prisma.child.findMany({
+    where: {
+      userId,
+      isActive: true,
+      ...(selectedChildIds?.length && mode === 'specific' ? { id: { in: selectedChildIds } } : {}),
+    },
+    include: {
+      childActivities: {
+        include: {
+          activity: {
+            select: { id: true, name: true, category: true, cost: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      },
+      skillProgress: {
+        select: { skillCategory: true, currentLevel: true },
+      },
+    },
+  });
+
+  // Get user favorites
+  const favorites = await prisma.favorite.findMany({
+    where: { userId },
+    include: {
+      activity: {
+        select: { id: true, name: true, category: true, ageMin: true, ageMax: true },
+      },
+    },
+    take: 30,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Build enhanced profiles for each child
+  const enhancedChildren: EnhancedChildProfile[] = children.map(child => {
+    const age = calculateAgeEnhanced(child.dateOfBirth);
+
+    // Filter favorites by age match
+    const childFavorites = favorites.filter(f => {
+      const minAge = f.activity.ageMin ?? 0;
+      const maxAge = f.activity.ageMax ?? 99;
+      return age >= minAge && age <= maxAge;
+    });
+
+    // Compute category preferences
+    const categoryCount: Record<string, number> = {};
+    [...childFavorites.map(f => f.activity), ...child.childActivities.map(ca => ca.activity)]
+      .forEach(a => {
+        if (a.category) {
+          categoryCount[a.category] = (categoryCount[a.category] || 0) + 1;
+        }
+      });
+
+    const preferredCategories = Object.entries(categoryCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([cat]) => cat);
+
+    return {
+      child_id: child.id,
+      name: child.name,
+      age,
+      interests: child.interests || [],
+      favorites: childFavorites.slice(0, 10).map(f => ({
+        activityName: f.activity.name,
+        category: f.activity.category,
+      })),
+      calendarActivities: child.childActivities.map(ca => ({
+        name: ca.activity.name,
+        category: ca.activity.category,
+        status: ca.status,
+      })),
+      computedPreferences: {
+        preferredCategories,
+        preferredDays: [], // Could compute from calendar if schedule data available
+      },
+    };
+  });
+
+  // Parse location from user preferences JSON
+  const prefs = typeof user?.preferences === 'string'
+    ? JSON.parse(user.preferences)
+    : user?.preferences || {};
+
+  // Extract location from preferences
+  const locationCity = prefs.locations?.[0] || prefs.preferredLocation || prefs.city;
+
+  return {
+    children: enhancedChildren,
+    location: locationCity ? {
+      city: locationCity,
+      province: prefs.province || undefined,
+      lat: prefs.latitude || undefined,
+      lng: prefs.longitude || undefined,
+    } : undefined,
+  };
+}
+
+/**
+ * Calculate age for enhanced context
+ */
+function calculateAgeEnhanced(dateOfBirth: Date | string | null): number {
+  if (!dateOfBirth) return 5;
+
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+
+  return Math.max(0, Math.min(18, age));
 }

@@ -572,8 +572,8 @@ export class EnhancedActivityService {
       firstActivity: activities[0] ? {
         name: activities[0].name,
         courseId: activities[0].externalId,
-        activityType: activities[0].activityType?.name,
-        activitySubtype: activities[0].activitySubtype?.name,
+        category: activities[0].category,
+        subcategory: activities[0].subcategory,
         spotsAvailable: activities[0].spotsAvailable,
         registrationStatus: activities[0].registrationStatus
       } : null

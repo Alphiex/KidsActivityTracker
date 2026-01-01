@@ -15,6 +15,19 @@ interface GeocodeResult {
   placeId: string;
 }
 
+// Google Geocoding API response type
+interface GoogleGeocodeResponse {
+  status: string;
+  error_message?: string;
+  results: Array<{
+    geometry: {
+      location: { lat: number; lng: number };
+    };
+    formatted_address: string;
+    place_id: string;
+  }>;
+}
+
 class GeocodingService {
   private static instance: GeocodingService;
 
@@ -46,7 +59,7 @@ class GeocodingService {
       });
 
       const response = await fetch(`${GEOCODE_API_URL}?${params}`);
-      const data = await response.json();
+      const data = await response.json() as GoogleGeocodeResponse;
 
       if (data.status === 'OK' && data.results.length > 0) {
         const result = data.results[0];

@@ -155,8 +155,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       console.log('First activity:', {
         id: result.activities[0].id,
         name: result.activities[0].name,
-        type: result.activities[0].activityType?.name,
-        subtype: result.activities[0].activitySubtype?.name,
+        category: result.activities[0].category,
         externalId: result.activities[0].externalId
       });
     }
