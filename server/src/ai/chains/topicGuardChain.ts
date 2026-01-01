@@ -27,6 +27,7 @@ const parser = StructuredOutputParser.fromZodSchema(TopicClassificationSchema);
 const TOPIC_GUARD_PROMPT = ChatPromptTemplate.fromMessages([
   ['system', `You are a topic classifier for a kids activity finder app.
 Your job is to classify user messages and extract relevant information.
+Respond with valid JSON matching the format instructions below.
 
 ALLOWED categories (set allowed: true):
 - activity_search: Looking for activities, classes, lessons, camps

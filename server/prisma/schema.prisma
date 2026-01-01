@@ -241,6 +241,8 @@ model Child {
   avatarUrl       String?
   interests       String[]
   notes           String?
+  location        String?                // City or formatted address
+  locationDetails Json?                  // Full address details (lat, lng, city, state, etc.)
   isActive        Boolean                @default(true)
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @default(now()) @updatedAt

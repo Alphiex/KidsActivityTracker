@@ -22,6 +22,7 @@ import childrenService, { Child as ServiceChild, SharedChild as ServiceSharedChi
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { EnhancedAddress } from '../types/preferences';
 import { locationService } from '../services/locationService';
+import ScreenBackground from '../components/ScreenBackground';
 
 type FriendsAndFamilyRouteParams = {
   FriendsAndFamily: {
@@ -282,8 +283,9 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      <ScreenBackground>
+        {/* Header */}
+        <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -374,6 +376,7 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
         child={editingChild}
         defaultLocation={user?.location}
       />
+      </ScreenBackground>
     </SafeAreaView>
   );
 };
@@ -384,6 +387,12 @@ interface AddEditChildModalProps {
   onSave: (data: any) => Promise<void>;
   child: Child | null;
   defaultLocation?: string;
+}
+
+interface SavedAddress {
+  label: string;
+  address: EnhancedAddress;
+  type: 'preferences' | 'child';
 }
 
 const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
@@ -398,18 +407,74 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
   const [usePreferencesLocation, setUsePreferencesLocation] = useState(true);
   const [preferencesAddress, setPreferencesAddress] = useState<EnhancedAddress | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedSavedAddress, setSelectedSavedAddress] = useState<SavedAddress | null>(null);
+  const [showAddressOptions, setShowAddressOptions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
 
-  // Load preferences address on mount
+  // Load saved addresses (preferences + other children) on mount
   useEffect(() => {
-    const loadPreferencesAddress = async () => {
-      const savedAddress = locationService.getEnhancedAddress();
-      setPreferencesAddress(savedAddress);
+    const loadSavedAddresses = async () => {
+      const addresses: SavedAddress[] = [];
+
+      // Load preferences address
+      const prefAddress = locationService.getEnhancedAddress();
+      setPreferencesAddress(prefAddress);
+      if (prefAddress) {
+        addresses.push({
+          label: 'My saved location',
+          address: prefAddress,
+          type: 'preferences',
+        });
+      }
+
+      // Load other children's addresses
+      try {
+        const allChildren = await childrenService.getMyChildren();
+        allChildren.forEach((c: Child) => {
+          // Skip the current child being edited
+          if (child && c.id === child.id) return;
+
+          if (c.location) {
+            // Check if this location is already in the list
+            const exists = addresses.some(a =>
+              a.address.city === c.location ||
+              a.address.formattedAddress === c.location
+            );
+            if (!exists) {
+              addresses.push({
+                label: `${c.name}'s location`,
+                address: {
+                  formattedAddress: c.location,
+                  city: c.location,
+                  latitude: 0,
+                  longitude: 0,
+                  updatedAt: new Date().toISOString(),
+                },
+                type: 'child',
+              });
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Error loading children addresses:', err);
+      }
+
+      setSavedAddresses(addresses);
+
+      // Auto-select preferences address if available and creating new child
+      if (!child && prefAddress) {
+        setSelectedSavedAddress(addresses[0] || null);
+        setUsePreferencesLocation(true);
+      }
     };
-    loadPreferencesAddress();
-  }, [visible]);
+
+    if (visible) {
+      loadSavedAddresses();
+    }
+  }, [visible, child]);
 
   useEffect(() => {
     if (child) {
@@ -433,16 +498,16 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
           city: child.location,
           updatedAt: new Date().toISOString(),
         });
-        setUsePreferencesLocation(false);
+        setSelectedSavedAddress(null); // Show current address, not a saved one
       } else {
         setSelectedAddress(null);
-        setUsePreferencesLocation(true);
+        // Will auto-select first saved address in the loadSavedAddresses effect
       }
     } else {
       setName('');
       setDateOfBirth('');
       setSelectedAddress(null);
-      setUsePreferencesLocation(true);
+      setSelectedSavedAddress(null);
       setSelectedDate(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
     }
   }, [child, visible]);
@@ -478,9 +543,9 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   };
 
   const handleSave = async () => {
-    // Determine effective address
-    const effectiveAddress = usePreferencesLocation ? preferencesAddress : selectedAddress;
-    console.log('HandleSave called with:', { name, dateOfBirth, effectiveAddress, usePreferencesLocation });
+    // Determine effective address - priority: selected saved address > manual address
+    const effectiveAddress = selectedSavedAddress?.address || selectedAddress;
+    console.log('HandleSave called with:', { name, dateOfBirth, effectiveAddress, selectedSavedAddress });
 
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a name');
@@ -621,36 +686,82 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
               )}
             </View>
 
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { zIndex: 100 }]}>
               <Text style={styles.inputLabel}>Location (Optional)</Text>
 
-              {/* Use Preferences Location Toggle */}
-              {preferencesAddress && (
-                <View style={styles.locationToggleRow}>
-                  <View style={styles.locationToggleContent}>
-                    <Icon name="home-map-marker" size={20} color={ModernColors.primary} />
-                    <View style={styles.locationToggleTextContainer}>
-                      <Text style={styles.locationToggleLabel}>Use saved location</Text>
-                      <Text style={styles.locationToggleValue} numberOfLines={1}>
-                        {preferencesAddress.city || preferencesAddress.formattedAddress}
+              {/* Saved addresses list */}
+              {savedAddresses.length > 0 && (
+                <View style={styles.savedAddressesList}>
+                  {savedAddresses.map((savedAddr, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.savedAddressOption,
+                        selectedSavedAddress === savedAddr && styles.savedAddressOptionSelected,
+                      ]}
+                      onPress={() => {
+                        setSelectedSavedAddress(savedAddr);
+                        setSelectedAddress(null);
+                      }}
+                    >
+                      <Icon
+                        name={savedAddr.type === 'preferences' ? 'home-map-marker' : 'account-child'}
+                        size={20}
+                        color={selectedSavedAddress === savedAddr ? ModernColors.primary : ModernColors.textLight}
+                      />
+                      <View style={styles.savedAddressTextContainer}>
+                        <Text style={[
+                          styles.savedAddressLabel,
+                          selectedSavedAddress === savedAddr && styles.savedAddressLabelSelected,
+                        ]}>
+                          {savedAddr.label}
+                        </Text>
+                        <Text style={styles.savedAddressValue} numberOfLines={1}>
+                          {savedAddr.address.city || savedAddr.address.formattedAddress}
+                        </Text>
+                      </View>
+                      {selectedSavedAddress === savedAddr && (
+                        <Icon name="check-circle" size={20} color={ModernColors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+
+                  {/* Option to enter different address */}
+                  <TouchableOpacity
+                    style={[
+                      styles.savedAddressOption,
+                      !selectedSavedAddress && selectedAddress && styles.savedAddressOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedSavedAddress(null);
+                    }}
+                  >
+                    <Icon
+                      name="map-marker-plus"
+                      size={20}
+                      color={!selectedSavedAddress ? ModernColors.primary : ModernColors.textLight}
+                    />
+                    <View style={styles.savedAddressTextContainer}>
+                      <Text style={[
+                        styles.savedAddressLabel,
+                        !selectedSavedAddress && styles.savedAddressLabelSelected,
+                      ]}>
+                        Enter a different address
                       </Text>
                     </View>
-                  </View>
-                  <Switch
-                    value={usePreferencesLocation}
-                    onValueChange={setUsePreferencesLocation}
-                    trackColor={{ false: ModernColors.border, true: ModernColors.primary }}
-                    thumbColor={usePreferencesLocation ? '#fff' : '#f4f3f4'}
-                  />
+                  </TouchableOpacity>
                 </View>
               )}
 
-              {/* Show address autocomplete when not using preferences location */}
-              {(!usePreferencesLocation || !preferencesAddress) && (
+              {/* Show address autocomplete when no saved address selected */}
+              {(!selectedSavedAddress || savedAddresses.length === 0) && (
                 <View style={styles.addressAutocompleteContainer}>
                   <AddressAutocomplete
                     value={selectedAddress}
-                    onAddressSelect={setSelectedAddress}
+                    onAddressSelect={(addr) => {
+                      setSelectedAddress(addr);
+                      setSelectedSavedAddress(null);
+                    }}
                     placeholder="Search for an address..."
                     country={['ca', 'us']}
                     showFallbackOption={true}
@@ -659,11 +770,11 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
               )}
 
               {/* Show current effective address */}
-              {usePreferencesLocation && preferencesAddress && (
+              {selectedSavedAddress && (
                 <View style={styles.effectiveAddressRow}>
                   <Icon name="map-marker-check" size={16} color={ModernColors.success} />
                   <Text style={styles.effectiveAddressText}>
-                    {[preferencesAddress.city, preferencesAddress.state].filter(Boolean).join(', ')}
+                    Using: {selectedSavedAddress.address.city || selectedSavedAddress.address.formattedAddress}
                   </Text>
                 </View>
               )}
@@ -880,6 +991,7 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 20,
+    zIndex: 1,
   },
   inputLabel: {
     fontSize: 16,
@@ -964,37 +1076,10 @@ const styles = StyleSheet.create({
     color: ModernColors.primary,
     fontWeight: '600',
   },
-  locationToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: ModernColors.backgroundLight,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  locationToggleContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  locationToggleTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  locationToggleLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: ModernColors.text,
-  },
-  locationToggleValue: {
-    fontSize: 13,
-    color: ModernColors.textLight,
-    marginTop: 2,
-  },
   addressAutocompleteContainer: {
     marginTop: 8,
-    zIndex: 100,
+    zIndex: 1000,
+    minHeight: 60,
   },
   effectiveAddressRow: {
     flexDirection: 'row',
@@ -1006,6 +1091,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: ModernColors.success,
     marginLeft: 6,
+  },
+  savedAddressesList: {
+    marginBottom: 8,
+  },
+  savedAddressOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: ModernColors.backgroundLight,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.borderLight,
+  },
+  savedAddressOptionSelected: {
+    backgroundColor: '#FDF2F8',
+    borderColor: ModernColors.primary,
+  },
+  savedAddressTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  savedAddressLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ModernColors.text,
+  },
+  savedAddressLabelSelected: {
+    color: ModernColors.primary,
+  },
+  savedAddressValue: {
+    fontSize: 13,
+    color: ModernColors.textLight,
+    marginTop: 2,
   },
 });
 

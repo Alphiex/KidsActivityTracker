@@ -18,7 +18,7 @@ import {
 } from '@langchain/core/messages';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { activityTools } from '../tools/activityTools';
-import { getSmallModel, getLargeModel } from '../models/chatModels';
+import { getChatAgentModel } from '../models/chatModels';
 
 // Types for family context
 export interface EnhancedChildProfile {
@@ -150,7 +150,8 @@ export class ActivityChatService {
   private maxTurns = 5;
 
   constructor() {
-    this.model = getSmallModel();
+    // Use chat agent model (no JSON mode) for tool-calling conversations
+    this.model = getChatAgentModel();
   }
 
   /**

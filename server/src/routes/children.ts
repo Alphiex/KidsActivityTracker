@@ -48,7 +48,9 @@ router.post('/', verifyToken, validateChild, handleValidationErrors, async (req:
       gender: req.body.gender,
       avatarUrl: req.body.avatarUrl,
       interests: req.body.interests,
-      notes: req.body.notes
+      notes: req.body.notes,
+      location: req.body.location,
+      locationDetails: req.body.locationDetails
     });
 
     res.status(201).json({
@@ -194,6 +196,8 @@ router.put('/:childId', verifyToken, async (req: Request, res: Response) => {
     if (req.body.interests !== undefined) updateData.interests = req.body.interests;
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
     if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive;
+    if (req.body.location !== undefined) updateData.location = req.body.location;
+    if (req.body.locationDetails !== undefined) updateData.locationDetails = req.body.locationDetails;
 
     const child = await childrenService.updateChild(
       req.params.childId,
@@ -232,6 +236,8 @@ router.patch('/:childId', verifyToken, async (req: Request, res: Response) => {
     if (req.body.interests !== undefined) updateData.interests = req.body.interests;
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
     if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive;
+    if (req.body.location !== undefined) updateData.location = req.body.location;
+    if (req.body.locationDetails !== undefined) updateData.locationDetails = req.body.locationDetails;
 
     const child = await childrenService.updateChild(
       req.params.childId,

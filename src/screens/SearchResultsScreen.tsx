@@ -12,6 +12,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import ScreenBackground from '../components/ScreenBackground';
 
 const { width, height } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -299,14 +300,15 @@ const SearchResultsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Results list */}
-      {activities.length === 0 ? (
-        <>
-          {renderHeader()}
-          {renderEmptyState()}
-        </>
-      ) : (
-        <FlatList
+      <ScreenBackground>
+        {/* Results list */}
+        {activities.length === 0 ? (
+          <>
+            {renderHeader()}
+            {renderEmptyState()}
+          </>
+        ) : (
+          <FlatList
           data={activities}
           keyExtractor={(item) => item.id}
           numColumns={2}
@@ -342,7 +344,8 @@ const SearchResultsScreen = () => {
           windowSize={10}
           initialNumToRender={10}
         />
-      )}
+        )}
+      </ScreenBackground>
     </SafeAreaView>
   );
 };

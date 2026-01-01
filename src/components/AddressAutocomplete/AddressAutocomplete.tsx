@@ -38,6 +38,10 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   const [apiError, setApiError] = useState<string | null>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
+  const [manualStreet, setManualStreet] = useState('');
+  const [manualCity, setManualCity] = useState('');
+  const [manualProvince, setManualProvince] = useState('');
+  const [manualPostalCode, setManualPostalCode] = useState('');
   const [isGeocodingManual, setIsGeocodingManual] = useState(false);
 
   const handlePlaceSelect = useCallback(async (
@@ -71,20 +75,41 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     setApiError(null);
     setShowManualEntry(false);
     setManualAddress('');
+    setManualStreet('');
+    setManualCity('');
+    setManualProvince('');
+    setManualPostalCode('');
   }, [onAddressSelect]);
 
   const handleManualGeocode = useCallback(async () => {
-    if (!manualAddress.trim()) return;
+    // Require at least city
+    if (!manualCity.trim()) {
+      setApiError('Please enter at least a city name.');
+      return;
+    }
 
     setIsGeocodingManual(true);
     setApiError(null);
 
+    // Build full address string for geocoding
+    const addressParts = [
+      manualStreet.trim(),
+      manualCity.trim(),
+      manualProvince.trim(),
+      manualPostalCode.trim(),
+    ].filter(Boolean);
+    const fullAddress = addressParts.join(', ');
+
     try {
-      const coords = await geocodeAddress(manualAddress);
+      const coords = await geocodeAddress(fullAddress);
 
       if (coords) {
         const enhancedAddress: EnhancedAddress = {
-          formattedAddress: manualAddress,
+          formattedAddress: fullAddress,
+          streetAddress: manualStreet.trim() || undefined,
+          city: manualCity.trim(),
+          state: manualProvince.trim() || undefined,
+          postalCode: manualPostalCode.trim() || undefined,
           latitude: coords.latitude,
           longitude: coords.longitude,
           updatedAt: new Date().toISOString(),
@@ -101,7 +126,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     } finally {
       setIsGeocodingManual(false);
     }
-  }, [manualAddress, onAddressSelect]);
+  }, [manualStreet, manualCity, manualProvince, manualPostalCode, onAddressSelect]);
 
   const handleFallback = useCallback(() => {
     setShowManualEntry(true);
@@ -148,28 +173,91 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
         )}
         <View style={styles.manualEntryContainer}>
           <Text style={[styles.manualEntryHint, { color: colors.textSecondary }]}>
-            Enter your address manually:
+            Enter your address:
           </Text>
+
+          {/* Street Address (optional) */}
           <TextInput
             style={[
               styles.manualInput,
+              styles.manualInputSmall,
               {
                 backgroundColor: colors.surface,
-                borderColor: apiError ? '#EF4444' : colors.border,
+                borderColor: colors.border,
                 color: colors.text,
               },
-              inputStyle,
             ]}
-            value={manualAddress}
-            onChangeText={setManualAddress}
-            placeholder="e.g., 123 Main St, Vancouver, BC"
+            value={manualStreet}
+            onChangeText={setManualStreet}
+            placeholder="Street address (optional)"
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="words"
             autoCorrect={false}
-            multiline
-            numberOfLines={2}
             editable={!disabled && !isGeocodingManual}
           />
+
+          {/* City (required) */}
+          <TextInput
+            style={[
+              styles.manualInput,
+              styles.manualInputSmall,
+              {
+                backgroundColor: colors.surface,
+                borderColor: apiError && !manualCity.trim() ? '#EF4444' : colors.border,
+                color: colors.text,
+              },
+            ]}
+            value={manualCity}
+            onChangeText={setManualCity}
+            placeholder="City *"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+            autoCorrect={false}
+            editable={!disabled && !isGeocodingManual}
+          />
+
+          {/* Province/State and Postal Code row */}
+          <View style={styles.manualInputRow}>
+            <TextInput
+              style={[
+                styles.manualInput,
+                styles.manualInputSmall,
+                styles.manualInputHalf,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              value={manualProvince}
+              onChangeText={setManualProvince}
+              placeholder="Province/State"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!disabled && !isGeocodingManual}
+            />
+            <TextInput
+              style={[
+                styles.manualInput,
+                styles.manualInputSmall,
+                styles.manualInputHalf,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              value={manualPostalCode}
+              onChangeText={setManualPostalCode}
+              placeholder="Postal code"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!disabled && !isGeocodingManual}
+            />
+          </View>
+
           {apiError && (
             <Text style={styles.errorText}>{apiError}</Text>
           )}
@@ -178,7 +266,10 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               style={[styles.backButton, { borderColor: colors.border }]}
               onPress={() => {
                 setShowManualEntry(false);
-                setManualAddress('');
+                setManualStreet('');
+                setManualCity('');
+                setManualProvince('');
+                setManualPostalCode('');
                 setApiError(null);
               }}
               disabled={isGeocodingManual}
@@ -189,15 +280,15 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               style={[
                 styles.verifyButton,
                 { backgroundColor: colors.primary },
-                (!manualAddress.trim() || isGeocodingManual) && styles.verifyButtonDisabled,
+                (!manualCity.trim() || isGeocodingManual) && styles.verifyButtonDisabled,
               ]}
               onPress={handleManualGeocode}
-              disabled={!manualAddress.trim() || isGeocodingManual}
+              disabled={!manualCity.trim() || isGeocodingManual}
             >
               {isGeocodingManual ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.verifyButtonText}>Verify Address</Text>
+                <Text style={styles.verifyButtonText}>Save Location</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -228,7 +319,12 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           }}
           onFail={(error) => {
             console.error('[AddressAutocomplete] API error:', error);
-            setApiError('Address search is currently unavailable.');
+            console.error('[AddressAutocomplete] API Key configured:', !!GOOGLE_PLACES_CONFIG.API_KEY);
+            if (!GOOGLE_PLACES_CONFIG.API_KEY) {
+              setApiError('Address search not configured. Please enter manually.');
+            } else {
+              setApiError('Address search unavailable. Try entering manually below.');
+            }
           }}
           onNotFound={() => {
             setApiError('No addresses found. Try a different search.');
@@ -303,16 +399,21 @@ const styles = StyleSheet.create({
   },
   autocompleteWrapper: {
     zIndex: 10,
+    width: '100%',
   },
   autocompleteContainer: {
     flex: 0,
+    width: '100%',
   },
   textInput: {
+    flex: 1,
     fontSize: 16,
-    paddingHorizontal: 40,
+    paddingLeft: 40,
+    paddingRight: 40,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
+    width: '100%',
   },
   searchIconContainer: {
     position: 'absolute',
@@ -338,8 +439,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 4,
-    zIndex: 100,
+    elevation: 10,
+    zIndex: 1000,
+    maxHeight: 200,
   },
   row: {
     paddingVertical: 12,
@@ -412,6 +514,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 60,
     textAlignVertical: 'top',
+  },
+  manualInputSmall: {
+    minHeight: 48,
+    marginBottom: 10,
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  manualInputHalf: {
+    flex: 1,
   },
   manualButtonsRow: {
     flexDirection: 'row',

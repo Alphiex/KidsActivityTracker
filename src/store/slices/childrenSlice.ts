@@ -10,6 +10,16 @@ export interface Child {
   avatar?: string;
   allergies?: string[];
   medicalInfo?: string;
+  location?: string;
+  locationDetails?: {
+    formattedAddress?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
   createdAt: string;
   updatedAt: string;
 }

@@ -75,7 +75,7 @@ create_scheduler() {
     --oauth-service-account-email="$SERVICE_ACCOUNT" \
     --description="$description" \
     --time-zone="UTC" \
-    --attempt-deadline="35m"
+    --attempt-deadline="30m"
 
   echo "  ✓ Created"
   echo ""
@@ -97,8 +97,8 @@ for batch in 0 1 2 3 4 5; do
   create_run_job "scraper-critical-b${batch}" "critical" "$batch"
 done
 
-# Standard tier - 4 batches
-for batch in 0 1 2 3; do
+# Standard tier - 10 batches (47 providers / 5 per batch)
+for batch in 0 1 2 3 4 5 6 7 8 9; do
   create_run_job "scraper-standard-b${batch}" "standard" "$batch"
 done
 
@@ -137,20 +137,32 @@ create_scheduler "sched-critical-b4-r3" "0 0 * * *"   "scraper-critical-b4" "Cri
 create_scheduler "sched-critical-b5-r3" "30 0 * * *"  "scraper-critical-b5" "Critical tier batch 5, run 3"
 
 echo ""
-echo "Creating STANDARD tier schedulers (2x daily, 4 batches)..."
-echo "==========================================================="
+echo "Creating STANDARD tier schedulers (2x daily, 10 batches)..."
+echo "============================================================"
 
-# Standard Tier - Run 1 (10:00-11:30 UTC = 02:00-03:30 PST)
+# Standard Tier - Run 1 (10:00-14:30 UTC staggered every 30 min)
 create_scheduler "sched-standard-b0-r1" "0 10 * * *"  "scraper-standard-b0" "Standard tier batch 0, run 1"
 create_scheduler "sched-standard-b1-r1" "30 10 * * *" "scraper-standard-b1" "Standard tier batch 1, run 1"
 create_scheduler "sched-standard-b2-r1" "0 11 * * *"  "scraper-standard-b2" "Standard tier batch 2, run 1"
 create_scheduler "sched-standard-b3-r1" "30 11 * * *" "scraper-standard-b3" "Standard tier batch 3, run 1"
+create_scheduler "sched-standard-b4-r1" "0 12 * * *"  "scraper-standard-b4" "Standard tier batch 4, run 1"
+create_scheduler "sched-standard-b5-r1" "30 12 * * *" "scraper-standard-b5" "Standard tier batch 5, run 1"
+create_scheduler "sched-standard-b6-r1" "0 13 * * *"  "scraper-standard-b6" "Standard tier batch 6, run 1"
+create_scheduler "sched-standard-b7-r1" "30 13 * * *" "scraper-standard-b7" "Standard tier batch 7, run 1"
+create_scheduler "sched-standard-b8-r1" "0 9 * * *"   "scraper-standard-b8" "Standard tier batch 8, run 1"
+create_scheduler "sched-standard-b9-r1" "30 9 * * *"  "scraper-standard-b9" "Standard tier batch 9, run 1"
 
-# Standard Tier - Run 2 (18:00-19:30 UTC = 10:00-11:30 PST)
+# Standard Tier - Run 2 (18:00-22:30 UTC staggered every 30 min)
 create_scheduler "sched-standard-b0-r2" "0 18 * * *"  "scraper-standard-b0" "Standard tier batch 0, run 2"
 create_scheduler "sched-standard-b1-r2" "30 18 * * *" "scraper-standard-b1" "Standard tier batch 1, run 2"
 create_scheduler "sched-standard-b2-r2" "0 19 * * *"  "scraper-standard-b2" "Standard tier batch 2, run 2"
 create_scheduler "sched-standard-b3-r2" "30 19 * * *" "scraper-standard-b3" "Standard tier batch 3, run 2"
+create_scheduler "sched-standard-b4-r2" "0 20 * * *"  "scraper-standard-b4" "Standard tier batch 4, run 2"
+create_scheduler "sched-standard-b5-r2" "30 20 * * *" "scraper-standard-b5" "Standard tier batch 5, run 2"
+create_scheduler "sched-standard-b6-r2" "0 21 * * *"  "scraper-standard-b6" "Standard tier batch 6, run 2"
+create_scheduler "sched-standard-b7-r2" "30 21 * * *" "scraper-standard-b7" "Standard tier batch 7, run 2"
+create_scheduler "sched-standard-b8-r2" "0 17 * * *"  "scraper-standard-b8" "Standard tier batch 8, run 2"
+create_scheduler "sched-standard-b9-r2" "30 17 * * *" "scraper-standard-b9" "Standard tier batch 9, run 2"
 
 echo ""
 echo "Creating HIGH tier scheduler (3x daily)..."
@@ -170,15 +182,15 @@ echo ""
 echo "=========================================="
 echo "Setup complete!"
 echo ""
-echo "Total Cloud Run jobs: 12"
+echo "Total Cloud Run jobs: 18"
 echo "  Critical: 6 (one per batch)"
-echo "  Standard: 4 (one per batch)"
+echo "  Standard: 10 (one per batch)"
 echo "  High: 1"
 echo "  Low: 1"
 echo ""
-echo "Total scheduler jobs: 30"
+echo "Total scheduler jobs: 42"
 echo "  Critical: 18 (6 batches × 3 runs/day)"
-echo "  Standard: 8 (4 batches × 2 runs/day)"
+echo "  Standard: 20 (10 batches × 2 runs/day)"
 echo "  High: 3 (1 × 3 runs/day)"
 echo "  Low: 1 (1 × 1 run/day)"
 echo ""

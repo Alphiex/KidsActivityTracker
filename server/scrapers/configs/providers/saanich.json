@@ -17,8 +17,7 @@
     "searchParams": {
       "onlineSiteId": 0,
       "activity_select_param": 2,
-      "viewMode": "list",
-      "days_of_week": "0000000"
+      "viewMode": "list"
     },
     "ageFilter": {
       "enabled": true,
