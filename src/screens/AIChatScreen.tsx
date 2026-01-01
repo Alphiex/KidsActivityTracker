@@ -57,9 +57,13 @@ const AIChatScreen = () => {
   // Animation for typing indicator
   const typingAnim = useRef(new Animated.Value(0)).current;
 
-  // Fetch quota on mount
+  // Fetch quota on mount with retry for auth timing
   useEffect(() => {
-    fetchQuota();
+    // Small delay to let Firebase auth initialize
+    const timer = setTimeout(() => {
+      fetchQuota();
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   // Animate typing indicator
@@ -76,12 +80,16 @@ const AIChatScreen = () => {
     }
   }, [isLoading]);
 
-  const fetchQuota = async () => {
+  const fetchQuota = async (retryCount = 0) => {
     try {
       const q = await aiService.getChatQuota();
       setQuota(q);
     } catch (err) {
       console.log('[AIChatScreen] Error fetching quota:', err);
+      // Retry once after a delay if first attempt fails
+      if (retryCount < 1) {
+        setTimeout(() => fetchQuota(retryCount + 1), 1500);
+      }
     }
   };
 

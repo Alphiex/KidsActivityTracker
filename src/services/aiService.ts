@@ -413,12 +413,14 @@ class AIService {
       return response.quota;
     } catch (error) {
       console.error('[AIService] Error getting quota:', error);
+      // Return permissive defaults when quota fetch fails
+      // Don't block the user - let them try and the server will enforce limits
       return {
-        allowed: false,
+        allowed: true,
         isPro: false,
         daily: { used: 0, limit: 3 },
         monthly: { used: 0, limit: 30 },
-        message: 'Unable to fetch quota',
+        // No message - don't show error for quota fetch failures
       };
     }
   }
