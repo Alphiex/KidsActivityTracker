@@ -498,7 +498,7 @@ const MapSearchScreen = () => {
           activity={item}
           onPress={() => handleActivityPress(item)}
           containerStyle={styles.activityCard}
-          imageHeight={150} // 25% smaller than default 200
+          imageHeight={75} // 25% smaller than original 100px to make room for text
         />
       </View>
     );
