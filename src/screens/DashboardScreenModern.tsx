@@ -1162,6 +1162,14 @@ const DashboardScreenModern = () => {
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
 
+      {/* Floating Filter Button - Always visible */}
+      <TouchableOpacity
+        style={styles.floatingFilterButton}
+        onPress={() => navigation.navigate('SearchMain')}
+      >
+        <Icon name="filter-variant" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+
       {/* Upgrade Modal for favorites limit */}
       <UpgradePromptModal
         visible={showUpgradeModal}
@@ -1617,6 +1625,22 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginLeft: 4,
     letterSpacing: 0.5,
+  },
+  floatingFilterButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E8638B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#E8638B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
 

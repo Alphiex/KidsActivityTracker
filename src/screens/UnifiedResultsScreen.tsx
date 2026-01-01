@@ -437,6 +437,14 @@ const UnifiedResultsScreenTest: React.FC = () => {
             </View>
           }
         />
+
+        {/* Floating Filter Button - Always visible */}
+        <TouchableOpacity
+          style={styles.floatingFilterButton}
+          onPress={() => navigation.navigate('SearchMain')}
+        >
+          <Icon name="filter-variant" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </ScreenBackground>
     </SafeAreaView>
   );
@@ -579,6 +587,22 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: ModernTypography.sizes.sm,
     color: ModernColors.textSecondary,
+  },
+  floatingFilterButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E8638B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#E8638B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
 
