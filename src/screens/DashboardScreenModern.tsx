@@ -260,24 +260,58 @@ const DashboardScreenModern = () => {
         filterParams.daysOfWeek = preferences.daysOfWeek;
       }
 
-      const response = await activityService.searchActivitiesPaginated(filterParams);
+      let response = await activityService.searchActivitiesPaginated(filterParams);
       console.log('Recommended activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,
         firstItem: response?.items?.[0]?.name
       });
+
+      // If no results with preferences, try a broader search (location only, then no filters)
+      if (!response?.items || response.items.length === 0) {
+        console.log('No results with preferences, trying broader search...');
+
+        // First fallback: just location filter
+        if (preferences.locations && preferences.locations.length > 0) {
+          const locationOnlyParams = {
+            limit: 6,
+            offset: 0,
+            hideFullActivities: true,
+            locations: preferences.locations
+          };
+          response = await activityService.searchActivitiesPaginated(locationOnlyParams);
+          console.log('Location-only search result:', response?.items?.length, 'items');
+        }
+
+        // Second fallback: no filters at all - just get popular activities
+        if (!response?.items || response.items.length === 0) {
+          console.log('Still no results, fetching without filters...');
+          const noFilterParams = {
+            limit: 6,
+            offset: 0,
+            hideFullActivities: true,
+            sortBy: 'createdAt',
+            sortOrder: 'desc'
+          };
+          response = await activityService.searchActivitiesPaginated(noFilterParams);
+          console.log('No-filter search result:', response?.items?.length, 'items');
+        }
+      }
+
       if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
         // Shuffle results for variety on each load
         setRecommendedActivities(shuffleArray(response.items));
         console.log('Set recommended activities (shuffled):', response.items.length);
       } else {
-        // Keep existing activities if API returns empty (don't clear on empty response)
-        console.log('Recommended activities: API returned empty, keeping existing data');
+        // Truly no activities found - set empty array to show empty state
+        setRecommendedActivities([]);
+        console.log('Recommended activities: No activities found even with fallback');
       }
     } catch (error) {
       console.error('Error loading recommended activities:', error);
-      // Don't clear on error - keep existing data
-      console.log('Recommended activities: Error occurred, keeping existing data');
+      // On error, set empty to show error state
+      setRecommendedActivities([]);
+      console.log('Recommended activities: Error occurred');
     }
   };
 
@@ -968,9 +1002,20 @@ const DashboardScreenModern = () => {
             ) : recommendedActivities.length > 0 ? (
               recommendedActivities.map(renderActivityCard)
             ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No activities found</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.adjustFiltersCard}
+                onPress={() => navigation.navigate('Profile', { screen: 'Settings' })}
+              >
+                <Icon name="tune-variant" size={32} color="#E8638B" />
+                <Text style={styles.adjustFiltersTitle}>Adjust Your Preferences</Text>
+                <Text style={styles.adjustFiltersText}>
+                  Update your location or activity preferences to see recommendations
+                </Text>
+                <View style={styles.adjustFiltersButton}>
+                  <Text style={styles.adjustFiltersButtonText}>Open Settings</Text>
+                  <Icon name="chevron-right" size={16} color="#FFF" />
+                </View>
+              </TouchableOpacity>
             )}
           </ScrollView>
         </View>
@@ -1496,6 +1541,47 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 12,
     color: '#717171',
+  },
+  adjustFiltersCard: {
+    width: 280,
+    marginLeft: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#E8638B',
+    borderStyle: 'dashed',
+  },
+  adjustFiltersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222',
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  adjustFiltersText: {
+    fontSize: 13,
+    color: '#717171',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  adjustFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8638B',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  adjustFiltersButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+    marginRight: 4,
   },
   // Sponsor section styles
   sponsoredBadge: {
