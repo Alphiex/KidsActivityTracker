@@ -8,7 +8,7 @@ const TabIcon = ({ emoji }: { emoji: string }) => {
   return <Text style={styles.iconEmoji}>{emoji}</Text>;
 };
 
-type TabName = 'Dashboard' | 'MapSearch' | 'AIRecommendations' | 'Calendar';
+type TabName = 'Dashboard' | 'MapSearch' | 'AIChat' | 'Calendar';
 
 const TopTabNavigation = () => {
   const navigation = useNavigation();
@@ -19,7 +19,7 @@ const TopTabNavigation = () => {
     const routeName = route.name;
     if (routeName === 'Dashboard' || routeName === 'Explore') return 'Dashboard';
     if (routeName === 'MapSearch') return 'MapSearch';
-    if (routeName === 'AIRecommendations') return 'AIRecommendations';
+    if (routeName === 'AIChat' || routeName === 'AIRecommendations') return 'AIChat';
     if (routeName === 'Calendar') return 'Calendar';
     return 'Dashboard';
   };
@@ -66,23 +66,23 @@ const TopTabNavigation = () => {
         {activeTab === 'MapSearch' && <View style={styles.activeTabLine} pointerEvents="none" />}
       </View>
 
-      {/* AI Tab (NEW) - goes to AIRecommendations */}
+      {/* AI Tab - goes to AIChat */}
       <View style={styles.tabWrapper}>
         <TouchableOpacity
           style={styles.topButton}
-          onPress={() => navigateToTab('AIRecommendations')}
+          onPress={() => navigateToTab('AIChat')}
         >
           <View style={styles.aiIconWrapper}>
             <Image source={aiRobotImage} style={styles.aiRobotIcon} />
           </View>
           <Text style={[
             styles.topButtonText,
-            activeTab === 'AIRecommendations' && styles.activeTabText
+            activeTab === 'AIChat' && styles.activeTabText
           ]}>
             AI
           </Text>
         </TouchableOpacity>
-        {activeTab === 'AIRecommendations' && <View style={styles.activeTabLine} pointerEvents="none" />}
+        {activeTab === 'AIChat' && <View style={styles.activeTabLine} pointerEvents="none" />}
       </View>
 
       {/* Calendar Tab - unchanged */}
