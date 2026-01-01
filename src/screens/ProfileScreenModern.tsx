@@ -27,6 +27,8 @@ import axios from 'axios';
 import { API_CONFIG } from '../config/api';
 import { authService } from '../services/authService';
 import useSubscription from '../hooks/useSubscription';
+import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
 
 const ProfileIllustration = require('../assets/images/profile-illustration.png');
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -323,34 +325,25 @@ const ProfileScreenModern = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Colorful Header with Illustration */}
-        <LinearGradient
-          colors={[ModernColors.gradientStart, ModernColors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-left" size={24} color={ModernColors.text} />
-          </TouchableOpacity>
+      <ScreenBackground>
+        {/* Top Tab Navigation */}
+        <TopTabNavigation />
 
-          {/* Header Title */}
-          <Text style={styles.headerTitle}>My Profile</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Header with Illustration */}
+          <View style={styles.headerSection}>
+            {/* Header Title */}
+            <Text style={styles.headerTitle}>My Profile</Text>
 
-          {/* Profile Illustration */}
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={ProfileIllustration}
-              style={styles.illustration}
-              resizeMode="contain"
-            />
+            {/* Profile Illustration */}
+            <View style={styles.illustrationContainer}>
+              <Image
+                source={ProfileIllustration}
+                style={styles.illustration}
+                resizeMode="contain"
+              />
+            </View>
           </View>
-        </LinearGradient>
 
         {/* User Info Card */}
         <View style={styles.userCard}>
@@ -552,7 +545,8 @@ const ProfileScreenModern = () => {
 
         {/* Version */}
         <Text style={styles.versionText}>Version {appVersion} ({buildNumber})</Text>
-      </ScrollView>
+        </ScrollView>
+      </ScreenBackground>
 
       {/* Edit Profile Modal */}
       <Modal
@@ -771,21 +765,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  headerGradient: {
+  headerSection: {
     paddingTop: 8,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
   },
   headerTitle: {
     fontSize: 28,
