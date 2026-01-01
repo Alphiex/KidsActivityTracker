@@ -141,7 +141,7 @@ export default function EditActivityPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -150,8 +150,8 @@ export default function EditActivityPage() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Activity not found</p>
-        <Link href="/vendor/dashboard/activities" className="text-blue-600 hover:text-blue-700 mt-4 inline-block">
-          Back to Activities
+        <Link href="/vendor/dashboard/activities" className="text-purple-600 hover:text-purple-700 mt-4 inline-block">
+          Go to Activities
         </Link>
       </div>
     );
@@ -159,15 +159,7 @@ export default function EditActivityPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <Link
-          href="/vendor/dashboard/activities"
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Edit Activity</h1>
       </div>
 

@@ -25,6 +25,7 @@ import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
 import { consolidateActivityTypes } from '../utils/activityTypeConsolidation';
 import { safeFirst, safeSubstring, safeParseDate } from '../utils/safeAccessors';
+import AddToCalendarModal from './AddToCalendarModal';
 
 const { width } = Dimensions.get('window');
 
@@ -79,8 +80,12 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   const isOnWaitlist = isWaitlistExternallyControlled ? externalIsOnWaitlist : internalIsOnWaitlist;
 
   const [hasCapacityAlert, setHasCapacityAlert] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const { colors, isDark } = useTheme();
   const registeredChildIds = useAppSelector(selectActivityChildren(activity.id));
+
+  // Check if activity is on any child's calendar
+  const isOnCalendar = registeredChildIds.length > 0;
 
   useEffect(() => {
     // Only set internal state if not externally controlled
@@ -386,6 +391,17 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <Text style={styles.featuredText}>Featured</Text>
           </View>
         )}
+        {isOnCalendar && !activity.isFeatured && (
+          <View style={styles.calendarBadge}>
+            <Icon name="calendar-check" size={12} color="#FFF" />
+            <Text style={styles.calendarBadgeText}>On Calendar</Text>
+          </View>
+        )}
+        {isOnCalendar && activity.isFeatured && (
+          <View style={styles.calendarBadgeSmall}>
+            <Icon name="calendar-check" size={14} color="#FFF" />
+          </View>
+        )}
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>{formatActivityPrice(activity.cost)}</Text>
@@ -436,11 +452,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
             <Icon name="share-variant" size={18} color="#FFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Icon name="calendar-plus" size={18} color="#FFF" />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => setShowCalendarModal(true)}
+          >
+            <Icon
+              name={isOnCalendar ? 'calendar-check' : 'calendar-plus'}
+              size={18}
+              color={isOnCalendar ? '#4ECDC4' : '#FFF'}
+            />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Add to Calendar Modal */}
+      <AddToCalendarModal
+        visible={showCalendarModal}
+        activity={activity}
+        onClose={() => setShowCalendarModal(false)}
+      />
       
       <View style={styles.content}>
         <View style={styles.header}>
@@ -772,6 +802,44 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  calendarBadge: {
+    position: 'absolute',
+    top: Theme.spacing.sm,
+    left: Theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#4ECDC4',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  calendarBadgeText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  calendarBadgeSmall: {
+    position: 'absolute',
+    top: Theme.spacing.sm + 28,
+    left: Theme.spacing.sm,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4ECDC4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   content: {
     padding: Theme.spacing.md,
