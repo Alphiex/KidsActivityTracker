@@ -9,8 +9,9 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  // Hide header on admin and vendor dashboard pages (they have their own navigation)
-  if (pathname.startsWith('/admin') || pathname.startsWith('/vendor/dashboard')) {
+  // Hide header on admin pages only (they have their own navigation)
+  // Vendor dashboard now uses the main header for consistent experience
+  if (pathname.startsWith('/admin') || pathname.startsWith('/sponsor')) {
     return null;
   }
 

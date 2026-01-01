@@ -83,6 +83,12 @@ server/
 - `GET /api/v1/users/:id/favorites` - User favorites
 - `POST /api/v1/favorites` - Add/remove favorite
 
+### AI Features
+- `POST /api/v1/ai/recommendations` - AI-powered activity recommendations
+- `POST /api/v1/ai/chat` - Conversational AI assistant
+- `GET /api/v1/ai/chat/quota` - Check user's AI quota
+- `DELETE /api/v1/ai/chat/:conversationId` - End conversation
+
 ## Key Features
 
 ### Global Activity Filters
@@ -101,12 +107,32 @@ if (filters.hideClosedOrFull) {
 ### Database Schema
 
 Key tables:
-- `activities` - Main activity records (1000+ entries)
-- `providers` - Activity providers (NVRC, community centers)
-- `locations` - Physical locations across BC
+- `activities` - Main activity records (112,000+ entries)
+- `providers` - Activity providers (79 across Canada)
+- `locations` - Physical locations (3,980+)
 - `activity_types` - Categories and subcategories
 - `users` - User accounts with preferences
 - `favorites` - User saved activities
+
+### Canonical Activity Type Names
+Use these exact names in database and scrapers:
+- `Swimming & Aquatics` (not "Swimming")
+- `Gymnastics & Movement`
+- `Special Needs Programs` (not "Special Needs")
+- `Multi-Sport`
+- `Language & Culture`
+
+### AI Recommendation Prompt
+The AI generates child-focused benefit explanations (not search criteria matching):
+```typescript
+// Example "why" reasons:
+"why": [
+  "Builds confidence and teamwork skills",
+  "Great for developing coordination at this age",
+  "Fun way to stay active and make friends"
+]
+```
+Prompt file: `src/ai/prompts/recommendations.ts`
 
 ## Deployment
 
@@ -255,5 +281,5 @@ gcloud run services describe kids-activity-api --region=us-central1
 
 ---
 
-**Last Updated**: September 2025
+**Last Updated**: January 2026
 **Maintained By**: Development Team

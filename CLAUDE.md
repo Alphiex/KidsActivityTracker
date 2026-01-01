@@ -191,10 +191,36 @@ KidsActivityTracker/
 - Dashboard: `src/screens/DashboardScreenModern.tsx`
 - Calendar: `src/screens/CalendarScreenModernFixed.tsx`
 - Activity Card: `src/components/ActivityCard.tsx`
+- AI Recommendations: `src/screens/AIRecommendationsScreen.tsx`
+- AI Chat: `src/screens/AIChatScreen.tsx`
+- AI Components: `src/components/ai/` (AIRecommendationCard, AILoadingState, etc.)
+- Top Navigation: `src/components/TopTabNavigation.tsx`
+- Activity Type Icons: `src/utils/activityTypeIcons.ts`
 - API Service: `src/services/api.ts`
 - Onboarding: `src/screens/onboarding/` (ActivityTypes, Age, Location screens)
 - Favorites: `src/services/favoritesService.ts`
 - Preferences: `src/services/preferencesService.ts`
+
+## Activity Types & Icons
+- Icons defined in `src/utils/activityTypeIcons.ts` using Material Community Icons
+- Canonical activity type names (use these in database):
+  - `Swimming & Aquatics` (not "Swimming")
+  - `Gymnastics & Movement` (icon: `human-handsup`)
+  - `Special Needs Programs` (icon: `heart-multiple`)
+  - `Multi-Sport` (icon: `podium-gold`)
+  - `Language & Culture` (icon: `translate`)
+- Scraper mappings in `server/scrapers/utils/databaseActivityMapper.js`
+
+## AI Features
+- **AI Recommendations**: Personalized activity suggestions based on child profile and preferences
+  - Screen: `src/screens/AIRecommendationsScreen.tsx`
+  - Card: `src/components/ai/AIRecommendationCard.tsx`
+  - Shows "Great for your child:" section with child-focused benefits
+  - Match quality badges: "Excellent Match", "Great Match", "Good Match"
+- **AI Chat**: Conversational assistant for activity discovery
+  - Screen: `src/screens/AIChatScreen.tsx`
+  - Multi-turn conversations with context retention
+- **Navigation**: AIRecommendations screen does not highlight any top/bottom menu items
 
 ## Scraper Validation System
 The project includes a Claude Vision-based validation system for verifying scraped data:

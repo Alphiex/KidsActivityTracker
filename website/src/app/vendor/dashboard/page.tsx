@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getActivityStats, getImports } from '@/lib/vendorApi';
+import { getActivityStats, getImports, getProfile } from '@/lib/vendorApi';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kidsactivitytracker.ca';
 
 interface Stats {
   total: number;
@@ -20,9 +22,23 @@ interface RecentImport {
   createdAt: string;
 }
 
+interface SubscriptionInfo {
+  isSubscribed: boolean;
+  planName: string | null;
+  tier: string | null;
+}
+
+interface SponsorMetrics {
+  impressions: number;
+  clicks: number;
+  ctr: string;
+}
+
 export default function VendorDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentImports, setRecentImports] = useState<RecentImport[]>([]);
+  const [subscription, setSubscription] = useState<SubscriptionInfo>({ isSubscribed: false, planName: null, tier: null });
+  const [sponsorMetrics, setSponsorMetrics] = useState<SponsorMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -32,9 +48,10 @@ export default function VendorDashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [statsResponse, importsResponse] = await Promise.all([
+      const [statsResponse, importsResponse, profileResponse] = await Promise.all([
         getActivityStats(),
         getImports({ limit: 5 }),
+        getProfile(),
       ]);
 
       if (statsResponse.success) {
@@ -42,6 +59,30 @@ export default function VendorDashboardPage() {
       }
       if (importsResponse.success) {
         setRecentImports(importsResponse.batches || []);
+      }
+      if (profileResponse.success && profileResponse.vendor) {
+        const isActive = profileResponse.vendor.subscriptionStatus === 'active';
+        setSubscription({
+          isSubscribed: isActive,
+          planName: profileResponse.vendor.plan?.name || null,
+          tier: profileResponse.vendor.plan?.tier || null,
+        });
+
+        // Fetch sponsor metrics if subscribed
+        if (isActive) {
+          try {
+            const token = localStorage.getItem('vendor_token');
+            const metricsResponse = await fetch(`${API_URL}/api/vendor/dashboard`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const metricsData = await metricsResponse.json();
+            if (metricsData.success && metricsData.dashboard) {
+              setSponsorMetrics(metricsData.dashboard.last30Days);
+            }
+          } catch (e) {
+            console.error('Failed to fetch sponsor metrics');
+          }
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -69,7 +110,7 @@ export default function VendorDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -78,12 +119,75 @@ export default function VendorDashboardPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome to your vendor portal</p>
+        <p className="text-gray-600 mt-1">Welcome to your partner portal</p>
       </div>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-6">
           <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Subscription Banner */}
+      {subscription.isSubscribed ? (
+        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-6 mb-6 text-white">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-white/80 text-sm">Active Sponsor</p>
+                <p className="text-xl font-bold">{subscription.planName} Plan</p>
+              </div>
+            </div>
+            {sponsorMetrics && (
+              <div className="flex gap-8">
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{sponsorMetrics.impressions.toLocaleString()}</p>
+                  <p className="text-sm text-white/80">Impressions (30d)</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{sponsorMetrics.clicks.toLocaleString()}</p>
+                  <p className="text-sm text-white/80">Clicks (30d)</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{sponsorMetrics.ctr}</p>
+                  <p className="text-sm text-white/80">CTR</p>
+                </div>
+              </div>
+            )}
+            <Link
+              href="/vendor/dashboard/analytics"
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+            >
+              View Analytics
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-purple-500">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Boost Your Visibility</p>
+                <p className="text-sm text-gray-500">Upgrade to a sponsor plan for priority placement and detailed analytics</p>
+              </div>
+            </div>
+            <Link
+              href="/vendor/dashboard/plans"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              View Plans
+            </Link>
+          </div>
         </div>
       )}
 
@@ -95,8 +199,8 @@ export default function VendorDashboardPage() {
               <p className="text-sm font-medium text-gray-500">Total Activities</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total ?? 0}</p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-purple-100 rounded-full">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
@@ -153,9 +257,9 @@ export default function VendorDashboardPage() {
           <div className="space-y-3">
             <Link
               href="/vendor/dashboard/imports/new"
-              className="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
             >
-              <div className="p-2 bg-blue-600 rounded-lg">
+              <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-500 rounded-lg">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
@@ -196,7 +300,7 @@ export default function VendorDashboardPage() {
               {stats.byCategory.length > 5 && (
                 <Link
                   href="/vendor/dashboard/activities"
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-purple-600 hover:text-purple-700"
                 >
                   View all categories
                 </Link>
@@ -214,7 +318,7 @@ export default function VendorDashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">Recent Imports</h2>
           <Link
             href="/vendor/dashboard/imports"
-            className="text-sm text-blue-600 hover:text-blue-700"
+            className="text-sm text-purple-600 hover:text-purple-700"
           >
             View all
           </Link>
@@ -249,7 +353,7 @@ export default function VendorDashboardPage() {
             <p>No imports yet</p>
             <Link
               href="/vendor/dashboard/imports/new"
-              className="text-blue-600 hover:text-blue-700 text-sm mt-2 inline-block"
+              className="text-purple-600 hover:text-purple-700 text-sm mt-2 inline-block"
             >
               Import your first file
             </Link>

@@ -44,20 +44,20 @@ export default function VendorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <Link
               href="/vendor"
-              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mb-4"
+              className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium mb-4"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back to Vendor Info
+              Back to Partner Info
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Vendor Portal</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Partner Portal</h1>
             <p className="text-gray-600 mt-2">Sign in to manage your activities</p>
           </div>
 
@@ -79,7 +79,7 @@ export default function VendorLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="you@company.com"
               />
             </div>
@@ -89,7 +89,7 @@ export default function VendorLoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <Link href="/vendor/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">
+                <Link href="/vendor/forgot-password" className="text-sm text-purple-600 hover:text-purple-700">
                   Forgot password?
                 </Link>
               </div>
@@ -100,7 +100,7 @@ export default function VendorLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Enter your password"
               />
             </div>
@@ -108,7 +108,7 @@ export default function VendorLoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -117,7 +117,7 @@ export default function VendorLoginPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Don&apos;t have an account?{' '}
-              <Link href="/vendor/register" className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link href="/vendor/register" className="text-purple-600 hover:text-purple-700 font-medium">
                 Register
               </Link>
             </p>
@@ -127,10 +127,10 @@ export default function VendorLoginPage() {
             <p className="text-sm text-gray-500">
               Need help? Contact us at{' '}
               <a
-                href="mailto:vendors@kidsactivitytracker.ca"
-                className="text-blue-600 hover:text-blue-700"
+                href="mailto:partners@kidsactivitytracker.ca"
+                className="text-purple-600 hover:text-purple-700"
               >
-                vendors@kidsactivitytracker.ca
+                partners@kidsactivitytracker.ca
               </a>
             </p>
           </div>

@@ -13,7 +13,7 @@ import {
   Switch,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
 import ActivityService from '../services/activityService';
@@ -66,9 +66,25 @@ interface ActivityType {
   subtypes: ActivitySubtype[];
 }
 
+type SearchRouteProp = RouteProp<{
+  Search: {
+    returnToMap?: boolean;
+    mapBounds?: {
+      latitude: number;
+      longitude: number;
+      latitudeDelta: number;
+      longitudeDelta: number;
+    };
+  };
+}, 'Search'>;
+
 const SearchScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<SearchRouteProp>();
   const { isDark } = useTheme();
+
+  // Check if we should return to map instead of SearchResults
+  const returnToMap = route.params?.returnToMap || false;
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
 
@@ -373,11 +389,19 @@ const SearchScreen = () => {
 
     console.log('🔍 [SearchScreen] Searching with params:', JSON.stringify(searchParams, null, 2));
 
-    // Navigate to SearchResults screen (not AI)
-    navigation.navigate('SearchResults' as never, {
-      filters: searchParams,
-      searchQuery: searchText
-    } as never);
+    if (returnToMap) {
+      // Return to map with filters applied
+      navigation.navigate('MapSearch' as never, {
+        filters: searchParams,
+        searchQuery: searchText
+      } as never);
+    } else {
+      // Navigate to SearchResults screen (not AI)
+      navigation.navigate('SearchResults' as never, {
+        filters: searchParams,
+        searchQuery: searchText
+      } as never);
+    }
   };
 
   const handleAISearch = () => {

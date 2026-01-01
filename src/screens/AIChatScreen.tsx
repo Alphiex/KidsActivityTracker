@@ -14,15 +14,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import aiService, { ChatMessage, ChatQuota } from '../services/aiService';
-
-type AIChatRouteParams = {
-  AIChat: {
-    initialMessage?: string;
-    autoSend?: boolean;
-  };
-};
 import { useAppSelector, useAppDispatch } from '../store';
 import {
   addMessage,
@@ -119,14 +112,8 @@ const generatePersonalizedPrompts = (
  */
 const AIChatScreen = () => {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<AIChatRouteParams, 'AIChat'>>();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
-
-  // Get route params for initial message
-  const initialMessage = route.params?.initialMessage;
-  const autoSend = route.params?.autoSend ?? true;
-  const hasProcessedInitialMessage = useRef(false);
 
   // Get children from Redux store
   const children = useAppSelector((state) => state.children?.children || []);
@@ -175,21 +162,6 @@ const AIChatScreen = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Handle initial message from route params (e.g., from AI Recommendations button)
-  useEffect(() => {
-    if (initialMessage && autoSend && !hasProcessedInitialMessage.current && !isLoading) {
-      hasProcessedInitialMessage.current = true;
-      // Clear previous chat and start fresh with the recommendation query
-      dispatch(clearChat());
-      // Small delay to ensure state is cleared before sending
-      const timer = setTimeout(() => {
-        sendMessage(initialMessage);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialMessage, autoSend]);
 
   // Animate typing indicator
   useEffect(() => {

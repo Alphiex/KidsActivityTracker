@@ -22,7 +22,8 @@ Kids Activity Tracker helps parents find and organize activities for their child
 
 - **Activity Discovery** - Search and filter activities by age, type, location, cost, and schedule
 - **Distance-Based Search** - Filter activities by proximity using GPS location or saved address with configurable radius (5-100km)
-- **Smart Recommendations** - Personalized suggestions based on child profiles and preferences
+- **AI Recommendations** - Personalized activity suggestions with child-focused benefit explanations ("Great for your child")
+- **AI Chat Assistant** - Conversational AI for natural language activity discovery with multi-turn context
 - **Calendar Integration** - Visual scheduling with conflict detection and export capabilities
 - **Child Profiles** - Track multiple children with interests and activity history
 - **Family Sharing** - Share activity plans with co-parents and caregivers
@@ -68,6 +69,7 @@ cd server && npm run dev
 | [Frontend](FRONTEND.md) | React Native app guide |
 | [Deployment](DEPLOYMENT.md) | Cloud deployment procedures |
 | [Security](SECURITY.md) | Security practices |
+| [AI Chat Feature](AI-CHAT-FEATURE-PLAN.md) | Conversational AI, recommendations, guardrails |
 | [Subscriptions](SUBSCRIPTIONS.md) | Consumer subscription system, purchase flow, auditing |
 | [Subscription Setup](SUBSCRIPTION_SETUP.md) | RevenueCat & App Store/Play Store configuration |
 | [Featured Partners](FEATURED-PARTNERS.md) | Partner system for activity providers with analytics |
@@ -126,5 +128,5 @@ KidsActivityTracker/
 
 ---
 
-**Document Version**: 5.2
+**Document Version**: 5.3
 **Last Updated**: January 2026

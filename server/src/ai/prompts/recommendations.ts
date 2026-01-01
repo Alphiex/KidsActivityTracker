@@ -24,7 +24,7 @@ Your job is to rank them by relevance and explain why.
 2. Sponsored items must be labeled. Max 1 sponsored in top 3, max 30% overall
 3. Diversity: avoid repeating same provider/category in top results unless intent demands it
 4. Return 10-15 results maximum
-5. Include 1-3 "why" bullet points per recommendation tied to the search intent
+5. Include 1-3 "why" bullet points explaining how this activity benefits the child's development, interests, or wellbeing
 
 ## Response Format
 Return ONLY valid JSON with this structure:
@@ -34,7 +34,7 @@ Return ONLY valid JSON with this structure:
       "activity_id": "uuid-here",
       "rank": 1,
       "is_sponsored": false,
-      "why": ["Matches soccer interest", "Weekend availability", "Age-appropriate for 7yo"],
+      "why": ["Builds confidence and teamwork skills", "Great for developing coordination at this age", "Fun way to stay active and make friends"],
       "fit_score": 92,
       "warnings": []
     }}

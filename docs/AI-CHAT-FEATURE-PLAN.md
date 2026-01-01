@@ -556,6 +556,61 @@ model AIUsage {
 - [ ] A/B test prompt suggestions
 - [ ] Performance optimization (caching, prefetch)
 
+### Phase 7: AI Recommendations Screen ✅ COMPLETE (January 2026)
+- [x] Separate AIRecommendationsScreen from AIChatScreen
+- [x] Dashboard AI button navigates to AIRecommendations (not AIChat)
+- [x] AIRecommendations has no top/bottom navigation highlighting
+- [x] "Why this matches" renamed to "Great for your child"
+- [x] AI prompt updated to focus on child development benefits
+- [x] Match quality badges retained (Excellent/Great/Good Match)
+
+---
+
+## Part 7.6: Child-Focused Recommendation Explanations (January 2026)
+
+### Overview
+The AI recommendations now focus on explaining why activities benefit the child's development, rather than why they match search criteria. Match quality badges (Excellent/Great/Good Match) are retained.
+
+### Changes Made
+
+#### Backend Prompt (`server/src/ai/prompts/recommendations.ts`)
+```typescript
+// OLD:
+"5. Include 1-3 'why' bullet points per recommendation tied to the search intent"
+"why": ["Matches soccer interest", "Weekend availability", "Age-appropriate for 7yo"]
+
+// NEW:
+"5. Include 1-3 'why' bullet points explaining how this activity benefits the child's development, interests, or wellbeing"
+"why": ["Builds confidence and teamwork skills", "Great for developing coordination at this age", "Fun way to stay active and make friends"]
+```
+
+#### Frontend Card (`src/components/ai/AIRecommendationCard.tsx`)
+```typescript
+// OLD:
+<Icon name="lightbulb-outline" />
+<Text>Why this matches:</Text>
+
+// NEW:
+<Icon name="heart-outline" />
+<Text>Great for your child:</Text>
+```
+
+### Example Explanations
+| OLD (Search Criteria) | NEW (Child Benefits) |
+|-----------------------|---------------------|
+| "Matches soccer interest" | "Builds teamwork and coordination skills" |
+| "Weekend availability" | "Fits your family's weekend schedule" |
+| "Age-appropriate for 7yo" | "Great for developing motor skills at this age" |
+| "Within 5km of home" | "Convenient location near your neighborhood" |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `server/src/ai/prompts/recommendations.ts` | Updated prompt guidelines and examples |
+| `src/components/ai/AIRecommendationCard.tsx` | Changed title and icon |
+| `src/components/TopTabNavigation.tsx` | AIRecommendations returns null (no highlight) |
+| `src/screens/DashboardScreenModern.tsx` | AI button navigates to AIRecommendations |
+
 ---
 
 ## Part 7.5: Context-Aware Conversation System (January 2026)

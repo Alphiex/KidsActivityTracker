@@ -13,8 +13,9 @@ import {
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Activity } from '../types';
+import { ActivitySearchParams } from '../types/api';
 import ActivityService from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import { ClusterMarker } from '../components/map';
@@ -23,6 +24,13 @@ import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+
+type MapSearchRouteProp = RouteProp<{
+  MapSearch: {
+    filters?: ActivitySearchParams;
+    searchQuery?: string;
+  };
+}, 'MapSearch'>;
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
@@ -94,6 +102,7 @@ function clusterActivities(activities: Activity[]): LocationCluster[] {
 
 const MapSearchScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<MapSearchRouteProp>();
   const mapRef = useRef<MapView>(null);
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
@@ -110,8 +119,51 @@ const MapSearchScreen = () => {
   const listRef = useRef<FlatList>(null);
   const regionChangeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Search filters state (received from SearchScreen)
+  const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
   // Get user preferences for filtering
   const preferences = preferencesService.getPreferences();
+
+  // Handle search filters from navigation params
+  useEffect(() => {
+    if (route.params?.filters) {
+      setSearchFilters(route.params.filters);
+      setSearchQuery(route.params.searchQuery || '');
+      // Reload activities with new filters
+      loadActivitiesWithFilters(route.params.filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.filters]);
+
+  // Clear search filters and reload all activities
+  const clearSearchFilters = useCallback(() => {
+    setSearchFilters(null);
+    setSearchQuery('');
+  }, []);
+
+  // Reload activities when search filters are cleared
+  useEffect(() => {
+    if (searchFilters === null && !loading) {
+      loadActivities();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFilters]);
+
+  // Navigate to search screen for map-based search
+  const handleOpenSearch = useCallback(() => {
+    // Pass current map bounds to search screen
+    (navigation as any).navigate('Search', {
+      returnToMap: true,
+      mapBounds: {
+        latitude: region.latitude,
+        longitude: region.longitude,
+        latitudeDelta: region.latitudeDelta,
+        longitudeDelta: region.longitudeDelta,
+      },
+    });
+  }, [navigation, region]);
 
   // Determine initial region based on priority: GPS > preferences > Canada
   useEffect(() => {
@@ -256,10 +308,99 @@ const MapSearchScreen = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadActivities(); }, []);
 
+  // Process activities and set state
+  const processAndSetActivities = (activities: Activity[]) => {
+    if (__DEV__) {
+      console.log('[MapSearch] API returned:', {
+        total: activities?.length || 0,
+        sample: activities?.[0] ? {
+          id: activities[0].id,
+          name: activities[0].name,
+          lat: activities[0].latitude,
+          lng: activities[0].longitude,
+        } : null,
+      });
+    }
+
+    // Filter to only activities with valid coordinates
+    // Check both activity-level coords and nested location object
+    const activitiesWithLocation = (activities || []).map((a: Activity) => {
+      // Try to get coordinates from activity or from nested location
+      let lat = a.latitude;
+      let lng = a.longitude;
+
+      // If no coords on activity, check if location is an object with coords
+      if ((lat == null || lng == null) && typeof a.location === 'object' && a.location) {
+        const loc = a.location as any;
+        lat = loc.latitude ?? lat;
+        lng = loc.longitude ?? lng;
+      }
+
+      return { ...a, latitude: lat, longitude: lng };
+    }).filter((a: Activity) => {
+      const hasCoords = a.latitude != null && a.longitude != null &&
+                        !isNaN(a.latitude) && !isNaN(a.longitude);
+      return hasCoords;
+    });
+
+    if (__DEV__) {
+      console.log('[MapSearch] Activities with valid coordinates:', activitiesWithLocation.length);
+      if (activitiesWithLocation.length === 0 && activities?.length > 0) {
+        // Log sample activity to debug
+        const sample = activities[0];
+        console.log('[MapSearch] Sample activity location data:', {
+          actLat: sample.latitude,
+          actLng: sample.longitude,
+          location: sample.location,
+        });
+      }
+    }
+
+    setAllActivities(activitiesWithLocation);
+
+    // Fit map to show all activities (only if no search filters - don't auto-zoom when filtered)
+    if (activitiesWithLocation.length > 0 && mapRef.current && !searchFilters) {
+      const coords = activitiesWithLocation.map((a: Activity) => ({
+        latitude: a.latitude!,
+        longitude: a.longitude!,
+      }));
+
+      setTimeout(() => {
+        mapRef.current?.fitToCoordinates(coords, {
+          edgePadding: { top: 100, right: 50, bottom: 100, left: 50 } as any,
+          animated: true,
+        } as any);
+      }, 500);
+    }
+  };
+
+  // Load activities with search filters applied
+  const loadActivitiesWithFilters = async (filters: ActivitySearchParams) => {
+    try {
+      setLoading(true);
+
+      // Combine search filters with map-specific requirements
+      const apiFilters: Record<string, unknown> = {
+        ...filters,
+        limit: 500, // Load more for map view
+        hasCoordinates: true, // Only get activities with lat/lng
+      };
+
+      if (__DEV__) console.log('[MapSearch] Loading with search filters:', apiFilters);
+
+      const activities = await activityService.searchActivities(apiFilters);
+      processAndSetActivities(activities);
+    } catch (error) {
+      if (__DEV__) console.error('[MapSearch] Error loading filtered activities:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadActivities = async () => {
     try {
       setLoading(true);
-      
+
       // Load activities with coordinates only for map view
       const filters: Record<string, unknown> = {
         limit: 500, // Load more for map view
@@ -269,69 +410,7 @@ const MapSearchScreen = () => {
       if (__DEV__) console.log('[MapSearch] Loading activities with filters:', filters);
 
       const activities = await activityService.searchActivities(filters);
-
-      if (__DEV__) {
-        console.log('[MapSearch] API returned:', {
-          total: activities?.length || 0,
-          sample: activities?.[0] ? {
-            id: activities[0].id,
-            name: activities[0].name,
-            lat: activities[0].latitude,
-            lng: activities[0].longitude,
-          } : null,
-        });
-      }
-
-      // Filter to only activities with valid coordinates
-      // Check both activity-level coords and nested location object
-      const activitiesWithLocation = (activities || []).map((a: Activity) => {
-        // Try to get coordinates from activity or from nested location
-        let lat = a.latitude;
-        let lng = a.longitude;
-        
-        // If no coords on activity, check if location is an object with coords
-        if ((lat == null || lng == null) && typeof a.location === 'object' && a.location) {
-          const loc = a.location as any;
-          lat = loc.latitude ?? lat;
-          lng = loc.longitude ?? lng;
-        }
-        
-        return { ...a, latitude: lat, longitude: lng };
-      }).filter((a: Activity) => {
-        const hasCoords = a.latitude != null && a.longitude != null && 
-                          !isNaN(a.latitude) && !isNaN(a.longitude);
-        return hasCoords;
-      });
-      
-      if (__DEV__) {
-        console.log('[MapSearch] Activities with valid coordinates:', activitiesWithLocation.length);
-        if (activitiesWithLocation.length === 0 && activities?.length > 0) {
-          // Log sample activity to debug
-          const sample = activities[0];
-          console.log('[MapSearch] Sample activity location data:', {
-            actLat: sample.latitude,
-            actLng: sample.longitude,
-            location: sample.location,
-          });
-        }
-      }
-
-      setAllActivities(activitiesWithLocation);
-
-      // Fit map to show all activities
-      if (activitiesWithLocation.length > 0 && mapRef.current) {
-        const coords = activitiesWithLocation.map((a: Activity) => ({
-          latitude: a.latitude!,
-          longitude: a.longitude!,
-        }));
-        
-        setTimeout(() => {
-          mapRef.current?.fitToCoordinates(coords, {
-            edgePadding: { top: 100, right: 50, bottom: 100, left: 50 } as any,
-            animated: true,
-          } as any);
-        }, 500);
-      }
+      processAndSetActivities(activities);
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error loading activities:', error);
     } finally {
@@ -363,21 +442,6 @@ const MapSearchScreen = () => {
       }
     }
   }, [visibleActivities]);
-
-  // Handle tapping a card in the list - center map on activity
-  const handleCardPress = useCallback((activity: Activity) => {
-    setSelectedActivityId(activity.id);
-
-    // Center map on activity
-    if (mapRef.current && activity.latitude && activity.longitude) {
-      mapRef.current.animateToRegion({
-        latitude: activity.latitude,
-        longitude: activity.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      }, 300);
-    }
-  }, []);
 
   const handleActivityPress = useCallback((activity: Activity) => {
     (navigation as any).navigate('ActivityDetail', { activity });
@@ -578,7 +642,39 @@ const MapSearchScreen = () => {
           </View>
         )}
 
-        {/* Action Buttons */}
+        {/* Search Button - Top Right */}
+        <View style={styles.searchButtonContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, searchFilters && styles.searchButtonActive]}
+            onPress={handleOpenSearch}
+          >
+            <Icon
+              name="magnify"
+              size={22}
+              color={searchFilters ? '#fff' : Colors.primary}
+            />
+          </TouchableOpacity>
+          {searchFilters && (
+            <TouchableOpacity
+              style={styles.clearSearchBadge}
+              onPress={clearSearchFilters}
+            >
+              <Icon name="close" size={12} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Search Active Indicator */}
+        {searchFilters && (
+          <View style={styles.searchIndicator}>
+            <Icon name="filter" size={14} color="#fff" />
+            <Text style={styles.searchIndicatorText} numberOfLines={1}>
+              {searchQuery || 'Filtered'}
+            </Text>
+          </View>
+        )}
+
+        {/* Action Buttons - Bottom Right */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.actionButton} onPress={handleMyLocation}>
             <Icon name="crosshairs-gps" size={22} color={Colors.primary} />
@@ -746,6 +842,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+  },
+  searchButtonContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  searchButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  clearSearchBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#D93025',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  searchIndicator: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  searchIndicatorText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
   // List section - 45% of screen
   listSection: {

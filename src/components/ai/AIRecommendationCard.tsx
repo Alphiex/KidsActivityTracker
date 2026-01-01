@@ -260,13 +260,13 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
         )}
       </View>
 
-      {/* Why This Matches Section */}
+      {/* Why This Is Great Section */}
       {showExplanation && recommendation.why && recommendation.why.length > 0 && (
         <View style={[styles.whySection, { borderTopColor: colors.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#F0FDF4' }]}>
           <View style={styles.whyHeader}>
-            <Icon name="lightbulb-outline" size={16} color="#10B981" />
+            <Icon name="heart-outline" size={16} color="#10B981" />
             <Text style={[styles.whyTitle, { color: '#10B981' }]}>
-              Why this matches:
+              Great for your child:
             </Text>
           </View>
           {recommendation.why.slice(0, 3).map((reason, index) => (

@@ -31,7 +31,12 @@ src/
 │   ├── filters/
 │   │   └── DistanceFilterSection.tsx  # Distance filtering UI
 │   ├── HierarchicalSelect/        # Location picker
-│   ├── TopTabNavigation.tsx       # Tab switching
+│   ├── TopTabNavigation.tsx       # Tab switching (no highlight for AI Recommendations)
+│   ├── ai/                        # AI components
+│   │   ├── AIRecommendationCard.tsx  # Activity card with "Great for your child" section
+│   │   ├── AILoadingState.tsx     # Loading animation
+│   │   ├── AIErrorState.tsx       # Error display
+│   │   └── AISourceBadge.tsx      # AI/heuristic source indicator
 │   ├── NetworkStatus.tsx          # Connectivity indicator
 │   └── LoadingIndicator.tsx       # Loading states
 │
@@ -47,16 +52,19 @@ src/
 │   │   └── OnboardingDistanceScreen.tsx  # Distance preferences setup
 │   ├── preferences/
 │   │   └── DistancePreferencesScreen.tsx # Distance settings
-│   ├── DashboardScreenModern.tsx  # Main dashboard
+│   ├── DashboardScreenModern.tsx  # Main dashboard with AI Recommendations button
+│   ├── AIRecommendationsScreen.tsx # Personalized AI activity recommendations
+│   ├── AIChatScreen.tsx           # Conversational AI assistant
 │   ├── CalendarScreenModernFixed.tsx
-│   ├── FiltersScreen.tsx
+│   ├── FiltersScreen.tsx          # Activity type icons and cascading selection
 │   ├── ActivityDetailScreenModern.tsx
 │   ├── FriendsAndFamilyScreenModern.tsx
 │   ├── ProfileScreenModern.tsx
-│   └── ... (45+ screens)
+│   └── ... (50+ screens)
 │
 ├── services/
 │   ├── api.ts                     # Axios API client
+│   ├── aiService.ts               # AI recommendations and chat
 │   ├── authService.ts             # Authentication
 │   ├── activityService.ts         # Activity operations
 │   ├── childrenService.ts         # Child management
@@ -170,6 +178,22 @@ Activity information:
 - Prerequisites
 - Action buttons (register, favorite, add to calendar)
 
+### AIRecommendationsScreen.tsx
+AI-powered activity recommendations:
+- Personalized based on child profiles and preferences
+- "Great for your child" explanations with child-focused benefits
+- Match quality badges (Excellent Match, Great Match, Good Match)
+- Pull-to-refresh for new recommendations
+- No top/bottom navigation highlighting (dedicated screen)
+
+### AIChatScreen.tsx
+Conversational AI assistant:
+- Natural language activity search
+- Multi-turn conversations with context retention
+- Suggested prompts for common queries
+- Follow-up suggestions after responses
+- Quota display (free vs pro tier)
+
 ## State Management
 
 ### Redux Slices
@@ -277,6 +301,37 @@ Features:
 - Fallback to manual entry with Nominatim geocoding
 - Theme-aware styling via `useTheme()`
 - Selected address display with clear button
+
+### AIRecommendationCard
+
+```typescript
+interface AIRecommendationCardProps {
+  recommendation: AIRecommendation;
+  activity: Activity;
+  source: AISourceType;
+  onPress?: () => void;
+  showExplanation?: boolean;
+}
+```
+
+Features:
+- Activity image with rank badge (#1, #2, etc.)
+- Match quality badge (Excellent/Great/Good Match)
+- Price overlay with "per child" label
+- Activity details (name, provider, location, dates, time, ages)
+- "Great for your child:" section with child-focused benefit explanations
+- Warning section for potential issues (age mismatch, schedule conflicts)
+- Spots available indicator
+
+### TopTabNavigation
+
+Tab navigation component with active state highlighting:
+- Explore (Dashboard) - 🎯 icon
+- Map (MapSearch) - 🗺️ icon
+- AI (AIChat) - Robot image icon
+- Calendar - 📅 icon
+
+**Note**: AIRecommendations screen returns `null` for active tab (no highlighting).
 
 Usage:
 ```typescript
@@ -505,5 +560,5 @@ npm run lint -- --fix
 
 ---
 
-**Document Version**: 4.1
-**Last Updated**: December 2025
+**Document Version**: 4.2
+**Last Updated**: January 2026

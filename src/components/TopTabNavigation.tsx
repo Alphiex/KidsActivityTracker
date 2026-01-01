@@ -20,9 +20,9 @@ const TopTabNavigation = () => {
     const routeName = route.name;
     if (routeName === 'Dashboard' || routeName === 'Explore') return 'Dashboard';
     if (routeName === 'MapSearch') return 'MapSearch';
-    if (routeName === 'AIChat' || routeName === 'AIRecommendations') return 'AIChat';
+    if (routeName === 'AIChat') return 'AIChat';
     if (routeName === 'Calendar') return 'Calendar';
-    // Return null for Preferences, Favourites, Friends & Family screens
+    // Return null for Preferences, Favourites, Friends & Family, AIRecommendations screens
     return null;
   };
 
