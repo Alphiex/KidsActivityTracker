@@ -38,7 +38,8 @@ Kids Activity Tracker helps parents find and organize activities for their child
 | Backend | Node.js 20, Express, TypeScript, Prisma ORM |
 | Database | PostgreSQL 15, Cloud SQL |
 | Scraping | Puppeteer, Cheerio |
-| Payments | RevenueCat (iOS/Android subscriptions) |
+| Consumer Payments | RevenueCat (iOS/Android subscriptions) |
+| Partner Payments | Stripe (B2B partner subscriptions) |
 | Infrastructure | Google Cloud Platform (Cloud Run, Cloud SQL) |
 
 ## Quick Start
@@ -67,9 +68,10 @@ cd server && npm run dev
 | [Frontend](FRONTEND.md) | React Native app guide |
 | [Deployment](DEPLOYMENT.md) | Cloud deployment procedures |
 | [Security](SECURITY.md) | Security practices |
-| [Subscriptions](SUBSCRIPTIONS.md) | Subscription system, purchase flow, auditing |
+| [Subscriptions](SUBSCRIPTIONS.md) | Consumer subscription system, purchase flow, auditing |
 | [Subscription Setup](SUBSCRIPTION_SETUP.md) | RevenueCat & App Store/Play Store configuration |
 | [Featured Partners](FEATURED-PARTNERS.md) | Partner system for activity providers with analytics |
+| [Stripe Integration](STRIPE-INTEGRATION.md) | Stripe setup for partner/sponsor payments |
 | [Privacy Policy](PRIVACY-POLICY.md) | User privacy and data handling |
 | [App Store Listing](APP-STORE-LISTING.md) | App Store metadata and screenshots |
 | [Filter Testing](FILTER-TESTING-CHECKLIST.md) | QA checklist for search filters |
@@ -124,5 +126,5 @@ KidsActivityTracker/
 
 ---
 
-**Document Version**: 5.1
-**Last Updated**: December 2025
+**Document Version**: 5.2
+**Last Updated**: January 2026
