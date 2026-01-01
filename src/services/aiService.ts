@@ -357,15 +357,17 @@ class AIService {
    * @param message - User's message
    * @param conversationId - Optional conversation ID to continue
    * @param childIds - Optional specific children to focus on
+   * @param retryCount - Internal retry counter for auth timing
    * @returns AI response with activities and follow-up prompts
    */
   async chat(
     message: string,
     conversationId?: string,
-    childIds?: string[]
+    childIds?: string[],
+    retryCount: number = 0
   ): Promise<ChatResponse> {
     try {
-      console.log('[AIService] Sending chat message:', { message, conversationId });
+      console.log('[AIService] Sending chat message:', { message, conversationId, retryCount });
 
       const response = await apiClient.post<ChatResponse>(
         '/api/v1/ai/chat',
@@ -395,12 +397,19 @@ class AIService {
         throw new Error(data?.message || 'AI quota exceeded. Please upgrade to Pro for more queries.');
       }
 
-      // Handle unauthorized
+      // Handle unauthorized - retry twice with increasing delay for auth timing issues
+      // (User must be logged in to see this screen, so 401 is a token refresh timing issue)
       if (error?.response?.status === 401) {
-        throw new Error('Please log in to use AI chat.');
+        if (retryCount < 2) {
+          console.log('[AIService] 401 received (auth timing), retrying after delay... attempt', retryCount + 1);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          return this.chat(message, conversationId, childIds, retryCount + 1);
+        }
+        // After retries still failing, show generic error
+        console.error('[AIService] Auth still failing after retries');
       }
 
-      throw new Error('Failed to get AI response. Please try again.');
+      throw new Error('Something went wrong. Please try again.');
     }
   }
 
