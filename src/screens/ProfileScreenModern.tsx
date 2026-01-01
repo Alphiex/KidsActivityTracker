@@ -534,14 +534,14 @@ const ProfileScreenModern = () => {
             icon="shield-check-outline"
             title="Privacy Policy"
             subtitle="How we protect your data"
-            onPress={() => navigation.navigate('Legal' as never, { type: 'privacy' } as never)}
+            onPress={() => Linking.openURL('https://kidsactivitytracker.app/privacy')}
           />
           <View style={styles.divider} />
           <ProfileItem
             icon="file-document-outline"
             title="Terms of Service"
             subtitle="Terms and conditions"
-            onPress={() => navigation.navigate('Legal' as never, { type: 'terms' } as never)}
+            onPress={() => Linking.openURL('https://kidsactivitytracker.app/terms')}
           />
         </ProfileSection>
 

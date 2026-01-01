@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white">
       {/* Hero Section */}
       <section className="py-16 lg:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -62,8 +62,8 @@ export default function PrivacyPage() {
                 <li>Allergies or medical conditions (optional, for activity safety)</li>
                 <li>Special needs or accommodations (optional)</li>
               </ul>
-              <div className="bg-purple-50 border border-purple-100 rounded-lg p-4 mt-4">
-                <p className="text-purple-800 text-sm">
+              <div className="bg-pink-50 border border-pink-100 rounded-lg p-4 mt-4">
+                <p className="text-pink-800 text-sm">
                   <strong>Important:</strong> Child profile information is stored securely and is never shared with third parties for marketing purposes. This information is used solely to filter and recommend age-appropriate activities.
                 </p>
               </div>
@@ -152,21 +152,21 @@ export default function PrivacyPage() {
                   <h3 className="font-semibold text-gray-800">RevenueCat</h3>
                   <p className="text-gray-600 text-sm mt-1"><strong>Purpose:</strong> Subscription and payment processing</p>
                   <p className="text-gray-600 text-sm"><strong>Data Shared:</strong> Purchase transactions, subscription status</p>
-                  <a href="https://www.revenuecat.com/privacy" className="text-purple-600 hover:text-purple-700 text-sm" target="_blank" rel="noopener noreferrer">View RevenueCat Privacy Policy</a>
+                  <a href="https://www.revenuecat.com/privacy" className="text-pink-600 hover:text-pink-700 text-sm" target="_blank" rel="noopener noreferrer">View RevenueCat Privacy Policy</a>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-800">Google Cloud Platform</h3>
                   <p className="text-gray-600 text-sm mt-1"><strong>Purpose:</strong> Data hosting and storage</p>
                   <p className="text-gray-600 text-sm"><strong>Data Shared:</strong> All app data is stored on Google Cloud servers</p>
-                  <a href="https://policies.google.com/privacy" className="text-purple-600 hover:text-purple-700 text-sm" target="_blank" rel="noopener noreferrer">View Google Privacy Policy</a>
+                  <a href="https://policies.google.com/privacy" className="text-pink-600 hover:text-pink-700 text-sm" target="_blank" rel="noopener noreferrer">View Google Privacy Policy</a>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-800">Apple (for iOS users)</h3>
                   <p className="text-gray-600 text-sm mt-1"><strong>Purpose:</strong> App distribution, notifications, analytics</p>
                   <p className="text-gray-600 text-sm"><strong>Data Shared:</strong> App usage analytics, crash reports</p>
-                  <a href="https://www.apple.com/legal/privacy/" className="text-purple-600 hover:text-purple-700 text-sm" target="_blank" rel="noopener noreferrer">View Apple Privacy Policy</a>
+                  <a href="https://www.apple.com/legal/privacy/" className="text-pink-600 hover:text-pink-700 text-sm" target="_blank" rel="noopener noreferrer">View Apple Privacy Policy</a>
                 </div>
               </div>
 
@@ -303,7 +303,7 @@ export default function PrivacyPage() {
                 If you have questions or concerns about this privacy policy or our data practices, please contact us:
               </p>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-800"><strong>Email:</strong> <a href="mailto:privacy@kidsactivitytracker.app" className="text-purple-600 hover:text-purple-700">privacy@kidsactivitytracker.app</a></p>
+                <p className="text-gray-800"><strong>Email:</strong> <a href="mailto:privacy@kidsactivitytracker.app" className="text-pink-600 hover:text-pink-700">privacy@kidsactivitytracker.app</a></p>
               </div>
             </div>
 
@@ -316,7 +316,7 @@ export default function PrivacyPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
+            className="inline-flex items-center gap-2 text-pink-600 hover:text-pink-700 font-medium"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
