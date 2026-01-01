@@ -213,9 +213,27 @@ const AIChatScreen = () => {
         setQuota((prev) => prev ? { ...prev, daily: response.quota.daily, monthly: response.quota.monthly } : null);
       }
     } catch (err: any) {
+      console.error('[AIChatScreen] Chat error:', err.message);
+      // Show error briefly, then auto-clear
       setError(err.message || 'Failed to get response');
-      // Remove the user message if there was an error
-      setMessages((prev) => prev.slice(0, -1));
+      setTimeout(() => setError(null), 5000);
+      // Keep user message but add error indicator
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated.length > 0) {
+          const lastMsg = updated[updated.length - 1];
+          if (lastMsg.role === 'user') {
+            // Add assistant error response
+            updated.push({
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: "I couldn't process that request. Please try again.",
+              timestamp: new Date(),
+            });
+          }
+        }
+        return updated;
+      });
     } finally {
       setIsLoading(false);
     }

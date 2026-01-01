@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import { firebaseAuthService } from './firebaseAuthService';
 import {
   AIRecommendationRequest,
   AIRecommendationResponse,
@@ -397,12 +398,18 @@ class AIService {
         throw new Error(data?.message || 'AI quota exceeded. Please upgrade to Pro for more queries.');
       }
 
-      // Handle unauthorized - retry twice with increasing delay for auth timing issues
+      // Handle unauthorized - retry twice with force-refresh of Firebase token
       // (User must be logged in to see this screen, so 401 is a token refresh timing issue)
       if (error?.response?.status === 401) {
         if (retryCount < 2) {
-          console.log('[AIService] 401 received (auth timing), retrying after delay... attempt', retryCount + 1);
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          console.log('[AIService] 401 received (auth timing), force-refreshing token and retrying... attempt', retryCount + 1);
+          // Force refresh the Firebase token before retrying
+          try {
+            await firebaseAuthService.getIdToken(true);
+          } catch (tokenError) {
+            console.warn('[AIService] Token refresh failed:', tokenError);
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
           return this.chat(message, conversationId, childIds, retryCount + 1);
         }
         // After retries still failing, show generic error
