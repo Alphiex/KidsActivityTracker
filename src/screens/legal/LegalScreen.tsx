@@ -11,7 +11,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 
 const ModernColors = {
-  primary: '#FF385C',
+  primary: '#14B8A6',
   text: '#222222',
   textLight: '#717171',
   border: '#DDDDDD',

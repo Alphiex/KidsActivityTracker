@@ -211,7 +211,7 @@ const FeaturedPartnersScreen: React.FC = () => {
               <Icon
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={16}
-                color={isFavorite ? "#FF385C" : "#FFF"}
+                color={isFavorite ? "#14B8A6" : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
@@ -248,7 +248,7 @@ const FeaturedPartnersScreen: React.FC = () => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <LinearGradient
-        colors={['#FF385C', '#E91E63']}
+        colors={['#14B8A6', '#0D9488']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
@@ -271,7 +271,7 @@ const FeaturedPartnersScreen: React.FC = () => {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#FF385C" />
+        <ActivityIndicator size="small" color="#14B8A6" />
         <Text style={styles.loadingMoreText}>Loading more...</Text>
       </View>
     );
@@ -306,7 +306,7 @@ const FeaturedPartnersScreen: React.FC = () => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF385C" />
+          <ActivityIndicator size="large" color="#14B8A6" />
           <Text style={styles.loadingText}>Loading featured partners...</Text>
         </View>
       ) : (
@@ -324,7 +324,7 @@ const FeaturedPartnersScreen: React.FC = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#FF385C"
+              tintColor="#14B8A6"
             />
           }
         />
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     gap: 4,
   },
   featuredBadgeText: {

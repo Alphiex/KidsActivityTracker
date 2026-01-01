@@ -633,7 +633,7 @@ const SearchScreen = () => {
                       step={1}
                       value={startTime}
                       onValueChange={setStartTime}
-                      minimumTrackTintColor="#FF385C"
+                      minimumTrackTintColor="#14B8A6"
                       maximumTrackTintColor="#DDDDDD"
                       
                     />
@@ -646,7 +646,7 @@ const SearchScreen = () => {
                       step={1}
                       value={endTime}
                       onValueChange={setEndTime}
-                      minimumTrackTintColor="#FF385C"
+                      minimumTrackTintColor="#14B8A6"
                       maximumTrackTintColor="#DDDDDD"
                       
                     />
@@ -676,7 +676,7 @@ const SearchScreen = () => {
                   step={25}
                   value={minCost}
                   onValueChange={setMinCost}
-                  minimumTrackTintColor="#FF385C"
+                  minimumTrackTintColor="#14B8A6"
                   maximumTrackTintColor="#DDDDDD"
                   
                 />
@@ -691,7 +691,7 @@ const SearchScreen = () => {
                     value={maxCost}
                     onValueChange={setMaxCost}
                     disabled={isUnlimitedCost}
-                    minimumTrackTintColor="#FF385C"
+                    minimumTrackTintColor="#14B8A6"
                     maximumTrackTintColor="#DDDDDD"
                     
                   />
@@ -755,7 +755,7 @@ const SearchScreen = () => {
                   step={1}
                   value={minAge}
                   onValueChange={setMinAge}
-                  minimumTrackTintColor="#FF385C"
+                  minimumTrackTintColor="#14B8A6"
                   maximumTrackTintColor="#DDDDDD"
                   
                 />
@@ -768,7 +768,7 @@ const SearchScreen = () => {
                   step={1}
                   value={maxAge}
                   onValueChange={setMaxAge}
-                  minimumTrackTintColor="#FF385C"
+                  minimumTrackTintColor="#14B8A6"
                   maximumTrackTintColor="#DDDDDD"
                   
                 />
@@ -1005,8 +1005,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   dayButtonSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   dayButtonText: {
     fontSize: 14,
@@ -1040,8 +1040,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   activityTypeButtonSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   activityTypeButtonText: {
     fontSize: 16,
@@ -1067,8 +1067,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   timeButtonSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   timeButtonDisabled: {
     opacity: 0.5,
@@ -1109,8 +1109,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   customToggleButtonSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   customToggleText: {
     fontSize: 14,
@@ -1170,8 +1170,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   unlimitedButtonSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   unlimitedButtonText: {
     fontSize: 14,
@@ -1197,8 +1197,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cityButtonSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   cityButtonText: {
     fontSize: 14,
@@ -1249,7 +1249,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 8,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,

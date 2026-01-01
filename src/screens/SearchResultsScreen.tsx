@@ -225,7 +225,7 @@ const SearchResultsScreen = () => {
     
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color="#FF385C" />
+        <ActivityIndicator size="small" color="#14B8A6" />
         <Text style={styles.loadingFooterText}>Loading more activities...</Text>
       </View>
     );
@@ -248,7 +248,7 @@ const SearchResultsScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF385C" />
+          <ActivityIndicator size="large" color="#14B8A6" />
           <Text style={styles.loadingText}>Finding activities...</Text>
         </View>
       </SafeAreaView>
@@ -271,7 +271,7 @@ const SearchResultsScreen = () => {
         </View>
         
         <TouchableOpacity onPress={handleBackToSearch} style={styles.filterButton}>
-          <Icon name="tune" size={24} color="#FF385C" />
+          <Icon name="tune" size={24} color="#14B8A6" />
         </TouchableOpacity>
       </View>
 
@@ -308,8 +308,8 @@ const SearchResultsScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#FF385C"
-              colors={['#FF385C']}
+              tintColor="#14B8A6"
+              colors={['#14B8A6']}
             />
           }
           onEndReached={loadMoreResults}
@@ -440,11 +440,11 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   refineSearchButton: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     borderRadius: 12,
     paddingHorizontal: 32,
     paddingVertical: 14,
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

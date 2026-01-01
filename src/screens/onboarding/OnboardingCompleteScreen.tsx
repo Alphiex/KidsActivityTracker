@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PreferencesService from '../../services/preferencesService';
 import { appEventEmitter, APP_EVENTS } from '../../utils/eventEmitter';
@@ -48,15 +49,15 @@ const OnboardingCompleteScreen: React.FC = () => {
 
         <View style={styles.features}>
           <View style={styles.featureItem}>
-            <Icon name="magnify" size={24} color="#FF385C" />
+            <Icon name="magnify" size={24} color="#14B8A6" />
             <Text style={styles.featureText}>Discover activities tailored to your interests</Text>
           </View>
           <View style={styles.featureItem}>
-            <Icon name="calendar-check" size={24} color="#FF385C" />
+            <Icon name="calendar-check" size={24} color="#14B8A6" />
             <Text style={styles.featureText}>Keep track of schedules and deadlines</Text>
           </View>
           <View style={styles.featureItem}>
-            <Icon name="bell-ring" size={24} color="#FF385C" />
+            <Icon name="bell-ring" size={24} color="#14B8A6" />
             <Text style={styles.featureText}>Get notified about new activities</Text>
           </View>
         </View>
@@ -136,13 +137,13 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   startButton: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     height: 56,
     borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

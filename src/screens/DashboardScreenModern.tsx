@@ -27,7 +27,6 @@ import TopTabNavigation from '../components/TopTabNavigation';
 import useFavoriteSubscription from '../hooks/useFavoriteSubscription';
 import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
-import { AIRecommendButton } from '../components/ai';
 import LinearGradient from 'react-native-linear-gradient';
 
 const DashboardScreenModern = () => {
@@ -705,7 +704,7 @@ const DashboardScreenModern = () => {
               <Icon
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={16}
-                color={isFavorite ? "#FF385C" : "#FFF"}
+                color={isFavorite ? "#14B8A6" : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -786,7 +785,7 @@ const DashboardScreenModern = () => {
           {/* Combined days and time row */}
           {(daysOfWeekText || timeText) && (
             <View style={styles.daysRow}>
-              <Icon name="calendar-week" size={12} color="#E91E63" />
+              <Icon name="calendar-week" size={12} color="#14B8A6" />
               <Text style={styles.daysText}>
                 {daysOfWeekText}{daysOfWeekText && timeText ? ' • ' : ''}{timeText ? timeText : ''}
               </Text>
@@ -823,7 +822,7 @@ const DashboardScreenModern = () => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF385C" />
+          <ActivityIndicator size="large" color="#14B8A6" />
         </View>
       ) : (
         <>
@@ -874,32 +873,31 @@ const DashboardScreenModern = () => {
           </View>
         )}
 
-        {/* AI Recommendations Banner - Compact */}
-        <TouchableOpacity
-          style={styles.aiBanner}
-          onPress={() => navigation.navigate('AIRecommendations', {
-            search_intent: 'Find the best activities for my family this weekend'
-          })}
-          activeOpacity={0.9}
-        >
-          <LinearGradient
-            colors={['#8B5CF6', '#6366F1', '#4F46E5']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.aiBannerGradient}
+        {/* AI Recommendations Banner - with robot overlay */}
+        <View style={styles.aiBannerWrapper}>
+          <TouchableOpacity
+            style={styles.aiBanner}
+            onPress={() => navigation.navigate('AIRecommendations', {
+              search_intent: 'Find the best activities for my family this weekend'
+            })}
+            activeOpacity={0.9}
           >
-            <View style={styles.aiBannerRow}>
-              <View style={styles.aiRobotContainer}>
-                <Image source={aiRobotImage} style={styles.aiRobotImage} />
-              </View>
+            <LinearGradient
+              colors={['#14B8A6', '#0D9488', '#0F766E']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.aiBannerGradient}
+            >
               <View style={styles.aiBannerTextContainer}>
                 <Text style={styles.aiBannerTitle}>AI Recommendations</Text>
                 <Text style={styles.aiBannerSubtitle}>Personalized picks for your family</Text>
               </View>
               <Icon name="chevron-right" size={22} color="#FFFFFF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+            </LinearGradient>
+          </TouchableOpacity>
+          {/* Robot image overlapping outside the banner */}
+          <Image source={aiRobotImage} style={styles.aiRobotImageOverlay} />
+        </View>
 
         {/* Waiting List Banner - only shown when user has items on waitlist */}
         {waitlistCount > 0 && (
@@ -941,7 +939,7 @@ const DashboardScreenModern = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {loading ? (
               <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#FF385C" />
+                <ActivityIndicator size="small" color="#14B8A6" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
               </View>
             ) : recommendedActivities.length > 0 ? (
@@ -968,7 +966,7 @@ const DashboardScreenModern = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {loading ? (
               <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#FF385C" />
+                <ActivityIndicator size="small" color="#14B8A6" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
               </View>
             ) : newActivities.length > 0 ? (
@@ -995,7 +993,7 @@ const DashboardScreenModern = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {loading ? (
               <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#FF385C" />
+                <ActivityIndicator size="small" color="#14B8A6" />
                 <Text style={styles.emptyText}>Loading activities...</Text>
               </View>
             ) : budgetFriendlyActivities.length > 0 ? (
@@ -1174,51 +1172,51 @@ const styles = StyleSheet.create({
     color: '#717171',
     fontWeight: '500',
   },
-  aiBanner: {
+  aiBannerWrapper: {
+    position: 'relative',
     marginHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 14,
+    marginTop: 10,
+    paddingRight: 30, // Space for robot overflow
+  },
+  aiBanner: {
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   aiBannerGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  aiBannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  aiRobotContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  aiRobotImage: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
+    paddingVertical: 16,
+    paddingLeft: 16,
+    paddingRight: 50, // Extra space for robot
+    minHeight: 70,
   },
   aiBannerTextContainer: {
     flex: 1,
   },
   aiBannerTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 1,
+    marginBottom: 2,
   },
   aiBannerSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  aiRobotImageOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: -15,
+    width: 75,
+    height: 75,
+    resizeMode: 'contain',
   },
   waitlistBanner: {
     marginHorizontal: 20,
@@ -1388,7 +1386,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
-    backgroundColor: '#E91E63' + '15',
+    backgroundColor: '#14B8A6' + '15',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
@@ -1397,7 +1395,7 @@ const styles = StyleSheet.create({
   daysText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#E91E63',
+    color: '#14B8A6',
     marginLeft: 4,
     letterSpacing: 0.5,
   },
@@ -1477,7 +1475,7 @@ const styles = StyleSheet.create({
   },
   // Sponsor section styles
   sponsoredBadge: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -1498,7 +1496,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
   },
   featuredBadgeText: {
     fontSize: 10,

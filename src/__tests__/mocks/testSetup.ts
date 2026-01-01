@@ -74,7 +74,7 @@ jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 // Mock theme context
 export const mockTheme = {
   colors: {
-    primary: '#FF385C',
+    primary: '#14B8A6',
     background: '#FFFFFF',
     surface: '#F9F9F9',
     text: '#222222',

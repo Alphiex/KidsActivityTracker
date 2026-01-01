@@ -1,5 +1,6 @@
 // UI Images
 export const aiRobotImage = require('./ai-robot.png');
+export const appLogoImage = require('./app-logo.png');
 
 // Activity Type fallback images (used when specific activity image not available)
 export const activityTypeImages: { [key: string]: any } = {

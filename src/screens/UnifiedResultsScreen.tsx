@@ -330,7 +330,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
           <View style={styles.heroContent}>
             {config.icon ? (
               <View style={[styles.iconBadge, config.isFavorites && styles.favoritesIconBadge]}>
-                <Icon name={config.icon} size={24} color={config.isFavorites ? '#FF385C' : 'white'} />
+                <Icon name={config.icon} size={24} color={config.isFavorites ? '#14B8A6' : 'white'} />
               </View>
             ) : null}
             <Text style={styles.heroTitle}>{String(config.title || '')}</Text>

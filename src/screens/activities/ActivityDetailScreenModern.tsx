@@ -35,6 +35,7 @@ import { shareActivityViaEmail } from '../../utils/sharing';
 import { getActivityImageByKey } from '../../assets/images';
 import { getActivityImageKey } from '../../utils/activityHelpers';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../../theme/modernTheme';
+import { ActivityExplanation } from '../../components/ai/ActivityExplanation';
 
 const { width, height } = Dimensions.get('window');
 const activityService = ActivityService.getInstance();
@@ -347,6 +348,10 @@ const ActivityDetailScreenModern = () => {
       if (activity.ageRange.min === activity.ageRange.max) {
         return `${activity.ageRange.min} yrs`;
       }
+      // High max age (99, 100, etc.) - show "X+" format
+      if (activity.ageRange.max >= 90) {
+        return `${activity.ageRange.min}+ yrs`;
+      }
       return `${activity.ageRange.min}-${activity.ageRange.max} yrs`;
     }
 
@@ -484,7 +489,7 @@ const ActivityDetailScreenModern = () => {
                   <Icon name={isOnWaitlist ? 'bell-ring' : 'bell-outline'} size={22} color={isOnWaitlist ? '#FFB800' : '#000'} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerButton} onPress={handleToggleFavorite}>
-                  <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#FF385C' : '#000'} />
+                  <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#14B8A6' : '#000'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -501,53 +506,98 @@ const ActivityDetailScreenModern = () => {
         <View style={styles.mainContent}>
           {/* Primary Action Buttons */}
           <View style={styles.actionSection}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleRegister}
-            >
-              <Text style={styles.primaryButtonText}>Register for this Activity</Text>
-              <Icon name="open-in-new" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
+            {/* Register Button with overlapping icon on right */}
+            <View style={styles.featuredButtonWrapper}>
+              <TouchableOpacity
+                style={styles.featuredButton}
+                onPress={handleRegister}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#14B8A6', '#0D9488', '#0F766E']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.featuredButtonGradient}
+                >
+                  <View style={styles.featuredButtonContent}>
+                    <Text style={styles.featuredButtonTitle}>Register Now</Text>
+                    <Text style={styles.featuredButtonSubtitle}>Sign up for this activity</Text>
+                  </View>
+                  <Icon name="chevron-right" size={22} color="#FFFFFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+              {/* Overlapping icon on right */}
+              <View style={styles.registerIconOverlay}>
+                <Icon name="party-popper" size={36} color="#FFFFFF" />
+              </View>
+            </View>
 
-            {/* Add Activity to Child's Calendar Button */}
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => setShowChildAssignModal(true)}
-            >
-              <Icon name="calendar-plus" size={20} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>Add Activity to Child's Calendar</Text>
-            </TouchableOpacity>
+            {/* Calendar Button with overlapping icon on left */}
+            <View style={styles.calendarButtonWrapper}>
+              {/* Overlapping calendar icon on left */}
+              <View style={styles.calendarIconOverlay}>
+                <Icon name="calendar-check" size={32} color="#FFFFFF" />
+              </View>
+              <TouchableOpacity
+                style={styles.calendarButton}
+                onPress={() => setShowChildAssignModal(true)}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#14B8A6', '#0D9488', '#0F766E']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.calendarButtonGradient}
+                >
+                  <View style={styles.calendarButtonContent}>
+                    <Text style={styles.featuredButtonTitle}>Add to Calendar</Text>
+                    <Text style={styles.featuredButtonSubtitle}>Schedule for your child</Text>
+                  </View>
+                  <Icon name="chevron-right" size={22} color="#FFFFFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => shareActivityViaEmail({ activity })}
-            >
-              <Icon name="share-variant" size={18} color={ModernColors.primary} />
-              <Text style={styles.secondaryButtonText}>Share via Email</Text>
-            </TouchableOpacity>
+            {/* Secondary Action Buttons Row */}
+            <View style={styles.secondaryButtonsRow}>
+              {/* Share Button with icon overlay */}
+              <View style={styles.miniButtonWrapper}>
+                <View style={styles.miniIconOverlayLeft}>
+                  <Icon name="email-outline" size={18} color="#14B8A6" />
+                </View>
+                <TouchableOpacity
+                  style={styles.miniButton}
+                  onPress={() => shareActivityViaEmail({ activity })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.miniButtonTitle}>Share</Text>
+                  <Text style={styles.miniButtonSubtitle}>via Email</Text>
+                </TouchableOpacity>
+              </View>
 
-            {/* Waitlist Button - prominent when activity is full */}
-            <TouchableOpacity
-              style={[
-                styles.secondaryButton,
-                isOnWaitlist && styles.waitlistActiveButton,
-                activity.spotsAvailable === 0 && !isOnWaitlist && styles.waitlistPromptButton,
-              ]}
-              onPress={handleToggleWaitlist}
-            >
-              <Icon
-                name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
-                size={18}
-                color={isOnWaitlist ? '#FFB800' : activity.spotsAvailable === 0 ? '#FFFFFF' : ModernColors.primary}
-              />
-              <Text style={[
-                styles.secondaryButtonText,
-                isOnWaitlist && styles.waitlistActiveButtonText,
-                activity.spotsAvailable === 0 && !isOnWaitlist && styles.waitlistPromptButtonText,
-              ]}>
-                {isOnWaitlist ? 'On Waiting List' : activity.spotsAvailable === 0 ? 'Join Waiting List' : 'Notify When Available'}
-              </Text>
-            </TouchableOpacity>
+              {/* Notify Button with icon overlay */}
+              <View style={styles.miniButtonWrapper}>
+                <View style={[styles.miniIconOverlayLeft, isOnWaitlist && styles.miniIconActive]}>
+                  <Icon
+                    name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
+                    size={18}
+                    color={isOnWaitlist ? '#FFB800' : '#14B8A6'}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[styles.miniButton, isOnWaitlist && styles.miniButtonActive]}
+                  onPress={handleToggleWaitlist}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.miniButtonTitle, isOnWaitlist && styles.miniButtonTitleActive]}>
+                    {isOnWaitlist ? 'Watching' : 'Notify'}
+                  </Text>
+                  <Text style={[styles.miniButtonSubtitle, isOnWaitlist && styles.miniButtonSubtitleActive]}>
+                    {isOnWaitlist ? 'On List' : 'When Available'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
 
           {/* Registration Status */}
@@ -692,6 +742,15 @@ const ActivityDetailScreenModern = () => {
               </Text>
             </View>
           )}
+
+          {/* AI Explanation - Why this is great for your children */}
+          <View style={styles.sectionCard}>
+            <ActivityExplanation
+              activityId={activity.id}
+              compact={false}
+              autoExpand={false}
+            />
+          </View>
 
           {/* Sessions */}
           {activity.sessions && activity.sessions.length > 0 && (
@@ -977,6 +1036,174 @@ const styles = StyleSheet.create({
   },
   actionSection: {
     marginBottom: ModernSpacing.lg,
+  },
+  // Featured button styles (Register)
+  featuredButtonWrapper: {
+    position: 'relative',
+    marginBottom: ModernSpacing.lg,
+    marginRight: 25, // Space for icon overflow
+  },
+  featuredButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  featuredButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingLeft: 16,
+    paddingRight: 50,
+    minHeight: 72,
+  },
+  featuredButtonContent: {
+    flex: 1,
+  },
+  featuredButtonTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  featuredButtonSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  registerIconOverlay: {
+    position: 'absolute',
+    right: -10,
+    top: '50%',
+    transform: [{ translateY: -28 }],
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#0D9488',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  // Calendar button styles
+  calendarButtonWrapper: {
+    position: 'relative',
+    marginBottom: ModernSpacing.lg,
+    marginLeft: 25, // Space for icon overflow on left
+  },
+  calendarButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  calendarButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingLeft: 50,
+    paddingRight: 16,
+    minHeight: 72,
+  },
+  calendarButtonContent: {
+    flex: 1,
+  },
+  calendarIconOverlay: {
+    position: 'absolute',
+    left: -10,
+    top: '50%',
+    transform: [{ translateY: -26 }],
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#0D9488',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  // Mini buttons row (Share & Notify)
+  secondaryButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: ModernSpacing.md,
+  },
+  miniButtonWrapper: {
+    flex: 1,
+    position: 'relative',
+    paddingLeft: 18,
+  },
+  miniButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingLeft: 28,
+    paddingRight: 12,
+    borderWidth: 1.5,
+    borderColor: '#14B8A6',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  miniButtonActive: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FFB800',
+  },
+  miniButtonTitle: {
+    color: '#14B8A6',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  miniButtonTitleActive: {
+    color: '#B45309',
+  },
+  miniButtonSubtitle: {
+    color: '#0D9488',
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  miniButtonSubtitleActive: {
+    color: '#D97706',
+  },
+  miniIconOverlayLeft: {
+    position: 'absolute',
+    left: 0,
+    top: '50%',
+    transform: [{ translateY: -16 }],
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#14B8A6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  miniIconActive: {
+    borderColor: '#FFB800',
+    backgroundColor: '#FFFBEB',
   },
   primaryButton: {
     backgroundColor: ModernColors.primary,

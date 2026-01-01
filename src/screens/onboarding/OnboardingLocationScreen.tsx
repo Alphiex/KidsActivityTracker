@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import PreferencesService from '../../services/preferencesService';
@@ -176,7 +177,7 @@ const OnboardingLocationScreen: React.FC = () => {
           <Icon
             name="map-marker"
             size={20}
-            color={isSelected ? '#FF385C' : '#9CA3AF'}
+            color={isSelected ? '#14B8A6' : '#9CA3AF'}
             style={styles.cityIcon}
           />
           <View>
@@ -233,12 +234,12 @@ const OnboardingLocationScreen: React.FC = () => {
         >
           <View style={[styles.iconContainer, locationMode === 'gps' && styles.iconContainerSelected]}>
             {isGpsLoading ? (
-              <ActivityIndicator size="small" color={locationMode === 'gps' ? '#FFFFFF' : '#FF385C'} />
+              <ActivityIndicator size="small" color={locationMode === 'gps' ? '#FFFFFF' : '#14B8A6'} />
             ) : (
               <Icon
                 name="crosshairs-gps"
                 size={28}
-                color={locationMode === 'gps' ? '#FFFFFF' : '#FF385C'}
+                color={locationMode === 'gps' ? '#FFFFFF' : '#14B8A6'}
               />
             )}
           </View>
@@ -298,7 +299,7 @@ const OnboardingLocationScreen: React.FC = () => {
             <Icon
               name="city-variant"
               size={28}
-              color={locationMode === 'cities' ? '#FFFFFF' : '#FF385C'}
+              color={locationMode === 'cities' ? '#FFFFFF' : '#14B8A6'}
             />
           </View>
           <View style={styles.optionText}>
@@ -337,7 +338,7 @@ const OnboardingLocationScreen: React.FC = () => {
 
             {isCitiesLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#FF385C" />
+                <ActivityIndicator size="large" color="#14B8A6" />
               </View>
             ) : (
               <View style={styles.cityListContainer}>
@@ -421,7 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   stepDotActive: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     width: 24,
   },
   title: {
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
   },
   optionCardSelected: {
     backgroundColor: '#FEF2F2',
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
   },
   iconContainer: {
     width: 56,
@@ -465,7 +466,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   iconContainerSelected: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
   },
   optionText: {
     flex: 1,
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   optionTitleSelected: {
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   optionDescription: {
     fontSize: 14,
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -530,8 +531,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   distanceChipSelected: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   distanceChipText: {
     fontSize: 14,
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
   },
   cityItemSelected: {
     backgroundColor: '#FEF2F2',
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
   },
   cityInfo: {
     flexDirection: 'row',
@@ -598,7 +599,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   cityNameSelected: {
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   cityState: {
     fontSize: 13,
@@ -618,7 +619,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -651,12 +652,12 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   nextButton: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

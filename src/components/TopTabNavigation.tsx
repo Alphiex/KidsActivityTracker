@@ -33,66 +33,74 @@ const TopTabNavigation = () => {
   return (
     <View style={styles.tabContainer} pointerEvents="box-none">
       {/* Explore Tab (was Activities) - goes to Dashboard */}
-      <TouchableOpacity
-        style={styles.topButton}
-        onPress={() => navigateToTab('Dashboard')}
-      >
-        <TabIcon emoji="🎯" />
-        <Text style={[
-          styles.topButtonText,
-          activeTab === 'Dashboard' && styles.activeTabText
-        ]}>
-          Explore
-        </Text>
-        {activeTab === 'Dashboard' && <View style={styles.activeTabLine} />}
-      </TouchableOpacity>
+      <View style={styles.tabWrapper}>
+        <TouchableOpacity
+          style={styles.topButton}
+          onPress={() => navigateToTab('Dashboard')}
+        >
+          <TabIcon emoji="🎯" />
+          <Text style={[
+            styles.topButtonText,
+            activeTab === 'Dashboard' && styles.activeTabText
+          ]}>
+            Explore
+          </Text>
+        </TouchableOpacity>
+        {activeTab === 'Dashboard' && <View style={styles.activeTabLine} pointerEvents="none" />}
+      </View>
 
       {/* Map Tab (was Filters) - goes to MapSearch */}
-      <TouchableOpacity
-        style={styles.topButton}
-        onPress={() => navigateToTab('MapSearch')}
-      >
-        <TabIcon emoji="🗺️" />
-        <Text style={[
-          styles.topButtonText,
-          activeTab === 'MapSearch' && styles.activeTabText
-        ]}>
-          Map
-        </Text>
-        {activeTab === 'MapSearch' && <View style={styles.activeTabLine} />}
-      </TouchableOpacity>
+      <View style={styles.tabWrapper}>
+        <TouchableOpacity
+          style={styles.topButton}
+          onPress={() => navigateToTab('MapSearch')}
+        >
+          <TabIcon emoji="🗺️" />
+          <Text style={[
+            styles.topButtonText,
+            activeTab === 'MapSearch' && styles.activeTabText
+          ]}>
+            Map
+          </Text>
+        </TouchableOpacity>
+        {activeTab === 'MapSearch' && <View style={styles.activeTabLine} pointerEvents="none" />}
+      </View>
 
       {/* AI Tab (NEW) - goes to AIRecommendations */}
-      <TouchableOpacity
-        style={styles.topButton}
-        onPress={() => navigateToTab('AIRecommendations')}
-      >
-        <View style={styles.aiIconWrapper}>
-          <Image source={aiRobotImage} style={styles.aiRobotIcon} />
-        </View>
-        <Text style={[
-          styles.topButtonText,
-          activeTab === 'AIRecommendations' && styles.activeTabText
-        ]}>
-          AI
-        </Text>
-        {activeTab === 'AIRecommendations' && <View style={styles.activeTabLine} />}
-      </TouchableOpacity>
+      <View style={styles.tabWrapper}>
+        <TouchableOpacity
+          style={styles.topButton}
+          onPress={() => navigateToTab('AIRecommendations')}
+        >
+          <View style={styles.aiIconWrapper}>
+            <Image source={aiRobotImage} style={styles.aiRobotIcon} />
+          </View>
+          <Text style={[
+            styles.topButtonText,
+            activeTab === 'AIRecommendations' && styles.activeTabText
+          ]}>
+            AI
+          </Text>
+        </TouchableOpacity>
+        {activeTab === 'AIRecommendations' && <View style={styles.activeTabLine} pointerEvents="none" />}
+      </View>
 
       {/* Calendar Tab - unchanged */}
-      <TouchableOpacity
-        style={styles.topButton}
-        onPress={() => navigateToTab('Calendar')}
-      >
-        <TabIcon emoji="📅" />
-        <Text style={[
-          styles.topButtonText,
-          activeTab === 'Calendar' && styles.activeTabText
-        ]}>
-          Calendar
-        </Text>
-        {activeTab === 'Calendar' && <View style={styles.activeTabLine} />}
-      </TouchableOpacity>
+      <View style={styles.tabWrapper}>
+        <TouchableOpacity
+          style={styles.topButton}
+          onPress={() => navigateToTab('Calendar')}
+        >
+          <TabIcon emoji="📅" />
+          <Text style={[
+            styles.topButtonText,
+            activeTab === 'Calendar' && styles.activeTabText
+          ]}>
+            Calendar
+          </Text>
+        </TouchableOpacity>
+        {activeTab === 'Calendar' && <View style={styles.activeTabLine} pointerEvents="none" />}
+      </View>
     </View>
   );
 };
@@ -102,10 +110,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
+  },
+  tabWrapper: {
+    alignItems: 'center',
+    position: 'relative',
   },
   topButton: {
     alignItems: 'center',
@@ -141,7 +154,7 @@ const styles = StyleSheet.create({
   },
   activeTabLine: {
     position: 'absolute',
-    bottom: -12,
+    bottom: -4,
     left: '20%',
     right: '20%',
     height: 2,

@@ -11,9 +11,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Linking
+  Linking,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../store';
@@ -25,6 +28,9 @@ import { API_CONFIG } from '../config/api';
 import { authService } from '../services/authService';
 import useSubscription from '../hooks/useSubscription';
 
+const ProfileIllustration = require('../assets/images/profile-illustration.png');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 // Optional import for DeviceInfo - may not be available in all environments
 let DeviceInfo: any;
 try {
@@ -35,14 +41,21 @@ try {
 }
 
 const ModernColors = {
-  primary: '#FF385C',
-  text: '#222222',
-  textLight: '#717171',
-  border: '#DDDDDD',
+  primary: '#E8638B',
+  primaryLight: '#FFB5C5',
+  secondary: '#7C9EF5',
+  accent: '#FFD166',
+  text: '#2D3748',
+  textLight: '#718096',
+  border: '#E8E8F0',
   background: '#FFFFFF',
-  surface: '#F7F7F7',
-  success: '#00A699',
-  error: '#C13515',
+  surface: '#FFF5F7',
+  surfaceBlue: '#EEF4FF',
+  surfaceYellow: '#FFFBEB',
+  success: '#48BB78',
+  error: '#E53E3E',
+  gradientStart: '#FFE5EC',
+  gradientEnd: '#E8F4FF',
 };
 
 const ProfileScreenModern = () => {
@@ -309,25 +322,53 @@ const ProfileScreenModern = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
+        {/* Colorful Header with Illustration */}
+        <LinearGradient
+          colors={[ModernColors.gradientStart, ModernColors.gradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-left" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
 
-        {/* User Info Section */}
-        <ProfileSection>
+          {/* Header Title */}
+          <Text style={styles.headerTitle}>My Profile</Text>
+
+          {/* Profile Illustration */}
+          <View style={styles.illustrationContainer}>
+            <Image
+              source={ProfileIllustration}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
+          </View>
+        </LinearGradient>
+
+        {/* User Info Card */}
+        <View style={styles.userCard}>
           <View style={styles.userInfoContainer}>
             <View style={styles.avatarContainer}>
-              <Icon name="account-circle" size={60} color={ModernColors.textLight} />
+              <LinearGradient
+                colors={[ModernColors.primary, ModernColors.secondary]}
+                style={styles.avatarGradient}
+              >
+                <Icon name="account" size={36} color="#FFFFFF" />
+              </LinearGradient>
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
               <Text style={styles.userEmail}>{user?.email || ''}</Text>
               {profileData.location && (
                 <View style={styles.locationContainer}>
-                  <Icon name="map-marker" size={14} color={ModernColors.textLight} />
+                  <Icon name="map-marker" size={14} color={ModernColors.primary} />
                   <Text style={styles.userLocation}>{profileData.location}</Text>
                 </View>
               )}
@@ -336,10 +377,11 @@ const ProfileScreenModern = () => {
               style={styles.editButton}
               onPress={() => setIsEditingProfile(true)}
             >
+              <Icon name="pencil" size={16} color={ModernColors.primary} />
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
-        </ProfileSection>
+        </View>
 
         {/* Subscription Section */}
         <ProfileSection title="Subscription">
@@ -727,48 +769,88 @@ const ProfileScreenModern = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ModernColors.background,
+    backgroundColor: '#F8FAFC',
   },
-  header: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
+  headerGradient: {
+    paddingTop: 8,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
     color: ModernColors.text,
+    marginBottom: 16,
+  },
+  illustrationContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  illustration: {
+    width: SCREEN_WIDTH * 0.6,
+    height: SCREEN_WIDTH * 0.5,
+  },
+  userCard: {
+    marginTop: -20,
+    marginHorizontal: 20,
+    backgroundColor: ModernColors.background,
+    borderRadius: 20,
+    shadowColor: ModernColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   section: {
     marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: ModernColors.textLight,
+    fontSize: 13,
+    fontWeight: '700',
+    color: ModernColors.primary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     paddingHorizontal: 20,
-    paddingBottom: 8,
+    paddingBottom: 12,
   },
   sectionContent: {
     backgroundColor: ModernColors.background,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: ModernColors.background,
   },
   avatarContainer: {
     marginRight: 16,
+  },
+  avatarGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userDetails: {
     flex: 1,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: ModernColors.text,
     marginBottom: 4,
   },
@@ -780,24 +862,27 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 4,
   },
   userLocation: {
     fontSize: 14,
-    color: ModernColors.textLight,
+    color: ModernColors.primary,
     marginLeft: 4,
+    fontWeight: '500',
   },
   editButton: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: ModernColors.border,
+    borderRadius: 20,
+    backgroundColor: ModernColors.surface,
+    gap: 6,
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: ModernColors.text,
+    color: ModernColors.primary,
   },
   profileItem: {
     flexDirection: 'row',
@@ -813,13 +898,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: ModernColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   profileItemContent: {
     flex: 1,
@@ -841,17 +926,18 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: ModernColors.border,
-    marginLeft: 64,
+    marginLeft: 74,
   },
   logoutButton: {
     marginTop: 32,
     marginHorizontal: 20,
     marginBottom: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 16,
+    backgroundColor: '#FFF5F5',
     borderWidth: 1,
-    borderColor: ModernColors.border,
+    borderColor: '#FED7D7',
   },
   logoutText: {
     fontSize: 16,
@@ -859,15 +945,17 @@ const styles = StyleSheet.create({
     color: ModernColors.error,
   },
   versionText: {
-    fontSize: 12,
+    fontSize: 13,
     color: ModernColors.textLight,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   // Subscription styles
   subscriptionCard: {
     padding: 20,
     backgroundColor: ModernColors.background,
+    marginHorizontal: 20,
+    borderRadius: 16,
   },
   subscriptionHeader: {
     flexDirection: 'row',
@@ -895,20 +983,20 @@ const styles = StyleSheet.create({
   proBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: ModernColors.primary,
-    paddingHorizontal: 8,
+    backgroundColor: ModernColors.accent,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
   },
   proBadgeText: {
-    color: '#FFFFFF',
+    color: '#744210',
     fontSize: 11,
     fontWeight: '700',
   },
   trialBadge: {
     backgroundColor: ModernColors.success,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
@@ -920,13 +1008,18 @@ const styles = StyleSheet.create({
   upgradeButton: {
     backgroundColor: ModernColors.primary,
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: ModernColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   upgradeButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   usageContainer: {
     marginTop: 20,
@@ -941,10 +1034,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   usageIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF0F3',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: ModernColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1020,11 +1113,12 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: ModernColors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
     color: ModernColors.text,
+    backgroundColor: '#FAFAFA',
   },
   disabledInput: {
     backgroundColor: ModernColors.surface,

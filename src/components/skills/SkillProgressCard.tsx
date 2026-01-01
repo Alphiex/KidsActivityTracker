@@ -45,7 +45,7 @@ const SKILL_ICONS: { [key: string]: string } = {
 };
 
 const LEVEL_COLORS: { [key: string]: string } = {
-  beginner: '#60A5FA', // Blue
+  beginner: '#2DD4BF', // Blue
   intermediate: '#34D399', // Green
   advanced: '#F59E0B', // Amber
   expert: '#8B5CF6', // Purple

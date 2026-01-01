@@ -6,8 +6,8 @@ import { format, parseISO, addDays, isValid } from 'date-fns';
 
 // Child color palette for calendar
 export const CHILD_COLORS = [
-  '#FF6B6B', // Coral red
-  '#4ECDC4', // Teal
+  '#14B8A6', // Teal
+  '#4ECDC4', // Aqua
   '#45B7D1', // Sky blue
   '#96CEB4', // Sage green
   '#FECA57', // Golden yellow
@@ -15,7 +15,7 @@ export const CHILD_COLORS = [
   '#98D8C8', // Mint
   '#FFD93D', // Bright yellow
   '#6BCB77', // Green
-  '#FF8CC8', // Pink
+  '#2DD4BF', // Light teal
 ];
 
 export interface ParsedTime {

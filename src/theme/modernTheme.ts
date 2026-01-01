@@ -1,15 +1,15 @@
 export const ModernColors = {
-  // Primary palette - pink/purple (matches v0)
-  primary: '#EC4899',
-  primaryLight: '#F9A8D4',
-  primaryDark: '#DB2777',
-  primaryGradient: ['#EC4899', '#DB2777'],
+  // Primary palette - teal (accessible and kid-friendly)
+  primary: '#14B8A6',
+  primaryLight: '#2DD4BF',
+  primaryDark: '#0D9488',
+  primaryGradient: ['#14B8A6', '#0D9488'],
   
   // Secondary palette - blue (matches v0)
-  secondary: '#3B82F6',
+  secondary: '#14B8A6',
   secondaryLight: '#93C5FD',
-  secondaryDark: '#2563EB',
-  secondaryGradient: ['#3B82F6', '#2563EB'],
+  secondaryDark: '#0D9488',
+  secondaryGradient: ['#14B8A6', '#0D9488'],
   
   // Accent palette - yellow (matches v0)
   accent: '#FBBf24',
@@ -54,7 +54,7 @@ export const ModernColors = {
   // Category colors with gradients - matching v0 design panels
   categoryGradients: {
     location: ['rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.05)'],  // blue/10 to blue/5
-    favorites: ['rgba(236, 72, 153, 0.1)', 'rgba(236, 72, 153, 0.05)'],  // pink/10 to pink/5
+    favorites: ['rgba(20, 184, 166, 0.1)', 'rgba(20, 184, 166, 0.05)'],  // teal/10 to teal/5
     budget: ['rgba(251, 191, 36, 0.1)', 'rgba(251, 191, 36, 0.05)'],     // yellow/10 to yellow/5  
     new: ['rgba(16, 185, 129, 0.1)', 'rgba(16, 185, 129, 0.05)'],        // green/10 to green/5
     sports: ['rgba(147, 197, 253, 0.15)', 'rgba(147, 197, 253, 0.08)'],      // Light blue

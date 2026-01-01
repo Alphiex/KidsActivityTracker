@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import aiService from '../../services/aiService';
+import { aiRobotImage } from '../../assets/images';
 import { ActivityExplanation as ExplanationType } from '../../types/ai';
 
 interface ActivityExplanationProps {
@@ -46,13 +49,13 @@ const getCategoryColor = (category: string): string => {
     case 'Physical':
       return '#10B981'; // green
     case 'Social':
-      return '#3B82F6'; // blue
+      return '#14B8A6'; // blue
     case 'Cognitive':
       return '#8B5CF6'; // purple
     case 'Creative':
       return '#F59E0B'; // amber
     case 'Emotional':
-      return '#EC4899'; // pink
+      return '#14B8A6'; // blue
     default:
       return '#6B7280'; // gray
   }
@@ -183,41 +186,60 @@ export const ActivityExplanation: React.FC<ActivityExplanationProps> = ({
   );
 
   if (compact) {
-    // Compact mode: Just a button to expand
+    // Compact mode: Mini gradient button with robot
     return (
-      <TouchableOpacity style={styles.compactButton} onPress={handleToggle}>
-        <Icon name="robot" size={16} color="#6B46C1" />
-        <Text style={styles.compactButtonText}>Why this activity?</Text>
-        <Icon 
-          name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={16} 
-          color="#6B46C1" 
-        />
-      </TouchableOpacity>
+      <View style={styles.compactWrapper}>
+        <TouchableOpacity style={styles.compactButton} onPress={handleToggle} activeOpacity={0.8}>
+          <LinearGradient
+            colors={['#14B8A6', '#0D9488']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.compactGradient}
+          >
+            <Text style={styles.compactButtonText}>Why this activity?</Text>
+            <Icon
+              name={isExpanded ? "chevron-up" : "chevron-down"}
+              size={16}
+              color="#FFFFFF"
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+        <Image source={aiRobotImage} style={styles.compactRobotImage} />
+      </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Toggle header */}
-      <TouchableOpacity style={styles.header} onPress={handleToggle}>
-        <View style={styles.headerLeft}>
-          <Icon name="robot" size={20} color="#6B46C1" />
-          <Text style={styles.headerTitle}>Why this activity?</Text>
-        </View>
-        <Icon 
-          name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#6B7280" 
-        />
-      </TouchableOpacity>
+      {/* Toggle header with gradient and robot overlay */}
+      <View style={styles.headerWrapper}>
+        <TouchableOpacity style={styles.header} onPress={handleToggle} activeOpacity={0.8}>
+          <LinearGradient
+            colors={['#14B8A6', '#0D9488', '#0F766E']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradient}
+          >
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>Why this activity?</Text>
+              <Text style={styles.headerSubtitle}>AI-powered activity analysis</Text>
+            </View>
+            <Icon
+              name={isExpanded ? "chevron-up" : "chevron-down"}
+              size={22}
+              color="#FFFFFF"
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+        <Image source={aiRobotImage} style={styles.robotImageOverlay} />
+      </View>
 
       {/* Expandable content */}
       {isExpanded && (
         <View style={styles.content}>
           {isLoading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#6B46C1" />
+              <ActivityIndicator size="small" color="#14B8A6" />
               <Text style={styles.loadingText}>Analyzing activity...</Text>
             </View>
           )}
@@ -254,30 +276,59 @@ export const ActivityExplanation: React.FC<ActivityExplanationProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  },
+  headerWrapper: {
+    position: 'relative',
   },
   header: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  headerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 18,
+    paddingRight: 80, // Space for robot image
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  headerContent: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 2,
+  },
+  robotImageOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: -20,
+    width: 85,
+    height: 85,
+    resizeMode: 'contain',
   },
   content: {
     paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: '#E5E7EB',
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -303,7 +354,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 14,
-    color: '#6B46C1',
+    color: '#14B8A6',
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -404,20 +455,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9CA3AF',
   },
+  compactWrapper: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+  },
   compactButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  compactGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F3E8FF',
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingLeft: 16,
+    paddingRight: 50, // Space for robot
     gap: 6,
-    alignSelf: 'flex-start',
   },
   compactButtonText: {
     fontSize: 13,
-    color: '#6B46C1',
-    fontWeight: '500',
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  compactRobotImage: {
+    position: 'absolute',
+    right: -5,
+    top: -15,
+    width: 50,
+    height: 50,
+    resizeMode: 'contain',
   },
 });
 

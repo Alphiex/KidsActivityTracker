@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   dot: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     marginHorizontal: 4,
   },
   buttonContainer: {
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   nextButton: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

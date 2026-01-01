@@ -104,6 +104,7 @@ const MapSearchScreen = () => {
   const [region, setRegion] = useState<Region>(CANADA_REGION);
   const [locationLoaded, setLocationLoaded] = useState(false);
   const [visibleActivities, setVisibleActivities] = useState<Activity[]>([]);
+  const [totalInViewport, setTotalInViewport] = useState(0);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
   const regionChangeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -232,6 +233,7 @@ const MapSearchScreen = () => {
     }
     regionChangeTimeout.current = setTimeout(() => {
       const visible = getVisibleActivities(filteredActivities, newRegion);
+      setTotalInViewport(visible.length);
       // Limit to 50 for performance, sorted by distance from center
       const sorted = visible.sort((a, b) => {
         const distA = Math.abs(a.latitude! - newRegion.latitude) + Math.abs(a.longitude! - newRegion.longitude);
@@ -595,7 +597,10 @@ const MapSearchScreen = () => {
           <View style={styles.listHeaderRow}>
             <Icon name="map-marker-multiple" size={18} color={Colors.primary} />
             <Text style={styles.listHeaderText}>
-              {visibleActivities.length} {visibleActivities.length === 1 ? 'activity' : 'activities'} in this area
+              {totalInViewport > visibleActivities.length
+                ? `Showing ${visibleActivities.length} of ${totalInViewport} nearby`
+                : `${visibleActivities.length} ${visibleActivities.length === 1 ? 'activity' : 'activities'} nearby`
+              }
             </Text>
           </View>
           {allActivities.length !== filteredActivities.length && (

@@ -1093,26 +1093,36 @@ const CalendarScreenModernFixed = () => {
   // Removed - Filter and Export buttons moved to Children legend row
 
   const renderViewModeSelector = () => (
-    <View style={styles.viewModeContainer}>
-      {(['month', 'week', 'day', 'agenda'] as ViewMode[]).map((mode) => (
-        <TouchableOpacity
-          key={mode}
-          onPress={() => setViewMode(mode)}
-          style={[
-            styles.viewModeButton,
-            viewMode === mode && styles.viewModeButtonActive,
-          ]}
-        >
-          <Text
+    <View style={styles.viewModeSelectorRow}>
+      <View style={styles.viewModeContainer}>
+        {(['month', 'week', 'day', 'agenda'] as ViewMode[]).map((mode) => (
+          <TouchableOpacity
+            key={mode}
+            onPress={() => setViewMode(mode)}
             style={[
-              styles.viewModeText,
-              viewMode === mode && styles.viewModeTextActive,
+              styles.viewModeButton,
+              viewMode === mode && styles.viewModeButtonActive,
             ]}
           >
-            {mode.charAt(0).toUpperCase() + mode.slice(1)}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <Text
+              style={[
+                styles.viewModeText,
+                viewMode === mode && styles.viewModeTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <TouchableOpacity
+        style={styles.aiPlanButton}
+        onPress={() => navigation.navigate('WeeklyPlanner' as never)}
+      >
+        <Icon name="robot" size={16} color="#FFFFFF" />
+        <Text style={styles.aiPlanButtonText}>AI Plan</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -2374,31 +2384,55 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
   },
-  viewModeContainer: {
+  viewModeSelectorRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
     backgroundColor: ModernColors.borderLight,
+    marginTop: 4,
+    zIndex: 10,
+  },
+  viewModeContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 4,
   },
   viewModeButton: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 6,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: ModernColors.background,
   },
   viewModeButtonActive: {
     backgroundColor: ModernColors.primary,
   },
   viewModeText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: ModernColors.text,
   },
   viewModeTextActive: {
     color: '#FFFFFF',
+  },
+  aiPlanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 4,
+    marginLeft: 6,
+  },
+  aiPlanButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   weekContainer: {
     flex: 1,

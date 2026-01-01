@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -240,13 +241,20 @@ const LoginScreen: React.FC = () => {
               onPress={handleEmailLogin}
               disabled={isLoading}
               activeOpacity={0.8}
-              style={[styles.loginButton, isLoading && styles.disabledButton]}
+              style={[styles.loginButtonContainer, isLoading && styles.disabledButton]}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
-              )}
+              <LinearGradient
+                colors={['#14B8A6', '#0D9488']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginButton}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.loginButtonText}>Sign In</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Register Link */}
@@ -400,22 +408,25 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: '#FF385C',
+    color: '#14B8A6',
     fontSize: 14,
     fontWeight: '600',
   },
   // Button Styles
+  loginButtonContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   loginButton: {
-    backgroundColor: '#FF385C',
     borderRadius: 12,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF385C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   disabledButton: {
     opacity: 0.7,
@@ -437,7 +448,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   registerLink: {
-    color: '#FF385C',
+    color: '#14B8A6',
     fontSize: 15,
     fontWeight: '600',
   },

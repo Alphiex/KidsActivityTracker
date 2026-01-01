@@ -44,7 +44,7 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   const fitScoreColor = recommendation.fit_score >= 90
     ? '#10B981'
     : recommendation.fit_score >= 70
-      ? '#3B82F6'
+      ? '#14B8A6'
       : '#6B7280';
 
   // Get image source for activity
@@ -223,8 +223,13 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
                 return `Age ${min} years`;
               }
 
+              // High max age (99, 100, etc.) - show "X+" format
+              if (max >= 90) {
+                return `Ages ${min}+`;
+              }
+
               // Normal range
-              return `Ages ${min}-${max} years`;
+              return `Ages ${min}-${max}`;
             })()}
           </Text>
         </View>

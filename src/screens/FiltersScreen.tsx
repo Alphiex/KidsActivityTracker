@@ -544,7 +544,7 @@ const FiltersScreen = () => {
             >
               <View style={styles.dateOptionContent}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Icon name={option.icon} size={20} color={currentEnv === option.value ? '#FF385C' : '#6B7280'} style={{ marginRight: 10 }} />
+                  <Icon name={option.icon} size={20} color={currentEnv === option.value ? '#14B8A6' : '#6B7280'} style={{ marginRight: 10 }} />
                   <Text style={styles.dateOptionTitle}>{option.label}</Text>
                 </View>
                 <Text style={styles.dateOptionDescription}>
@@ -603,7 +603,7 @@ const FiltersScreen = () => {
     if (activityTypesLoading) {
       return (
         <View style={styles.sectionContent}>
-          <ActivityIndicator size="small" color="#FF385C" />
+          <ActivityIndicator size="small" color="#14B8A6" />
           <Text style={styles.loadingText}>Loading activity types...</Text>
         </View>
       );
@@ -758,9 +758,9 @@ const FiltersScreen = () => {
                 updateAgeRange(newMin, ageRange.max);
               }
             }}
-            minimumTrackTintColor="#FF385C"
+            minimumTrackTintColor="#14B8A6"
             maximumTrackTintColor="#E5E7EB"
-            thumbTintColor="#FF385C"
+            thumbTintColor="#14B8A6"
           />
         </View>
 
@@ -784,9 +784,9 @@ const FiltersScreen = () => {
                 updateAgeRange(ageRange.min, newMax);
               }
             }}
-            minimumTrackTintColor="#FF385C"
+            minimumTrackTintColor="#14B8A6"
             maximumTrackTintColor="#E5E7EB"
-            thumbTintColor="#FF385C"
+            thumbTintColor="#14B8A6"
           />
         </View>
 
@@ -912,9 +912,9 @@ const FiltersScreen = () => {
                 const newMax = Math.round(value);
                 updateMaxCost(newMax);
               }}
-              minimumTrackTintColor="#FF385C"
+              minimumTrackTintColor="#14B8A6"
               maximumTrackTintColor="#E5E7EB"
-              thumbTintColor="#FF385C"
+              thumbTintColor="#14B8A6"
             />
           </View>
         )}
@@ -1003,7 +1003,7 @@ const FiltersScreen = () => {
                   }
                 })
               }
-              trackColor={{ false: '#EEEEEE', true: '#FF385C' }}
+              trackColor={{ false: '#EEEEEE', true: '#14B8A6' }}
               thumbColor={preferences?.timePreferences?.morning ? '#FFFFFF' : '#CCCCCC'}
             />
           </View>
@@ -1021,7 +1021,7 @@ const FiltersScreen = () => {
                   }
                 })
               }
-              trackColor={{ false: '#EEEEEE', true: '#FF385C' }}
+              trackColor={{ false: '#EEEEEE', true: '#14B8A6' }}
               thumbColor={preferences?.timePreferences?.afternoon ? '#FFFFFF' : '#CCCCCC'}
             />
           </View>
@@ -1039,7 +1039,7 @@ const FiltersScreen = () => {
                   }
                 })
               }
-              trackColor={{ false: '#EEEEEE', true: '#FF385C' }}
+              trackColor={{ false: '#EEEEEE', true: '#14B8A6' }}
               thumbColor={preferences?.timePreferences?.evening ? '#FFFFFF' : '#CCCCCC'}
             />
           </View>
@@ -1183,7 +1183,7 @@ const FiltersScreen = () => {
                 style={styles.datePickerButton}
                 onPress={() => setShowStartDatePicker(true)}
               >
-                <Icon name="calendar" size={20} color="#FF385C" />
+                <Icon name="calendar" size={20} color="#14B8A6" />
                 <Text style={styles.datePickerButtonText}>
                   {formatDateForDisplay(tempStartDate)}
                 </Text>
@@ -1199,7 +1199,7 @@ const FiltersScreen = () => {
                     style={styles.datePickerButton}
                     onPress={() => setShowEndDatePicker(true)}
                   >
-                    <Icon name="calendar" size={20} color="#FF385C" />
+                    <Icon name="calendar" size={20} color="#14B8A6" />
                     <Text style={styles.datePickerButtonText}>
                       {formatDateForDisplay(tempEndDate)}
                     </Text>
@@ -1354,7 +1354,7 @@ const FiltersScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF385C" />
+          <ActivityIndicator size="large" color="#14B8A6" />
           <Text style={styles.loadingText}>Loading preferences...</Text>
         </View>
       </SafeAreaView>
@@ -1403,7 +1403,7 @@ const FiltersScreen = () => {
             }
             updatePreferences({ hideClosedOrFull: value });
           }}
-          trackColor={{ false: '#EEEEEE', true: '#FF385C' }}
+          trackColor={{ false: '#EEEEEE', true: '#14B8A6' }}
           thumbColor={hasAdvancedFilters && preferences?.hideClosedOrFull ? '#FFFFFF' : '#CCCCCC'}
           disabled={!hasAdvancedFilters}
         />
@@ -1479,7 +1479,7 @@ const FiltersScreen = () => {
               });
             }}
           >
-            <Icon name="refresh" size={16} color="#FF385C" />
+            <Icon name="refresh" size={16} color="#14B8A6" />
             <Text style={styles.quickFilterChipResetText}>Reset</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1574,8 +1574,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   quickFilterChipActive: {
-    backgroundColor: '#FF385C',
-    borderColor: '#FF385C',
+    backgroundColor: '#14B8A6',
+    borderColor: '#14B8A6',
   },
   quickFilterChipText: {
     fontSize: 14,
@@ -1600,7 +1600,7 @@ const styles = StyleSheet.create({
   quickFilterChipResetText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   topButtonsContainer: {
     flexDirection: 'row',
@@ -1705,8 +1705,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   optionChipActive: {
-    borderColor: '#FF385C',
-    backgroundColor: '#FF385C',
+    borderColor: '#14B8A6',
+    backgroundColor: '#14B8A6',
   },
   optionChipText: {
     fontSize: 14,
@@ -1745,7 +1745,7 @@ const styles = StyleSheet.create({
   ageRangeValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   ageRangeVisual: {
     marginBottom: 24,
@@ -1760,7 +1760,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     borderRadius: 4,
   },
   ageRangeLabels: {
@@ -1795,7 +1795,7 @@ const styles = StyleSheet.create({
   sliderValueText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   slider: {
     width: '100%',
@@ -1815,7 +1815,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   ageGroupChipActive: {
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
     backgroundColor: '#FEF2F2',
   },
   ageGroupChipText: {
@@ -1824,7 +1824,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   ageGroupChipTextActive: {
-    color: '#FF385C',
+    color: '#14B8A6',
     fontWeight: '600',
   },
   cityContainer: {
@@ -1871,8 +1871,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   checkboxActive: {
-    borderColor: '#FF385C',
-    backgroundColor: '#FF385C',
+    borderColor: '#14B8A6',
+    backgroundColor: '#14B8A6',
   },
   locationInfo: {
     flex: 1,
@@ -1908,8 +1908,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayChipActive: {
-    borderColor: '#FF385C',
-    backgroundColor: '#FF385C',
+    borderColor: '#14B8A6',
+    backgroundColor: '#14B8A6',
   },
   dayChipText: {
     fontSize: 12,
@@ -1965,13 +1965,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioActive: {
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
   },
   bottomPadding: {
     height: 32,
@@ -2010,7 +2010,7 @@ const styles = StyleSheet.create({
     color: '#222222',
   },
   proBadge: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -2048,7 +2048,7 @@ const styles = StyleSheet.create({
   },
   quickSelectChipActive: {
     backgroundColor: '#FEF2F2',
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
   },
   quickSelectChipUnlimited: {
     backgroundColor: '#F0FDF4',
@@ -2060,7 +2060,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   quickSelectChipTextActive: {
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   unlimitedBanner: {
     marginTop: 16,
@@ -2103,7 +2103,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -2117,7 +2117,7 @@ const styles = StyleSheet.create({
   datePickerButtonText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   datePickerButtonTextEmpty: {
     color: '#9CA3AF',
@@ -2162,7 +2162,7 @@ const styles = StyleSheet.create({
   datePickerModalDone: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   iosDatePicker: {
     height: 200,
@@ -2195,8 +2195,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   activityTypeChipActive: {
-    borderColor: '#FF385C',
-    backgroundColor: '#FF385C',
+    borderColor: '#14B8A6',
+    backgroundColor: '#14B8A6',
   },
   activityTypeText: {
     fontSize: 15,
@@ -2241,7 +2241,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   subtypeChipActive: {
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
     backgroundColor: '#FEF2F2',
   },
   subtypeText: {
@@ -2250,14 +2250,14 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   subtypeTextActive: {
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   subtypeCount: {
     fontSize: 11,
     color: '#9CA3AF',
   },
   subtypeCountActive: {
-    color: '#FF385C',
+    color: '#14B8A6',
   },
 });
 

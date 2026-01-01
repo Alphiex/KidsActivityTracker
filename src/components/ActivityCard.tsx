@@ -420,7 +420,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <Icon
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={18}
-              color={isFavorite ? '#FF6B6B' : '#FFF'}
+              color={isFavorite ? '#14B8A6' : '#FFF'}
             />
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={handleWaitlistToggle}>
@@ -580,8 +580,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                 return `Age ${min} years`;
               }
 
+              // High max age (99, 100, etc.) - show "X+" format
+              if (max >= 90) {
+                return `Ages ${min}+`;
+              }
+
               // Normal range
-              return `Ages ${min}-${max} years`;
+              return `Ages ${min}-${max}`;
             })()}
           </Text>
         </View>

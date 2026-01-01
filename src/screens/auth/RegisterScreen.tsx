@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -321,13 +322,20 @@ const RegisterScreen: React.FC = () => {
               onPress={handleEmailRegister}
               disabled={isLoading}
               activeOpacity={0.8}
-              style={[styles.registerButton, isLoading && styles.disabledButton]}
+              style={[styles.registerButtonContainer, isLoading && styles.disabledButton]}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.registerButtonText}>Create Account</Text>
-              )}
+              <LinearGradient
+                colors={['#14B8A6', '#0D9488']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.registerButton}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.registerButtonText}>Create Account</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Login Link */}
@@ -494,17 +502,21 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   // Button Styles
+  registerButtonContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   registerButton: {
-    backgroundColor: '#FF385C',
     borderRadius: 12,
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#FF385C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
     elevation: 4,
   },
   disabledButton: {
@@ -528,7 +540,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginLink: {
-    color: '#FF385C',
+    color: '#14B8A6',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -541,7 +553,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   termsLink: {
-    color: '#FF385C',
+    color: '#14B8A6',
     fontWeight: '500',
   },
 });

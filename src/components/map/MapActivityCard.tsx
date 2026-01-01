@@ -68,7 +68,14 @@ const MapActivityCard: React.FC<MapActivityCardProps> = ({
         <View style={styles.infoRow}>
           <Icon name="account-child" size={14} color={Colors.primary} />
           <Text style={styles.infoText}>
-            Ages {activity.ageRange?.min ?? 0} - {activity.ageRange?.max ?? 18}
+            {(() => {
+              const min = activity.ageRange?.min ?? 0;
+              const max = activity.ageRange?.max ?? 18;
+              if (min <= 1 && max >= 90) return 'All ages';
+              if (min === max) return `Age ${min}`;
+              if (max >= 90) return `Ages ${min}+`;
+              return `Ages ${min}-${max}`;
+            })()}
           </Text>
         </View>
 

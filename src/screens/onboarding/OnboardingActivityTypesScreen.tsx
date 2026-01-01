@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import PreferencesService from '../../services/preferencesService';
@@ -83,7 +84,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF385C" />
+          <ActivityIndicator size="large" color="#14B8A6" />
         </View>
       ) : (
         <ScrollView
@@ -104,7 +105,7 @@ const OnboardingActivityTypesScreen: React.FC = () => {
                   <Icon
                     name={type.iconName || 'tag'}
                     size={24}
-                    color={isSelected ? '#FFFFFF' : '#FF385C'}
+                    color={isSelected ? '#FFFFFF' : '#14B8A6'}
                   />
                 </View>
                 <Text style={[styles.typeName, isSelected && styles.typeNameSelected]} numberOfLines={2}>
@@ -123,13 +124,20 @@ const OnboardingActivityTypesScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={styles.nextButton}
+          style={styles.nextButtonContainer}
           onPress={handleNext}
           activeOpacity={0.8}
         >
-          <Text style={styles.nextButtonText}>
-            {selectedTypes.length > 0 ? `Continue (${selectedTypes.length} selected)` : 'Continue'}
-          </Text>
+          <LinearGradient
+            colors={['#14B8A6', '#0D9488']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.nextButton}
+          >
+            <Text style={styles.nextButtonText}>
+              {selectedTypes.length > 0 ? `Continue (${selectedTypes.length} selected)` : 'Continue'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -171,7 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   stepDotActive: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     width: 24,
   },
   title: {
@@ -213,7 +221,7 @@ const styles = StyleSheet.create({
   },
   typeCardSelected: {
     backgroundColor: '#FEF2F2',
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
   },
   iconContainer: {
     width: 48,
@@ -225,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   iconContainerSelected: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
   },
   typeName: {
     fontSize: 12,
@@ -235,7 +243,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   typeNameSelected: {
-    color: '#FF385C',
+    color: '#14B8A6',
     fontWeight: '600',
   },
   checkmark: {
@@ -245,7 +253,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -253,17 +261,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
+  nextButtonContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   nextButton: {
-    backgroundColor: '#FF385C',
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF385C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   nextButtonDisabled: {
     backgroundColor: '#9CA3AF',

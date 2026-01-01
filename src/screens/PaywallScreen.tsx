@@ -435,7 +435,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
         <Icon
           name={feature.icon}
           size={24}
-          color={feature.highlight ? '#FF385C' : colors.primary}
+          color={feature.highlight ? '#14B8A6' : colors.primary}
         />
       </View>
       <View style={styles.featureContent}>
@@ -467,7 +467,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
         </View>
         <View style={styles.alreadyPremiumContainer}>
           <LinearGradient
-            colors={['#FF385C', '#FF6B6B']}
+            colors={['#14B8A6', '#0D9488']}
             style={styles.premiumIconGradient}
           >
             <Icon name="crown" size={48} color="#FFFFFF" />
@@ -483,7 +483,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
             onPress={() => navigation.goBack()}
           >
             <LinearGradient
-              colors={['#FF385C', '#FF6B6B']}
+              colors={['#14B8A6', '#0D9488']}
               style={styles.doneButtonGradient}
             >
               <Text style={styles.doneButtonText}>Continue</Text>
@@ -515,7 +515,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
           <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
             <View style={styles.crownContainer}>
               <LinearGradient
-                colors={['#FF385C', '#FF6B6B']}
+                colors={['#14B8A6', '#0D9488']}
                 style={styles.crownGradient}
               >
                 <Icon name="crown" size={36} color="#FFFFFF" />
@@ -540,7 +540,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
             >
               <Text style={[
                 styles.billingOptionText,
-                { color: billingCycle === 'monthly' ? '#FF385C' : colors.textSecondary }
+                { color: billingCycle === 'monthly' ? '#14B8A6' : colors.textSecondary }
               ]}>
                 Monthly
               </Text>
@@ -554,7 +554,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
             >
               <Text style={[
                 styles.billingOptionText,
-                { color: billingCycle === 'annual' ? '#FF385C' : colors.textSecondary }
+                { color: billingCycle === 'annual' ? '#14B8A6' : colors.textSecondary }
               ]}>
                 Annual
               </Text>
@@ -571,7 +571,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
                 <Text style={[styles.priceAmount, { color: colors.text }]}>{annualPrice}</Text>
                 <Text style={[styles.pricePeriod, { color: colors.textSecondary }]}>/year</Text>
                 <View style={styles.priceEquivalentContainer}>
-                  <Text style={[styles.priceEquivalent, { color: '#FF385C' }]}>
+                  <Text style={[styles.priceEquivalent, { color: '#14B8A6' }]}>
                     Just {annualMonthlyEquivalent}/month
                   </Text>
                 </View>
@@ -659,7 +659,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
       {/* Sticky Bottom CTA */}
       <View style={[styles.bottomContainer, { backgroundColor: colors.background }]}>
         {isLoadingOfferings ? (
-          <ActivityIndicator size="large" color="#FF385C" />
+          <ActivityIndicator size="large" color="#14B8A6" />
         ) : (
           <>
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
@@ -669,7 +669,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
                 activeOpacity={0.9}
               >
                 <LinearGradient
-                  colors={['#FF385C', '#FF6B6B']}
+                  colors={['#14B8A6', '#0D9488']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.subscribeButton}
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -879,7 +879,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
-    color: '#FF385C',
+    color: '#14B8A6',
     textAlign: 'right',
   },
   compareRow: {
@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF385C',
+    color: '#14B8A6',
     textAlign: 'right',
   },
   featuresContainer: {
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   featureBadge: {
-    backgroundColor: '#FF385C',
+    backgroundColor: '#14B8A6',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -1005,7 +1005,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1022,12 +1022,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderWidth: 2,
-    borderColor: '#FF385C',
+    borderColor: '#14B8A6',
   },
   trialButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF385C',
+    color: '#14B8A6',
   },
   restoreButton: {
     paddingVertical: 12,
@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#FF385C',
+    shadowColor: '#14B8A6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

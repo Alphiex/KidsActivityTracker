@@ -34,7 +34,7 @@ const CityBrowseScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const cityColors = [
-    ['#FF6B6B', '#FF8787'],
+    ['#14B8A6', '#2DD4BF'],
     ['#4ECDC4', '#44A08D'],
     ['#A8E6CF', '#7FD1B3'],
     ['#FFD93D', '#FFB73D'],
