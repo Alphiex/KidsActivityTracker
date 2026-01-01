@@ -94,7 +94,13 @@ npx prisma migrate deploy
 ### Direct Database Access
 
 ```bash
-PGPASSWORD='PASSWORD' psql -h 34.42.149.102 -U postgres -d kidsactivity
+# Get credentials from GCP Secret Manager
+export DATABASE_URL=$(gcloud secrets versions access latest --secret=database-url --project=kids-activity-tracker-2024)
+
+# Or connect directly with psql
+DB_PASSWORD=$(gcloud secrets versions access latest --secret=database-url --project=kids-activity-tracker-2024 | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
+DB_HOST=$(gcloud sql instances describe kids-activity-db-dev --format='value(ipAddresses[0].ipAddress)')
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U postgres -d kidsactivity
 ```
 
 ### Schema Changes

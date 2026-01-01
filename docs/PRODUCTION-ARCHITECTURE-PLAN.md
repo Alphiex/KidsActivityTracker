@@ -187,18 +187,23 @@ model Activity {
 ### 1.4 Database Migration Plan
 
 ```bash
-# 1. Export from old instance
-pg_dump -h 34.42.149.102 -U postgres -d kidsactivity > backup.sql
+# 1. Get database credentials from GCP Secret Manager
+export DATABASE_URL=$(gcloud secrets versions access latest --secret=database-url)
+DB_HOST=$(gcloud sql instances describe kids-activity-db-dev --format='value(ipAddresses[0].ipAddress)')
+DB_PASSWORD=$(echo $DATABASE_URL | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
 
-# 2. Import to new instance (via Cloud SQL Proxy)
+# 2. Export from current instance
+PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -U postgres -d kidsactivity > backup.sql
+
+# 3. Import to new instance (via Cloud SQL Proxy)
 cloud_sql_proxy -instances=kids-activity-tracker-2024:us-central1:kids-activity-db=tcp:5433 &
-psql -h localhost -p 5433 -U postgres -d kidsactivity < backup.sql
+PGPASSWORD="$DB_PASSWORD" psql -h localhost -p 5433 -U postgres -d kidsactivity < backup.sql
 
-# 3. Verify data integrity
-psql -h localhost -p 5433 -U postgres -d kidsactivity -c "SELECT COUNT(*) FROM \"Activity\";"
+# 4. Verify data integrity
+PGPASSWORD="$DB_PASSWORD" psql -h localhost -p 5433 -U postgres -d kidsactivity -c "SELECT COUNT(*) FROM \"Activity\";"
 
-# 4. Update secrets with new connection string
-gcloud secrets versions add database-url --data-file=- <<< "postgresql://postgres:PASSWORD@/kidsactivity?host=/cloudsql/kids-activity-tracker-2024:us-central1:kids-activity-db"
+# 5. Update secrets with new connection string (if needed)
+# gcloud secrets versions add database-url --data-file=-
 ```
 
 ---

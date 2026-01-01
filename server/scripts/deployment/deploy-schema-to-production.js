@@ -11,9 +11,12 @@ async function deploySchemaToProduction() {
   console.log('==========================================\n');
 
   try {
-    // Set production DATABASE_URL
-    const productionDBUrl = 'postgresql://postgres:Murm4n5P1ck5!@34.42.149.102:5432/kidsactivity';
-    process.env.DATABASE_URL = productionDBUrl;
+    // Use DATABASE_URL from environment (set via GCP secret or local env)
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL environment variable is required');
+      console.error('   Set it via: export DATABASE_URL=$(gcloud secrets versions access latest --secret=database-url)');
+      process.exit(1);
+    }
     
     console.log('📊 Step 1: Push schema changes to production...');
     

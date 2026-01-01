@@ -67,15 +67,21 @@ configure_environment() {
             exit 1
             ;;
         "production")
-            # Production Cloud SQL configuration
-            DB_HOST="34.42.149.102"  # Cloud SQL public IP (kids-activity-db-dev)
+            # Production Cloud SQL configuration - get from GCP
+            DB_HOST=$(gcloud sql instances describe kids-activity-db-dev --format='value(ipAddresses[0].ipAddress)' 2>/dev/null)
             DB_PORT="5432"
             DB_NAME="kidsactivity"
             DB_USER="postgres"
-            DB_PASSWORD="${PRODUCTION_DB_PASSWORD:-}"
-            
-            if [ -z "$DB_PASSWORD" ]; then
-                error "PRODUCTION_DB_PASSWORD environment variable not set"
+
+            # Get password from GCP Secret Manager or environment variable
+            if [ -n "${PRODUCTION_DB_PASSWORD:-}" ]; then
+                DB_PASSWORD="$PRODUCTION_DB_PASSWORD"
+            else
+                DB_PASSWORD=$(gcloud secrets versions access latest --secret=database-url 2>/dev/null | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
+            fi
+
+            if [ -z "$DB_PASSWORD" ] || [ -z "$DB_HOST" ]; then
+                error "Could not get database credentials. Check gcloud configuration."
                 exit 1
             fi
             ;;

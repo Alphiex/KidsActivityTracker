@@ -64,7 +64,7 @@ npx react-native run-android
 | Service | URL/Details |
 |---------|-------------|
 | **API** | https://kids-activity-api-205843686007.us-central1.run.app |
-| **Database** | Cloud SQL PostgreSQL (34.42.149.102) |
+| **Database** | Cloud SQL PostgreSQL (kids-activity-db-dev) |
 | **Region** | us-central1 |
 | **Memory** | 2GB (Cloud Run) |
 

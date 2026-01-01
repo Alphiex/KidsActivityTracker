@@ -5,8 +5,9 @@
  * Run with:
  * node scripts/maintenance/reclassify-camps.js
  *
- * Or for production:
- * DATABASE_URL='postgresql://postgres:KidsTracker2024@34.42.149.102:5432/kidsactivity' node scripts/maintenance/reclassify-camps.js
+ * For production, first set DATABASE_URL from GCP secret:
+ * export DATABASE_URL=$(gcloud secrets versions access latest --secret=database-url)
+ * node scripts/maintenance/reclassify-camps.js
  */
 
 const { PrismaClient } = require('../../generated/prisma');

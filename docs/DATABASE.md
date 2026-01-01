@@ -9,7 +9,6 @@ PostgreSQL database schema and operations for Kids Activity Tracker.
 | **Database** | PostgreSQL 15 |
 | **Hosting** | Google Cloud SQL |
 | **Instance** | `kids-activity-db-dev` |
-| **IP Address** | 34.42.149.102 |
 | **Database Name** | `kidsactivity` |
 | **ORM** | Prisma 6.x |
 | **Total Tables** | 35 |
@@ -17,12 +16,15 @@ PostgreSQL database schema and operations for Kids Activity Tracker.
 ## Connection
 
 ```bash
-# Environment variable
-DATABASE_URL="postgresql://postgres:PASSWORD@34.42.149.102:5432/kidsactivity"
+# Get DATABASE_URL from GCP Secret Manager
+export DATABASE_URL=$(gcloud secrets versions access latest --secret=database-url --project=kids-activity-tracker-2024)
 
-# Direct psql connection
-PGPASSWORD='PASSWORD' psql -h 34.42.149.102 -U postgres -d kidsactivity
+# Direct psql connection (get password from secret)
+DB_PASSWORD=$(gcloud secrets versions access latest --secret=database-url --project=kids-activity-tracker-2024 | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
+PGPASSWORD="$DB_PASSWORD" psql -h $(gcloud sql instances describe kids-activity-db-dev --format='value(ipAddresses[0].ipAddress)') -U postgres -d kidsactivity
 ```
+
+> **Note**: Never hardcode database credentials. Always retrieve from GCP Secret Manager.
 
 ## Entity Relationship Diagram
 
