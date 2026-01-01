@@ -127,10 +127,10 @@ export default function VendorLoginPage() {
             <p className="text-sm text-gray-500">
               Need help? Contact us at{' '}
               <a
-                href="mailto:vendors@kidsactivitytracker.com"
+                href="mailto:vendors@kidsactivitytracker.ca"
                 className="text-blue-600 hover:text-blue-700"
               >
-                vendors@kidsactivitytracker.com
+                vendors@kidsactivitytracker.ca
               </a>
             </p>
           </div>

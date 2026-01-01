@@ -6,24 +6,25 @@
 export const activityTypeIcons: { [key: string]: string } = {
   // Water sports
   'Swimming & Aquatics': 'swim',
-  
+
   // Sports
   'Team Sports': 'basketball',
   'Racquet Sports': 'tennis',
   'Individual Sports': 'run',
   'Skating & Wheels': 'skate',
-  
+  'Multi-Sport': 'podium-gold',
+
   // Arts & Movement
   'Dance': 'dance-ballroom',
-  'Gymnastics & Movement': 'gymnastics',
+  'Gymnastics & Movement': 'human-handsup',
   'Performing Arts': 'drama-masks',
   'Visual Arts': 'palette',
   'Music': 'music-note',
-  
+
   // Combat & Fitness
   'Martial Arts': 'karate',
   'Fitness & Wellness': 'dumbbell',
-  
+
   // Specialized Programs
   'Early Development': 'baby-face',
   'STEM & Education': 'school',
@@ -31,6 +32,8 @@ export const activityTypeIcons: { [key: string]: string } = {
   'Culinary Arts': 'chef-hat',
   'Camps': 'tent',
   'Outdoor & Adventure': 'pine-tree',
+  'Language & Culture': 'translate',
+  'Special Needs Programs': 'heart-multiple',
   'Other': 'tag',
 };
 
@@ -41,24 +44,25 @@ export const activityTypeIcons: { [key: string]: string } = {
 export const activityTypeColors: { [key: string]: string[] } = {
   // Water sports - Blue tones
   'Swimming & Aquatics': ['#00BCD4', '#0097A7'],
-  
+
   // Sports - Green/Orange tones
   'Team Sports': ['#4CAF50', '#388E3C'],
   'Racquet Sports': ['#8BC34A', '#689F38'],
   'Individual Sports': ['#FF9800', '#F57C00'],
   'Skating & Wheels': ['#03A9F4', '#0288D1'],
-  
+  'Multi-Sport': ['#FFC107', '#FFA000'],
+
   // Arts & Movement - Blue/Purple tones
   'Dance': ['#E8638B', '#D53F8C'],
   'Gymnastics & Movement': ['#9C27B0', '#7B1FA2'],
   'Performing Arts': ['#673AB7', '#512DA8'],
   'Visual Arts': ['#FF5722', '#E64A19'],
   'Music': ['#795548', '#5D4037'],
-  
+
   // Combat & Fitness - Red/Orange tones
   'Martial Arts': ['#F44336', '#D32F2F'],
   'Fitness & Wellness': ['#FF9800', '#F57C00'],
-  
+
   // Specialized Programs - Various tones
   'Early Development': ['#FFEB3B', '#F9A825'],
   'STEM & Education': ['#2196F3', '#1976D2'],
@@ -66,6 +70,8 @@ export const activityTypeColors: { [key: string]: string[] } = {
   'Culinary Arts': ['#FF5722', '#E64A19'],
   'Camps': ['#4CAF50', '#388E3C'],
   'Outdoor & Adventure': ['#8BC34A', '#689F38'],
+  'Language & Culture': ['#3F51B5', '#303F9F'],
+  'Special Needs Programs': ['#E91E63', '#C2185B'],
   'Other': ['#9E9E9E', '#757575'],
 };
 

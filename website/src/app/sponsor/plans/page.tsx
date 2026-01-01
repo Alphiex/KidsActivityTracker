@@ -320,7 +320,7 @@ export default function PlansPage() {
           Contact us for enterprise pricing and custom features
         </p>
         <a
-          href="mailto:partners@kidsactivitytracker.com"
+          href="mailto:partners@kidsactivitytracker.ca"
           className="inline-block px-6 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
         >
           Contact Sales

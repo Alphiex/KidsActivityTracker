@@ -35,7 +35,7 @@
     "timeout": 60000,
     "retries": 3,
     "maxConcurrency": 10,
-    "fetchDetailPages": true
+    "fetchDetailPages": false
   },
   "schedule": {
     "tier": "critical",
@@ -45,7 +45,7 @@
   },
   "metadata": {
     "population": 439819,
-    "expectedActivities": 1000,
+    "expectedActivities": 85000,
     "notes": "Largest city in Atlantic Canada"
   }
 }

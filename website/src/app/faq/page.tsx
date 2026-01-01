@@ -86,7 +86,7 @@ const faqs: FAQItem[] = [
   {
     category: 'Requests & Feedback',
     question: 'How can I report incorrect information or provide feedback?',
-    answer: 'We appreciate your help in keeping our information accurate! You can report issues or provide feedback directly through the app by tapping the feedback button on any activity, or by emailing us at support@kidsactivitytracker.com. Please include as much detail as possible so we can investigate and make corrections.',
+    answer: 'We appreciate your help in keeping our information accurate! You can report issues or provide feedback directly through the app by tapping the feedback button on any activity, or by emailing us at support@kidsactivitytracker.ca. Please include as much detail as possible so we can investigate and make corrections.',
   },
 
   // Registration & Booking
@@ -122,7 +122,7 @@ const faqs: FAQItem[] = [
   {
     category: 'Technical Support',
     question: 'I\'m experiencing technical issues with the app. What should I do?',
-    answer: 'First, try closing and reopening the app, or restarting your device. Make sure you have the latest version installed from the App Store. If issues persist, please contact us at support@kidsactivitytracker.com with a description of the problem, your device type, and app version.',
+    answer: 'First, try closing and reopening the app, or restarting your device. Make sure you have the latest version installed from the App Store. If issues persist, please contact us at support@kidsactivitytracker.ca with a description of the problem, your device type, and app version.',
   },
 ];
 
@@ -251,7 +251,7 @@ export default function FAQPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href="mailto:support@kidsactivitytracker.com"
+                href="mailto:support@kidsactivitytracker.ca"
                 className="inline-flex items-center justify-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

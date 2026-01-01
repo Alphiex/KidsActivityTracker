@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import ScreenBackground from '../components/ScreenBackground';
+import TopTabNavigation from '../components/TopTabNavigation';
 
 const { width, height } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -251,12 +252,15 @@ const SearchResultsScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#E8638B" />
-          <Text style={styles.loadingText}>Finding activities...</Text>
-        </View>
-      </SafeAreaView>
+      <ScreenBackground style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <TopTabNavigation />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#E8638B" />
+            <Text style={styles.loadingText}>Finding activities...</Text>
+          </View>
+        </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
@@ -299,8 +303,11 @@ const SearchResultsScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScreenBackground>
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Top Tab Navigation */}
+        <TopTabNavigation />
+
         {/* Results list */}
         {activities.length === 0 ? (
           <>
@@ -345,15 +352,17 @@ const SearchResultsScreen = () => {
           initialNumToRender={10}
         />
         )}
-      </ScreenBackground>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+  },
+  safeArea: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

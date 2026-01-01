@@ -54,11 +54,30 @@ export interface ChatResponse {
   toolsUsed?: string[];
 }
 
+/**
+ * Conversation parameters accumulated across turns
+ * These are extracted from user messages and remembered for follow-up searches
+ */
+export interface ConversationParameters {
+  extractedAge?: number;           // Age mentioned in conversation
+  extractedCity?: string;          // City/location mentioned
+  extractedActivityType?: string;  // "skating", "swimming", etc.
+  lastSearchFilters?: {            // Filters from most recent search
+    searchTerm?: string;
+    minAge?: number;
+    maxAge?: number;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+}
+
 interface ConversationState {
   messages: BaseMessage[];
   turnsUsed: number;
   userId: string;
   lastContext?: EnhancedFamilyContext;
+  parameters: ConversationParameters; // Accumulated parameters from conversation
 }
 
 const AGENT_SYSTEM_PROMPT = `You are a friendly AI assistant for KidsActivityTracker, helping parents find activities for their children.
@@ -66,17 +85,31 @@ const AGENT_SYSTEM_PROMPT = `You are a friendly AI assistant for KidsActivityTra
 FAMILY CONTEXT:
 {family_context}
 
+CONVERSATION PARAMETERS (accumulated from this conversation):
+{conversation_params}
+
 YOUR CAPABILITIES:
 1. Search for activities using the search_activities tool
 2. Get child profile information using get_child_context
 3. Get detailed activity information using get_activity_details
 4. Compare activities using compare_activities
 
-SEARCH RULES (IMPORTANT):
-1. ALWAYS include latitude and longitude from the family context when searching - results are filtered to within 100km and sorted by distance
-2. If the user mentions an age (e.g., "for my 5 year old", "activities for a 3 year old"), you MUST include minAge and maxAge in the search - this is MANDATORY
-3. Prefer using searchTerm over category for specific activities (skating, swimming, soccer, etc.)
-4. When city is mentioned, include it in the search along with coordinates
+SEARCH RULES (CRITICAL - FOLLOW THESE EXACTLY):
+1. ALWAYS include latitude and longitude when searching - use values from FAMILY CONTEXT or CONVERSATION PARAMETERS
+2. For age filtering, use this priority order:
+   - If age is in current message, use that age
+   - If no age in current message but CONVERSATION PARAMETERS has extractedAge, use that
+   - If no age anywhere but FAMILY CONTEXT has children, use the first child's age
+3. For follow-up requests like "search again", "find more", "show similar", "try again":
+   - ALWAYS reuse the lastSearchFilters from CONVERSATION PARAMETERS
+   - This includes: searchTerm, minAge, maxAge, city, coordinates
+4. Prefer using searchTerm over category for specific activities (skating, swimming, soccer, etc.)
+5. When city is mentioned, include it in the search along with coordinates
+
+CONTEXT PRIORITY (highest to lowest):
+1. Current message explicit values (user says "for my 5 year old" now)
+2. CONVERSATION PARAMETERS (values from earlier in this conversation)
+3. FAMILY CONTEXT (default from user's profile/database)
 
 GENERAL RULES:
 1. ONLY discuss kids activities, classes, camps, and related topics
@@ -124,6 +157,40 @@ function formatFamilyContext(ctx?: EnhancedFamilyContext): string {
   }
 
   return parts.join('\n\n');
+}
+
+/**
+ * Format conversation parameters for the system prompt
+ */
+function formatConversationParams(params?: ConversationParameters): string {
+  if (!params) return 'No parameters accumulated yet.';
+
+  const parts: string[] = [];
+  if (params.extractedAge) {
+    parts.push(`Age mentioned: ${params.extractedAge} years old`);
+  }
+  if (params.extractedCity) {
+    parts.push(`Location mentioned: ${params.extractedCity}`);
+  }
+  if (params.extractedActivityType) {
+    parts.push(`Activity type: ${params.extractedActivityType}`);
+  }
+  if (params.lastSearchFilters) {
+    const filters = params.lastSearchFilters;
+    const filterParts: string[] = [];
+    if (filters.searchTerm) filterParts.push(`searchTerm="${filters.searchTerm}"`);
+    if (filters.minAge !== undefined) filterParts.push(`minAge=${filters.minAge}`);
+    if (filters.maxAge !== undefined) filterParts.push(`maxAge=${filters.maxAge}`);
+    if (filters.city) filterParts.push(`city="${filters.city}"`);
+    if (filters.latitude && filters.longitude) {
+      filterParts.push(`coordinates=(${filters.latitude}, ${filters.longitude})`);
+    }
+    if (filterParts.length > 0) {
+      parts.push(`Last search filters: ${filterParts.join(', ')}`);
+    }
+  }
+
+  return parts.length > 0 ? parts.join('\n') : 'No parameters accumulated yet.';
 }
 
 /**
@@ -185,7 +252,8 @@ export class ActivityChatService {
     userId: string,
     conversationId: string | null,
     message: string,
-    familyContext?: EnhancedFamilyContext
+    familyContext?: EnhancedFamilyContext,
+    extractedParams?: ConversationParameters
   ): Promise<ChatResponse> {
     let conversation = conversationId ? this.conversations.get(conversationId) : null;
 
@@ -197,8 +265,23 @@ export class ActivityChatService {
         turnsUsed: 0,
         userId,
         lastContext: familyContext,
+        parameters: extractedParams || {}, // Initialize with extracted params
       };
       this.conversations.set(conversationId, conversation);
+    } else {
+      // Merge new extracted params into existing conversation params
+      if (extractedParams) {
+        // New extracted values override old ones (higher priority in current message)
+        if (extractedParams.extractedAge !== undefined) {
+          conversation.parameters.extractedAge = extractedParams.extractedAge;
+        }
+        if (extractedParams.extractedCity) {
+          conversation.parameters.extractedCity = extractedParams.extractedCity;
+        }
+        if (extractedParams.extractedActivityType) {
+          conversation.parameters.extractedActivityType = extractedParams.extractedActivityType;
+        }
+      }
     }
 
     // Check turn limits
@@ -218,11 +301,26 @@ export class ActivityChatService {
       conversation.lastContext = familyContext;
     }
 
+    // Ensure we have location coordinates (fallback to Vancouver as primary market)
+    if (!conversation.lastContext?.location?.lat || !conversation.lastContext?.location?.lng) {
+      conversation.lastContext = {
+        ...conversation.lastContext,
+        children: conversation.lastContext?.children || [],
+        location: {
+          ...conversation.lastContext?.location,
+          city: conversation.lastContext?.location?.city || 'Vancouver',
+          province: conversation.lastContext?.location?.province || 'BC',
+          lat: conversation.lastContext?.location?.lat || 49.2827,
+          lng: conversation.lastContext?.location?.lng || -123.1207,
+        },
+      };
+      console.log('[ActivityChatService] Applied location fallback to Vancouver');
+    }
+
     // Build messages array with system prompt
-    const systemPrompt = AGENT_SYSTEM_PROMPT.replace(
-      '{family_context}',
-      formatFamilyContext(conversation.lastContext)
-    );
+    const systemPrompt = AGENT_SYSTEM_PROMPT
+      .replace('{family_context}', formatFamilyContext(conversation.lastContext))
+      .replace('{conversation_params}', formatConversationParams(conversation.parameters));
 
     // Add human message
     conversation.messages.push(new HumanMessage(message));
@@ -266,6 +364,22 @@ export class ActivityChatService {
 
               // Extract activities from search_activities tool results
               if (toolCall.name === 'search_activities') {
+                // Store search parameters for follow-up queries
+                const searchArgs = toolCall.args as any;
+                conversation!.parameters.lastSearchFilters = {
+                  searchTerm: searchArgs.searchTerm,
+                  minAge: searchArgs.minAge,
+                  maxAge: searchArgs.maxAge,
+                  city: searchArgs.city,
+                  latitude: searchArgs.latitude,
+                  longitude: searchArgs.longitude,
+                };
+                // Also extract activity type from search term for easier reference
+                if (searchArgs.searchTerm) {
+                  conversation!.parameters.extractedActivityType = searchArgs.searchTerm;
+                }
+                console.log(`[ActivityChatService] Stored search params:`, conversation!.parameters.lastSearchFilters);
+
                 try {
                   const parsed = JSON.parse(toolResult);
                   if (parsed.activities && Array.isArray(parsed.activities)) {

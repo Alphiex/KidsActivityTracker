@@ -1,5 +1,5 @@
 // API Configuration
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kids-activity-api-205843686007.us-central1.run.app';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kidsactivitytracker.ca';
 
 // App Store Links
 export const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '#';

@@ -503,49 +503,158 @@ model AIUsage {
 
 ## Part 7: Implementation Phases
 
-### Phase 1: Guardrails & Limits
-- [ ] Implement TopicClassifier node with gpt-4o-mini
-- [ ] Add quota tracking to database (AIUsage model)
-- [ ] Create AIQuotaService
-- [ ] Add rate limiting middleware
-- [ ] Update system prompts with restrictions
+### Phase 1: Guardrails & Limits ✅ COMPLETE
+- [x] Implement TopicClassifier node with gpt-4o-mini
+- [x] Add quota tracking to database (AIUsage model)
+- [x] Create AIQuotaService
+- [x] Add rate limiting middleware
+- [x] Update system prompts with restrictions
 
-### Phase 2: Enhanced Child Context
-- [ ] Extend ChildProfile type with favorites, calendar, computedPreferences
-- [ ] Implement childContextLoaderNode
-- [ ] Update contextBuilder.ts with loadChildrenWithHistory
-- [ ] Add child name/age extraction to topic classifier
-- [ ] Implement computePreferences function for preference analysis
+### Phase 2: Enhanced Child Context ✅ COMPLETE
+- [x] Extend ChildProfile type with favorites, calendar, computedPreferences
+- [x] Implement childContextLoaderNode
+- [x] Update contextBuilder.ts with loadChildrenWithHistory
+- [x] Add child name/age extraction to topic classifier
+- [x] Implement computePreferences function for preference analysis
+- [x] **NEW: Virtual child profiles** - Creates temporary profile when age mentioned but no children registered
+- [x] **NEW: City extraction** - Extracts city/location from messages (e.g., "in Vancouver", "near Burnaby")
+- [x] **NEW: Activity type extraction** - Extracts activity keywords (e.g., "skating", "swimming")
 
-### Phase 3: Chat Graph & Conversation Management
-- [ ] Create chatGraph.ts with new node flow
-- [ ] Implement conversationManagerNode
-- [ ] Add AIConversation and AITurn models to Prisma schema
-- [ ] Build /api/ai/chat endpoint
-- [ ] Implement context compression for long conversations
-- [ ] Add turn limits (5 per conversation for Pro)
+### Phase 3: Chat Graph & Conversation Management ✅ COMPLETE
+- [x] Create chatGraph.ts with new node flow
+- [x] Implement conversationManagerNode
+- [x] Add AIConversation and AITurn models to Prisma schema
+- [x] Build /api/ai/chat endpoint
+- [x] Implement context compression for long conversations
+- [x] Add turn limits (5 per conversation for Pro)
+- [x] **NEW: ConversationParameters storage** - Remembers extracted age, city, activity type, and last search filters across turns
+- [x] **NEW: Follow-up detection** - Recognizes "search again", "find more", "show similar" and reuses previous parameters
+- [x] **NEW: Location fallback** - Defaults to Vancouver coordinates when location unavailable
 
-### Phase 4: Response Formatting & Follow-ups
-- [ ] Implement responseFormatterNode
-- [ ] Generate dynamic follow-up prompts based on response
-- [ ] Format activities with matched child names
-- [ ] Create child selection API (specific/all/auto modes)
+### Phase 4: Response Formatting & Follow-ups ✅ COMPLETE
+- [x] Implement responseFormatterNode
+- [x] Generate dynamic follow-up prompts based on response
+- [x] Format activities with matched child names
+- [x] Create child selection API (specific/all/auto modes)
+- [x] **NEW: Distance-based filtering** - Results within 100km sorted by proximity
+- [x] **NEW: Smart location extraction** - Extracts location from activity description, provider name, or database fields
 
-### Phase 5: UI Implementation
-- [ ] Redesign AIRecommendationsScreen as AIChatScreen
-- [ ] Add suggested prompts component
-- [ ] Build chat message bubbles
-- [ ] Implement follow-up suggestions (tappable pills)
-- [ ] Add quota display with upgrade prompt
-- [ ] Child selector UI (filter by child)
-- [ ] Loading states and error handling
+### Phase 5: UI Implementation ✅ COMPLETE
+- [x] Redesign AIRecommendationsScreen as AIChatScreen
+- [x] Add suggested prompts component
+- [x] Build chat message bubbles
+- [x] Implement follow-up suggestions (tappable pills)
+- [x] Add quota display with upgrade prompt
+- [x] Child selector UI (filter by child)
+- [x] Loading states and error handling
+- [x] **NEW: Activity mini-cards** - Display Name, Location, Dates, Spots, Cost, Distance
 
-### Phase 6: Polish & Paywall Integration
-- [ ] Connect to subscription system for quota enforcement
-- [ ] Add upgrade prompts when quota exceeded
-- [ ] Analytics tracking (queries, conversions, blocked topics)
+### Phase 6: Polish & Paywall Integration ✅ COMPLETE
+- [x] Connect to subscription system for quota enforcement
+- [x] Add upgrade prompts when quota exceeded
+- [x] Analytics tracking (queries, conversions, blocked topics)
 - [ ] A/B test prompt suggestions
 - [ ] Performance optimization (caching, prefetch)
+
+---
+
+## Part 7.5: Context-Aware Conversation System (January 2026)
+
+### Overview
+The AI assistant now maintains conversation context across multiple turns, enabling more natural follow-up queries without requiring users to repeat information.
+
+### ConversationParameters Interface
+```typescript
+interface ConversationParameters {
+  extractedAge?: number;           // Age mentioned in conversation
+  extractedCity?: string;          // City/location mentioned
+  extractedActivityType?: string;  // "skating", "swimming", etc.
+  lastSearchFilters?: {            // Filters from most recent search
+    searchTerm?: string;
+    minAge?: number;
+    maxAge?: number;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+}
+```
+
+### Context Priority System
+The AI uses this priority order when determining search parameters:
+
+| Priority | Source | Example |
+|----------|--------|---------|
+| 1 (Highest) | Current message | User says "for my 5 year old" now |
+| 2 | Conversation Parameters | Age mentioned earlier in conversation |
+| 3 (Lowest) | Family Context | Default from user's database profile |
+
+### Key Features
+
+#### 1. Virtual Child Profiles
+When a user mentions an age but hasn't registered children:
+```
+User: "skating for my 3-year-old"
+System: Creates virtual child profile { name: "Your child", age: 3 }
+Result: AI can search with age filters even without registration
+```
+
+#### 2. Follow-Up Detection
+The topic guard chain detects follow-up phrases:
+- "search again", "find more", "show me more"
+- "what about...", "any other...", "similar to..."
+- "try again", "different options"
+
+When detected, previous search parameters are automatically reused.
+
+#### 3. Smart Extraction
+Each message is analyzed to extract:
+- **Age**: "5 year old", "my 8yo", "3-year-old"
+- **City**: "in Vancouver", "near Burnaby", "North Van"
+- **Activity Type**: "skating", "swimming lessons", "hockey"
+
+#### 4. Location Fallback Chain
+```
+Priority 1: City extracted from current message
+Priority 2: City from conversation parameters
+Priority 3: Location from family context (database)
+Priority 4: Default to Vancouver (lat: 49.2827, lng: -123.1207)
+```
+
+#### 5. Distance-Based Filtering
+- All search results filtered to within 100km
+- Results sorted by distance (closest first)
+- Uses Haversine formula for accurate distance calculation
+
+### Example Conversation Flow
+
+```
+Turn 1:
+  User: "skating for my 3-year-old near me"
+  System: Extracts age=3, activityType="skating"
+  AI: Searches with minAge=3, maxAge=3, searchTerm="skating", coordinates from profile
+  Stored: { extractedAge: 3, extractedActivityType: "skating", lastSearchFilters: {...} }
+
+Turn 2:
+  User: "search again"
+  System: Detects follow-up, loads lastSearchFilters
+  AI: Reuses all previous parameters
+  Result: Fresh search with same age=3, "skating", same location
+
+Turn 3:
+  User: "what about swimming?"
+  System: Extracts new activityType="swimming", keeps age=3
+  AI: Searches with minAge=3, maxAge=3, searchTerm="swimming"
+  Result: Swimming activities for 3-year-old
+```
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `server/src/ai/agents/activityAssistantAgent.ts` | ConversationParameters, formatConversationParams(), location fallback |
+| `server/src/ai/routes/chat.ts` | Virtual child creation, parameter extraction and passing |
+| `server/src/ai/chains/topicGuardChain.ts` | City, activity type, and follow-up detection |
+| `server/src/ai/tools/activityTools.ts` | Distance calculation, location extraction |
 
 ---
 

@@ -20,7 +20,7 @@ interface InvitationData {
   createdAt: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kids-activity-api-205843686007.us-central1.run.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kidsactivitytracker.ca';
 const TOKEN_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 // Validate token format for security

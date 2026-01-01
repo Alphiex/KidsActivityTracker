@@ -883,6 +883,124 @@ View shared children's activities. **Requires authentication**.
 
 ---
 
+## AI Chat Endpoints
+
+Conversational AI assistant for finding kids activities with context-aware recommendations.
+
+### POST /api/v1/ai/chat
+
+Send a message to the AI assistant. **Requires authentication**.
+
+**Request**
+```json
+{
+  "message": "Find swimming lessons for my 5-year-old",
+  "conversationId": null,
+  "childIds": ["uuid1"],
+  "childSelectionMode": "auto"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `message` | string | Yes | User's message (max 500 chars) |
+| `conversationId` | string | No | Continue existing conversation |
+| `childIds` | string[] | No | Filter to specific children |
+| `childSelectionMode` | string | No | `specific`, `all`, or `auto` |
+
+**Response** `200 OK`
+```json
+{
+  "conversationId": "conv_1704067200000_uuid",
+  "text": "I found 8 great swimming lessons for your 5-year-old!",
+  "activities": [
+    {
+      "id": "uuid",
+      "name": "Swim Kids Level 1",
+      "category": "Aquatics",
+      "price": 75.00,
+      "ageRange": { "min": 4, "max": 6 },
+      "location": "Aquatic Centre",
+      "city": "Vancouver",
+      "distance": 2.5
+    }
+  ],
+  "followUpPrompts": [
+    "Tell me more about the first option",
+    "Show me cheaper alternatives",
+    "Any weekend options?"
+  ],
+  "turnsRemaining": 4,
+  "shouldStartNew": false,
+  "toolsUsed": ["search_activities"],
+  "quota": {
+    "daily": { "used": 5, "limit": 30 },
+    "monthly": { "used": 45, "limit": 500 }
+  },
+  "latencyMs": 1250
+}
+```
+
+**Context-Aware Features**:
+- **Conversation Memory**: Remembers age, location, activity type across turns
+- **Virtual Child Profiles**: Creates temporary profile when age mentioned but no children registered
+- **Follow-Up Detection**: Recognizes "search again", "find more", "show similar" and reuses previous filters
+- **Location Fallback**: Defaults to Vancouver coordinates when location unavailable
+- **Distance Filtering**: Results within 100km sorted by proximity
+
+**Blocked Response** (off-topic query):
+```json
+{
+  "conversationId": null,
+  "text": "I'm here to help you find activities for your kids!...",
+  "activities": [],
+  "followUpPrompts": ["Swimming lessons near me", "Art classes for kids"],
+  "blocked": true,
+  "reason": "Query classified as: off_topic"
+}
+```
+
+### DELETE /api/v1/ai/chat/:conversationId
+
+End a conversation and clear its state.
+
+**Response** `200 OK`
+```json
+{
+  "success": true
+}
+```
+
+### GET /api/v1/ai/chat/quota
+
+Get user's AI quota status. **Requires authentication**.
+
+**Response** `200 OK`
+```json
+{
+  "quota": {
+    "allowed": true,
+    "daily": { "used": 5, "limit": 30 },
+    "monthly": { "used": 45, "limit": 500 },
+    "isPro": true,
+    "message": null
+  },
+  "stats": {
+    "totalQueries": 150,
+    "averageLatency": 1100
+  },
+  "turnLimit": 5
+}
+```
+
+**Quota Limits**:
+| Tier | Daily | Monthly | Turns/Conversation |
+|------|-------|---------|-------------------|
+| Free | 3 | 30 | 1 |
+| Pro ($5.99) | 30 | 500 | 5 |
+
+---
+
 ## Error Responses
 
 All errors follow a consistent format:
@@ -940,5 +1058,5 @@ GET /api/v1/activities?page=2&limit=20
 
 ---
 
-**Document Version**: 5.2
-**Last Updated**: December 2025
+**Document Version**: 5.3
+**Last Updated**: January 2026

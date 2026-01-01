@@ -340,7 +340,17 @@ class DatabaseActivityMapper {
       { regex: /pilates/i, typeName: 'Fitness & Wellness', subtypeName: 'Pilates' },
       { regex: /fitness/i, typeName: 'Fitness & Wellness', subtypeName: 'Fitness Training' },
       { regex: /zumba/i, typeName: 'Fitness & Wellness', subtypeName: 'Zumba' },
-      { regex: /crossfit/i, typeName: 'Fitness & Wellness', subtypeName: 'CrossFit Kids' }
+      { regex: /crossfit/i, typeName: 'Fitness & Wellness', subtypeName: 'CrossFit Kids' },
+
+      // Special Needs Programs patterns
+      { regex: /special needs/i, typeName: 'Special Needs Programs' },
+      { regex: /adaptive/i, typeName: 'Special Needs Programs', subtypeName: 'Adaptive Sports' },
+      { regex: /inclusive/i, typeName: 'Special Needs Programs' },
+      { regex: /sensory/i, typeName: 'Special Needs Programs', subtypeName: 'Sensory Programs' },
+      { regex: /autism|asd/i, typeName: 'Special Needs Programs' },
+      { regex: /therapeutic/i, typeName: 'Special Needs Programs', subtypeName: 'Therapeutic Recreation' },
+      { regex: /mobility program/i, typeName: 'Special Needs Programs', subtypeName: 'Mobility Programs' },
+      { regex: /social skills/i, typeName: 'Special Needs Programs', subtypeName: 'Social Skills' }
     ];
 
     for (const pattern of patterns) {

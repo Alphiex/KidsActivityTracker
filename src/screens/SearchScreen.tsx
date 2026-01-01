@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,32 +6,32 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Animated,
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  Switch,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
 import ActivityService from '../services/activityService';
+import PreferencesService from '../services/preferencesService';
 import aiService from '../services/aiService';
 import { ActivitySearchParams } from '../types/api';
-import { ActivitySearchFilters } from '../types/ai';
 import { useTheme } from '../contexts/ThemeContext';
-import { API_CONFIG } from '../config/api';
-import { AIRecommendButton } from '../components/ai';
-
-const { width, height } = Dimensions.get('window');
+import useSubscription from '../hooks/useSubscription';
+import { LockedFeature } from '../components/PremiumBadge';
+import { getActivityTypeIcon } from '../utils/activityTypeIcons';
+import { aiRobotImage } from '../assets/images';
+import LinearGradient from 'react-native-linear-gradient';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
+import { HierarchicalProvince, EnhancedAddress } from '../types/preferences';
 
 const DAYS_OF_WEEK = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-];
-
-const POPULAR_CITIES = [
-  'Vancouver', 'Burnaby', 'Richmond', 'Surrey', 'North Vancouver', 
-  'West Vancouver', 'Coquitlam', 'New Westminster', 'Port Coquitlam'
 ];
 
 const PREDEFINED_TIMES = [
@@ -43,90 +43,197 @@ const PREDEFINED_TIMES = [
   { label: 'Night', value: 'night', timeRange: '7:00 PM - 10:00 PM' }
 ];
 
+interface ExpandableSection {
+  id: string;
+  title: string;
+  icon: string;
+  expanded: boolean;
+}
+
+interface ActivitySubtype {
+  id: string;
+  name: string;
+  code: string;
+  activityCount: number;
+}
+
+interface ActivityType {
+  id: string;
+  name: string;
+  code: string;
+  iconName?: string;
+  activityCount: number;
+  subtypes: ActivitySubtype[];
+}
+
 const SearchScreen = () => {
   const navigation = useNavigation();
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
   const activityService = ActivityService.getInstance();
-  
+  const preferencesService = PreferencesService.getInstance();
+
+  // Subscription state for premium features
+  const {
+    checkAndShowUpgrade,
+    hasAdvancedFilters,
+    isPremium,
+  } = useSubscription();
+
+  // Use preferences toggle
+  const [usePreferences, setUsePreferences] = useState(true);
+
   // Search state
   const [searchText, setSearchText] = useState('');
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
+  const [selectedSubtypes, setSelectedSubtypes] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [useCustomTimeRange, setUseCustomTimeRange] = useState(false);
-  const [startTime, setStartTime] = useState(6); // 6 AM in 24-hour format
-  const [endTime, setEndTime] = useState(22); // 10 PM in 24-hour format
+  const [startTime, setStartTime] = useState(6);
+  const [endTime, setEndTime] = useState(22);
   const [minCost, setMinCost] = useState(0);
   const [maxCost, setMaxCost] = useState(500);
   const [isUnlimitedCost, setIsUnlimitedCost] = useState(false);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [minAge, setMinAge] = useState(0);
   const [maxAge, setMaxAge] = useState(18);
-  
+  const [environmentFilter, setEnvironmentFilter] = useState<'all' | 'indoor' | 'outdoor'>('all');
+  const [distanceRadius, setDistanceRadius] = useState(25);
+  const [distanceEnabled, setDistanceEnabled] = useState(false);
+
   // Activity Types data
-  const [activityTypes, setActivityTypes] = useState<any[]>([]);
+  const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [loadingActivityTypes, setLoadingActivityTypes] = useState(false);
-  
-  // NL parsing state
-  const [isNLQuery, setIsNLQuery] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
-  const [parsedFilters, setParsedFilters] = useState<Partial<ActivitySearchFilters> | null>(null);
-  const [parseConfidence, setParseConfidence] = useState(0);
-  
-  // UI state
-  const [expandedSection, setExpandedSection] = useState<string | null>('what');
+  const [expandedActivityTypes, setExpandedActivityTypes] = useState<Set<string>>(new Set());
+
+  // Location data
+  const [hierarchyData, setHierarchyData] = useState<HierarchicalProvince[]>([]);
+  const [selectedLocationIds, setSelectedLocationIds] = useState<Set<string>>(new Set());
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [searchedLocation, setSearchedLocation] = useState<EnhancedAddress | null>(null);
+
+  // UI state - sections in same order as FiltersScreen (excludes 'what' which is always visible)
+  const [sections, setSections] = useState<ExpandableSection[]>([
+    { id: 'activityTypes', title: 'Activity Type?', icon: 'soccer', expanded: false },
+    { id: 'environment', title: 'Indoor or Outdoor?', icon: 'weather-sunny', expanded: false },
+    { id: 'age', title: 'Age Range?', icon: 'account-child', expanded: false },
+    { id: 'where', title: 'Where?', icon: 'map-marker', expanded: false },
+    { id: 'distance', title: 'How Far?', icon: 'map-marker-radius', expanded: false },
+    { id: 'cost', title: 'Cost?', icon: 'currency-usd', expanded: false },
+    { id: 'days', title: 'Day of the Week?', icon: 'calendar-week', expanded: false },
+    { id: 'time', title: 'Time?', icon: 'clock-outline', expanded: false },
+  ]);
+
   const [fadeAnim] = useState(new Animated.Value(0));
-  
+
+  // Initial load - only runs on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // Animate in the search screen
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
-    
-    // Load activity types
+
     loadActivityTypes();
+    loadLocations();
+
+    // Load preferences as initial values if toggle is on
+    if (usePreferences) {
+      loadPreferencesAsFilters();
+    }
   }, []);
 
-  // Debounced NL detection and parsing
-  useEffect(() => {
-    const detectNL = aiService.isNaturalLanguageQuery(searchText);
-    setIsNLQuery(detectNL);
+  const loadLocations = async () => {
+    try {
+      setLocationsLoading(true);
+      const [citiesData, locationsData] = await Promise.all([
+        activityService.getCities(),
+        activityService.getLocations(),
+      ]);
 
-    // Auto-parse if NL detected
-    if (detectNL && searchText.length >= 20) {
-      const parseTimeout = setTimeout(async () => {
-        setIsParsing(true);
-        try {
-          const result = await aiService.parseSearch(searchText);
-          if (result.success) {
-            setParsedFilters(result.parsed_filters);
-            setParseConfidence(result.confidence);
-          }
-        } catch (error) {
-          console.error('Parse error:', error);
-        } finally {
-          setIsParsing(false);
-        }
-      }, 800); // Debounce 800ms
-
-      return () => clearTimeout(parseTimeout);
-    } else {
-      setParsedFilters(null);
-      setParseConfidence(0);
+      if (locationsData && locationsData.length > 0) {
+        const hierarchy = buildHierarchyFromAPI(citiesData || [], locationsData);
+        setHierarchyData(hierarchy);
+      }
+    } catch (error) {
+      console.error('Error loading locations:', error);
+    } finally {
+      setLocationsLoading(false);
     }
-  }, [searchText]);
+  };
+
+  const handleLocationSelectionChange = (newSelection: Set<string>) => {
+    setSelectedLocationIds(newSelection);
+  };
+
+  const handleLocationAutocompleteSelect = (address: EnhancedAddress) => {
+    setSearchedLocation(address);
+    // Also add to selectedCities if it's a city
+    if (address.city) {
+      setSelectedCities(prev =>
+        prev.includes(address.city!) ? prev : [...prev, address.city!]
+      );
+    }
+  };
+
+  // Load preferences when toggle changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (usePreferences) {
+      loadPreferencesAsFilters();
+    }
+  }, [usePreferences]);
+
+  const loadPreferencesAsFilters = () => {
+    const prefs = preferencesService.getPreferences();
+
+    // Apply preferences to search filters
+    if (prefs.preferredActivityTypes && prefs.preferredActivityTypes.length > 0) {
+      setSelectedActivityTypes(prefs.preferredActivityTypes);
+    }
+    if (prefs.preferredSubtypes && prefs.preferredSubtypes.length > 0) {
+      setSelectedSubtypes(prefs.preferredSubtypes);
+    }
+    if (prefs.daysOfWeek && prefs.daysOfWeek.length > 0) {
+      setSelectedDays(prefs.daysOfWeek);
+    }
+    if (prefs.ageRanges && prefs.ageRanges.length > 0) {
+      setMinAge(prefs.ageRanges[0].min);
+      setMaxAge(prefs.ageRanges[0].max);
+    }
+    if (prefs.priceRange) {
+      setMinCost(prefs.priceRange.min);
+      setMaxCost(prefs.priceRange.max);
+      setIsUnlimitedCost(prefs.priceRange.max >= 10000);
+    }
+    if (prefs.environmentFilter) {
+      setEnvironmentFilter(prefs.environmentFilter);
+    }
+    if (prefs.distanceFilterEnabled !== undefined) {
+      setDistanceEnabled(prefs.distanceFilterEnabled);
+    }
+    if (prefs.distanceRadiusKm) {
+      setDistanceRadius(prefs.distanceRadiusKm);
+    }
+  };
 
   const loadActivityTypes = async () => {
     try {
       setLoadingActivityTypes(true);
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/activity-types`);
-      const result = await response.json();
-      
-      if (result.success && result.data && Array.isArray(result.data)) {
-        setActivityTypes(result.data);
-        console.log('Loaded activity types:', result.data.length);
+      const types = await activityService.getActivityTypesWithCounts(true);
+
+      if (types && Array.isArray(types)) {
+        const mappedTypes: ActivityType[] = types.map((type: any) => ({
+          id: type.id,
+          name: type.name,
+          code: type.code,
+          iconName: type.iconName,
+          activityCount: type.activityCount || 0,
+          subtypes: type.subtypes || []
+        }));
+        setActivityTypes(mappedTypes);
       }
     } catch (error) {
       console.error('Error loading activity types:', error);
@@ -145,41 +252,70 @@ const SearchScreen = () => {
     });
   };
 
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
+  const toggleSection = (sectionId: string) => {
+    setSections(prev => prev.map(section =>
+      section.id === sectionId
+        ? { ...section, expanded: !section.expanded }
+        : section
+    ));
   };
 
   const toggleDay = (day: string) => {
-    setSelectedDays(prev => 
-      prev.includes(day) 
+    setSelectedDays(prev =>
+      prev.includes(day)
         ? prev.filter(d => d !== day)
         : [...prev, day]
     );
   };
 
   const toggleActivityType = (activityTypeCode: string) => {
-    setSelectedActivityTypes(prev => 
-      prev.includes(activityTypeCode) 
-        ? prev.filter(code => code !== activityTypeCode)
-        : [...prev, activityTypeCode]
+    const activityType = activityTypes.find(t => t.code === activityTypeCode);
+    const subtypeCodes = activityType?.subtypes?.map(s => s.code) || [];
+    const isCurrentlySelected = selectedActivityTypes.includes(activityTypeCode);
+
+    if (isCurrentlySelected) {
+      setSelectedActivityTypes(prev => prev.filter(code => code !== activityTypeCode));
+      setSelectedSubtypes(prev => prev.filter(code => !subtypeCodes.includes(code)));
+    } else {
+      setSelectedActivityTypes(prev => [...prev, activityTypeCode]);
+      setSelectedSubtypes(prev => [...new Set([...prev, ...subtypeCodes])]);
+    }
+  };
+
+  const toggleSubtype = (subtypeCode: string) => {
+    setSelectedSubtypes(prev =>
+      prev.includes(subtypeCode)
+        ? prev.filter(code => code !== subtypeCode)
+        : [...prev, subtypeCode]
     );
   };
 
+  const toggleActivityTypeExpand = (typeCode: string) => {
+    setExpandedActivityTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(typeCode)) {
+        next.delete(typeCode);
+      } else {
+        next.add(typeCode);
+      }
+      return next;
+    });
+  };
+
   const toggleCity = (city: string) => {
-    setSelectedCities(prev => 
-      prev.includes(city) 
+    setSelectedCities(prev =>
+      prev.includes(city)
         ? prev.filter(c => c !== city)
         : [...prev, city]
     );
   };
 
   const toggleTime = (timeValue: string) => {
-    setSelectedTimes(prev => 
-      prev.includes(timeValue) 
+    setSelectedTimes(prev =>
+      prev.includes(timeValue)
         ? prev.filter(t => t !== timeValue)
         : [...prev, timeValue]
     );
-    // Reset custom time range when selecting predefined times
     if (!useCustomTimeRange) {
       setUseCustomTimeRange(false);
     }
@@ -195,6 +331,7 @@ const SearchScreen = () => {
     setSearchText('');
     setSelectedDays([]);
     setSelectedActivityTypes([]);
+    setSelectedSubtypes([]);
     setSelectedTimes([]);
     setUseCustomTimeRange(false);
     setStartTime(6);
@@ -203,237 +340,618 @@ const SearchScreen = () => {
     setMaxCost(500);
     setIsUnlimitedCost(false);
     setSelectedCities([]);
+    setSelectedLocationIds(new Set());
+    setSearchedLocation(null);
+    setShowLocationPicker(false);
     setMinAge(0);
     setMaxAge(18);
-    setParsedFilters(null);
-    setParseConfidence(0);
-  };
-
-  /**
-   * Apply parsed filters to the form fields
-   */
-  const applyParsedFilters = () => {
-    if (!parsedFilters) return;
-
-    // Apply search term
-    if (parsedFilters.search) {
-      setSearchText(parsedFilters.search);
-    }
-
-    // Apply age
-    if (parsedFilters.ageMin !== undefined) {
-      setMinAge(parsedFilters.ageMin);
-    }
-    if (parsedFilters.ageMax !== undefined) {
-      setMaxAge(parsedFilters.ageMax);
-    }
-
-    // Apply days
-    if (parsedFilters.dayOfWeek && parsedFilters.dayOfWeek.length > 0) {
-      setSelectedDays(parsedFilters.dayOfWeek);
-    }
-
-    // Apply location
-    if (parsedFilters.location) {
-      const matchingCity = POPULAR_CITIES.find(
-        city => city.toLowerCase() === parsedFilters.location?.toLowerCase()
-      );
-      if (matchingCity) {
-        setSelectedCities([matchingCity]);
-      }
-    }
-
-    // Apply cost
-    if (parsedFilters.costMax !== undefined) {
-      setMaxCost(parsedFilters.costMax);
-      setIsUnlimitedCost(false);
-    }
-
-    // Clear parsed state after applying
-    setParsedFilters(null);
-    setParseConfidence(0);
-  };
-
-  /**
-   * Render parsed filter chips
-   */
-  const renderParsedFilters = () => {
-    if (!parsedFilters || Object.keys(parsedFilters).length === 0) return null;
-
-    const chips: { label: string; key: string }[] = [];
-
-    if (parsedFilters.search) {
-      chips.push({ label: `"${parsedFilters.search}"`, key: 'search' });
-    }
-    if (parsedFilters.ageMin !== undefined || parsedFilters.ageMax !== undefined) {
-      const min = parsedFilters.ageMin ?? 0;
-      const max = parsedFilters.ageMax ?? 18;
-      chips.push({ label: `Ages ${min}-${max}`, key: 'age' });
-    }
-    if (parsedFilters.dayOfWeek && parsedFilters.dayOfWeek.length > 0) {
-      chips.push({ label: parsedFilters.dayOfWeek.join(', '), key: 'days' });
-    }
-    if (parsedFilters.location) {
-      chips.push({ label: parsedFilters.location, key: 'location' });
-    }
-    if (parsedFilters.costMax !== undefined) {
-      chips.push({ label: `Under $${parsedFilters.costMax}`, key: 'cost' });
-    }
-
-    if (chips.length === 0) return null;
-
-    return (
-      <View style={styles.parsedFiltersContainer}>
-        <View style={styles.parsedFiltersHeader}>
-          <View style={styles.parsedFiltersLabel}>
-            <Icon name="robot" size={16} color="#6B46C1" />
-            <Text style={styles.parsedFiltersText}>AI detected filters:</Text>
-          </View>
-          <Text style={styles.confidenceText}>
-            {Math.round(parseConfidence * 100)}% confident
-          </Text>
-        </View>
-        <View style={styles.parsedChipsContainer}>
-          {chips.map(chip => (
-            <View key={chip.key} style={styles.parsedChip}>
-              <Text style={styles.parsedChipText}>{chip.label}</Text>
-            </View>
-          ))}
-        </View>
-        <TouchableOpacity style={styles.applyParsedButton} onPress={applyParsedFilters}>
-          <Icon name="check" size={16} color="#FFFFFF" />
-          <Text style={styles.applyParsedButtonText}>Apply These Filters</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    setEnvironmentFilter('all');
+    setDistanceEnabled(false);
+    setDistanceRadius(25);
   };
 
   const handleSearch = async () => {
+    // Merge selected cities and location IDs into a single locations array
+    // Backend handles both UUIDs (location IDs) and city names automatically
+    const allLocations = [
+      ...selectedCities,
+      ...Array.from(selectedLocationIds)
+    ].filter(Boolean);
+
     const searchParams: ActivitySearchParams = {
       search: searchText || undefined,
       daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
       activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
       costMin: minCost > 0 ? minCost : undefined,
       costMax: !isUnlimitedCost ? maxCost : undefined,
-      location: selectedCities.length === 1 ? selectedCities[0] : undefined,
-      locations: selectedCities.length > 1 ? selectedCities : undefined,
+      location: allLocations.length === 1 ? allLocations[0] : undefined,
+      locations: allLocations.length > 1 ? allLocations : undefined,
       ageMin: minAge > 0 ? minAge : undefined,
       ageMax: maxAge < 18 ? maxAge : undefined,
       hideFullActivities: true,
     };
 
-    console.log('🔍 [SearchScreen] handleSearch called with searchText:', searchText);
-    console.log('🔍 [SearchScreen] Search params being passed:', JSON.stringify(searchParams, null, 2));
+    console.log('🔍 [SearchScreen] Searching with params:', JSON.stringify(searchParams, null, 2));
 
-    navigation.navigate('SearchResults' as never, { 
+    // Navigate to SearchResults screen (not AI)
+    navigation.navigate('SearchResults' as never, {
       filters: searchParams,
-      searchQuery: searchText 
+      searchQuery: searchText
     } as never);
   };
 
-  /**
-   * Handle AI-powered search
-   */
   const handleAISearch = () => {
+    if (!isPremium) {
+      checkAndShowUpgrade('ai_search');
+      return;
+    }
+
+    // Merge selected cities and location IDs into a single locations array
+    const allLocations = [
+      ...selectedCities,
+      ...Array.from(selectedLocationIds)
+    ].filter(Boolean);
+
     const filters = {
       search: searchText || undefined,
       daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
       activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
       costMin: minCost > 0 ? minCost : undefined,
       costMax: !isUnlimitedCost ? maxCost : undefined,
-      location: selectedCities.length === 1 ? selectedCities[0] : undefined,
-      locations: selectedCities.length > 1 ? selectedCities : undefined,
+      location: allLocations.length === 1 ? allLocations[0] : undefined,
+      locations: allLocations.length > 1 ? allLocations : undefined,
       ageMin: minAge > 0 ? minAge : undefined,
       ageMax: maxAge < 18 ? maxAge : undefined,
     };
-    
-    // Build a natural language search intent from the filters
+
     const searchIntent = aiService.buildSearchIntent({
       ...filters,
       dayOfWeek: selectedDays,
       category: selectedActivityTypes[0],
     });
-    
-    navigation.navigate('AIRecommendations' as never, { 
+
+    navigation.navigate('AIRecommendations' as never, {
       search_intent: searchText || searchIntent,
-      filters 
+      filters
     } as never);
   };
 
-  const getSectionSummary = (section: string) => {
-    switch (section) {
-      case 'what':
-        return searchText || 'Any activity';
-      case 'days':
-        return selectedDays.length > 0 ? selectedDays.join(', ') : 'Any day';
-      case 'activityType':
-        if (selectedActivityTypes.length > 0) {
-          const typeNames = selectedActivityTypes.map(code => 
-            activityTypes.find(type => type.code === code)?.name
-          ).filter(Boolean);
-          return typeNames.length > 3 
-            ? `${typeNames.slice(0, 2).join(', ')} +${typeNames.length - 2} more`
-            : typeNames.join(', ');
+  const getSectionSummary = (sectionId: string) => {
+    switch (sectionId) {
+      case 'activityTypes':
+        return selectedActivityTypes.length > 0
+          ? `${selectedActivityTypes.length} selected`
+          : 'All types';
+      case 'environment':
+        if (environmentFilter === 'indoor') return 'Indoor only';
+        if (environmentFilter === 'outdoor') return 'Outdoor only';
+        return 'All activities';
+      case 'age':
+        if (minAge === 0 && maxAge === 18) return 'All ages';
+        return `${minAge} - ${maxAge} years`;
+      case 'where':
+        const totalLocations = selectedCities.length + selectedLocationIds.size;
+        if (totalLocations > 0) {
+          if (selectedCities.length > 0 && selectedLocationIds.size > 0) {
+            return `${selectedCities.length} cities, ${selectedLocationIds.size} locations`;
+          } else if (selectedCities.length > 0) {
+            return selectedCities.length <= 2 ? selectedCities.join(', ') : `${selectedCities.length} cities`;
+          } else {
+            return `${selectedLocationIds.size} locations`;
+          }
         }
-        return 'All types';
-      case 'time':
-        if (useCustomTimeRange) {
-          return `${formatTime(startTime)} - ${formatTime(endTime)}`;
-        }
-        if (selectedTimes.length > 0) {
-          const timeLabels = selectedTimes.map(timeValue => 
-            PREDEFINED_TIMES.find(t => t.value === timeValue)?.label
-          ).filter(Boolean);
-          return timeLabels.join(', ');
-        }
-        return 'Any time';
+        return 'Anywhere';
+      case 'distance':
+        if (!distanceEnabled) return 'Disabled';
+        return `Within ${distanceRadius} km`;
       case 'cost':
         if (minCost === 0 && isUnlimitedCost) return 'Any price';
         if (minCost === 0 && !isUnlimitedCost) return `Under $${maxCost}`;
         if (isUnlimitedCost) return `$${minCost}+`;
         return `$${minCost} - $${maxCost}`;
-      case 'where':
-        return selectedCities.length > 0 ? selectedCities.join(', ') : 'Anywhere';
-      case 'age':
-        if (minAge === 0 && maxAge === 18) return 'All ages';
-        return `${minAge} - ${maxAge} years`;
+      case 'days':
+        return selectedDays.length > 0 ? `${selectedDays.length} days` : 'Any day';
+      case 'time':
+        if (useCustomTimeRange) {
+          return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
+        if (selectedTimes.length > 0) {
+          return `${selectedTimes.length} selected`;
+        }
+        return 'Any time';
       default:
         return '';
     }
   };
 
-  const renderExpandableSection = (
-    key: string,
-    title: string,
-    icon: string,
-    content: React.ReactNode
-  ) => {
-    const isExpanded = expandedSection === key;
-    const summary = getSectionSummary(key);
+  // Render section content
+  const renderSectionContent = (section: ExpandableSection) => {
+    switch (section.id) {
+      case 'activityTypes':
+        return renderActivityTypesContent();
+      case 'environment':
+        return renderEnvironmentContent();
+      case 'age':
+        return renderAgeContent();
+      case 'where':
+        return renderWhereContent();
+      case 'distance':
+        return renderDistanceContent();
+      case 'cost':
+        return renderCostContent();
+      case 'days':
+        return renderDaysContent();
+      case 'time':
+        return renderTimeContent();
+      default:
+        return null;
+    }
+  };
+
+  const renderActivityTypesContent = () => {
+    if (loadingActivityTypes) {
+      return (
+        <View style={styles.sectionContentInner}>
+          <ActivityIndicator size="small" color="#E8638B" />
+          <Text style={styles.loadingText}>Loading activity types...</Text>
+        </View>
+      );
+    }
 
     return (
-      <View style={styles.sectionContainer}>
+      <View style={styles.sectionContentInner}>
+        {activityTypes.map((type) => {
+          const isTypeSelected = selectedActivityTypes.includes(type.code);
+          const isExpanded = expandedActivityTypes.has(type.code);
+          const hasSubtypes = type.subtypes && type.subtypes.length > 0;
+          const iconName = getActivityTypeIcon(type.name);
+
+          return (
+            <View key={type.code} style={styles.activityTypeContainer}>
+              <View style={styles.activityTypeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.activityTypeChip,
+                    isTypeSelected && styles.activityTypeChipActive,
+                  ]}
+                  onPress={() => toggleActivityType(type.code)}
+                >
+                  <Icon
+                    name={iconName}
+                    size={20}
+                    color={isTypeSelected ? '#FFFFFF' : '#E8638B'}
+                  />
+                  <Text style={[
+                    styles.activityTypeText,
+                    isTypeSelected && styles.activityTypeTextActive,
+                  ]}>
+                    {type.name}
+                  </Text>
+                </TouchableOpacity>
+
+                {hasSubtypes && (
+                  <TouchableOpacity
+                    style={styles.expandSubtypesButton}
+                    onPress={() => toggleActivityTypeExpand(type.code)}
+                  >
+                    <Icon
+                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color="#717171"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {isExpanded && hasSubtypes && (
+                <View style={styles.subtypesContainer}>
+                  {type.subtypes.map((subtype) => {
+                    const isSubtypeSelected = selectedSubtypes.includes(subtype.code);
+                    return (
+                      <TouchableOpacity
+                        key={subtype.code}
+                        style={[
+                          styles.subtypeChip,
+                          isSubtypeSelected && styles.subtypeChipActive,
+                        ]}
+                        onPress={() => toggleSubtype(subtype.code)}
+                      >
+                        <Text style={[
+                          styles.subtypeText,
+                          isSubtypeSelected && styles.subtypeTextActive,
+                        ]}>
+                          {subtype.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderEnvironmentContent = () => {
+    // Gate for non-premium users
+    if (!hasAdvancedFilters) {
+      return (
+        <View style={styles.sectionContentInner}>
+          <LockedFeature
+            label="Indoor/Outdoor Filter"
+            description="Filter activities by whether they take place indoors or outdoors"
+            onPress={() => checkAndShowUpgrade('filters')}
+          />
+        </View>
+      );
+    }
+
+    const environmentOptions = [
+      { value: 'all', label: 'All Activities', description: 'Show both indoor and outdoor activities', icon: 'earth' },
+      { value: 'indoor', label: 'Indoor Only', description: 'Swimming pools, gyms, studios, rinks', icon: 'home-roof' },
+      { value: 'outdoor', label: 'Outdoor Only', description: 'Parks, fields, nature, adventure', icon: 'pine-tree' },
+    ];
+
+    return (
+      <View style={styles.sectionContentInner}>
+        {environmentOptions.map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.optionCard,
+              environmentFilter === option.value && styles.optionCardSelected
+            ]}
+            onPress={() => setEnvironmentFilter(option.value as 'all' | 'indoor' | 'outdoor')}
+          >
+            <View style={styles.optionCardContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon name={option.icon} size={20} color={environmentFilter === option.value ? '#E8638B' : '#6B7280'} style={{ marginRight: 10 }} />
+                <Text style={styles.optionTitle}>{option.label}</Text>
+              </View>
+              <Text style={styles.optionDescription}>{option.description}</Text>
+            </View>
+            <View style={[styles.radio, environmentFilter === option.value && styles.radioActive]}>
+              {environmentFilter === option.value && <View style={styles.radioInner} />}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  const renderAgeContent = () => (
+    <View style={styles.sectionContentInner}>
+      <View style={styles.rangeHeader}>
+        <Text style={styles.rangeLabel}>Age Range</Text>
+        <Text style={styles.rangeValue}>{minAge} - {maxAge} years</Text>
+      </View>
+
+      <Text style={styles.sliderLabel}>Minimum Age</Text>
+      <Slider
+        style={styles.slider}
+        minimumValue={0}
+        maximumValue={17}
+        step={1}
+        value={minAge}
+        onValueChange={setMinAge}
+        minimumTrackTintColor="#E8638B"
+        maximumTrackTintColor="#DDDDDD"
+      />
+
+      <Text style={styles.sliderLabel}>Maximum Age</Text>
+      <Slider
+        style={styles.slider}
+        minimumValue={minAge}
+        maximumValue={18}
+        step={1}
+        value={maxAge}
+        onValueChange={setMaxAge}
+        minimumTrackTintColor="#E8638B"
+        maximumTrackTintColor="#DDDDDD"
+      />
+    </View>
+  );
+
+  const renderWhereContent = () => (
+    <View style={styles.sectionContentInner}>
+      {/* Google Places Autocomplete */}
+      <Text style={styles.helperText}>
+        Search for a city, province, or address
+      </Text>
+      <View style={{ marginTop: 12, zIndex: 100 }}>
+        <AddressAutocomplete
+          value={searchedLocation || undefined}
+          onAddressSelect={handleLocationAutocompleteSelect}
+          placeholder="Search city, province, or address..."
+          types={['(cities)', 'geocode', 'address']}
+          showFallbackOption={true}
+        />
+      </View>
+
+      {/* Selected cities chips */}
+      {selectedCities.length > 0 && (
+        <View style={styles.selectedLocationsContainer}>
+          <Text style={styles.selectedLocationsLabel}>Selected:</Text>
+          <View style={styles.chipsContainer}>
+            {selectedCities.map(city => (
+              <TouchableOpacity
+                key={city}
+                style={[styles.chip, styles.chipSelected]}
+                onPress={() => toggleCity(city)}
+              >
+                <Text style={styles.chipTextSelected}>{city}</Text>
+                <Icon name="close" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Divider */}
+      <View style={styles.locationDivider}>
+        <View style={styles.locationDividerLine} />
+        <Text style={styles.locationDividerText}>OR</Text>
+        <View style={styles.locationDividerLine} />
+      </View>
+
+      {/* Hierarchical Location Selection */}
+      <TouchableOpacity
+        style={styles.locationExpandButton}
+        onPress={() => setShowLocationPicker(!showLocationPicker)}
+      >
+        <Icon name="format-list-bulleted" size={20} color="#E8638B" />
+        <Text style={styles.locationExpandText}>
+          Browse by Province & City ({selectedLocationIds.size > 0 ? `${selectedLocationIds.size} selected` : 'None selected'})
+        </Text>
+        <Icon name={showLocationPicker ? 'chevron-up' : 'chevron-down'} size={20} color="#6B7280" />
+      </TouchableOpacity>
+
+      {showLocationPicker && (
+        <View style={{ maxHeight: 300, marginTop: 12 }}>
+          <HierarchicalSelect
+            hierarchy={hierarchyData}
+            selectedLocationIds={selectedLocationIds}
+            onSelectionChange={handleLocationSelectionChange}
+            loading={locationsLoading}
+            searchPlaceholder="Search provinces, cities, locations..."
+          />
+        </View>
+      )}
+    </View>
+  );
+
+  const renderDistanceContent = () => {
+    // Gate for non-premium users
+    if (!hasAdvancedFilters) {
+      return (
+        <View style={styles.sectionContentInner}>
+          <View style={styles.lockedInfo}>
+            <Icon name="map-marker-radius" size={24} color="#9CA3AF" />
+            <Text style={styles.lockedInfoText}>
+              Distance filter locked at 25 km for free users
+            </Text>
+          </View>
+          <LockedFeature
+            label="Custom Distance Range"
+            description="Set your preferred search radius from 5km to 100km"
+            onPress={() => checkAndShowUpgrade('filters')}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.sectionContentInner}>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Enable Distance Filter</Text>
+          <Switch
+            value={distanceEnabled}
+            onValueChange={setDistanceEnabled}
+            trackColor={{ false: '#D1D5DB', true: '#F9A8D4' }}
+            thumbColor={distanceEnabled ? '#E8638B' : '#F3F4F6'}
+          />
+        </View>
+
+        {distanceEnabled && (
+          <>
+            <View style={styles.rangeHeader}>
+              <Text style={styles.rangeLabel}>Search Radius</Text>
+              <Text style={styles.rangeValue}>{distanceRadius} km</Text>
+            </View>
+            <Slider
+              style={styles.slider}
+              minimumValue={5}
+              maximumValue={100}
+              step={5}
+              value={distanceRadius}
+              onValueChange={setDistanceRadius}
+              minimumTrackTintColor="#E8638B"
+              maximumTrackTintColor="#DDDDDD"
+            />
+          </>
+        )}
+      </View>
+    );
+  };
+
+  const renderCostContent = () => (
+    <View style={styles.sectionContentInner}>
+      <View style={styles.rangeHeader}>
+        <Text style={styles.rangeLabel}>Min: ${minCost}</Text>
+        <Text style={styles.rangeLabel}>Max: {isUnlimitedCost ? 'Unlimited' : `$${maxCost}`}</Text>
+      </View>
+
+      <Text style={styles.sliderLabel}>Minimum Cost</Text>
+      <Slider
+        style={styles.slider}
+        minimumValue={0}
+        maximumValue={500}
+        step={25}
+        value={minCost}
+        onValueChange={setMinCost}
+        minimumTrackTintColor="#E8638B"
+        maximumTrackTintColor="#DDDDDD"
+      />
+
+      <Text style={styles.sliderLabel}>Maximum Cost</Text>
+      <Slider
+        style={[styles.slider, { opacity: isUnlimitedCost ? 0.5 : 1 }]}
+        minimumValue={minCost}
+        maximumValue={1500}
+        step={50}
+        value={maxCost}
+        onValueChange={setMaxCost}
+        disabled={isUnlimitedCost}
+        minimumTrackTintColor="#E8638B"
+        maximumTrackTintColor="#DDDDDD"
+      />
+
+      <TouchableOpacity
+        style={[styles.chip, isUnlimitedCost && styles.chipSelected]}
+        onPress={() => setIsUnlimitedCost(!isUnlimitedCost)}
+      >
+        <Text style={[styles.chipText, isUnlimitedCost && styles.chipTextSelected]}>
+          Unlimited
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderDaysContent = () => (
+    <View style={styles.sectionContentInner}>
+      <View style={styles.chipsContainer}>
+        {DAYS_OF_WEEK.map(day => (
+          <TouchableOpacity
+            key={day}
+            style={[
+              styles.chip,
+              selectedDays.includes(day) && styles.chipSelected
+            ]}
+            onPress={() => toggleDay(day)}
+          >
+            <Text style={[
+              styles.chipText,
+              selectedDays.includes(day) && styles.chipTextSelected
+            ]}>
+              {day.substring(0, 3)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderTimeContent = () => (
+    <View style={styles.sectionContentInner}>
+      <View style={styles.predefinedTimesContainer}>
+        {PREDEFINED_TIMES.map(timeOption => (
+          <TouchableOpacity
+            key={timeOption.value}
+            style={[
+              styles.timeButton,
+              selectedTimes.includes(timeOption.value) && styles.timeButtonSelected,
+              useCustomTimeRange && styles.timeButtonDisabled
+            ]}
+            onPress={() => {
+              if (!useCustomTimeRange) {
+                toggleTime(timeOption.value);
+              }
+            }}
+            disabled={useCustomTimeRange}
+          >
+            <Text style={[
+              styles.timeButtonText,
+              selectedTimes.includes(timeOption.value) && styles.timeButtonTextSelected,
+              useCustomTimeRange && styles.timeButtonTextDisabled
+            ]}>
+              {timeOption.label}
+            </Text>
+            <Text style={[
+              styles.timeRangeText,
+              selectedTimes.includes(timeOption.value) && styles.timeRangeTextSelected,
+              useCustomTimeRange && styles.timeRangeTextDisabled
+            ]}>
+              {timeOption.timeRange}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.chip, useCustomTimeRange && styles.chipSelected]}
+        onPress={() => {
+          setUseCustomTimeRange(!useCustomTimeRange);
+          if (!useCustomTimeRange) {
+            setSelectedTimes([]);
+          }
+        }}
+      >
+        <Text style={[styles.chipText, useCustomTimeRange && styles.chipTextSelected]}>
+          Custom Time Range
+        </Text>
+      </TouchableOpacity>
+
+      {useCustomTimeRange && (
+        <View style={styles.customTimeContainer}>
+          <View style={styles.rangeHeader}>
+            <Text style={styles.rangeLabel}>Start: {formatTime(startTime)}</Text>
+            <Text style={styles.rangeLabel}>End: {formatTime(endTime)}</Text>
+          </View>
+
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={23}
+            step={1}
+            value={startTime}
+            onValueChange={setStartTime}
+            minimumTrackTintColor="#E8638B"
+            maximumTrackTintColor="#DDDDDD"
+          />
+
+          <Slider
+            style={styles.slider}
+            minimumValue={startTime + 1}
+            maximumValue={23}
+            step={1}
+            value={endTime}
+            onValueChange={setEndTime}
+            minimumTrackTintColor="#E8638B"
+            maximumTrackTintColor="#DDDDDD"
+          />
+        </View>
+      )}
+    </View>
+  );
+
+  const renderExpandableSection = (section: ExpandableSection) => {
+    const summary = getSectionSummary(section.id);
+
+    return (
+      <View key={section.id} style={styles.sectionContainer}>
         <TouchableOpacity
-          style={[styles.sectionHeader, isExpanded && styles.sectionHeaderExpanded]}
-          onPress={() => toggleSection(key)}
+          style={[styles.sectionHeader, section.expanded && styles.sectionHeaderExpanded]}
+          onPress={() => toggleSection(section.id)}
         >
           <View style={styles.sectionHeaderContent}>
-            <Icon name={icon} size={24} color="#222222" />
+            <Icon name={section.icon} size={24} color="#222222" style={styles.sectionIcon} />
             <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>{title}</Text>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
               <Text style={styles.sectionSummary}>{summary}</Text>
             </View>
           </View>
-          <Icon 
-            name={isExpanded ? "chevron-up" : "chevron-down"} 
-            size={24} 
-            color="#717171" 
+          <Icon
+            name={section.expanded ? "chevron-up" : "chevron-down"}
+            size={24}
+            color="#717171"
           />
         </TouchableOpacity>
-        
-        {isExpanded && (
+
+        {section.expanded && (
           <View style={styles.sectionContent}>
-            {content}
+            {renderSectionContent(section)}
           </View>
         )}
       </View>
@@ -443,338 +961,59 @@ const SearchScreen = () => {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      
+
       {/* Fogged Background */}
       <View style={styles.foggedBackground} />
-      
+
       <SafeAreaView style={styles.safeArea}>
         {/* Header with close button */}
         <View style={styles.header}>
+          <Text style={styles.headerTitle}>Search</Text>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Icon name="close" size={24} color="#222222" />
           </TouchableOpacity>
         </View>
 
+        {/* Use Preferences Toggle */}
+        <View style={styles.preferencesToggle}>
+          <View style={styles.preferencesToggleContent}>
+            <Icon name="tune-variant" size={20} color="#E8638B" />
+            <View style={styles.preferencesToggleText}>
+              <Text style={styles.preferencesToggleTitle}>Use My Preferences</Text>
+              <Text style={styles.preferencesToggleDescription}>
+                Start with your saved preference settings
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={usePreferences}
+            onValueChange={setUsePreferences}
+            trackColor={{ false: '#D1D5DB', true: '#F9A8D4' }}
+            thumbColor={usePreferences ? '#E8638B' : '#F3F4F6'}
+          />
+        </View>
+
         {/* Search Content */}
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.searchContainer}>
-            
-            {/* What Section */}
-            {renderExpandableSection(
-              'what',
-              'What?',
-              'magnify',
-              <View style={styles.textInputContainer}>
-                <View style={styles.searchInputWrapper}>
-                  <TextInput
-                    style={[
-                      styles.searchInput,
-                      isNLQuery && styles.searchInputNL
-                    ]}
-                    placeholder="Search activities or try: 'swimming for my 5 year old on Saturdays'"
-                    placeholderTextColor="#999999"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    autoFocus={expandedSection === 'what'}
-                    multiline={isNLQuery}
-                  />
-                  {isParsing && (
-                    <View style={styles.parsingIndicator}>
-                      <ActivityIndicator size="small" color="#6B46C1" />
-                    </View>
-                  )}
-                </View>
-                {isNLQuery && !isParsing && (
-                  <View style={styles.nlIndicator}>
-                    <Icon name="robot" size={14} color="#6B46C1" />
-                    <Text style={styles.nlIndicatorText}>
-                      Natural language detected - AI will parse your request
-                    </Text>
-                  </View>
-                )}
-                {renderParsedFilters()}
+            {/* What? section - always visible, not collapsible */}
+            <View style={styles.whatSection}>
+              <View style={styles.whatSectionHeader}>
+                <Icon name="magnify" size={24} color="#222222" style={styles.sectionIcon} />
+                <Text style={styles.whatSectionTitle}>What?</Text>
               </View>
-            )}
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search for activities, sports, camps..."
+                placeholderTextColor="#999999"
+                value={searchText}
+                onChangeText={setSearchText}
+                autoFocus={false}
+              />
+            </View>
 
-            {/* Days Section */}
-            {renderExpandableSection(
-              'days',
-              'Day of the Week?',
-              'calendar-week',
-              <View style={styles.daysContainer}>
-                {DAYS_OF_WEEK.map(day => (
-                  <TouchableOpacity
-                    key={day}
-                    style={[
-                      styles.dayButton,
-                      selectedDays.includes(day) && styles.dayButtonSelected
-                    ]}
-                    onPress={() => toggleDay(day)}
-                  >
-                    <Text style={[
-                      styles.dayButtonText,
-                      selectedDays.includes(day) && styles.dayButtonTextSelected
-                    ]}>
-                      {day.substring(0, 3)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Activity Type Section */}
-            {renderExpandableSection(
-              'activityType',
-              'Activity Type?',
-              'soccer',
-              <View style={styles.activityTypeContainer}>
-                {loadingActivityTypes ? (
-                  <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Loading activity types...</Text>
-                  </View>
-                ) : (
-                  <View style={styles.activityTypesGrid}>
-                    {activityTypes.map(activityType => (
-                      <TouchableOpacity
-                        key={activityType.code}
-                        style={[
-                          styles.activityTypeButton,
-                          selectedActivityTypes.includes(activityType.code) && styles.activityTypeButtonSelected
-                        ]}
-                        onPress={() => toggleActivityType(activityType.code)}
-                      >
-                        <Text style={[
-                          styles.activityTypeButtonText,
-                          selectedActivityTypes.includes(activityType.code) && styles.activityTypeButtonTextSelected
-                        ]}>
-                          {activityType.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Time Section */}
-            {renderExpandableSection(
-              'time',
-              'Time?',
-              'clock',
-              <View style={styles.timeContainer}>
-                {/* Predefined Time Options */}
-                <View style={styles.predefinedTimesContainer}>
-                  {PREDEFINED_TIMES.map(timeOption => (
-                    <TouchableOpacity
-                      key={timeOption.value}
-                      style={[
-                        styles.timeButton,
-                        selectedTimes.includes(timeOption.value) && styles.timeButtonSelected,
-                        useCustomTimeRange && styles.timeButtonDisabled
-                      ]}
-                      onPress={() => {
-                        if (!useCustomTimeRange) {
-                          toggleTime(timeOption.value);
-                        }
-                      }}
-                      disabled={useCustomTimeRange}
-                    >
-                      <Text style={[
-                        styles.timeButtonText,
-                        selectedTimes.includes(timeOption.value) && styles.timeButtonTextSelected,
-                        useCustomTimeRange && styles.timeButtonTextDisabled
-                      ]}>
-                        {timeOption.label}
-                      </Text>
-                      <Text style={[
-                        styles.timeRangeText,
-                        selectedTimes.includes(timeOption.value) && styles.timeRangeTextSelected,
-                        useCustomTimeRange && styles.timeRangeTextDisabled
-                      ]}>
-                        {timeOption.timeRange}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Custom Time Range Toggle */}
-                <View style={styles.customTimeToggle}>
-                  <TouchableOpacity
-                    style={[styles.customToggleButton, useCustomTimeRange && styles.customToggleButtonSelected]}
-                    onPress={() => {
-                      setUseCustomTimeRange(!useCustomTimeRange);
-                      if (!useCustomTimeRange) {
-                        setSelectedTimes([]); // Clear predefined times when switching to custom
-                      }
-                    }}
-                  >
-                    <Text style={[
-                      styles.customToggleText,
-                      useCustomTimeRange && styles.customToggleTextSelected
-                    ]}>
-                      Custom Time Range
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Custom Time Range Sliders */}
-                {useCustomTimeRange && (
-                  <View style={styles.customTimeContainer}>
-                    <View style={styles.timeLabels}>
-                      <Text style={styles.timeLabel}>Start: {formatTime(startTime)}</Text>
-                      <Text style={styles.timeLabel}>End: {formatTime(endTime)}</Text>
-                    </View>
-                    
-                    <Text style={styles.sliderLabel}>Start Time</Text>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={0}
-                      maximumValue={23}
-                      step={1}
-                      value={startTime}
-                      onValueChange={setStartTime}
-                      minimumTrackTintColor="#E8638B"
-                      maximumTrackTintColor="#DDDDDD"
-                      
-                    />
-                    
-                    <Text style={styles.sliderLabel}>End Time</Text>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={startTime + 1}
-                      maximumValue={23}
-                      step={1}
-                      value={endTime}
-                      onValueChange={setEndTime}
-                      minimumTrackTintColor="#E8638B"
-                      maximumTrackTintColor="#DDDDDD"
-                      
-                    />
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Cost Section */}
-            {renderExpandableSection(
-              'cost',
-              'Cost?',
-              'currency-usd',
-              <View style={styles.costContainer}>
-                <View style={styles.costLabels}>
-                  <Text style={styles.costLabel}>Min: ${minCost}</Text>
-                  <Text style={styles.costLabel}>
-                    Max: {isUnlimitedCost ? 'Unlimited' : `$${maxCost}`}
-                  </Text>
-                </View>
-                
-                <Text style={styles.sliderLabel}>Minimum Cost</Text>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={0}
-                  maximumValue={500}
-                  step={25}
-                  value={minCost}
-                  onValueChange={setMinCost}
-                  minimumTrackTintColor="#E8638B"
-                  maximumTrackTintColor="#DDDDDD"
-                  
-                />
-                
-                <Text style={styles.sliderLabel}>Maximum Cost</Text>
-                <View style={styles.maxCostContainer}>
-                  <Slider
-                    style={[styles.slider, { opacity: isUnlimitedCost ? 0.5 : 1 }]}
-                    minimumValue={minCost}
-                    maximumValue={1500}
-                    step={50}
-                    value={maxCost}
-                    onValueChange={setMaxCost}
-                    disabled={isUnlimitedCost}
-                    minimumTrackTintColor="#E8638B"
-                    maximumTrackTintColor="#DDDDDD"
-                    
-                  />
-                  <TouchableOpacity
-                    style={[styles.unlimitedButton, isUnlimitedCost && styles.unlimitedButtonSelected]}
-                    onPress={() => setIsUnlimitedCost(!isUnlimitedCost)}
-                  >
-                    <Text style={[
-                      styles.unlimitedButtonText,
-                      isUnlimitedCost && styles.unlimitedButtonTextSelected
-                    ]}>
-                      Unlimited
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* Where Section */}
-            {renderExpandableSection(
-              'where',
-              'Where?',
-              'map-marker',
-              <View style={styles.citiesContainer}>
-                {POPULAR_CITIES.map(city => (
-                  <TouchableOpacity
-                    key={city}
-                    style={[
-                      styles.cityButton,
-                      selectedCities.includes(city) && styles.cityButtonSelected
-                    ]}
-                    onPress={() => toggleCity(city)}
-                  >
-                    <Text style={[
-                      styles.cityButtonText,
-                      selectedCities.includes(city) && styles.cityButtonTextSelected
-                    ]}>
-                      {city}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Age Section */}
-            {renderExpandableSection(
-              'age',
-              'Age?',
-              'account-child',
-              <View style={styles.ageContainer}>
-                <View style={styles.ageLabels}>
-                  <Text style={styles.ageLabel}>Min: {minAge} years</Text>
-                  <Text style={styles.ageLabel}>Max: {maxAge} years</Text>
-                </View>
-                
-                <Text style={styles.sliderLabel}>Minimum Age</Text>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={0}
-                  maximumValue={17}
-                  step={1}
-                  value={minAge}
-                  onValueChange={setMinAge}
-                  minimumTrackTintColor="#E8638B"
-                  maximumTrackTintColor="#DDDDDD"
-                  
-                />
-                
-                <Text style={styles.sliderLabel}>Maximum Age</Text>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={minAge}
-                  maximumValue={18}
-                  step={1}
-                  value={maxAge}
-                  onValueChange={setMaxAge}
-                  minimumTrackTintColor="#E8638B"
-                  maximumTrackTintColor="#DDDDDD"
-                  
-                />
-              </View>
-            )}
-
+            {/* Collapsible sections */}
+            {sections.map(section => renderExpandableSection(section))}
           </View>
         </ScrollView>
 
@@ -783,14 +1022,32 @@ const SearchScreen = () => {
           <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
             <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
-          
+
           <View style={styles.searchActions}>
-            <AIRecommendButton 
+            {/* AI Match Button with Robot */}
+            <TouchableOpacity
               onPress={handleAISearch}
-              variant="outline"
-              label="AI Match"
-            />
-            
+              style={styles.aiMatchContainer}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={isPremium ? ['#FFB5C5', '#E8638B', '#D53F8C'] : ['#D1D5DB', '#9CA3AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.aiMatchButton}
+              >
+                <Text style={styles.aiMatchText}>AI Match</Text>
+                {!isPremium && (
+                  <Icon name="lock" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                )}
+              </LinearGradient>
+              <Image
+                source={aiRobotImage}
+                style={styles.robotImage}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
               <Icon name="magnify" size={20} color="#FFFFFF" />
               <Text style={styles.searchButtonText}>Search</Text>
@@ -813,7 +1070,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   safeArea: {
     flex: 1,
@@ -821,11 +1078,16 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#222222',
   },
   closeButton: {
     width: 36,
@@ -840,6 +1102,37 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
+  preferencesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 16,
+    backgroundColor: '#FFF5F8',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F9A8D4',
+  },
+  preferencesToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  preferencesToggleText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  preferencesToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  preferencesToggleDescription: {
+    fontSize: 12,
+    color: '#717171',
+    marginTop: 2,
+  },
   scrollContent: {
     flex: 1,
     paddingHorizontal: 20,
@@ -852,211 +1145,325 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
+    marginBottom: 20,
+  },
+  // What section - always visible
+  whatSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  whatSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  whatSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222222',
   },
   sectionContainer: {
-    // Remove bottom border
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   sectionHeaderExpanded: {
-    // Remove bottom border
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   sectionHeaderContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  sectionIcon: {
+    marginRight: 12,
+  },
   sectionHeaderText: {
-    marginLeft: 16,
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#222222',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sectionSummary: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#717171',
   },
   sectionContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
-  textInputContainer: {
-    marginTop: 10,
-  },
-  searchInputWrapper: {
-    position: 'relative',
+  sectionContentInner: {
+    marginTop: 8,
   },
   searchInput: {
     fontSize: 16,
     color: '#222222',
     borderWidth: 1,
     borderColor: '#DDDDDD',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  searchInputNL: {
-    borderColor: '#6B46C1',
-    borderWidth: 2,
-    minHeight: 60,
-  },
-  parsingIndicator: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    marginTop: -10,
-  },
-  nlIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F3E8FF',
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  nlIndicatorText: {
-    fontSize: 12,
-    color: '#6B46C1',
-    marginLeft: 4,
-  },
-  parsedFiltersContainer: {
-    marginTop: 12,
-    padding: 12,
+    paddingVertical: 14,
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-  parsedFiltersHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  helperText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#717171',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  // Activity types
+  activityTypeContainer: {
     marginBottom: 8,
   },
-  parsedFiltersLabel: {
+  activityTypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  parsedFiltersText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6B46C1',
-    marginLeft: 6,
-  },
-  confidenceText: {
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  parsedChipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-  },
-  parsedChip: {
-    backgroundColor: '#EDE9FE',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  parsedChipText: {
-    fontSize: 13,
-    color: '#5B21B6',
-    fontWeight: '500',
-  },
-  applyParsedButton: {
+  activityTypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6B46C1',
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 6,
-    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8638B',
+    backgroundColor: '#FFFFFF',
+    flex: 1,
+    marginRight: 8,
   },
-  applyParsedButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+  activityTypeChipActive: {
+    backgroundColor: '#E8638B',
+  },
+  activityTypeText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#E8638B',
+    marginLeft: 10,
+  },
+  activityTypeTextActive: {
     color: '#FFFFFF',
   },
-  daysContainer: {
+  expandSubtypesButton: {
+    padding: 8,
+  },
+  subtypesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    marginLeft: 20,
+    gap: 8,
+  },
+  subtypeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+  },
+  subtypeChipActive: {
+    backgroundColor: '#FDF2F8',
+    borderColor: '#F9A8D4',
+  },
+  subtypeText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  subtypeTextActive: {
+    color: '#E8638B',
+    fontWeight: '500',
+  },
+  // Location section
+  selectedLocationsContainer: {
+    marginTop: 16,
+  },
+  selectedLocationsLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  locationDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  locationDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  locationDividerText: {
+    paddingHorizontal: 12,
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  locationExpandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FDF2F8',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F9A8D4',
+  },
+  locationExpandText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  // Chips
+  chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 10,
   },
-  dayButton: {
+  chip: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
   },
-  dayButtonSelected: {
+  chipSelected: {
     backgroundColor: '#E8638B',
     borderColor: '#E8638B',
   },
-  dayButtonText: {
+  chipText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#222222',
   },
-  dayButtonTextSelected: {
+  chipTextSelected: {
     color: '#FFFFFF',
   },
-  activityTypeContainer: {
-    marginTop: 10,
-  },
-  loadingContainer: {
-    paddingVertical: 20,
+  // Option cards (environment)
+  optionCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#717171',
-  },
-  activityTypesGrid: {
-    gap: 8,
-  },
-  activityTypeButton: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DDDDDD',
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
     marginBottom: 8,
   },
-  activityTypeButtonSelected: {
-    backgroundColor: '#E8638B',
+  optionCardSelected: {
     borderColor: '#E8638B',
+    backgroundColor: '#FDF2F8',
   },
-  activityTypeButtonText: {
-    fontSize: 16,
+  optionCardContent: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#222222',
   },
-  activityTypeButtonTextSelected: {
-    color: '#FFFFFF',
+  optionDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+    marginLeft: 30,
   },
-  timeContainer: {
-    marginTop: 10,
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  radioActive: {
+    borderColor: '#E8638B',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#E8638B',
+  },
+  // Range sliders
+  rangeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  rangeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  rangeValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E8638B',
+  },
+  sliderLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 4,
+    marginTop: 12,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  // Switch row
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  switchLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  // Locked info
+  lockedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  lockedInfoText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 8,
+    flex: 1,
+  },
+  // Time buttons
   predefinedTimesContainer: {
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   timeButton: {
     paddingHorizontal: 16,
@@ -1075,10 +1482,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   timeButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#222222',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   timeButtonTextSelected: {
     color: '#FFFFFF',
@@ -1096,147 +1503,28 @@ const styles = StyleSheet.create({
   timeRangeTextDisabled: {
     color: '#CCCCCC',
   },
-  customTimeToggle: {
-    marginBottom: 20,
-  },
-  customToggleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-start',
-  },
-  customToggleButtonSelected: {
-    backgroundColor: '#E8638B',
-    borderColor: '#E8638B',
-  },
-  customToggleText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#222222',
-  },
-  customToggleTextSelected: {
-    color: '#FFFFFF',
-  },
   customTimeContainer: {
-    marginTop: 10,
-  },
-  timeLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  timeLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222222',
-  },
-  costContainer: {
-    marginTop: 10,
-  },
-  costLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  costLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222222',
-  },
-  sliderLabel: {
-    fontSize: 14,
-    color: '#717171',
-    marginBottom: 8,
     marginTop: 16,
   },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  maxCostContainer: {
-    marginTop: 10,
-  },
-  unlimitedButton: {
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-start',
-  },
-  unlimitedButtonSelected: {
-    backgroundColor: '#E8638B',
-    borderColor: '#E8638B',
-  },
-  unlimitedButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#222222',
-  },
-  unlimitedButtonTextSelected: {
-    color: '#FFFFFF',
-  },
-  citiesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  cityButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    marginBottom: 8,
-  },
-  cityButtonSelected: {
-    backgroundColor: '#E8638B',
-    borderColor: '#E8638B',
-  },
-  cityButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#222222',
-  },
-  cityButtonTextSelected: {
-    color: '#FFFFFF',
-  },
-  ageContainer: {
-    marginTop: 10,
-  },
-  ageLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  ageLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222222',
-  },
+  // Bottom actions
   bottomActions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: 'transparent',
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
   clearButton: {
     paddingVertical: 8,
     paddingHorizontal: 0,
   },
   clearButtonText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#222222',
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#6B7280',
     textDecorationLine: 'underline',
   },
   searchActions: {
@@ -1244,16 +1532,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  aiMatchContainer: {
+    position: 'relative',
+    marginRight: 30,
+    marginTop: 10,
+  },
+  aiMatchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingRight: 40,
+    borderRadius: 12,
+  },
+  aiMatchText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  robotImage: {
+    position: 'absolute',
+    right: -20,
+    top: -15,
+    width: 50,
+    height: 50,
+  },
   searchButton: {
     flexDirection: 'row',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     backgroundColor: '#E8638B',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    minWidth: 120,
   },
   searchButtonText: {
     fontSize: 16,

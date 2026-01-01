@@ -32,11 +32,29 @@ import TrialCountdownBanner from '../components/TrialCountdownBanner';
 import ScreenBackground from '../components/ScreenBackground';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
+import { useAppSelector } from '../store';
+
+/**
+ * Calculate age from date of birth string
+ */
+const calculateAge = (dateOfBirth: string): number => {
+  const today = new Date();
+  const birth = new Date(dateOfBirth);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
   const isTrialing = useSelector(selectIsTrialing);
   const trialDaysRemaining = useSelector(selectTrialDaysRemaining);
+
+  // Get children from Redux for AI recommendations
+  const children = useAppSelector((state) => state.children?.children || []);
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
@@ -547,6 +565,86 @@ const DashboardScreenModern = () => {
     }
   };
 
+  /**
+   * Generate personalized AI recommendation query based on children, preferences, and profile
+   */
+  const generateAIRecommendationQuery = useCallback(() => {
+    const preferencesService = PreferencesService.getInstance();
+    const preferences = preferencesService.getPreferences();
+
+    // Build child info
+    const childrenInfo: string[] = [];
+    if (children.length > 0) {
+      children.forEach((child: any) => {
+        const age = calculateAge(child.dateOfBirth);
+        childrenInfo.push(`${child.name} (age ${age})`);
+      });
+    }
+
+    // Get preferred activity types
+    const preferredTypes = preferences.preferredActivityTypes || [];
+
+    // Get location info
+    const savedAddr = preferences.savedAddress as any;
+    const locationName = savedAddr?.city || savedAddr?.locality || '';
+
+    // Get age range preferences
+    const ageRanges = preferences.ageRanges || [];
+    const ageRangeText = ageRanges.length > 0
+      ? ageRanges.map(r => `${r.min}-${r.max} years`).join(', ')
+      : '';
+
+    // Get schedule preferences
+    const daysOfWeek = preferences.daysOfWeek || [];
+    const timePrefs = preferences.timePreferences || {};
+    const preferredTimes: string[] = [];
+    if (timePrefs.morning) preferredTimes.push('morning');
+    if (timePrefs.afternoon) preferredTimes.push('afternoon');
+    if (timePrefs.evening) preferredTimes.push('evening');
+
+    // Build the recommendation query
+    let query = 'Based on my profile, recommend the best activities for ';
+
+    if (childrenInfo.length > 0) {
+      query += `my ${childrenInfo.length === 1 ? 'child' : 'children'}: ${childrenInfo.join(' and ')}. `;
+    } else if (ageRangeText) {
+      query += `kids aged ${ageRangeText}. `;
+    } else {
+      query += 'my family. ';
+    }
+
+    if (preferredTypes.length > 0) {
+      const typesText = preferredTypes.slice(0, 3).join(', ');
+      query += `We're interested in ${typesText}. `;
+    }
+
+    if (locationName) {
+      query += `Looking for activities in ${locationName}. `;
+    }
+
+    if (daysOfWeek.length > 0 && daysOfWeek.length < 7) {
+      query += `Preferably on ${daysOfWeek.slice(0, 3).join(', ')}. `;
+    }
+
+    if (preferredTimes.length > 0 && preferredTimes.length < 3) {
+      query += `Best times are ${preferredTimes.join(' or ')}. `;
+    }
+
+    query += 'Please explain why each activity would be a good fit for us.';
+
+    return query;
+  }, [children]);
+
+  /**
+   * Navigate to AI Chat with personalized recommendations
+   */
+  const handleAIRecommendations = useCallback(() => {
+    const query = generateAIRecommendationQuery();
+    navigation.navigate('AIChat', {
+      initialMessage: query,
+      autoSend: true,
+    });
+  }, [generateAIRecommendationQuery, navigation]);
 
   const renderActivityCard = (activity: Activity) => {
     // Get image based on activityType or category
@@ -925,11 +1023,11 @@ const DashboardScreenModern = () => {
           </View>
         )}
 
-        {/* AI Chat Banner - with robot overlay */}
+        {/* AI Recommendations Banner - with robot overlay */}
         <View style={styles.aiBannerWrapper}>
           <TouchableOpacity
             style={styles.aiBanner}
-            onPress={() => navigation.navigate('AIChat' as never)}
+            onPress={handleAIRecommendations}
             activeOpacity={0.9}
           >
             <LinearGradient
@@ -939,8 +1037,12 @@ const DashboardScreenModern = () => {
               style={styles.aiBannerGradient}
             >
               <View style={styles.aiBannerTextContainer}>
-                <Text style={styles.aiBannerTitle}>AI Assistant</Text>
-                <Text style={styles.aiBannerSubtitle}>Chat to find perfect activities</Text>
+                <Text style={styles.aiBannerTitle}>AI Recommendations</Text>
+                <Text style={styles.aiBannerSubtitle}>
+                  {children.length > 0
+                    ? `Find perfect activities for ${children.length === 1 ? children[0].name : 'your kids'}`
+                    : 'Get personalized activity suggestions'}
+                </Text>
               </View>
               <Icon name="chevron-right" size={22} color="#FFFFFF" />
             </LinearGradient>

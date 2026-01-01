@@ -126,10 +126,10 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="mailto:support@kidsactivitytracker.com"
+                  href="mailto:support@kidsactivitytracker.ca"
                   className="hover:text-purple-400 transition-colors"
                 >
-                  support@kidsactivitytracker.com
+                  support@kidsactivitytracker.ca
                 </a>
               </li>
             </ul>

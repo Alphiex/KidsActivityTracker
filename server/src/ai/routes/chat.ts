@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { getChatService, EnhancedFamilyContext } from '../agents/activityAssistantAgent';
+import { getChatService, EnhancedFamilyContext, EnhancedChildProfile, ConversationParameters } from '../agents/activityAssistantAgent';
 import { checkTopicAllowed, getBlockedMessage, getBlockedSuggestedPrompts } from '../chains/topicGuardChain';
 import { getSmallModel } from '../models/chatModels';
 import { checkAIQuota, recordAIUsage, getUsageStats, getTurnLimit } from '../services/quotaService';
@@ -13,6 +13,29 @@ import { buildEnhancedFamilyContext } from '../utils/contextBuilder';
 import { verifyToken } from '../../middleware/auth';
 
 const router = Router();
+
+/**
+ * Create a virtual child profile from extracted age when user has no registered children
+ */
+function createVirtualChildFromExtraction(
+  extractedAge?: number,
+  extractedName?: string
+): EnhancedChildProfile | null {
+  if (!extractedAge) return null;
+
+  return {
+    child_id: 'virtual-child',
+    name: extractedName || 'Your child',
+    age: extractedAge,
+    interests: [],
+    favorites: [],
+    calendarActivities: [],
+    computedPreferences: {
+      preferredCategories: [],
+      preferredDays: [],
+    },
+  };
+}
 
 /**
  * POST /api/v1/ai/chat
@@ -96,18 +119,66 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
           familyContext = { ...familyContext, children: [matchedChild] };
         }
       }
+
+      // If no children registered but age was mentioned, create a virtual child profile
+      if (!familyContext?.children?.length && topicCheck.extractedAge) {
+        const virtualChild = createVirtualChildFromExtraction(
+          topicCheck.extractedAge,
+          topicCheck.childName
+        );
+        if (virtualChild) {
+          familyContext = {
+            ...familyContext,
+            children: [virtualChild],
+          };
+          console.log(`[Chat] Created virtual child from extracted age: ${topicCheck.extractedAge}`);
+        }
+      }
     } catch (error) {
       console.warn('[Chat] Could not load family context:', error);
-      // Continue without family context
+      // Continue without family context - still try to create virtual child if age extracted
+      if (topicCheck.extractedAge) {
+        const virtualChild = createVirtualChildFromExtraction(
+          topicCheck.extractedAge,
+          topicCheck.childName
+        );
+        if (virtualChild) {
+          familyContext = { children: [virtualChild] };
+          console.log(`[Chat] Created virtual child from extracted age (fallback): ${topicCheck.extractedAge}`);
+        }
+      }
     }
 
-    // Execute chat
+    // Build initial parameters from extracted values in this message
+    const extractedParams: ConversationParameters = {};
+    if (topicCheck.extractedAge) {
+      extractedParams.extractedAge = topicCheck.extractedAge;
+    }
+    if (topicCheck.extractedCity) {
+      extractedParams.extractedCity = topicCheck.extractedCity;
+    }
+    if (topicCheck.extractedActivityType) {
+      extractedParams.extractedActivityType = topicCheck.extractedActivityType;
+    }
+
+    // Log extraction for debugging
+    if (topicCheck.extractedAge || topicCheck.extractedCity || topicCheck.extractedActivityType || topicCheck.isFollowUp) {
+      console.log(`[Chat] Extracted from message:`, {
+        age: topicCheck.extractedAge,
+        city: topicCheck.extractedCity,
+        activityType: topicCheck.extractedActivityType,
+        isFollowUp: topicCheck.isFollowUp,
+      });
+    }
+
+    // Execute chat with extracted parameters
     const chatService = getChatService();
     const response = await chatService.chat(
       userId,
       conversationId,
       message,
-      familyContext
+      familyContext,
+      extractedParams
     );
 
     // Record usage

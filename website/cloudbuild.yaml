@@ -6,7 +6,7 @@ steps:
       - '-t'
       - 'gcr.io/$PROJECT_ID/website:latest'
       - '--build-arg'
-      - 'NEXT_PUBLIC_API_URL=https://kids-activity-api-205843686007.us-central1.run.app'
+      - 'NEXT_PUBLIC_API_URL=https://api.kidsactivitytracker.ca'
       - '.'
 
   # Push the container images

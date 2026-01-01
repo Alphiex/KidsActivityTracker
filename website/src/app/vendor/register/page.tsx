@@ -40,10 +40,10 @@ export default function VendorRegisterPage() {
           <p>
             Need help? Contact us at{' '}
             <a
-              href="mailto:vendors@kidsactivitytracker.com"
+              href="mailto:vendors@kidsactivitytracker.ca"
               className="text-purple-600 hover:text-purple-700"
             >
-              vendors@kidsactivitytracker.com
+              vendors@kidsactivitytracker.ca
             </a>
           </p>
         </div>

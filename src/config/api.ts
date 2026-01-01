@@ -11,12 +11,11 @@ const API_URLS = {
     android: 'http://10.0.2.2:3000',
   }),
   
-  // Production - Custom domain (once DNS is verified and mapped)
-  // Use this once domain mapping is complete: 'https://api.kidsactivitytracker.ca'
+  // Production - Custom domain
   PRODUCTION: 'https://api.kidsactivitytracker.ca',
-  
+
   // Fallback - Direct Cloud Run URL (always works)
-  PRODUCTION_DIRECT: 'https://kids-activity-api-205843686007.us-central1.run.app',
+  PRODUCTION_DIRECT: 'https://kids-activity-api-4ev6yi22va-uc.a.run.app',
 };
 
 // Force local development server

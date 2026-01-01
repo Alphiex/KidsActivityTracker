@@ -152,7 +152,7 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │                            │                               │  │
 │  │  ┌─────────────────────────▼───────────────────────────┐  │  │
 │  │  │                  AI Module                           │  │  │
-│  │  │    Recommendation Engine │ Personalization Service   │  │  │
+│  │  │  ActivityChatService │ TopicGuard │ QuotaService    │  │  │
 │  │  └─────────────────────────┬───────────────────────────┘  │  │
 │  │                            │                               │  │
 │  │  ┌─────────────────────────▼───────────────────────────┐  │  │
@@ -288,6 +288,69 @@ User taps Subscribe
 │ subscription     │
 └──────────────────┘
 ```
+
+### AI Chat Flow
+
+```
+User Message ("skating for my 3-year-old near me")
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│          Topic Guard Chain                │
+│  • Classify: activity_search (allowed)    │
+│  • Extract: age=3, activityType=skating   │
+│  • Detect: isFollowUp=false               │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│        Context Builder                     │
+│  • Load family context from DB             │
+│  • Create virtual child if no children     │
+│  • Apply location fallback (Vancouver)     │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│       Activity Chat Service                │
+│  • Load/create conversation state          │
+│  • Merge extracted params into conversation│
+│  • Format system prompt with context       │
+│  • Execute LangChain agent with tools      │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│       LangChain Tools                      │
+│  • search_activities (with distance calc)  │
+│  • get_child_context                       │
+│  • get_activity_details                    │
+│  • compare_activities                      │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│       Store Search Parameters              │
+│  • Save lastSearchFilters for follow-ups   │
+│  • Update extractedActivityType            │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│       Response                             │
+│  • conversationId                          │
+│  • text: "Found 8 skating activities..."   │
+│  • activities: [sorted by distance]        │
+│  • followUpPrompts: ["Show more", ...]     │
+│  • turnsRemaining: 4                       │
+└───────────────────────────────────────────┘
+```
+
+**Conversation Memory**:
+- Parameters accumulated across turns: age, city, activity type, search filters
+- Follow-up queries ("search again") reuse previous parameters
+- Virtual child profiles created from extracted age when no children registered
+- Location defaults to Vancouver when unavailable
 
 ### Scraper Data Flow
 
@@ -474,7 +537,7 @@ Database Updated (117,700+ activities)
 | Validation | express-validator | Input validation |
 | Security | Helmet, CORS | HTTP security |
 | Docs | Swagger/OpenAPI | API documentation |
-| AI | Claude API, OpenAI, LangGraph | Recommendations & orchestration |
+| AI | OpenAI GPT-4o-mini, LangChain | Conversational assistant & tools |
 | Push | firebase-admin | FCM server SDK |
 
 ### Database
@@ -565,5 +628,5 @@ Database Updated (117,700+ activities)
 
 ---
 
-**Document Version**: 5.1
-**Last Updated**: December 2025
+**Document Version**: 5.2
+**Last Updated**: January 2026

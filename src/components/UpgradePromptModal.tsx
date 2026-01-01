@@ -25,7 +25,8 @@ export type UpgradeFeature =
   | 'calendar'
   | 'alerts'
   | 'savedSearches'
-  | 'waitlist';
+  | 'waitlist'
+  | 'ai_search';
 
 interface FeatureConfig {
   icon: string;
@@ -82,6 +83,12 @@ const FEATURE_CONFIGS: Record<UpgradeFeature, FeatureConfig> = {
     title: 'Waiting List Limit Reached',
     message: "You've reached the maximum of 4 waiting list items on the free plan.",
     benefit: 'Monitor unlimited activities with Premium',
+  },
+  ai_search: {
+    icon: 'robot',
+    title: 'AI-Powered Search',
+    message: 'AI Match uses advanced AI to find the perfect activities for your family.',
+    benefit: 'Get personalized AI recommendations with Premium',
   },
 };
 

@@ -2,7 +2,7 @@
  * Vendor Portal API Client
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://kids-activity-api-205843686007.us-central1.run.app';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.kidsactivitytracker.ca';
 
 interface FetchOptions extends RequestInit {
   skipAuth?: boolean;

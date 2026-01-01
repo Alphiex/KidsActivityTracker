@@ -203,7 +203,7 @@ export default function VendorPage() {
                   ))}
                 </ul>
                 <Link
-                  href="mailto:partners@kidsactivitytracker.com"
+                  href="mailto:partners@kidsactivitytracker.ca"
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
                 >
                   Contact for Pricing

@@ -18,6 +18,9 @@ const TopicClassificationSchema = z.object({
   confidence: z.number().describe('Confidence score 0-1'),
   extractedChildName: z.string().optional().describe('Child name if mentioned'),
   extractedAge: z.number().optional().describe('Age if mentioned'),
+  extractedCity: z.string().optional().describe('City or location if mentioned'),
+  extractedActivityType: z.string().optional().describe('Activity type if mentioned (e.g., skating, swimming, soccer)'),
+  isFollowUp: z.boolean().optional().describe('Whether this is a follow-up to a previous search'),
 });
 
 export type TopicClassification = z.infer<typeof TopicClassificationSchema>;
@@ -48,8 +51,14 @@ BLOCKED categories (set allowed: false):
 
 EXTRACTION RULES:
 1. If a child's name is mentioned (e.g., "for Emma", "Emma's classes"), extract it
-2. If an age is mentioned (e.g., "5 year old", "my 8yo"), extract it as a number
-3. Set confidence based on how clearly the intent is expressed
+2. If an age is mentioned (e.g., "5 year old", "my 8yo", "3-year-old"), extract it as a number
+3. If a city/location is mentioned (e.g., "in Vancouver", "near Burnaby", "North Van", "around Coquitlam"), extract it
+4. If an activity type is mentioned (e.g., "skating", "swimming lessons", "hockey", "art classes", "soccer"), extract just the activity keyword
+5. Detect if this is a follow-up request that should reuse previous search parameters:
+   - "search again", "find more", "show me more", "try again"
+   - "what about...", "any other...", "similar to...", "different options"
+   - If detected, set isFollowUp: true
+6. Set confidence based on how clearly the intent is expressed
 
 {format_instructions}`],
   ['human', '{query}']
@@ -80,6 +89,9 @@ export async function checkTopicAllowed(
   allowed: boolean;
   childName?: string;
   extractedAge?: number;
+  extractedCity?: string;
+  extractedActivityType?: string;
+  isFollowUp?: boolean;
   category?: string;
   reason?: string;
 }> {
@@ -92,6 +104,9 @@ export async function checkTopicAllowed(
       allowed: result.allowed && result.confidence > 0.6,
       childName: result.extractedChildName,
       extractedAge: result.extractedAge,
+      extractedCity: result.extractedCity,
+      extractedActivityType: result.extractedActivityType,
+      isFollowUp: result.isFollowUp,
       category: result.category,
       reason: result.allowed ? undefined : `Query classified as: ${result.category}`
     };

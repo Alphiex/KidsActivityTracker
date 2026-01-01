@@ -126,6 +126,21 @@ const ACTIVITY_TYPE_MAPPINGS = {
   'mommy and me': { type: 'Parent & Child', subtype: 'Parent & Tot', requiresParent: true },
   'daddy and me': { type: 'Parent & Child', subtype: 'Parent & Tot', requiresParent: true },
   'family': { type: 'Parent & Child', subtype: 'Family Activities', requiresParent: true },
+
+  // Special Needs Programs
+  'special needs': { type: 'Special Needs Programs', subtype: 'Other Special Needs' },
+  'adaptive': { type: 'Special Needs Programs', subtype: 'Adaptive Sports' },
+  'adaptive sports': { type: 'Special Needs Programs', subtype: 'Adaptive Sports' },
+  'adaptive swimming': { type: 'Special Needs Programs', subtype: 'Adaptive Sports' },
+  'inclusive': { type: 'Special Needs Programs', subtype: 'Other Special Needs' },
+  'sensory': { type: 'Special Needs Programs', subtype: 'Sensory Programs' },
+  'sensory friendly': { type: 'Special Needs Programs', subtype: 'Sensory Programs' },
+  'autism': { type: 'Special Needs Programs', subtype: 'Other Special Needs' },
+  'asd': { type: 'Special Needs Programs', subtype: 'Other Special Needs' },
+  'therapeutic': { type: 'Special Needs Programs', subtype: 'Therapeutic Recreation' },
+  'therapeutic recreation': { type: 'Special Needs Programs', subtype: 'Therapeutic Recreation' },
+  'social skills': { type: 'Special Needs Programs', subtype: 'Social Skills' },
+  'life skills': { type: 'Special Needs Programs', subtype: 'Life Skills' },
 };
 
 // Parent participation keywords
