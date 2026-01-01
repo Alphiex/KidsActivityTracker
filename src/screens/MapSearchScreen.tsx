@@ -22,6 +22,7 @@ import { Colors } from '../theme';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
@@ -539,11 +540,12 @@ const MapSearchScreen = () => {
   const keyExtractor = useCallback((item: Activity) => item.id, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Top Tab Navigation */}
-      <TopTabNavigation />
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Top Tab Navigation */}
+        <TopTabNavigation />
 
-      {/* Map Section - 55% of screen */}
+        {/* Map Section - 55% of screen */}
       <View style={styles.mapSection}>
         <MapView
           ref={mapRef}
@@ -661,14 +663,17 @@ const MapSearchScreen = () => {
           </View>
         ) : null}
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

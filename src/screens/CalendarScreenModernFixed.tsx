@@ -37,6 +37,7 @@ import activityService from '../services/activityService';
 import { ModernColors } from '../theme/modernTheme';
 import { ChildActivity } from '../services/childrenService';
 import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
 import ViewShot from 'react-native-view-shot';
 import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -1917,18 +1918,18 @@ const CalendarScreenModernFixed = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TopTabNavigation />
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <TopTabNavigation />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={ModernColors.primary} />
+            <Text style={styles.loadingText}>Loading calendar...</Text>
+          </View>
+        ) : (
+          <>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ModernColors.primary} />
-          <Text style={styles.loadingText}>Loading calendar...</Text>
-        </View>
-      ) : (
-        <>
-
-      {/* Bulk Selection Toolbar */}
+        {/* Bulk Selection Toolbar */}
       {selectionMode && (
         <View style={styles.bulkToolbar}>
           <Text style={styles.bulkToolbarText}>
@@ -2228,22 +2229,24 @@ const CalendarScreenModernFixed = () => {
       >
         <Icon name="plus" size={28} color="#FFFFFF" />
       </TouchableOpacity>
-        </>
-      )}
-    </SafeAreaView>
+          </>
+        )}
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ModernColors.background,
+  },
+  safeArea: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: ModernColors.background,
   },
   loadingText: {
     marginTop: 12,
@@ -2261,7 +2264,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: ModernColors.background,
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: ModernColors.borderLight,
   },
@@ -2275,7 +2278,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: ModernColors.background,
+    backgroundColor: 'transparent',
   },
   dateNavButton: {
     padding: 8,

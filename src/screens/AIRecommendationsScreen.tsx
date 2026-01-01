@@ -32,6 +32,7 @@ import {
   AIErrorState,
 } from '../components/ai';
 import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
 
 interface RouteParams {
   search_intent?: string;
@@ -393,47 +394,43 @@ const AIRecommendationsScreen = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Top Tab Navigation - on white background */}
-      <TopTabNavigation />
+        {/* Top Tab Navigation */}
+        <TopTabNavigation />
 
-      {/* Content area with gradient background */}
-      <LinearGradient
-        colors={['#FFFFFF', '#FFF5F8', '#FFE5EC', '#E8F4FF']}
-        locations={[0, 0.3, 0.6, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={styles.contentGradient}
-      >
-        {loading ? (
-          <AILoadingState message="Finding the best activities for you..." />
-        ) : error ? (
-          <AIErrorState
-            message={error}
-            onRetry={handleRetry}
-            onDismiss={handleDismiss}
-          />
-        ) : (
-          <FlatList
-            data={recommendationsData}
-            renderItem={renderRecommendationItem}
-            keyExtractor={(item) => item.activity_id}
-            contentContainerStyle={styles.listContent}
-            ListHeaderComponent={renderSearchContext}
-            ListEmptyComponent={renderEmptyState}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor="#E8638B"
-              />
-            }
-          />
-        )}
-      </LinearGradient>
-    </SafeAreaView>
+        {/* Content area */}
+        <View style={styles.contentGradient}>
+          {loading ? (
+            <AILoadingState message="Finding the best activities for you..." />
+          ) : error ? (
+            <AIErrorState
+              message={error}
+              onRetry={handleRetry}
+              onDismiss={handleDismiss}
+            />
+          ) : (
+            <FlatList
+              data={recommendationsData}
+              renderItem={renderRecommendationItem}
+              keyExtractor={(item) => item.activity_id}
+              contentContainerStyle={styles.listContent}
+              ListHeaderComponent={renderSearchContext}
+              ListEmptyComponent={renderEmptyState}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor="#E8638B"
+                />
+              }
+            />
+          )}
+        </View>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
@@ -442,6 +439,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
+    flex: 1,
+  },
+  safeArea: {
     flex: 1,
   },
   contentGradient: {

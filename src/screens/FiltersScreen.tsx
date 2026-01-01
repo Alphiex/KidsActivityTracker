@@ -21,6 +21,7 @@ import PreferencesService from '../services/preferencesService';
 import ActivityService from '../services/activityService';
 import { UserPreferences, HierarchicalProvince } from '../types/preferences';
 import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
 import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
 import useSubscription from '../hooks/useSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
@@ -1352,19 +1353,22 @@ const FiltersScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#E8638B" />
-          <Text style={styles.loadingText}>Loading preferences...</Text>
-        </View>
-      </SafeAreaView>
+      <ScreenBackground style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#E8638B" />
+            <Text style={styles.loadingText}>Loading preferences...</Text>
+          </View>
+        </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Tab Navigation - Fixed at top */}
-      <TopTabNavigation />
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Tab Navigation - Fixed at top */}
+        <TopTabNavigation />
 
       {/* Header */}
       <View style={styles.header}>
@@ -1509,14 +1513,17 @@ const FiltersScreen = () => {
         feature={upgradeFeature || 'filters'}
         onClose={hideUpgradeModal}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  safeArea: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -1534,7 +1541,7 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingHorizontal: 20,
     paddingBottom: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
   },
@@ -1552,7 +1559,7 @@ const styles = StyleSheet.create({
     color: '#717171',
   },
   quickFiltersContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
