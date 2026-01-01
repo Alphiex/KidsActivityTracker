@@ -3,12 +3,12 @@
  * Handles in-app purchases and subscription management via RevenueCat SDK
  *
  * Configuration:
- * - API Key: test_ljkxIaucZlWwOMIqFWUGZUKLNFK
  * - Entitlement: KidsActivityTracker Pro
  * - Products: monthly, yearly
  */
 
 import { Platform } from 'react-native';
+import Config from 'react-native-config';
 import Purchases, {
   PurchasesOfferings,
   PurchasesPackage,
@@ -50,13 +50,10 @@ const loadRevenueCatUI = async (): Promise<boolean> => {
   }
 };
 
-// RevenueCat API Keys
-// For testing: Using the provided test key for both platforms
-// For production: Replace with platform-specific keys from RevenueCat dashboard:
-//   - iOS: appl_* key from RevenueCat iOS app
-//   - Android: goog_* key from RevenueCat Android app
-const REVENUECAT_IOS_API_KEY = 'test_ljkxIaucZlWwOMIqFWUGZUKLNFK';
-const REVENUECAT_ANDROID_API_KEY = 'test_ljkxIaucZlWwOMIqFWUGZUKLNFK';
+// RevenueCat API Keys - loaded from environment variables
+const REVENUECAT_IOS_API_KEY = Config.REVENUECAT_IOS_API_KEY || '';
+// TODO: Add Android production key (goog_*) when ready
+const REVENUECAT_ANDROID_API_KEY = Config.REVENUECAT_ANDROID_API_KEY || Config.REVENUECAT_IOS_API_KEY || '';
 
 // Get the appropriate API key based on platform
 const getApiKey = (): string => {

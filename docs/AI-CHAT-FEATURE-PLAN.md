@@ -569,31 +569,59 @@ model AIUsage {
 
 ---
 
-## Part 9: Sub-Agent Architecture & Child Context
+## Part 9: LangChain Agent Architecture & Child Context
 
-### Current LangGraph Architecture
+### Why LangChain over LangGraph
 
-The existing AI system uses LangGraph with these nodes (from `server/src/ai/graph/aiGraph.ts`):
+LangChain provides a more flexible architecture for conversational AI:
+- **Tools-based approach**: Agent can dynamically choose which tools to use
+- **Built-in memory**: ConversationBufferMemory, ConversationSummaryMemory
+- **Chains**: Composable processing pipelines
+- **Output parsers**: Structured response formatting
+- **Callbacks**: Easy logging, monitoring, and streaming
+
+### Current Architecture (to be migrated)
+
+The existing system uses LangGraph. We'll migrate to LangChain's Agent pattern:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    CURRENT GRAPH FLOW                        │
+│                 LANGCHAIN AGENT ARCHITECTURE                 │
 ├─────────────────────────────────────────────────────────────┤
-│  START → router → parse_query → fetch_candidates →          │
-│          ↓                                                   │
-│      ┌───┴───┐                                              │
-│      ↓       ↓                                              │
-│  recommend  planner → multi_child                           │
-│      ↓       ↓                                              │
-│  explain   END                                              │
-│      ↓                                                       │
-│     END                                                      │
+│                                                              │
+│   User Query                                                 │
+│       ↓                                                      │
+│   ┌──────────────────┐                                      │
+│   │ TopicGuardChain  │ → Block off-topic → BLOCKED_RESPONSE │
+│   └────────┬─────────┘                                      │
+│            ↓ (allowed)                                       │
+│   ┌──────────────────────────────────────────────────┐      │
+│   │           ActivityAssistantAgent                  │      │
+│   │  ┌─────────────────────────────────────────────┐ │      │
+│   │  │              TOOLS                          │ │      │
+│   │  │  • search_activities                        │ │      │
+│   │  │  • get_child_context                        │ │      │
+│   │  │  • get_activity_details                     │ │      │
+│   │  │  • compare_activities                       │ │      │
+│   │  │  • get_favorites                            │ │      │
+│   │  │  • get_calendar                             │ │      │
+│   │  └─────────────────────────────────────────────┘ │      │
+│   │  ┌─────────────────────────────────────────────┐ │      │
+│   │  │       ConversationSummaryMemory             │ │      │
+│   │  │  (maintains context across turns)           │ │      │
+│   │  └─────────────────────────────────────────────┘ │      │
+│   └──────────────────────────────────────────────────┘      │
+│            ↓                                                 │
+│   ┌──────────────────┐                                      │
+│   │ ResponseFormatter │ → Chat response + follow-ups        │
+│   └──────────────────┘                                      │
+│                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Existing State & Types
+### Existing Types to Extend
 
-From `server/src/ai/graph/state.ts` and `server/src/ai/types/ai.types.ts`:
+From `server/src/ai/types/ai.types.ts`:
 
 ```typescript
 // Current ChildProfile (limited)
@@ -668,433 +696,608 @@ interface EnhancedChildProfile extends ChildProfile {
 }
 ```
 
-### New Sub-Agent Architecture
+### LangChain Agent Implementation
 
-Extend the graph with new nodes for the chat feature:
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     EXTENDED GRAPH FLOW (CHAT)                           │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  START                                                                   │
-│    ↓                                                                     │
-│  ┌─────────────────┐                                                    │
-│  │ topic_classifier │ ──(blocked)──→ BLOCKED_RESPONSE                   │
-│  └────────┬────────┘                                                    │
-│           ↓ (allowed)                                                    │
-│  ┌─────────────────────┐                                                │
-│  │ child_context_loader │  ← Loads enhanced child data                  │
-│  └────────┬────────────┘                                                │
-│           ↓                                                              │
-│  ┌─────────────────────┐                                                │
-│  │ conversation_manager │  ← Manages history & compression              │
-│  └────────┬────────────┘                                                │
-│           ↓                                                              │
-│  ┌────────┴────────┐                                                    │
-│  │     router      │ (existing)                                         │
-│  └────────┬────────┘                                                    │
-│           ↓                                                              │
-│     [Existing flow: parse → fetch → recommend/planner → explain]        │
-│           ↓                                                              │
-│  ┌─────────────────────┐                                                │
-│  │  response_formatter │  ← Formats chat-friendly responses             │
-│  └────────┬────────────┘                                                │
-│           ↓                                                              │
-│         END                                                              │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### New Nodes Implementation
-
-#### 1. Topic Classifier Node
+#### 1. Topic Guard Chain (Pre-filter)
 
 ```typescript
-// server/src/ai/graph/nodes/topicClassifierNode.ts
+// server/src/ai/chains/topicGuardChain.ts
 
-const TOPIC_CLASSIFIER_PROMPT = `
-You are a topic classifier for a kids activity finder app.
+import { ChatOpenAI } from '@langchain/openai';
+import { StructuredOutputParser } from '@langchain/core/output_parsers';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { RunnableSequence } from '@langchain/core/runnables';
+import { z } from 'zod';
+
+const TopicClassificationSchema = z.object({
+  category: z.string(),
+  allowed: z.boolean(),
+  confidence: z.number(),
+  extractedChildName: z.string().optional(),
+});
+
+const parser = StructuredOutputParser.fromZodSchema(TopicClassificationSchema);
+
+const TOPIC_GUARD_PROMPT = ChatPromptTemplate.fromMessages([
+  ['system', `You are a topic classifier for a kids activity finder app.
 Classify the user's message into ALLOWED or BLOCKED categories.
 
-ALLOWED categories:
-- activity_search: Looking for activities
-- activity_question: Questions about specific activities
-- recommendation_request: Asking for suggestions
-- schedule_help: Help planning activities
-- child_specific: Questions about activities for a specific child
-- comparison: Comparing activities or options
-- cost_question: Questions about pricing
+ALLOWED: activity_search, activity_question, recommendation_request,
+         schedule_help, child_specific, comparison, cost_question
 
-BLOCKED categories:
-- off_topic: Unrelated to kids activities
-- homework: Academic questions
-- general_chat: Casual conversation
-- competitor_info: Bulk data extraction
+BLOCKED: off_topic, homework, general_chat, competitor_info
 
-Return JSON: { "category": "...", "allowed": true/false, "confidence": 0.0-1.0 }
-`;
+Also extract any child name mentioned in the query.
 
-export const topicClassifierNode = async (state: AIGraphState): Promise<Partial<AIGraphState>> => {
-  const model = getSmallModel(); // gpt-4o-mini
+{format_instructions}`],
+  ['human', '{query}']
+]);
 
-  const result = await model.invoke([
-    { role: 'system', content: TOPIC_CLASSIFIER_PROMPT },
-    { role: 'user', content: state.userQuery }
+export function createTopicGuardChain(model: ChatOpenAI) {
+  return RunnableSequence.from([
+    async (input: { query: string }) => ({
+      query: input.query,
+      format_instructions: parser.getFormatInstructions()
+    }),
+    TOPIC_GUARD_PROMPT,
+    model,
+    parser
+  ]);
+}
+
+export async function checkTopicAllowed(
+  model: ChatOpenAI,
+  query: string
+): Promise<{ allowed: boolean; childName?: string; reason?: string }> {
+  const chain = createTopicGuardChain(model);
+
+  try {
+    const result = await chain.invoke({ query });
+    return {
+      allowed: result.allowed && result.confidence > 0.7,
+      childName: result.extractedChildName,
+      reason: result.allowed ? undefined : `Query classified as: ${result.category}`
+    };
+  } catch {
+    // Default to allowed if classification fails
+    return { allowed: true };
+  }
+}
+```
+
+#### 2. Agent Tools Definition
+
+```typescript
+// server/src/ai/tools/activityTools.ts
+
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import { z } from 'zod';
+import { prisma } from '../../utils/prismaClient';
+import { calculateAge } from '../../utils/helpers';
+
+/**
+ * Tool: Search Activities
+ * Searches the activity database with filters
+ */
+export const searchActivitiesTool = new DynamicStructuredTool({
+  name: 'search_activities',
+  description: 'Search for kids activities with filters like category, age range, location, price, and schedule',
+  schema: z.object({
+    category: z.string().optional().describe('Activity category (sports, arts, music, dance, stem, camps)'),
+    minAge: z.number().optional().describe('Minimum age'),
+    maxAge: z.number().optional().describe('Maximum age'),
+    city: z.string().optional().describe('City name'),
+    maxPrice: z.number().optional().describe('Maximum price'),
+    daysOfWeek: z.array(z.string()).optional().describe('Preferred days'),
+    limit: z.number().optional().default(10).describe('Number of results'),
+  }),
+  func: async ({ category, minAge, maxAge, city, maxPrice, daysOfWeek, limit }) => {
+    const activities = await prisma.activity.findMany({
+      where: {
+        ...(category && { category: { contains: category, mode: 'insensitive' } }),
+        ...(city && { location: { city: { contains: city, mode: 'insensitive' } } }),
+        ...(maxPrice && { price: { lte: maxPrice } }),
+        ...(minAge && { ageRange: { path: ['min'], lte: minAge } }),
+        ...(maxAge && { ageRange: { path: ['max'], gte: maxAge } }),
+        isActive: true,
+      },
+      include: { location: true, provider: true },
+      take: limit || 10,
+      orderBy: { name: 'asc' },
+    });
+
+    return JSON.stringify(activities.map(a => ({
+      id: a.id,
+      name: a.name,
+      category: a.category,
+      price: a.price,
+      ageRange: a.ageRange,
+      location: a.location?.name,
+      city: a.location?.city,
+      provider: a.provider?.name,
+      schedule: a.schedule,
+    })));
+  },
+});
+
+/**
+ * Tool: Get Child Context
+ * Retrieves detailed context for a specific child or all children
+ */
+export const getChildContextTool = new DynamicStructuredTool({
+  name: 'get_child_context',
+  description: 'Get detailed information about a child including favorites, calendar activities, and preferences',
+  schema: z.object({
+    userId: z.string().describe('User ID'),
+    childName: z.string().optional().describe('Specific child name to look up'),
+    childId: z.string().optional().describe('Specific child ID'),
+  }),
+  func: async ({ userId, childName, childId }) => {
+    const children = await prisma.child.findMany({
+      where: {
+        userId,
+        ...(childId && { id: childId }),
+        ...(childName && { name: { contains: childName, mode: 'insensitive' } }),
+      },
+      include: {
+        activities: {
+          include: { activity: { include: { location: true } } },
+          orderBy: { assignedAt: 'desc' },
+          take: 15,
+        },
+      },
+    });
+
+    // Load user favorites
+    const favorites = await prisma.favorite.findMany({
+      where: { userId },
+      include: { activity: true },
+      take: 30,
+    });
+
+    const result = children.map(child => {
+      const age = calculateAge(child.dateOfBirth);
+
+      // Filter favorites by age match
+      const childFavorites = favorites.filter(f => {
+        const range = f.activity.ageRange as any;
+        return !range || (age >= range.min && age <= range.max);
+      });
+
+      // Compute preferences
+      const categoryCount: Record<string, number> = {};
+      [...childFavorites.map(f => f.activity), ...child.activities.map(a => a.activity)]
+        .forEach(a => { categoryCount[a.category] = (categoryCount[a.category] || 0) + 1; });
+
+      return {
+        id: child.id,
+        name: child.name,
+        age,
+        interests: child.interests,
+        recentFavorites: childFavorites.slice(0, 5).map(f => ({
+          name: f.activity.name,
+          category: f.activity.category,
+        })),
+        calendarActivities: child.activities.map(ca => ({
+          name: ca.activity.name,
+          category: ca.activity.category,
+          status: ca.status,
+        })),
+        preferredCategories: Object.entries(categoryCount)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([cat]) => cat),
+        completedCount: child.activities.filter(a => a.status === 'completed').length,
+        plannedCount: child.activities.filter(a => a.status === 'planned').length,
+      };
+    });
+
+    return JSON.stringify(result);
+  },
+});
+
+/**
+ * Tool: Get Activity Details
+ * Gets detailed information about a specific activity
+ */
+export const getActivityDetailsTool = new DynamicStructuredTool({
+  name: 'get_activity_details',
+  description: 'Get detailed information about a specific activity by ID or name',
+  schema: z.object({
+    activityId: z.string().optional().describe('Activity ID'),
+    activityName: z.string().optional().describe('Activity name to search'),
+  }),
+  func: async ({ activityId, activityName }) => {
+    const activity = await prisma.activity.findFirst({
+      where: {
+        ...(activityId && { id: activityId }),
+        ...(activityName && { name: { contains: activityName, mode: 'insensitive' } }),
+      },
+      include: { location: true, provider: true },
+    });
+
+    if (!activity) return JSON.stringify({ error: 'Activity not found' });
+
+    return JSON.stringify({
+      id: activity.id,
+      name: activity.name,
+      description: activity.description,
+      category: activity.category,
+      price: activity.price,
+      ageRange: activity.ageRange,
+      schedule: activity.schedule,
+      location: {
+        name: activity.location?.name,
+        address: activity.location?.address,
+        city: activity.location?.city,
+      },
+      provider: activity.provider?.name,
+      registrationUrl: activity.registrationUrl,
+      registrationStatus: activity.registrationStatus,
+    });
+  },
+});
+
+/**
+ * Tool: Compare Activities
+ * Compares multiple activities side by side
+ */
+export const compareActivitiesTool = new DynamicStructuredTool({
+  name: 'compare_activities',
+  description: 'Compare multiple activities by their IDs',
+  schema: z.object({
+    activityIds: z.array(z.string()).describe('Array of activity IDs to compare'),
+  }),
+  func: async ({ activityIds }) => {
+    const activities = await prisma.activity.findMany({
+      where: { id: { in: activityIds } },
+      include: { location: true, provider: true },
+    });
+
+    const comparison = activities.map(a => ({
+      id: a.id,
+      name: a.name,
+      category: a.category,
+      price: a.price || 'Not specified',
+      ageRange: a.ageRange || 'All ages',
+      schedule: a.schedule,
+      location: a.location?.city,
+      provider: a.provider?.name,
+    }));
+
+    return JSON.stringify({ comparison, count: comparison.length });
+  },
+});
+
+/**
+ * All activity tools
+ */
+export const activityTools = [
+  searchActivitiesTool,
+  getChildContextTool,
+  getActivityDetailsTool,
+  compareActivitiesTool,
+];
+```
+
+#### 3. Activity Assistant Agent
+
+```typescript
+// server/src/ai/agents/activityAssistantAgent.ts
+
+import { ChatOpenAI } from '@langchain/openai';
+import { AgentExecutor, createOpenAIToolsAgent } from 'langchain/agents';
+import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
+import { ConversationSummaryMemory } from 'langchain/memory';
+import { activityTools } from '../tools/activityTools';
+import { getSmallModel, getLargeModel } from '../models/chatModels';
+import { EnhancedFamilyContext } from '../types/ai.types';
+
+const AGENT_SYSTEM_PROMPT = `You are an AI assistant for KidsActivityTracker, helping parents find activities for their children.
+
+FAMILY CONTEXT:
+{family_context}
+
+RULES:
+1. ONLY discuss kids activities, classes, camps, and related topics
+2. Use the tools to search for activities and get child context
+3. Personalize recommendations based on child preferences and history
+4. When asked about a specific child, use get_child_context first
+5. Always provide specific activity recommendations from our database
+6. Never make up activities - only recommend what you find via search
+7. Consider age appropriateness, location, and schedule preferences
+
+RESPONSE STYLE:
+- Be friendly and helpful
+- Provide 3-5 activity recommendations when asked
+- Explain why each activity is a good match
+- Suggest follow-up questions the user might have`;
+
+/**
+ * Create the Activity Assistant Agent
+ */
+export async function createActivityAssistantAgent(
+  model: ChatOpenAI,
+  memory?: ConversationSummaryMemory
+): Promise<AgentExecutor> {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ['system', AGENT_SYSTEM_PROMPT],
+    new MessagesPlaceholder('chat_history'),
+    ['human', '{input}'],
+    new MessagesPlaceholder('agent_scratchpad'),
   ]);
 
-  const classification = JSON.parse(result.content);
+  const agent = await createOpenAIToolsAgent({
+    llm: model,
+    tools: activityTools,
+    prompt,
+  });
 
-  return {
-    ...state,
-    topicClassification: classification,
-    isBlocked: !classification.allowed || classification.confidence < 0.7
-  };
-};
-```
+  return new AgentExecutor({
+    agent,
+    tools: activityTools,
+    memory,
+    verbose: process.env.NODE_ENV !== 'production',
+    maxIterations: 5,
+    returnIntermediateSteps: true,
+  });
+}
 
-#### 2. Child Context Loader Node
+/**
+ * Chat service using the agent
+ */
+export class ActivityChatService {
+  private conversations: Map<string, {
+    executor: AgentExecutor;
+    memory: ConversationSummaryMemory;
+    turnsUsed: number;
+  }> = new Map();
 
-```typescript
-// server/src/ai/graph/nodes/childContextLoaderNode.ts
+  async chat(
+    userId: string,
+    conversationId: string | null,
+    message: string,
+    familyContext?: EnhancedFamilyContext
+  ): Promise<ChatResponse> {
+    let conversation = conversationId ? this.conversations.get(conversationId) : null;
 
-export const childContextLoaderNode = async (state: AIGraphState): Promise<Partial<AIGraphState>> => {
-  const { userId, selectedChildIds } = state;
+    // Create new conversation if needed
+    if (!conversation) {
+      const model = getSmallModel();
+      const memory = new ConversationSummaryMemory({
+        llm: model,
+        memoryKey: 'chat_history',
+        returnMessages: true,
+      });
 
-  // Load all children or specific children
-  const children = await prisma.child.findMany({
-    where: {
-      userId,
-      ...(selectedChildIds?.length ? { id: { in: selectedChildIds } } : {})
-    },
-    include: {
-      activities: {
-        include: { activity: true },
-        orderBy: { assignedAt: 'desc' },
-        take: 20 // Recent 20 activities
-      }
+      const executor = await createActivityAssistantAgent(model, memory);
+
+      conversationId = `conv_${Date.now()}_${userId}`;
+      conversation = { executor, memory, turnsUsed: 0 };
+      this.conversations.set(conversationId, conversation);
     }
-  });
 
-  // Load favorites for each child (favorites are user-level, map to children by age match)
-  const userFavorites = await prisma.favorite.findMany({
-    where: { userId },
-    include: { activity: true },
-    orderBy: { createdAt: 'desc' },
-    take: 50
-  });
+    // Check turn limits (5 for Pro users)
+    if (conversation.turnsUsed >= 5) {
+      return {
+        conversationId,
+        text: "We've covered a lot! Let's start fresh to keep our search focused.",
+        activities: [],
+        followUpPrompts: ['Start new search'],
+        turnsRemaining: 0,
+        shouldStartNew: true,
+      };
+    }
 
-  // Build enhanced profiles
-  const enhancedProfiles: EnhancedChildProfile[] = children.map(child => {
-    const age = calculateAge(child.dateOfBirth);
+    // Build family context string
+    const familyContextStr = familyContext
+      ? formatFamilyContext(familyContext)
+      : 'No family profile set up yet.';
 
-    // Filter favorites relevant to this child's age
-    const childFavorites = userFavorites.filter(f => {
-      const ageRange = f.activity.ageRange;
-      return !ageRange || (age >= ageRange.min && age <= ageRange.max);
+    // Execute agent
+    const result = await conversation.executor.invoke({
+      input: message,
+      family_context: familyContextStr,
     });
+
+    conversation.turnsUsed++;
+
+    // Parse activities from agent output
+    const activities = extractActivitiesFromResponse(result.output);
+    const followUpPrompts = generateFollowUpPrompts(result.output, familyContext);
 
     return {
-      child_id: child.id,
-      name: child.name,
-      age,
-      interests: child.interests || [],
-
-      favorites: childFavorites.map(f => ({
-        activityId: f.activityId,
-        activityName: f.activity.name,
-        category: f.activity.category,
-        favoritedAt: f.createdAt
-      })),
-
-      calendarActivities: child.activities.map(ca => ({
-        activityId: ca.activityId,
-        activityName: ca.activity.name,
-        status: ca.status,
-        assignedAt: ca.assignedAt
-      })),
-
-      location: state.userLocation,
-
-      computedPreferences: computePreferences(childFavorites, child.activities)
-    };
-  });
-
-  return {
-    ...state,
-    familyContext: {
-      ...state.familyContext,
-      children: enhancedProfiles
-    }
-  };
-};
-
-// Compute preferences from activity history
-function computePreferences(favorites: any[], calendarActivities: any[]) {
-  const allActivities = [
-    ...favorites.map(f => f.activity),
-    ...calendarActivities.map(ca => ca.activity)
-  ];
-
-  // Category frequency
-  const categoryCount: Record<string, number> = {};
-  allActivities.forEach(a => {
-    categoryCount[a.category] = (categoryCount[a.category] || 0) + 1;
-  });
-
-  const preferredCategories = Object.entries(categoryCount)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([cat]) => cat);
-
-  // Day frequency from calendar
-  const dayCount: Record<string, number> = {};
-  calendarActivities.forEach(ca => {
-    const days = ca.activity.schedule?.daysOfWeek || [];
-    days.forEach((d: string) => {
-      dayCount[d] = (dayCount[d] || 0) + 1;
-    });
-  });
-
-  const preferredDays = Object.entries(dayCount)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
-    .map(([day]) => day);
-
-  // Price range
-  const prices = allActivities
-    .map(a => a.price)
-    .filter(p => p != null);
-
-  return {
-    preferredCategories,
-    preferredDays,
-    preferredTimeSlots: [], // Could analyze startTime
-    averagePriceRange: prices.length ? {
-      min: Math.min(...prices) * 0.8,
-      max: Math.max(...prices) * 1.2
-    } : { min: 0, max: 500 },
-    completedActivityTypes: calendarActivities
-      .filter(ca => ca.status === 'completed')
-      .map(ca => ca.activity.category)
-  };
-}
-```
-
-#### 3. Conversation Manager Node
-
-```typescript
-// server/src/ai/graph/nodes/conversationManagerNode.ts
-
-export const conversationManagerNode = async (state: AIGraphState): Promise<Partial<AIGraphState>> => {
-  const { conversationId, userId, userQuery } = state;
-
-  if (!conversationId) {
-    // New conversation
-    const conversation = await prisma.aIConversation.create({
-      data: {
-        userId,
-        context: {},
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000) // 30 min
-      }
-    });
-
-    return {
-      ...state,
-      conversationId: conversation.id,
-      conversationHistory: [],
-      turnsRemaining: 5
-    };
-  }
-
-  // Load existing conversation
-  const conversation = await prisma.aIConversation.findUnique({
-    where: { id: conversationId },
-    include: {
-      turns: { orderBy: { createdAt: 'asc' } }
-    }
-  });
-
-  if (!conversation || conversation.expiresAt < new Date()) {
-    throw new Error('Conversation expired or not found');
-  }
-
-  // Compress history for token efficiency
-  const compressedHistory = compressConversationHistory(conversation.turns);
-
-  return {
-    ...state,
-    conversationId: conversation.id,
-    conversationHistory: compressedHistory,
-    turnsRemaining: Math.max(0, 5 - conversation.turns.length / 2),
-    previousContext: conversation.context as any
-  };
-};
-
-function compressConversationHistory(turns: any[]): ConversationTurn[] {
-  // Keep last 4 turns fully, summarize earlier ones
-  if (turns.length <= 4) {
-    return turns;
-  }
-
-  const recentTurns = turns.slice(-4);
-  const olderTurns = turns.slice(0, -4);
-
-  // Summarize older turns into context
-  const summary = {
-    role: 'system' as const,
-    content: `Previous discussion summary: ${
-      olderTurns.map(t => t.content.substring(0, 50)).join('; ')
-    }...`
-  };
-
-  return [summary, ...recentTurns];
-}
-```
-
-#### 4. Response Formatter Node
-
-```typescript
-// server/src/ai/graph/nodes/responseFormatterNode.ts
-
-export const responseFormatterNode = async (state: AIGraphState): Promise<Partial<AIGraphState>> => {
-  const { recommendations, explanation, familyContext } = state;
-
-  // Generate follow-up prompts based on response type
-  const followUpPrompts = generateFollowUpPrompts(state);
-
-  // Format activities for chat display
-  const formattedActivities = recommendations?.map(rec => ({
-    id: rec.id,
-    name: rec.name,
-    category: rec.category,
-    price: rec.price,
-    ageRange: rec.ageRange,
-    location: rec.location?.name,
-    matchedChild: rec.matched_child_id
-      ? familyContext?.children.find(c => c.child_id === rec.matched_child_id)?.name
-      : undefined,
-    matchReason: rec.explanation
-  }));
-
-  // Save turn to conversation
-  if (state.conversationId) {
-    await prisma.aITurn.createMany({
-      data: [
-        { conversationId: state.conversationId, role: 'user', content: state.userQuery },
-        { conversationId: state.conversationId, role: 'assistant', content: explanation || '' }
-      ]
-    });
-  }
-
-  return {
-    ...state,
-    chatResponse: {
-      text: explanation || '',
-      activities: formattedActivities,
+      conversationId,
+      text: result.output,
+      activities,
       followUpPrompts,
-      childrenIncluded: familyContext?.children.map(c => ({
-        id: c.child_id,
-        name: c.name,
-        age: c.age
-      }))
-    }
-  };
-};
+      turnsRemaining: 5 - conversation.turnsUsed,
+      shouldStartNew: false,
+    };
+  }
 
-function generateFollowUpPrompts(state: AIGraphState): string[] {
-  const { recommendations, familyContext } = state;
+  clearConversation(conversationId: string): void {
+    this.conversations.delete(conversationId);
+  }
+}
 
+interface ChatResponse {
+  conversationId: string;
+  text: string;
+  activities: any[];
+  followUpPrompts: string[];
+  turnsRemaining: number;
+  shouldStartNew: boolean;
+}
+
+function formatFamilyContext(ctx: EnhancedFamilyContext): string {
+  if (!ctx.children?.length) return 'No children registered.';
+
+  return ctx.children.map(child => `
+- ${child.name} (age ${child.age})
+  Interests: ${child.interests?.join(', ') || 'Not specified'}
+  Favorites: ${child.favorites?.slice(0, 3).map(f => f.activityName).join(', ') || 'None'}
+  Preferred categories: ${child.computedPreferences?.preferredCategories?.join(', ') || 'Unknown'}
+  Completed activities: ${child.calendarActivities?.filter(a => a.status === 'completed').length || 0}
+`).join('\n');
+}
+
+function extractActivitiesFromResponse(output: string): any[] {
+  // Try to extract activity IDs mentioned in the response
+  const activityIdPattern = /act_[a-zA-Z0-9-]+/g;
+  const matches = output.match(activityIdPattern) || [];
+  return matches.map(id => ({ id }));
+}
+
+function generateFollowUpPrompts(output: string, ctx?: EnhancedFamilyContext): string[] {
   const prompts: string[] = [];
 
-  if (recommendations?.length) {
+  // Generic follow-ups
+  if (output.includes('activity') || output.includes('activities')) {
     prompts.push('Tell me more about the first option');
-    prompts.push('Show me more options');
-
-    if (recommendations.length > 3) {
-      prompts.push('Compare the top 3');
-    }
+    prompts.push('Show me cheaper alternatives');
   }
 
   // Child-specific follow-ups
-  if (familyContext?.children && familyContext.children.length > 1) {
-    const childNames = familyContext.children.map(c => c.name);
-    prompts.push(`Find something just for ${childNames[0]}`);
+  if (ctx?.children && ctx.children.length > 1) {
+    prompts.push(`What about activities for ${ctx.children[0].name}?`);
   }
 
-  // Category-based follow-ups
-  const categories = [...new Set(recommendations?.map(r => r.category) || [])];
-  if (categories.length > 0) {
-    prompts.push(`More ${categories[0]} options`);
-  }
+  // Schedule follow-ups
+  prompts.push('Any weekend options?');
 
   return prompts.slice(0, 3);
 }
+
+// Singleton instance
+let _chatService: ActivityChatService | null = null;
+
+export function getChatService(): ActivityChatService {
+  if (!_chatService) {
+    _chatService = new ActivityChatService();
+  }
+  return _chatService;
+}
 ```
 
-### Updated Graph Definition
+#### 4. Chat API Route
 
 ```typescript
-// server/src/ai/graph/chatGraph.ts
+// server/src/ai/routes/chat.ts
 
-import { StateGraph, END } from '@langchain/langgraph';
-import { topicClassifierNode } from './nodes/topicClassifierNode';
-import { childContextLoaderNode } from './nodes/childContextLoaderNode';
-import { conversationManagerNode } from './nodes/conversationManagerNode';
-import { responseFormatterNode } from './nodes/responseFormatterNode';
-// ... existing node imports
+import express from 'express';
+import { getChatService } from '../agents/activityAssistantAgent';
+import { checkTopicAllowed } from '../chains/topicGuardChain';
+import { getSmallModel } from '../models/chatModels';
+import { buildEnhancedFamilyContext } from '../utils/contextBuilder';
+import { checkAIQuota, recordAIUsage } from '../services/quotaService';
 
-export const createChatGraph = () => {
-  const graph = new StateGraph<ChatGraphState>({
-    channels: chatGraphChannels
-  });
+const router = express.Router();
 
-  // Add new nodes
-  graph.addNode('topic_classifier', topicClassifierNode);
-  graph.addNode('child_context_loader', childContextLoaderNode);
-  graph.addNode('conversation_manager', conversationManagerNode);
-  graph.addNode('response_formatter', responseFormatterNode);
+/**
+ * POST /api/ai/chat
+ * Main conversational AI endpoint
+ */
+router.post('/chat', async (req, res) => {
+  try {
+    const { message, conversationId, childIds, childSelectionMode } = req.body;
+    const userId = req.user?.id;
 
-  // Add existing nodes
-  graph.addNode('router', routerNode);
-  graph.addNode('parse_query', parseQueryNode);
-  graph.addNode('fetch_candidates', fetchCandidatesNode);
-  graph.addNode('recommend', recommendNode);
-  graph.addNode('multi_child', multiChildNode);
-  graph.addNode('explain', explainNode);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
-  // Define edges
-  graph.setEntryPoint('topic_classifier');
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Message is required' });
+    }
 
-  // Topic classifier branches
-  graph.addConditionalEdges('topic_classifier', (state) => {
-    if (state.isBlocked) return 'blocked';
-    return 'continue';
-  }, {
-    blocked: END, // Return blocked response
-    continue: 'child_context_loader'
-  });
+    // Check quota
+    const quota = await checkAIQuota(userId);
+    if (!quota.allowed) {
+      return res.status(429).json({
+        error: 'AI quota exceeded',
+        quota,
+        upgradeRequired: !quota.isPro,
+      });
+    }
 
-  graph.addEdge('child_context_loader', 'conversation_manager');
-  graph.addEdge('conversation_manager', 'router');
+    // Topic guard - block off-topic queries
+    const model = getSmallModel();
+    const topicCheck = await checkTopicAllowed(model, message);
 
-  // Router branches (existing logic)
-  graph.addConditionalEdges('router', routerCondition, {
-    search: 'parse_query',
-    recommend: 'parse_query',
-    explain: 'explain',
-    multi_child: 'multi_child'
-  });
+    if (!topicCheck.allowed) {
+      return res.json({
+        conversationId: null,
+        text: `I'm here to help you find activities for your kids! Try asking about:\n\n` +
+              `• Swimming lessons, art classes, sports programs\n` +
+              `• Activities for specific ages\n` +
+              `• Weekend or after-school options\n` +
+              `• Camps and seasonal programs`,
+        activities: [],
+        followUpPrompts: [
+          'Swimming lessons near me',
+          'Art classes for kids',
+          'Weekend sports programs',
+        ],
+        blocked: true,
+        reason: topicCheck.reason,
+      });
+    }
 
-  graph.addEdge('parse_query', 'fetch_candidates');
-  graph.addEdge('fetch_candidates', 'recommend');
-  graph.addEdge('recommend', 'response_formatter');
-  graph.addEdge('multi_child', 'response_formatter');
-  graph.addEdge('explain', 'response_formatter');
-  graph.addEdge('response_formatter', END);
+    // Load family context
+    const familyContext = await buildEnhancedFamilyContext(
+      userId,
+      childIds,
+      childSelectionMode || 'auto'
+    );
 
-  return graph.compile();
-};
+    // If child name was extracted, filter to that child
+    if (topicCheck.childName && !childIds?.length) {
+      const matchedChild = familyContext.children.find(
+        c => c.name.toLowerCase().includes(topicCheck.childName!.toLowerCase())
+      );
+      if (matchedChild) {
+        familyContext.children = [matchedChild];
+      }
+    }
+
+    // Execute chat
+    const chatService = getChatService();
+    const response = await chatService.chat(
+      userId,
+      conversationId,
+      message,
+      familyContext
+    );
+
+    // Record usage
+    await recordAIUsage(userId, 1);
+
+    res.json({
+      ...response,
+      quota: {
+        daily: { used: quota.daily.used + 1, limit: quota.daily.limit },
+        monthly: { used: quota.monthly.used + 1, limit: quota.monthly.limit },
+      },
+    });
+
+  } catch (error: any) {
+    console.error('[AI Chat] Error:', error);
+    res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
+
+/**
+ * DELETE /api/ai/chat/:conversationId
+ * End a conversation
+ */
+router.delete('/chat/:conversationId', (req, res) => {
+  const { conversationId } = req.params;
+  getChatService().clearConversation(conversationId);
+  res.json({ success: true });
+});
+
+export default router;
 ```
 
 ### Child Selection API
