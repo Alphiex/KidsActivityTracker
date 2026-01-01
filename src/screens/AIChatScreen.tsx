@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,27 +9,92 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Dimensions,
   Animated,
+  Image,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import { useTheme } from '../contexts/ThemeContext';
-import aiService, { ChatMessage, ChatResponse, ChatQuota } from '../services/aiService';
+import aiService, { ChatMessage, ChatQuota } from '../services/aiService';
 import { useAppSelector } from '../store';
-import ActivityCard from '../components/ActivityCard';
+import PreferencesService from '../services/preferencesService';
+import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
+import { aiRobotImage } from '../assets/images';
 
-const { width } = Dimensions.get('window');
+/**
+ * Calculate age from date of birth string
+ */
+const calculateAge = (dateOfBirth: string): number => {
+  const today = new Date();
+  const birth = new Date(dateOfBirth);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
-// Suggested prompts for new conversations
-const SUGGESTED_PROMPTS = [
-  "What activities are good for my kids this weekend?",
-  "Find swimming lessons near me",
-  "What's new for toddlers?",
-  "Outdoor activities for the whole family",
-];
+/**
+ * Generate personalized prompts based on user data
+ */
+const generatePersonalizedPrompts = (
+  children: Array<{ name: string; dateOfBirth: string }>,
+  locationName: string | undefined,
+  favoriteTypes: string[]
+): string[] => {
+  const prompts: string[] = [];
+
+  // Get children's ages
+  const childrenAges = children.map(c => ({
+    name: c.name,
+    age: calculateAge(c.dateOfBirth)
+  }));
+
+  // Location-based prompts
+  const locationPrefix = locationName ? `in ${locationName}` : 'near me';
+
+  // Age-specific prompts based on children
+  if (childrenAges.length > 0) {
+    const youngestChild = childrenAges.reduce((min, c) => c.age < min.age ? c : min, childrenAges[0]);
+    const oldestChild = childrenAges.reduce((max, c) => c.age > max.age ? c : max, childrenAges[0]);
+
+    if (youngestChild.age <= 3) {
+      prompts.push(`What toddler activities are available ${locationPrefix}?`);
+    } else if (youngestChild.age <= 6) {
+      prompts.push(`What activities are good for preschoolers ${locationPrefix}?`);
+    } else if (youngestChild.age <= 12) {
+      prompts.push(`Find activities for kids ages ${youngestChild.age}-${oldestChild.age} ${locationPrefix}`);
+    } else {
+      prompts.push(`What teen activities are available ${locationPrefix}?`);
+    }
+
+    // Child name specific prompt
+    if (childrenAges.length === 1) {
+      prompts.push(`What weekend activities would ${childrenAges[0].name} enjoy?`);
+    } else {
+      prompts.push(`Find activities all my kids can do together`);
+    }
+  } else {
+    // Default if no children
+    prompts.push(`What kids activities are available ${locationPrefix}?`);
+    prompts.push(`Find weekend activities for families ${locationPrefix}`);
+  }
+
+  // Favorite activity type prompts
+  if (favoriteTypes.length > 0) {
+    const topType = favoriteTypes[0];
+    prompts.push(`Find more ${topType.toLowerCase()} classes ${locationPrefix}`);
+  } else {
+    prompts.push(`What's new this week ${locationPrefix}?`);
+  }
+
+  // General helpful prompt
+  prompts.push(`What activities have spots available this month?`);
+
+  return prompts.slice(0, 4); // Limit to 4 prompts
+};
 
 /**
  * AI Chat Screen
@@ -38,12 +103,23 @@ const SUGGESTED_PROMPTS = [
  */
 const AIChatScreen = () => {
   const navigation = useNavigation();
-  const { colors } = useTheme();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
   // Get children from Redux store
   const children = useAppSelector((state) => state.children?.children || []);
+
+  // Get user preferences for personalized prompts
+  const preferencesService = PreferencesService.getInstance();
+  const preferences = preferencesService.getPreferences();
+
+  // Generate personalized prompts based on user data
+  const suggestedPrompts = useMemo(() => {
+    const locationName = preferences.savedAddress?.city ||
+                         (preferences.locationIds?.[0] ? undefined : undefined);
+    const favoriteTypes = preferences.preferredActivityTypes || [];
+    return generatePersonalizedPrompts(children, locationName, favoriteTypes);
+  }, [children, preferences]);
 
   // State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -64,6 +140,7 @@ const AIChatScreen = () => {
       fetchQuota();
     }, 500);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Animate typing indicator
@@ -78,6 +155,7 @@ const AIChatScreen = () => {
     } else {
       typingAnim.setValue(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
 
   const fetchQuota = async (retryCount = 0) => {
@@ -168,12 +246,9 @@ const AIChatScreen = () => {
       <View style={[styles.messageContainer, isUser ? styles.userMessageContainer : styles.assistantMessageContainer]}>
         {!isUser && (
           <View style={styles.avatarContainer}>
-            <LinearGradient
-              colors={['#FFB5C5', '#E8638B']}
-              style={styles.avatar}
-            >
-              <Icon name="robot" size={20} color="#FFF" />
-            </LinearGradient>
+            <View style={styles.avatar}>
+              <Image source={aiRobotImage} style={styles.avatarImage} />
+            </View>
           </View>
         )}
         <View
@@ -237,12 +312,9 @@ const AIChatScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <LinearGradient
-        colors={['#FFB5C5', '#E8638B']}
-        style={styles.emptyAvatar}
-      >
-        <Icon name="robot" size={40} color="#FFF" />
-      </LinearGradient>
+      <View style={styles.emptyAvatarContainer}>
+        <Image source={aiRobotImage} style={styles.emptyAvatar} />
+      </View>
       <Text style={styles.emptyTitle}>Hi! I'm your Activity Assistant</Text>
       <Text style={styles.emptySubtitle}>
         Ask me anything about finding activities for your kids. I can help with recommendations,
@@ -250,7 +322,7 @@ const AIChatScreen = () => {
       </Text>
       <View style={styles.suggestedPromptsContainer}>
         <Text style={styles.suggestedLabel}>Try asking:</Text>
-        {SUGGESTED_PROMPTS.map((prompt, index) => (
+        {suggestedPrompts.map((prompt, index) => (
           <TouchableOpacity
             key={index}
             style={styles.suggestedPrompt}
@@ -270,12 +342,9 @@ const AIChatScreen = () => {
     return (
       <View style={[styles.messageContainer, styles.assistantMessageContainer]}>
         <View style={styles.avatarContainer}>
-          <LinearGradient
-            colors={['#FFB5C5', '#E8638B']}
-            style={styles.avatar}
-          >
-            <Icon name="robot" size={20} color="#FFF" />
-          </LinearGradient>
+          <View style={styles.avatar}>
+            <Image source={aiRobotImage} style={styles.avatarImage} />
+          </View>
         </View>
         <Animated.View style={[styles.typingBubble, { opacity: typingAnim }]}>
           <Text style={styles.typingText}>Thinking...</Text>
@@ -285,131 +354,142 @@ const AIChatScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color="#333" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>AI Assistant</Text>
-          {turnsRemaining !== null && (
-            <Text style={styles.turnsText}>{turnsRemaining} turns left</Text>
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Top Tab Navigation */}
+        <TopTabNavigation />
+
+        {/* Sub-header with turns and new chat */}
+        <View style={styles.subHeader}>
+          <View style={styles.subHeaderLeft}>
+            {turnsRemaining !== null && (
+              <Text style={styles.turnsText}>{turnsRemaining} turns remaining</Text>
+            )}
+          </View>
+          {messages.length > 0 && (
+            <TouchableOpacity onPress={startNewConversation} style={styles.newChatButton}>
+              <Icon name="plus" size={18} color="#E8638B" />
+              <Text style={styles.newChatText}>New Chat</Text>
+            </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity onPress={startNewConversation} style={styles.newChatButton}>
-          <Icon name="plus" size={24} color="#E8638B" />
-        </TouchableOpacity>
-      </View>
 
-      {/* Quota Warning */}
-      {quota && !quota.allowed && (
-        <View style={styles.quotaWarning}>
-          <Icon name="alert-circle" size={16} color="#FFF" />
-          <Text style={styles.quotaWarningText}>
-            {quota.message || 'Daily limit reached. Upgrade to Pro for unlimited access!'}
-          </Text>
-        </View>
-      )}
+        {/* Quota Warning */}
+        {quota && !quota.allowed && quota.message && (
+          <View style={styles.quotaWarning}>
+            <Icon name="alert-circle" size={16} color="#FFF" />
+            <Text style={styles.quotaWarningText}>
+              {quota.message}
+            </Text>
+          </View>
+        )}
 
-      {/* Error */}
-      {error && (
-        <View style={styles.errorBanner}>
-          <Icon name="alert-circle" size={16} color="#FFF" />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+        {/* Error */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <Icon name="alert-circle" size={16} color="#FFF" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-      {/* Messages */}
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={100}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[
-            styles.messagesList,
-            messages.length === 0 && styles.emptyList,
-          ]}
-          ListEmptyComponent={renderEmptyState}
-          ListFooterComponent={renderTypingIndicator}
-          onContentSizeChange={() => {
-            if (messages.length > 0) {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }
-          }}
-        />
-
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Ask about activities..."
-            placeholderTextColor="#999"
-            multiline
-            maxLength={500}
-            editable={!isLoading && (quota?.allowed !== false)}
+        {/* Messages */}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={100}
+        >
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[
+              styles.messagesList,
+              messages.length === 0 && styles.emptyList,
+            ]}
+            ListEmptyComponent={renderEmptyState}
+            ListFooterComponent={renderTypingIndicator}
+            onContentSizeChange={() => {
+              if (messages.length > 0) {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
           />
-          <TouchableOpacity
-            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-            onPress={() => sendMessage(inputText)}
-            disabled={!inputText.trim() || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Icon name="send" size={20} color="#FFF" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          {/* Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Ask about activities..."
+              placeholderTextColor="#999"
+              multiline
+              maxLength={500}
+              editable={!isLoading && (quota?.allowed !== false)}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+              onPress={() => sendMessage(inputText)}
+              disabled={!inputText.trim() || isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Icon name="send" size={20} color="#FFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+  },
+  safeArea: {
+    flex: 1,
   },
   flex: {
     flex: 1,
   },
-  header: {
+  subHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EBEBEB',
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitleContainer: {
+  subHeaderLeft: {
     flex: 1,
-    marginLeft: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
   },
   turnsText: {
     fontSize: 12,
-    color: '#999',
-    marginTop: 2,
+    color: '#666',
   },
   newChatButton: {
-    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  newChatText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#E8638B',
   },
   quotaWarning: {
     flexDirection: 'row',
@@ -461,8 +541,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
   },
   messageBubble: {
     maxWidth: '80%',
@@ -563,13 +650,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  emptyAvatar: {
+  emptyAvatarContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
+    backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emptyAvatar: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
   },
   emptyTitle: {
     fontSize: 20,
