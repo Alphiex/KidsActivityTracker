@@ -1579,7 +1579,7 @@ const FiltersScreen = () => {
           Set Your Preferences
         </Text>
         <Text style={styles.headerSubtitle}>
-          These preferences will filter your dashboard results
+          Filter Explore results: Recommended, New, and Nearby activities
         </Text>
       </View>
 
