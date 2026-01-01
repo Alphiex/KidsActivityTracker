@@ -221,7 +221,7 @@ app.use('/api/v1/sponsors', partnersRoutes);
 // Analytics tracking routes (v1 API)
 app.use('/api/v1/analytics', analyticsRoutes);
 
-// AI routes (v1 API)
+// AI routes (v1 API) - auth handled per-route inside
 app.use('/api/v1/ai', aiRoutes);
 
 // Subscription management routes

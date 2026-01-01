@@ -10,6 +10,7 @@ import { checkTopicAllowed, getBlockedMessage, getBlockedSuggestedPrompts } from
 import { getSmallModel } from '../models/chatModels';
 import { checkAIQuota, recordAIUsage, getUsageStats, getTurnLimit } from '../services/quotaService';
 import { buildEnhancedFamilyContext } from '../utils/contextBuilder';
+import { verifyToken } from '../../middleware/auth';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ const router = Router();
  * POST /api/v1/ai/chat
  * Main conversational AI endpoint
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', verifyToken, async (req: Request, res: Response) => {
   const startTime = Date.now();
 
   try {
@@ -164,10 +165,11 @@ router.delete('/:conversationId', (req: Request, res: Response) => {
  * GET /api/v1/ai/chat/quota
  * Get user's AI quota status
  */
-router.get('/quota', async (req: Request, res: Response) => {
+router.get('/quota', verifyToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
 
+    // User should exist since verifyToken ran, but check anyway
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
