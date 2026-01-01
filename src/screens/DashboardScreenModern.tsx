@@ -864,11 +864,11 @@ const DashboardScreenModern = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Tab Navigation - Fixed at top */}
-      <TopTabNavigation />
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Tab Navigation - Fixed at top */}
+        <TopTabNavigation />
 
-      <ScreenBackground>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#E8638B" />
@@ -1177,27 +1177,26 @@ const DashboardScreenModern = () => {
       />
           </>
         )}
-      </ScreenBackground>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  safeArea: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
   fixedHeader: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
     zIndex: 50,
   },
   scrollView: {
