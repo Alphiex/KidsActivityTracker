@@ -27,6 +27,8 @@ import {
 } from '../store/slices/childActivitiesSlice';
 import { Activity } from '../types';
 import { Colors } from '../theme';
+import { ChildAvatar } from './children';
+import { getChildColor } from '../theme/childColors';
 
 // Calculate age from date of birth
 const calculateAge = (dateOfBirth: string): number => {
@@ -145,10 +147,10 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
                   </Text>
 
                   <ScrollView style={styles.childrenList} showsVerticalScrollIndicator={false}>
-                    {children.map((child, index) => {
+                    {children.map((child) => {
                       const isOnCalendar = activityChildIds.includes(child.id);
                       const isLoading = loadingChildId === child.id;
-                      const avatarColor = AVATAR_COLORS[index % AVATAR_COLORS.length];
+                      const childColor = getChildColor(child.colorId);
                       const age = calculateAge(child.dateOfBirth);
 
                       return (
@@ -158,19 +160,17 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
                             styles.childRow,
                             {
                               backgroundColor: isOnCalendar
-                                ? Colors.primary + '15'
+                                ? childColor.hex + '15'
                                 : colors.background,
                               borderColor: isOnCalendar
-                                ? Colors.primary
+                                ? childColor.hex
                                 : colors.border,
                             }
                           ]}
                           onPress={() => handleToggleChild(child)}
                           disabled={isLoading}
                         >
-                          <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
-                            <Text style={styles.avatarText}>{getInitials(child.name)}</Text>
-                          </View>
+                          <ChildAvatar child={child} size={40} showBorder={isOnCalendar} borderWidth={2} />
                           <View style={styles.childInfo}>
                             <Text style={[styles.childName, { color: colors.text }]}>
                               {child.name}
@@ -180,13 +180,13 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
                             </Text>
                           </View>
                           {isLoading ? (
-                            <ActivityIndicator size="small" color={Colors.primary} />
+                            <ActivityIndicator size="small" color={childColor.hex} />
                           ) : (
                             <View style={[
                               styles.checkbox,
                               {
-                                backgroundColor: isOnCalendar ? Colors.primary : 'transparent',
-                                borderColor: isOnCalendar ? Colors.primary : colors.border,
+                                backgroundColor: isOnCalendar ? childColor.hex : 'transparent',
+                                borderColor: isOnCalendar ? childColor.hex : colors.border,
                               }
                             ]}>
                               {isOnCalendar && (

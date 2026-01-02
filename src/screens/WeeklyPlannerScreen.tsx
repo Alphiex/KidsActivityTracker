@@ -44,6 +44,8 @@ import { aiRobotImage, getActivityImageByKey } from '../assets/images';
 import { OptimizedActivityImage } from '../components/OptimizedActivityImage';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { formatActivityPrice } from '../utils/formatters';
+import { ChildAvatar } from '../components/children';
+import { getChildColor as getThemeChildColor } from '../theme/childColors';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const TIME_SLOTS = ['morning', 'afternoon', 'evening'] as const;
@@ -53,20 +55,22 @@ const TIME_SLOT_LABELS: Record<typeof TIME_SLOTS[number], string> = {
   evening: 'Evening\n5pm-9pm',
 };
 
-// Child colors matching the app theme
-const CHILD_COLORS = [
-  ModernColors.primary,     // pink
-  ModernColors.success,     // green
-  ModernColors.warning,     // amber
-  '#06B6D4',               // cyan
-  '#8B5CF6',               // purple
-];
-
 /**
- * Get color for a child based on index
+ * Get color for a child - uses child's colorId if available, falls back to index-based
  */
-const getChildColor = (index: number): string => {
-  return CHILD_COLORS[index % CHILD_COLORS.length];
+const getChildColor = (child: ChildWithPreferences | null, index: number): string => {
+  if (child?.colorId) {
+    return getThemeChildColor(child.colorId).hex;
+  }
+  // Fallback for backwards compatibility
+  const fallbackColors = [
+    ModernColors.primary,
+    ModernColors.success,
+    ModernColors.warning,
+    '#06B6D4',
+    '#8B5CF6',
+  ];
+  return fallbackColors[index % fallbackColors.length];
 };
 
 /**
@@ -267,13 +271,13 @@ const WeeklyPlannerScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
   const [currentViewWeek, setCurrentViewWeek] = useState(0); // Week index for viewing results
-  const [viewMode, setViewMode] = useState<ViewMode>('weekly'); // Weekly or monthly view
+  const [_viewMode, _setViewMode] = useState<ViewMode>('weekly'); // Weekly or monthly view (future use)
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [entryApprovals, setEntryApprovals] = useState<Record<string, ApprovalState>>({});
 
   // Existing calendar activities (user's pre-scheduled activities)
   const [existingActivities, setExistingActivities] = useState<ExistingActivity[]>([]);
-  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [_loadingExisting, setLoadingExisting] = useState(false); // TODO: Show loading state for existing activities
   const childrenService = ChildrenService.getInstance();
 
   // Activity details cache (loaded from API when schedule is generated)
@@ -375,11 +379,12 @@ const WeeklyPlannerScreen = () => {
   // Get child info by ID
   const getChildInfo = useCallback((childId: string) => {
     const index = children.findIndex(c => c.id === childId);
-    const child = children[index];
+    const child = children[index] || null;
     return {
       name: child?.name || 'Child',
-      color: getChildColor(index >= 0 ? index : 0),
+      color: getChildColor(child, index >= 0 ? index : 0),
       index,
+      child,
     };
   }, [children]);
 
@@ -534,13 +539,6 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
-   * Set approval state for an entry
-   */
-  const setEntryApproval = (key: string, state: ApprovalState) => {
-    setEntryApprovals(prev => ({ ...prev, [key]: state }));
-  };
-
-  /**
    * Navigate to activity details
    */
   const handleActivityPress = (entry: ScheduleEntry) => {
@@ -635,7 +633,7 @@ const WeeklyPlannerScreen = () => {
         day: activeChatContext.day,
         time_slot: schedule?.entries[activeChatContext.day]?.[activeChatContext.entryIndex]?.time || 'morning',
         excluded_activity_ids: excludedIds,
-        week_start: toISODateString(selectedWeekStart),
+        week_start: toISODateString(currentWeekStartDate),
       });
 
       if (result.success && result.alternative) {
@@ -684,7 +682,7 @@ const WeeklyPlannerScreen = () => {
     } finally {
       setIsChatLoading(false);
     }
-  }, [activeChatContext, schedule, selectedWeekStart, getDeclinedActivityIds, activityService]);
+  }, [activeChatContext, schedule, currentWeekStartDate, getDeclinedActivityIds, activityService]);
 
   /**
    * Handle quick response selection
@@ -823,24 +821,27 @@ const WeeklyPlannerScreen = () => {
 
           {/* Child tabs */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.childTabs}>
-            {children.map((child, idx) => (
-              <TouchableOpacity
-                key={child.id}
-                style={[
-                  styles.childTab,
-                  selectedChildTab === idx && { backgroundColor: getChildColor(idx) + '20', borderColor: getChildColor(idx) },
-                ]}
-                onPress={() => setSelectedChildTab(idx)}
-              >
-                <View style={[styles.childTabDot, { backgroundColor: getChildColor(idx) }]} />
-                <Text style={[
-                  styles.childTabText,
-                  selectedChildTab === idx && { color: getChildColor(idx), fontWeight: '600' },
-                ]}>
-                  {child.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {children.map((child, idx) => {
+              const childColorHex = getChildColor(child, idx);
+              return (
+                <TouchableOpacity
+                  key={child.id}
+                  style={[
+                    styles.childTab,
+                    selectedChildTab === idx && { backgroundColor: childColorHex + '20', borderColor: childColorHex },
+                  ]}
+                  onPress={() => setSelectedChildTab(idx)}
+                >
+                  <ChildAvatar child={child} size={24} showBorder={false} />
+                  <Text style={[
+                    styles.childTabText,
+                    selectedChildTab === idx && { color: childColorHex, fontWeight: '600' },
+                  ]}>
+                    {child.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           <Text style={styles.availabilityHint}>
@@ -870,17 +871,18 @@ const WeeklyPlannerScreen = () => {
                 </TouchableOpacity>
                 {TIME_SLOTS.map(slot => {
                   const isEnabled = currentAvailability.slots[day]?.[slot] ?? true;
+                  const currentChildColor = getChildColor(currentChild, selectedChildTab);
                   return (
                     <TouchableOpacity
                       key={slot}
                       style={[
                         styles.gridSlotCell,
-                        isEnabled && { backgroundColor: getChildColor(selectedChildTab) + '30' },
+                        isEnabled && { backgroundColor: currentChildColor + '30' },
                       ]}
                       onPress={() => toggleAvailability(currentChild.id, day, slot)}
                     >
                       {isEnabled && (
-                        <Icon name="check" size={20} color={getChildColor(selectedChildTab)} />
+                        <Icon name="check" size={20} color={currentChildColor} />
                       )}
                     </TouchableOpacity>
                   );
@@ -1396,59 +1398,41 @@ const WeeklyPlannerScreen = () => {
           )}
         </View>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Delete and Suggest Alternative only */}
         <View style={styles.actionButtonsRow}>
-          {/* Accept Button */}
+          {/* Delete Button */}
           <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.actionButtonAccept,
-              approvalState === 'approved' && styles.actionButtonAcceptActive,
-            ]}
+            style={[styles.actionButton, styles.actionButtonDelete]}
             onPress={(e) => {
               e.stopPropagation();
-              setEntryApproval(uniqueKey, approvalState === 'approved' ? 'pending' : 'approved');
+              // Remove from schedule
+              setSchedule(prev => {
+                if (!prev) return prev;
+                const newEntries = { ...prev.entries };
+                const dayEntries = [...(newEntries[entry.day] || [])];
+                dayEntries.splice(entryIndex, 1);
+                newEntries[entry.day] = dayEntries;
+                return {
+                  ...prev,
+                  entries: newEntries,
+                  total_activities: (prev.total_activities || 0) - 1,
+                };
+              });
+              // Remove approval state
+              setEntryApprovals(prev => {
+                const updated = { ...prev };
+                delete updated[uniqueKey];
+                return updated;
+              });
             }}
           >
-            <Icon
-              name={approvalState === 'approved' ? 'check-circle' : 'check'}
-              size={18}
-              color={approvalState === 'approved' ? '#FFFFFF' : ModernColors.success}
-            />
-            <Text style={[
-              styles.actionButtonText,
-              { color: approvalState === 'approved' ? '#FFFFFF' : ModernColors.success },
-            ]}>
-              {approvalState === 'approved' ? 'Accepted' : 'Accept'}
+            <Icon name="delete-outline" size={18} color={ModernColors.error} />
+            <Text style={[styles.actionButtonText, { color: ModernColors.error }]}>
+              Delete
             </Text>
           </TouchableOpacity>
 
-          {/* Decline Button */}
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.actionButtonDecline,
-              approvalState === 'declined' && styles.actionButtonDeclineActive,
-            ]}
-            onPress={(e) => {
-              e.stopPropagation();
-              setEntryApproval(uniqueKey, approvalState === 'declined' ? 'pending' : 'declined');
-            }}
-          >
-            <Icon
-              name={approvalState === 'declined' ? 'close-circle' : 'close'}
-              size={18}
-              color={approvalState === 'declined' ? '#FFFFFF' : ModernColors.error}
-            />
-            <Text style={[
-              styles.actionButtonText,
-              { color: approvalState === 'declined' ? '#FFFFFF' : ModernColors.error },
-            ]}>
-              No
-            </Text>
-          </TouchableOpacity>
-
-          {/* Find Different Button - Opens chat panel */}
+          {/* Suggest Alternative Button */}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonAlternative]}
             onPress={(e) => {
@@ -1456,9 +1440,108 @@ const WeeklyPlannerScreen = () => {
               handleFindDifferent(entry, uniqueKey, entryIndex);
             }}
           >
-            <Icon name="refresh" size={18} color={ModernColors.primary} />
+            <Icon name="swap-horizontal" size={18} color={ModernColors.primary} />
             <Text style={[styles.actionButtonText, { color: ModernColors.primary }]}>
-              Different
+              Suggest Alternative
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  /**
+   * Render an existing calendar activity card (pre-scheduled by user)
+   */
+  const renderExistingActivityCard = (existing: ExistingActivity, dayIndex: number, entryIndex: number) => {
+    const { childActivity, activity } = existing;
+    const childId = childActivity.childId;
+    const { name: childName, color: childColor } = getChildInfo(childId);
+
+    // Get activity image
+    const imageKey = activity ? getActivityImageKey(activity.category || '', activity.subcategory, activity.name) : 'default';
+    const fallbackImage = getActivityImageByKey(imageKey);
+
+    return (
+      <TouchableOpacity
+        key={`existing-${childActivity.id}-${entryIndex}`}
+        style={[styles.scheduleCard, styles.scheduleCardExisting]}
+        onPress={() => {
+          if (childActivity.activityId) {
+            navigation.navigate('ActivityDetail' as never, { id: childActivity.activityId } as never);
+          }
+        }}
+        activeOpacity={0.8}
+      >
+        {/* EXISTING badge */}
+        <View style={styles.existingBadge}>
+          <Icon name="pin" size={12} color="#FFFFFF" />
+          <Text style={styles.existingBadgeText}>EXISTING</Text>
+        </View>
+
+        {/* Child color indicator bar */}
+        <View style={[styles.childColorBar, { backgroundColor: childColor }]}>
+          <Text style={styles.childColorBarText}>{childName}</Text>
+        </View>
+
+        {/* Activity Image */}
+        <View style={styles.scheduleCardImageContainer}>
+          {activity?.imageUrl ? (
+            <OptimizedActivityImage
+              source={{ uri: activity.imageUrl }}
+              style={styles.scheduleCardImage}
+            />
+          ) : (
+            <Image source={fallbackImage} style={styles.scheduleCardImage} />
+          )}
+
+          {/* Time badge */}
+          {childActivity.startTime && (
+            <View style={styles.timeBadge}>
+              <Icon name="clock-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.timeBadgeText}>{childActivity.startTime}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Activity Details */}
+        <View style={styles.scheduleCardDetails}>
+          <Text style={styles.scheduleCardTitle} numberOfLines={2}>
+            {activity?.name || 'Scheduled Activity'}
+          </Text>
+
+          {activity?.location && (
+            <View style={styles.scheduleCardRow}>
+              <Icon name="map-marker" size={14} color={ModernColors.primary} />
+              <Text style={styles.scheduleCardRowText} numberOfLines={1}>
+                {activity.location.name || activity.location}
+              </Text>
+            </View>
+          )}
+
+          {childActivity.scheduledDate && (
+            <View style={styles.scheduleCardRow}>
+              <Icon name="calendar" size={14} color={ModernColors.textSecondary} />
+              <Text style={styles.scheduleCardRowText}>
+                {new Date(childActivity.scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Action Button - Only Suggest Alternative for existing */}
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonAlternative, { flex: 1 }]}
+            onPress={(e) => {
+              e.stopPropagation();
+              // TODO: Handle suggesting alternative for existing activity
+              setError('Suggesting alternatives for existing activities coming soon');
+            }}
+          >
+            <Icon name="swap-horizontal" size={18} color={ModernColors.primary} />
+            <Text style={[styles.actionButtonText, { color: ModernColors.primary }]}>
+              Suggest Alternative
             </Text>
           </TouchableOpacity>
         </View>
@@ -1473,6 +1556,28 @@ const WeeklyPlannerScreen = () => {
     const entries = schedule?.entries[day] || [];
     const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }) === day;
 
+    // Filter existing activities for this day of week
+    // Match by day name (e.g., "Monday") or by specific date within current view week
+    const existingForDay = existingActivities.filter(ea => {
+      const scheduledDate = ea.childActivity.scheduledDate;
+      if (!scheduledDate) return false;
+
+      // Check if activity falls within current viewing week
+      const activityDate = new Date(scheduledDate);
+      const weekStart = currentWeekStartDate;
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      if (activityDate >= weekStart && activityDate <= weekEnd) {
+        // Check if it matches this day of week
+        const activityDay = activityDate.toLocaleDateString('en-US', { weekday: 'long' });
+        return activityDay === day;
+      }
+      return false;
+    });
+
+    const hasEntries = entries.length > 0 || existingForDay.length > 0;
+
     return (
       <View key={day} style={styles.dayColumn}>
         <View style={[styles.dayHeader, isToday && styles.dayHeaderToday]}>
@@ -1481,8 +1586,13 @@ const WeeklyPlannerScreen = () => {
           </Text>
         </View>
         <View style={styles.dayContent}>
-          {entries.length > 0 ? (
-            entries.map((entry, idx) => renderScheduleEntry(entry, dayIndex, idx))
+          {hasEntries ? (
+            <>
+              {/* Existing calendar activities first */}
+              {existingForDay.map((existing, idx) => renderExistingActivityCard(existing, dayIndex, idx))}
+              {/* AI-generated schedule entries */}
+              {entries.map((entry, idx) => renderScheduleEntry(entry, dayIndex, idx))}
+            </>
           ) : (
             <View style={styles.emptyDay}>
               <Icon name="calendar-blank" size={24} color={ModernColors.border} />
@@ -1688,12 +1798,9 @@ const WeeklyPlannerScreen = () => {
                 {children.slice(0, 3).map((child, idx) => (
                   <View
                     key={child.id}
-                    style={[
-                      styles.childAvatar,
-                      { backgroundColor: getChildColor(idx), marginLeft: idx > 0 ? -8 : 0 },
-                    ]}
+                    style={{ marginLeft: idx > 0 ? -8 : 0 }}
                   >
-                    <Text style={styles.childAvatarText}>{child.name[0]}</Text>
+                    <ChildAvatar child={child} size={32} showBorder={true} borderWidth={2} />
                   </View>
                 ))}
               </View>
@@ -1911,6 +2018,60 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
+   * Render week navigator for multi-week plans
+   */
+  const renderWeekNavigator = () => {
+    if (!schedule || totalWeeks <= 1) return null;
+
+    const weekStart = getWeekStartInRange(startDate, currentViewWeek);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    return (
+      <View style={styles.weekNavigator}>
+        <TouchableOpacity
+          style={[
+            styles.weekNavigatorButton,
+            currentViewWeek === 0 && styles.weekNavigatorButtonDisabled,
+          ]}
+          onPress={() => setCurrentViewWeek(Math.max(0, currentViewWeek - 1))}
+          disabled={currentViewWeek === 0}
+        >
+          <Icon
+            name="chevron-left"
+            size={20}
+            color={currentViewWeek === 0 ? ModernColors.textMuted : ModernColors.text}
+          />
+        </TouchableOpacity>
+
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.weekNavigatorText}>
+            Week {currentViewWeek + 1} of {totalWeeks}
+          </Text>
+          <Text style={styles.weekNavigatorDates}>
+            {formatDate(weekStart)} - {formatDate(weekEnd)}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.weekNavigatorButton,
+            currentViewWeek >= totalWeeks - 1 && styles.weekNavigatorButtonDisabled,
+          ]}
+          onPress={() => setCurrentViewWeek(Math.min(totalWeeks - 1, currentViewWeek + 1))}
+          disabled={currentViewWeek >= totalWeeks - 1}
+        >
+          <Icon
+            name="chevron-right"
+            size={20}
+            color={currentViewWeek >= totalWeeks - 1 ? ModernColors.textMuted : ModernColors.text}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  /**
    * Render legend
    */
   const renderLegend = () => {
@@ -1946,7 +2107,7 @@ const WeeklyPlannerScreen = () => {
           <Text style={styles.headerTitle}>Weekly Planner</Text>
           {schedule && (
             <Text style={styles.headerSubtitle}>
-              Week of {formatDate(selectedWeekStart)}
+              Week of {formatDate(currentWeekStartDate)}
             </Text>
           )}
         </View>
@@ -1985,6 +2146,9 @@ const WeeklyPlannerScreen = () => {
               />
             }
           >
+            {/* Week navigator for multi-week plans */}
+            {renderWeekNavigator()}
+
             {renderSummary()}
             {renderConflicts()}
 
@@ -3300,6 +3464,74 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Action button delete style
+  actionButtonDelete: {
+    backgroundColor: ModernColors.error + '15',
+  },
+
+  // Existing activity card styles
+  scheduleCardExisting: {
+    borderWidth: 2,
+    borderColor: ModernColors.textMuted,
+    borderStyle: 'dashed',
+    opacity: 0.9,
+  },
+  existingBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: ModernColors.textMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 8,
+    borderTopRightRadius: ModernBorderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    zIndex: 10,
+  },
+  existingBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  // Week navigator styles
+  weekNavigator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: ModernColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.border,
+    gap: 16,
+  },
+  weekNavigatorButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: ModernColors.background,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekNavigatorButtonDisabled: {
+    opacity: 0.4,
+  },
+  weekNavigatorText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: ModernColors.text,
+  },
+  weekNavigatorDates: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+    marginTop: 2,
   },
 });
 

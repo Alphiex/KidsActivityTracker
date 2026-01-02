@@ -37,31 +37,31 @@ export default function Header() {
           <div className="hidden md:flex items-center gap-8">
             <Link
               href="/cities"
-              className="text-gray-600 hover:text-purple-600 font-medium transition-colors"
+              className="text-gray-600 hover:text-[#E8638B] font-medium transition-colors"
             >
               Cities
             </Link>
             <Link
               href="/request-city"
-              className="text-gray-600 hover:text-purple-600 font-medium transition-colors"
+              className="text-gray-600 hover:text-[#E8638B] font-medium transition-colors"
             >
               Request a City
             </Link>
             <Link
               href="/faq"
-              className="text-gray-600 hover:text-purple-600 font-medium transition-colors"
+              className="text-gray-600 hover:text-[#E8638B] font-medium transition-colors"
             >
               FAQ
             </Link>
             <Link
               href="/vendor"
-              className="text-gray-600 hover:text-purple-600 font-medium transition-colors"
+              className="text-gray-600 hover:text-[#E8638B] font-medium transition-colors"
             >
               For Vendors
             </Link>
             <Link
               href="#download"
-              className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-5 py-2 rounded-full font-medium hover:opacity-90 transition-opacity"
+              className="bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-5 py-2 rounded-full font-medium hover:opacity-90 transition-opacity"
             >
               Download App
             </Link>
@@ -104,35 +104,35 @@ export default function Header() {
             <div className="flex flex-col gap-4">
               <Link
                 href="/cities"
-                className="text-gray-600 hover:text-purple-600 font-medium"
+                className="text-gray-600 hover:text-[#E8638B] font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Cities
               </Link>
               <Link
                 href="/request-city"
-                className="text-gray-600 hover:text-purple-600 font-medium"
+                className="text-gray-600 hover:text-[#E8638B] font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Request a City
               </Link>
               <Link
                 href="/faq"
-                className="text-gray-600 hover:text-purple-600 font-medium"
+                className="text-gray-600 hover:text-[#E8638B] font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 FAQ
               </Link>
               <Link
                 href="/vendor"
-                className="text-gray-600 hover:text-purple-600 font-medium"
+                className="text-gray-600 hover:text-[#E8638B] font-medium"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 For Vendors
               </Link>
               <Link
                 href="#download"
-                className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-5 py-2 rounded-full font-medium text-center"
+                className="bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-5 py-2 rounded-full font-medium text-center"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Download App

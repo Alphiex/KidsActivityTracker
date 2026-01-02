@@ -25,9 +25,9 @@ const capabilities: AICapability[] = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
     ),
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    gradient: 'from-purple-500 to-purple-600',
+    color: 'text-[#E8638B]',
+    bgColor: 'bg-pink-50',
+    gradient: 'from-[#E8638B] to-[#D53F8C]',
     example: '"soccer for kids aged 8-10 near downtown after school"',
   },
   {
@@ -86,7 +86,7 @@ export default function AICapabilities() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center px-4 py-2 bg-purple-500/20 rounded-full text-purple-300 font-medium text-sm mb-4">
+          <div className="inline-flex items-center px-4 py-2 bg-[#E8638B]/20 rounded-full text-[#FFB5C5] font-medium text-sm mb-4">
             <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
             </svg>
@@ -94,7 +94,7 @@ export default function AICapabilities() {
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
             Smarter Activity Discovery with{' '}
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#FFB5C5] to-[#E8638B] bg-clip-text text-transparent">
               Artificial Intelligence
             </span>
           </h2>
@@ -114,7 +114,7 @@ export default function AICapabilities() {
                 onClick={() => setActiveCapability(capability.id)}
                 className={`w-full text-left p-4 sm:p-5 rounded-xl transition-all duration-300 ${
                   activeCapability === capability.id
-                    ? 'bg-white/10 border-2 border-purple-500 shadow-lg shadow-purple-500/20'
+                    ? 'bg-white/10 border-2 border-[#E8638B] shadow-lg shadow-[#E8638B]/20'
                     : 'bg-white/5 border-2 border-transparent hover:bg-white/10 hover:border-gray-600'
                 }`}
               >
@@ -131,7 +131,7 @@ export default function AICapabilities() {
                     </p>
                   </div>
                   {activeCapability === capability.id && (
-                    <svg className="w-6 h-6 text-purple-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-6 h-6 text-[#E8638B] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -143,7 +143,7 @@ export default function AICapabilities() {
           {/* Right: Active Capability Detail */}
           <div className="relative">
             {/* Glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-3xl blur-2xl" />
+            <div className="absolute -inset-4 bg-gradient-to-r from-[#E8638B]/20 to-[#FFB5C5]/20 rounded-3xl blur-2xl" />
             
             <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 sm:p-8 border border-gray-700">
               {/* Icon */}

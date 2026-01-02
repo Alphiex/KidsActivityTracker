@@ -4,26 +4,28 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  /* Primary Colors */
-  --primary: #9333ea;
-  --primary-dark: #7c3aed;
-  --secondary: #ec4899;
-  --accent: #f472b6;
+  /* Primary Colors - Matching App Theme */
+  --primary: #E8638B;
+  --primary-light: #FFB5C5;
+  --primary-dark: #D53F8C;
+  --secondary: #7C9EF5;
+  --accent: #FFD166;
 
   /* Activity Colors */
   --swim-blue: #0ea5e9;
   --sport-green: #22c55e;
   --art-orange: #f97316;
   --music-yellow: #eab308;
-  --dance-pink: #f472b6;
+  --dance-pink: #E8638B;
   --stem-indigo: #6366f1;
   --nature-emerald: #10b981;
   --camp-amber: #f59e0b;
 
-  /* Backgrounds */
+  /* Backgrounds - Matching App Theme */
   --bg-cream: #fffbeb;
-  --bg-sky: #f0f9ff;
-  --bg-lavender: #faf5ff;
+  --bg-sky: #E8F4FF;
+  --bg-lavender: #FFF5F8;
+  --bg-pink-wash: #FFE5EC;
 }
 
 @theme inline {
@@ -37,9 +39,9 @@ body {
   color: var(--foreground);
 }
 
-/* Custom gradient text */
+/* Custom gradient text - App Theme */
 .gradient-text {
-  background: linear-gradient(135deg, #9333ea 0%, #ec4899 50%, #f97316 100%);
+  background: linear-gradient(135deg, #FFB5C5 0%, #E8638B 50%, #D53F8C 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -84,13 +86,13 @@ html {
   animation-delay: 2s;
 }
 
-/* Pulse animation for CTA */
+/* Pulse animation for CTA - App Theme Pink */
 @keyframes pulse-soft {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.4);
+    box-shadow: 0 0 0 0 rgba(232, 99, 139, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 15px rgba(147, 51, 234, 0);
+    box-shadow: 0 0 0 15px rgba(232, 99, 139, 0);
   }
 }
 
@@ -98,15 +100,15 @@ html {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* Confetti/dots background pattern */
+/* Confetti/dots background pattern - App Theme */
 .bg-dots {
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(147, 51, 234, 0.1) 0%, transparent 8%),
-    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 6%),
-    radial-gradient(circle at 40% 70%, rgba(249, 115, 22, 0.1) 0%, transparent 5%),
-    radial-gradient(circle at 70% 60%, rgba(14, 165, 233, 0.1) 0%, transparent 7%),
-    radial-gradient(circle at 10% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 6%),
-    radial-gradient(circle at 90% 80%, rgba(234, 179, 8, 0.1) 0%, transparent 4%);
+    radial-gradient(circle at 20% 30%, rgba(232, 99, 139, 0.1) 0%, transparent 8%),
+    radial-gradient(circle at 80% 20%, rgba(255, 181, 197, 0.15) 0%, transparent 6%),
+    radial-gradient(circle at 40% 70%, rgba(255, 209, 102, 0.1) 0%, transparent 5%),
+    radial-gradient(circle at 70% 60%, rgba(124, 158, 245, 0.1) 0%, transparent 7%),
+    radial-gradient(circle at 10% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 6%),
+    radial-gradient(circle at 90% 80%, rgba(213, 63, 140, 0.1) 0%, transparent 4%);
 }
 
 /* Image hover zoom */
@@ -149,7 +151,7 @@ html {
 .stagger-fade-in > *:nth-child(7) { animation-delay: 0.7s; }
 .stagger-fade-in > *:nth-child(8) { animation-delay: 0.8s; }
 
-/* Gradient borders */
+/* Gradient borders - App Theme */
 .gradient-border {
   position: relative;
 }
@@ -160,7 +162,7 @@ html {
   inset: 0;
   border-radius: inherit;
   padding: 2px;
-  background: linear-gradient(135deg, #9333ea, #ec4899, #f97316);
+  background: linear-gradient(135deg, #FFB5C5, #E8638B, #D53F8C);
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -173,7 +175,7 @@ html {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Button glow effect */
+/* Button glow effect - App Theme */
 .btn-glow {
   position: relative;
   overflow: hidden;
@@ -183,7 +185,7 @@ html {
   content: '';
   position: absolute;
   inset: -2px;
-  background: linear-gradient(135deg, #9333ea, #ec4899, #f97316);
+  background: linear-gradient(135deg, #FFB5C5, #E8638B, #D53F8C);
   border-radius: inherit;
   z-index: -1;
   opacity: 0;

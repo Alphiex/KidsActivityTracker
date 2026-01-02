@@ -18,12 +18,12 @@ export default function Hero() {
   const [imageError, setImageError] = useState(false);
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-purple-50 via-white to-pink-50 py-20 lg:py-28 bg-dots">
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#FFF5F8] via-white to-[#E8F4FF] py-20 lg:py-28 bg-dots">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-200 rounded-full opacity-30 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-200 rounded-full opacity-30 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-100 rounded-full opacity-20 blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#FFB5C5] rounded-full opacity-30 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#E8638B] rounded-full opacity-20 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#FFE5EC] rounded-full opacity-30 blur-3xl" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,7 +32,7 @@ export default function Hero() {
           <div className="text-center lg:text-left">
             {/* Canadian Badge */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-6">
-              <div className="inline-flex items-center px-4 py-2 bg-purple-100 rounded-full text-purple-700 font-medium text-sm">
+              <div className="inline-flex items-center px-4 py-2 bg-pink-100 rounded-full text-[#E8638B] font-medium text-sm">
                 <span className="mr-2">🎉</span>
                 Now available in {displayCount} Canadian cities
               </div>
@@ -61,8 +61,8 @@ export default function Hero() {
 
             <div className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-gray-600">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                <div className="w-6 h-6 rounded-full bg-pink-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-[#E8638B]" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
                   </svg>
                 </div>
@@ -103,7 +103,7 @@ export default function Hero() {
                 <div className="bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
                   <div className="bg-gray-100 rounded-[2.5rem] overflow-hidden aspect-[9/19]">
                     {/* App screenshot */}
-                    <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-100 relative">
+                    <div className="w-full h-full bg-gradient-to-br from-[#FFE5EC] to-[#FFF5F8] relative">
                       {!imageError && (
                         <Image
                           src="/images/screenshots/dashboard.png"
@@ -156,7 +156,7 @@ export default function Hero() {
                     key={i}
                     className="w-2 h-2 rounded-full"
                     style={{
-                      backgroundColor: ['#9333ea', '#ec4899', '#f97316', '#0ea5e9', '#22c55e'][i % 5],
+                      backgroundColor: ['#E8638B', '#FFB5C5', '#FFD166', '#7C9EF5', '#22c55e'][i % 5],
                     }}
                   />
                 ))}
@@ -167,7 +167,7 @@ export default function Hero() {
                     key={i}
                     className="w-2 h-2 rounded-full"
                     style={{
-                      backgroundColor: ['#ec4899', '#f97316', '#22c55e', '#9333ea'][i % 4],
+                      backgroundColor: ['#FFB5C5', '#FFD166', '#22c55e', '#E8638B'][i % 4],
                     }}
                   />
                 ))}

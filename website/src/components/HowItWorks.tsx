@@ -16,27 +16,27 @@ const steps: Step[] = [
     title: 'Ask Naturally',
     description: 'Search like you talk: "swimming for my 5 year old on weekends" — our AI understands and finds matches instantly.',
     image: '/images/illustrations/onboarding-1-discover.png',
-    color: 'from-purple-500 to-purple-600',
+    color: 'from-[#FFB5C5] to-[#E8638B]',
   },
   {
     number: 2,
     title: 'See Why It\'s Great',
     description: 'Our AI explains exactly how each activity benefits your child\'s development — building confidence, coordination, and social skills.',
     image: '/images/illustrations/onboarding-2-schedule.png',
-    color: 'from-pink-500 to-pink-600',
+    color: 'from-[#E8638B] to-[#D53F8C]',
   },
   {
     number: 3,
     title: 'Never Miss a Spot',
     description: 'Join waitlists for full activities and get push notifications the instant spots become available.',
     image: '/images/illustrations/onboarding-3-family.png',
-    color: 'from-orange-500 to-orange-600',
+    color: 'from-[#FFD166] to-[#F5B800]',
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="py-20 bg-gradient-to-b from-purple-50 to-white">
+    <section className="py-20 bg-gradient-to-b from-[#FFF5F8] to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -53,13 +53,13 @@ export default function HowItWorks() {
             <div key={step.number} className="relative">
               {/* Connector line (hidden on mobile, last item) */}
               {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-32 left-1/2 w-full h-0.5 bg-gradient-to-r from-purple-300 to-pink-300 z-0" />
+                <div className="hidden md:block absolute top-32 left-1/2 w-full h-0.5 bg-gradient-to-r from-[#FFB5C5] to-[#E8638B] z-0" />
               )}
 
               <div className="relative z-10 text-center">
                 {/* Image */}
                 <div className="relative w-48 h-48 mx-auto mb-6">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#FFE5EC] to-[#FFF5F8] rounded-full" />
                   <Image
                     src={step.image}
                     alt={step.title}
@@ -99,7 +99,7 @@ export default function HowItWorks() {
         <div className="text-center mt-16">
           <a
             href="#"
-            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-xl font-semibold text-lg hover:from-[#D53F8C] hover:to-[#C53078] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             Get Started Free
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

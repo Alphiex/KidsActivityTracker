@@ -33,7 +33,11 @@ import DayTimeGridSelector, {
   DAYS_OF_WEEK,
 } from '../components/DayTimeGridSelector';
 import { ChildActivitiesStep, ChildActivitiesData } from '../components/childSetup';
+import { ChildAvatar } from '../components/children';
+import { getChildColor } from '../theme/childColors';
 import { ModernColors } from '../theme/modernTheme';
+import TopTabNavigation from '../components/TopTabNavigation';
+import ScreenBackground from '../components/ScreenBackground';
 
 type PreferencesSection = 'activities' | 'environment' | 'distance' | 'cost' | 'when';
 
@@ -372,25 +376,30 @@ const ChildPreferencesScreen: React.FC = () => {
 
   if (children.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyState}>
-          <Icon name="account-child-outline" size={64} color={ModernColors.textSecondary} />
-          <Text style={styles.emptyTitle}>No Children Added</Text>
-          <Text style={styles.emptyText}>
-            Add a child in the Friends & Family tab to set up preferences.
-          </Text>
-        </View>
-      </SafeAreaView>
+      <ScreenBackground style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <TopTabNavigation />
+          <View style={styles.emptyState}>
+            <Icon name="account-child-outline" size={64} color={ModernColors.textSecondary} />
+            <Text style={styles.emptyTitle}>No Children Added</Text>
+            <Text style={styles.emptyText}>
+              Add a child in the Friends & Family tab to set up preferences.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <ScreenBackground style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <TopTabNavigation />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Child Preferences</Text>
@@ -447,12 +456,13 @@ const ChildPreferencesScreen: React.FC = () => {
             {children.map((child) => {
               const isSelected = child.id === selectedChildId;
               const age = child.dateOfBirth ? calculateAge(child.dateOfBirth) : null;
+              const childColor = getChildColor(child.colorId);
               return (
                 <TouchableOpacity
                   key={child.id}
                   style={[
                     styles.childChip,
-                    isSelected && styles.childChipSelected,
+                    isSelected && [styles.childChipSelected, { borderColor: childColor.hex, backgroundColor: childColor.hex + '15' }],
                   ]}
                   onPress={() => {
                     if (!isSelected) {
@@ -475,35 +485,30 @@ const ChildPreferencesScreen: React.FC = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                  <View style={[
-                    styles.childChipAvatar,
-                    isSelected && styles.childChipAvatarSelected,
-                  ]}>
-                    <Text style={[
-                      styles.childChipInitial,
-                      isSelected && styles.childChipInitialSelected,
-                    ]}>
-                      {child.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+                  <ChildAvatar
+                    child={child}
+                    size={40}
+                    showBorder={isSelected}
+                    borderWidth={2}
+                  />
                   <View style={styles.childChipInfo}>
                     <Text style={[
                       styles.childChipName,
-                      isSelected && styles.childChipNameSelected,
+                      isSelected && { color: getChildColor(child.colorId).hex },
                     ]}>
                       {child.name}
                     </Text>
                     {age !== null && (
                       <Text style={[
                         styles.childChipAge,
-                        isSelected && styles.childChipAgeSelected,
+                        isSelected && { color: getChildColor(child.colorId).hex },
                       ]}>
                         {age} years
                       </Text>
                     )}
                   </View>
                   {isSelected && (
-                    <Icon name="check-circle" size={20} color={ModernColors.primary} />
+                    <Icon name="check-circle" size={20} color={getChildColor(child.colorId).hex} />
                   )}
                 </TouchableOpacity>
               );
@@ -692,14 +697,17 @@ const ChildPreferencesScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+  },
+  safeArea: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
