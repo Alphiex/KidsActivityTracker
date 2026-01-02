@@ -434,14 +434,16 @@ const DashboardScreenModern = () => {
         maxBudget: maxBudgetAmount,
         firstItem: response?.items?.[0]?.name
       });
-      if (response?.items && Array.isArray(response.items)) {
+      if (isMountedRef.current && response?.items && Array.isArray(response.items)) {
         // Shuffle results for variety on each load
         setBudgetFriendlyActivities(shuffleArray(response.items));
         console.log('Set budget friendly activities (shuffled):', response.items.length);
       }
     } catch (error) {
       console.error('Error loading budget activities:', error);
-      setBudgetFriendlyActivities([]); // Set empty array on error
+      if (isMountedRef.current) {
+        setBudgetFriendlyActivities([]); // Set empty array on error
+      }
     }
   };
 
@@ -502,14 +504,16 @@ const DashboardScreenModern = () => {
         itemsCount: response?.items?.length,
         firstItem: response?.items?.[0]?.name
       });
-      if (response?.items && Array.isArray(response.items)) {
+      if (isMountedRef.current && response?.items && Array.isArray(response.items)) {
         // Shuffle results for variety on each load
         setNewActivities(shuffleArray(response.items));
         console.log('Set new activities (shuffled):', response.items.length);
       }
     } catch (error) {
       console.error('Error loading new activities:', error);
-      setNewActivities([]); // Set empty array on error
+      if (isMountedRef.current) {
+        setNewActivities([]); // Set empty array on error
+      }
     }
   };
 
@@ -560,25 +564,30 @@ const DashboardScreenModern = () => {
         selectedTypes = selectedTypes.slice(0, 6);
         
         console.log('Final activity types:', selectedTypes.map(t => `${t.name} (${t.activityCount} activities)`));
-        setActivityTypes(selectedTypes);
+        if (isMountedRef.current) {
+          setActivityTypes(selectedTypes);
+        }
       } else {
         throw new Error('Invalid API response format');
       }
     } catch (error) {
       console.error('Error loading activity types:', error);
       // Fallback to default types
-      setActivityTypes([
-        { id: 1, name: 'Swimming & Aquatics', code: 'swimming-aquatics', activityCount: 0 },
-        { id: 2, name: 'Team Sports', code: 'team-sports', activityCount: 0 },
-        { id: 3, name: 'Visual Arts', code: 'visual-arts', activityCount: 0 },
-        { id: 4, name: 'Dance', code: 'dance', activityCount: 0 },
-        { id: 5, name: 'Music', code: 'music', activityCount: 0 },
-        { id: 6, name: 'Martial Arts', code: 'martial-arts', activityCount: 0 },
-      ]);
+      if (isMountedRef.current) {
+        setActivityTypes([
+          { id: 1, name: 'Swimming & Aquatics', code: 'swimming-aquatics', activityCount: 0 },
+          { id: 2, name: 'Team Sports', code: 'team-sports', activityCount: 0 },
+          { id: 3, name: 'Visual Arts', code: 'visual-arts', activityCount: 0 },
+          { id: 4, name: 'Dance', code: 'dance', activityCount: 0 },
+          { id: 5, name: 'Music', code: 'music', activityCount: 0 },
+          { id: 6, name: 'Martial Arts', code: 'martial-arts', activityCount: 0 },
+        ]);
+      }
     }
   };
 
   const loadAgeGroups = async () => {
+    if (!isMountedRef.current) return;
     setAgeGroups([
       {
         id: 1,
