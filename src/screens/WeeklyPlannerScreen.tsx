@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  Dimensions,
   Animated,
   Image,
 } from 'react-native';
@@ -18,14 +17,18 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
 import aiService from '../services/aiService';
+import ActivityService from '../services/activityService';
 import { WeeklySchedule, ScheduleEntry } from '../types/ai';
+import { Activity } from '../types';
 import { ModernColors, ModernShadows, ModernBorderRadius } from '../theme/modernTheme';
 import { useAppSelector } from '../store';
 import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
 import ScreenBackground from '../components/ScreenBackground';
-import { aiRobotImage } from '../assets/images';
+import { aiRobotImage, getActivityImageByKey } from '../assets/images';
+import { OptimizedActivityImage } from '../components/OptimizedActivityImage';
+import { getActivityImageKey } from '../utils/activityHelpers';
+import { formatActivityPrice } from '../utils/formatters';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const TIME_SLOTS = ['morning', 'afternoon', 'evening'] as const;
 const TIME_SLOT_LABELS: Record<typeof TIME_SLOTS[number], string> = {
@@ -51,20 +54,6 @@ const getChildColor = (index: number): string => {
 };
 
 /**
- * Calculate child's age from date of birth
- */
-const calculateAge = (dateOfBirth: string): number => {
-  const dob = new Date(dateOfBirth);
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age;
-};
-
-/**
  * Per-child availability slots
  */
 interface ChildAvailability {
@@ -82,11 +71,6 @@ interface ChildAvailability {
  * Entry approval state
  */
 type ApprovalState = 'pending' | 'approved' | 'declined';
-
-interface ScheduleEntryWithApproval extends ScheduleEntry {
-  approvalState: ApprovalState;
-  uniqueKey: string;
-}
 
 /**
  * Get the next Monday date
@@ -136,7 +120,7 @@ const WeeklyPlannerScreen = () => {
 
   // Schedule state
   const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing] = useState(false);
   const [schedule, setSchedule] = useState<WeeklySchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +137,11 @@ const WeeklyPlannerScreen = () => {
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [entryApprovals, setEntryApprovals] = useState<Record<string, ApprovalState>>({});
 
+  // Activity details cache (loaded from API when schedule is generated)
+  const [activityDetails, setActivityDetails] = useState<Record<string, Activity>>({});
+  const [loadingAlternative, setLoadingAlternative] = useState<string | null>(null);
+  const activityService = ActivityService.getInstance();
+
   // Animation
   const fadeAnim = useState(new Animated.Value(0))[0];
 
@@ -161,6 +150,7 @@ const WeeklyPlannerScreen = () => {
     if (children.length > 0 && childAvailability.length === 0) {
       setChildAvailability(initializeAvailability(children));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [children]);
 
   // Fade in animation
@@ -170,6 +160,7 @@ const WeeklyPlannerScreen = () => {
       duration: 300,
       useNativeDriver: true,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Get unique child IDs from schedule
@@ -224,6 +215,21 @@ const WeeklyPlannerScreen = () => {
           approvals[key] = 'pending';
         });
         setEntryApprovals(approvals);
+
+        // Load activity details for all activities in the schedule
+        const activityIds = [...new Set(Object.values(result.schedule.entries).flat().map(e => e.activity_id))];
+        const details: Record<string, Activity> = {};
+        await Promise.all(activityIds.map(async (id) => {
+          try {
+            const activity = await activityService.getActivityDetails(id);
+            if (activity) {
+              details[id] = activity;
+            }
+          } catch (err) {
+            console.warn('Failed to load activity details for', id);
+          }
+        }));
+        setActivityDetails(details);
       } else {
         setError(result.error || 'Failed to generate schedule');
       }
@@ -287,6 +293,77 @@ const WeeklyPlannerScreen = () => {
    */
   const handleActivityPress = (entry: ScheduleEntry) => {
     navigation.navigate('ActivityDetail' as never, { id: entry.activity_id } as never);
+  };
+
+  /**
+   * Request AI to find a different activity for this slot
+   */
+  const handleFindDifferent = async (entry: ScheduleEntry, uniqueKey: string, entryIndex: number) => {
+    setLoadingAlternative(uniqueKey);
+
+    try {
+      // Get declined activity IDs to exclude
+      const declinedActivityIds = Object.entries(entryApprovals)
+        .filter(([_, state]) => state === 'declined')
+        .map(([key]) => {
+          // Extract activity_id from key format: childId-activityId-day-index
+          const parts = key.split('-');
+          return parts.length >= 2 ? parts[1] : null;
+        })
+        .filter(Boolean) as string[];
+
+      // Add current activity to exclusions
+      declinedActivityIds.push(entry.activity_id);
+
+      // Request AI to find alternative
+      const result = await aiService.findAlternativeActivity({
+        child_id: entry.child_id,
+        day: entry.day,
+        time_slot: entry.time,
+        excluded_activity_ids: declinedActivityIds,
+        week_start: toISODateString(selectedWeekStart),
+      });
+
+      if (result.success && result.alternative) {
+        // Update schedule with new activity
+        setSchedule(prev => {
+          if (!prev) return prev;
+          const newEntries = { ...prev.entries };
+          const dayEntries = [...(newEntries[entry.day] || [])];
+          if (entryIndex < dayEntries.length) {
+            dayEntries[entryIndex] = result.alternative;
+            newEntries[entry.day] = dayEntries;
+          }
+          return { ...prev, entries: newEntries };
+        });
+
+        // Load activity details for new activity
+        try {
+          const activity = await activityService.getActivityDetails(result.alternative.activity_id);
+          if (activity) {
+            setActivityDetails(prev => ({ ...prev, [result.alternative.activity_id]: activity }));
+          }
+        } catch (err) {
+          console.warn('Failed to load alternative activity details');
+        }
+
+        // Reset approval for new entry
+        const newKey = `${result.alternative.child_id}-${result.alternative.activity_id}-${result.alternative.day}-${entryIndex}`;
+        setEntryApprovals(prev => {
+          const updated = { ...prev };
+          delete updated[uniqueKey];
+          updated[newKey] = 'pending';
+          return updated;
+        });
+      } else {
+        setError(result.error || 'No alternative activity found for this slot');
+      }
+    } catch (err) {
+      console.error('Failed to find alternative:', err);
+      setError('Failed to find alternative activity');
+    } finally {
+      setLoadingAlternative(null);
+    }
   };
 
   /**
@@ -463,80 +540,154 @@ const WeeklyPlannerScreen = () => {
   );
 
   /**
-   * Render a schedule entry card
+   * Render a schedule entry card (ActivityCard-style)
    */
   const renderScheduleEntry = (entry: ScheduleEntry, dayIndex: number, entryIndex: number) => {
     const { name: childName, color: childColor } = getChildInfo(entry.child_id);
     const uniqueKey = `${entry.child_id}-${entry.activity_id}-${entry.day}-${entryIndex}`;
     const approvalState = entryApprovals[uniqueKey] || 'pending';
+    const activity = activityDetails[entry.activity_id];
+    const isLoadingAlternative = loadingAlternative === uniqueKey;
+
+    // Get activity image
+    const imageKey = activity ? getActivityImageKey(activity) : 'default';
+    const fallbackImage = getActivityImageByKey(imageKey);
 
     return (
-      <TouchableOpacity
+      <View
         key={uniqueKey}
         style={[
-          styles.entryCard,
-          { borderLeftColor: childColor },
-          approvalState === 'approved' && styles.entryCardApproved,
-          approvalState === 'declined' && styles.entryCardDeclined,
+          styles.scheduleCard,
+          approvalState === 'approved' && styles.scheduleCardApproved,
+          approvalState === 'declined' && styles.scheduleCardDeclined,
         ]}
-        onPress={() => handleActivityPress(entry)}
-        activeOpacity={0.7}
       >
-        <View style={styles.entryContent}>
-          <View style={styles.entryTime}>
-            <Text style={styles.entryTimeText}>{entry.time}</Text>
-            {entry.duration_minutes && (
-              <Text style={styles.entryDuration}>{entry.duration_minutes} min</Text>
-            )}
-          </View>
-          <View style={styles.entryDetails}>
-            <Text style={styles.entryActivityName} numberOfLines={2}>
-              {entry.activity_name}
-            </Text>
-            <View style={styles.entryMeta}>
-              <View style={[styles.childBadge, { backgroundColor: childColor + '20' }]}>
-                <Text style={[styles.childBadgeText, { color: childColor }]}>
-                  {entry.child_name || childName}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.locationRow}>
-              <Icon name="map-marker" size={12} color={ModernColors.textSecondary} />
-              <Text style={styles.entryLocation} numberOfLines={1}>{entry.location}</Text>
-            </View>
-          </View>
+        {/* Child color indicator bar at top */}
+        <View style={[styles.childColorBar, { backgroundColor: childColor }]}>
+          <Text style={styles.childColorBarText}>
+            {entry.child_name || childName}
+          </Text>
         </View>
 
-        {/* Approval buttons */}
-        <View style={styles.approvalButtons}>
+        <TouchableOpacity
+          style={styles.scheduleCardContent}
+          onPress={() => handleActivityPress(entry)}
+          activeOpacity={0.7}
+        >
+          {/* Activity Image */}
+          <View style={styles.scheduleCardImageContainer}>
+            {activity?.imageUrl ? (
+              <OptimizedActivityImage
+                activity={activity}
+                style={styles.scheduleCardImage}
+                fallbackImage={fallbackImage}
+              />
+            ) : (
+              <Image source={fallbackImage} style={styles.scheduleCardImage} />
+            )}
+            {/* Time badge overlay */}
+            <View style={styles.timeBadge}>
+              <Icon name="clock-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.timeBadgeText}>{entry.time}</Text>
+            </View>
+          </View>
+
+          {/* Activity Details */}
+          <View style={styles.scheduleCardDetails}>
+            <Text style={styles.scheduleCardTitle} numberOfLines={2}>
+              {entry.activity_name}
+            </Text>
+
+            {/* Location */}
+            <View style={styles.scheduleCardRow}>
+              <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
+              <Text style={styles.scheduleCardRowText} numberOfLines={1}>
+                {entry.location}
+              </Text>
+            </View>
+
+            {/* Duration & Cost */}
+            <View style={styles.scheduleCardRow}>
+              {entry.duration_minutes && (
+                <>
+                  <Icon name="timer-outline" size={14} color={ModernColors.textSecondary} />
+                  <Text style={styles.scheduleCardRowText}>{entry.duration_minutes} min</Text>
+                </>
+              )}
+              {activity?.cost !== undefined && activity.cost !== null && (
+                <Text style={styles.scheduleCardCost}>
+                  {formatActivityPrice(activity.cost)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsRow}>
+          {/* Accept Button */}
           <TouchableOpacity
             style={[
-              styles.approvalButton,
-              approvalState === 'approved' && styles.approvalButtonActive,
+              styles.actionButton,
+              styles.actionButtonAccept,
+              approvalState === 'approved' && styles.actionButtonAcceptActive,
             ]}
             onPress={() => setEntryApproval(uniqueKey, approvalState === 'approved' ? 'pending' : 'approved')}
           >
             <Icon
-              name="check"
+              name={approvalState === 'approved' ? 'check-circle' : 'check'}
               size={18}
               color={approvalState === 'approved' ? '#FFFFFF' : ModernColors.success}
             />
+            <Text style={[
+              styles.actionButtonText,
+              { color: approvalState === 'approved' ? '#FFFFFF' : ModernColors.success },
+            ]}>
+              {approvalState === 'approved' ? 'Accepted' : 'Accept'}
+            </Text>
           </TouchableOpacity>
+
+          {/* Decline Button */}
           <TouchableOpacity
             style={[
-              styles.approvalButton,
-              approvalState === 'declined' && styles.approvalButtonDeclined,
+              styles.actionButton,
+              styles.actionButtonDecline,
+              approvalState === 'declined' && styles.actionButtonDeclineActive,
             ]}
             onPress={() => setEntryApproval(uniqueKey, approvalState === 'declined' ? 'pending' : 'declined')}
           >
             <Icon
-              name="close"
+              name={approvalState === 'declined' ? 'close-circle' : 'close'}
               size={18}
               color={approvalState === 'declined' ? '#FFFFFF' : ModernColors.error}
             />
+            <Text style={[
+              styles.actionButtonText,
+              { color: approvalState === 'declined' ? '#FFFFFF' : ModernColors.error },
+            ]}>
+              No
+            </Text>
+          </TouchableOpacity>
+
+          {/* Find Different Button */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonAlternative]}
+            onPress={() => handleFindDifferent(entry, uniqueKey, entryIndex)}
+            disabled={isLoadingAlternative}
+          >
+            {isLoadingAlternative ? (
+              <ActivityIndicator size="small" color={ModernColors.primary} />
+            ) : (
+              <>
+                <Icon name="refresh" size={18} color={ModernColors.primary} />
+                <Text style={[styles.actionButtonText, { color: ModernColors.primary }]}>
+                  Different
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -614,7 +765,7 @@ const WeeklyPlannerScreen = () => {
         </View>
         {schedule.suggestions.map((suggestion, index) => (
           <View key={index} style={styles.suggestionCard}>
-            <Icon name="sparkles" size={16} color={ModernColors.primary} />
+            <Icon name="lightbulb-on" size={16} color={ModernColors.primary} />
             <Text style={styles.suggestionText}>{suggestion}</Text>
           </View>
         ))}
@@ -629,8 +780,6 @@ const WeeklyPlannerScreen = () => {
     if (!schedule) return null;
 
     const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
-    const declinedCount = Object.values(entryApprovals).filter(s => s === 'declined').length;
-    const pendingCount = Object.values(entryApprovals).filter(s => s === 'pending').length;
 
     return (
       <View style={styles.summarySection}>
@@ -798,7 +947,7 @@ const WeeklyPlannerScreen = () => {
             end={{ x: 1, y: 0 }}
             style={styles.generateButtonGradient}
           >
-            <Icon name="sparkles" size={20} color="#FFFFFF" />
+            <Icon name="creation" size={20} color="#FFFFFF" />
             <Text style={styles.generateButtonText}>Generate Schedule</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -1520,6 +1669,129 @@ const styles = StyleSheet.create({
     backgroundColor: ModernColors.error,
     borderColor: ModernColors.error,
   },
+
+  // New Schedule Card styles (ActivityCard-like)
+  scheduleCard: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: 12,
+    ...ModernShadows.sm,
+  },
+  scheduleCardApproved: {
+    borderWidth: 2,
+    borderColor: ModernColors.success,
+  },
+  scheduleCardDeclined: {
+    opacity: 0.5,
+    borderWidth: 2,
+    borderColor: ModernColors.error,
+  },
+  childColorBar: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  childColorBarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  scheduleCardContent: {
+    flexDirection: 'row',
+    padding: 12,
+  },
+  scheduleCardImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: ModernBorderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: ModernColors.background,
+  },
+  scheduleCardImage: {
+    width: 80,
+    height: 80,
+    borderRadius: ModernBorderRadius.md,
+  },
+  timeBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  scheduleCardDetails: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  scheduleCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 6,
+  },
+  scheduleCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  scheduleCardRowText: {
+    fontSize: 12,
+    color: ModernColors.textSecondary,
+    flex: 1,
+  },
+  scheduleCardCost: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: ModernColors.primary,
+    marginLeft: 8,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
+  },
+  actionButtonAccept: {
+    borderRightWidth: 1,
+    borderRightColor: ModernColors.border,
+  },
+  actionButtonAcceptActive: {
+    backgroundColor: ModernColors.success,
+  },
+  actionButtonDecline: {
+    borderRightWidth: 1,
+    borderRightColor: ModernColors.border,
+  },
+  actionButtonDeclineActive: {
+    backgroundColor: ModernColors.error,
+  },
+  actionButtonAlternative: {
+    backgroundColor: ModernColors.primaryLight + '20',
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
   emptyDay: {
     alignItems: 'center',
     paddingVertical: 24,

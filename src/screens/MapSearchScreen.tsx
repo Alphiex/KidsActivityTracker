@@ -32,7 +32,6 @@ import UpgradePromptModal from '../components/UpgradePromptModal';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 import { formatActivityPrice } from '../utils/formatters';
 import { useAppSelector } from '../store';
-import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 import { selectAllChildren } from '../store/slices/childrenSlice';
 
 type MapSearchRouteProp = RouteProp<{
@@ -45,6 +44,7 @@ type MapSearchRouteProp = RouteProp<{
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
 const CARD_MARGIN = 8;
+const SKELETON_COUNT = 3;
 
 // Canada-wide default region (centered on Canada)
 const CANADA_REGION: Region = {
@@ -142,6 +142,72 @@ interface LocationCluster {
   activities: Activity[];
   locationName: string;
 }
+
+/**
+ * Skeleton card component for loading state
+ */
+const SkeletonCard = ({ index }: { index: number }) => (
+  <View style={skeletonStyles.card}>
+    <View style={skeletonStyles.imageContainer}>
+      <View style={skeletonStyles.imagePlaceholder} />
+      <View style={skeletonStyles.pricePlaceholder} />
+    </View>
+    <View style={skeletonStyles.content}>
+      <View style={[skeletonStyles.titlePlaceholder, { width: index % 2 === 0 ? '90%' : '75%' }]} />
+      <View style={skeletonStyles.linePlaceholder} />
+      <View style={[skeletonStyles.linePlaceholder, { width: '60%' }]} />
+      <View style={[skeletonStyles.linePlaceholder, { width: '40%' }]} />
+    </View>
+  </View>
+);
+
+const skeletonStyles = StyleSheet.create({
+  card: {
+    width: CARD_WIDTH,
+    marginHorizontal: CARD_MARGIN,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  imageContainer: {
+    height: 100,
+    backgroundColor: '#F0F0F0',
+    position: 'relative',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    backgroundColor: '#E8E8E8',
+  },
+  pricePlaceholder: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 50,
+    height: 24,
+    backgroundColor: '#D8D8D8',
+    borderRadius: 8,
+  },
+  content: {
+    padding: 12,
+    gap: 8,
+  },
+  titlePlaceholder: {
+    height: 16,
+    backgroundColor: '#E8E8E8',
+    borderRadius: 4,
+  },
+  linePlaceholder: {
+    height: 12,
+    width: '80%',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+  },
+});
 
 /**
  * Group activities into clusters based on location proximity
@@ -724,6 +790,7 @@ const MapSearchScreen = () => {
 
     if (__DEV__) console.log('[MapSearch] Region changed significantly, refetching activities');
     await loadActivities(mapRegion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters, usePreferencesFilter, buildPreferenceFilters, preferencesService, activityService]);
 
   // Handle tapping a marker on the map - scroll list to show the card
@@ -1107,11 +1174,10 @@ const MapSearchScreen = () => {
           ))}
         </MapView>
 
-        {/* Loading Overlay */}
+        {/* Loading indicator - subtle, doesn't block the map */}
         {loading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Loading activities...</Text>
+          <View style={styles.loadingIndicator}>
+            <ActivityIndicator size="small" color={Colors.primary} />
           </View>
         )}
 
@@ -1192,13 +1258,15 @@ const MapSearchScreen = () => {
           <View style={styles.listHeaderRow}>
             <Icon name="map-marker-multiple" size={18} color={Colors.primary} />
             <Text style={styles.listHeaderText}>
-              {totalInViewport > visibleActivities.length
+              {loading && visibleActivities.length === 0
+                ? 'Loading activities...'
+                : totalInViewport > visibleActivities.length
                 ? `Showing ${visibleActivities.length} of ${totalInViewport} nearby`
                 : `${visibleActivities.length} ${visibleActivities.length === 1 ? 'activity' : 'activities'} nearby`
               }
             </Text>
           </View>
-          {allActivities.length !== filteredActivities.length && (
+          {!loading && allActivities.length !== filteredActivities.length && (
             <View style={styles.filterBadge}>
               <Icon name="filter" size={12} color={Colors.primary} />
               <Text style={styles.filterBadgeText}>
@@ -1209,7 +1277,18 @@ const MapSearchScreen = () => {
         </View>
 
         {/* Horizontal Activity List */}
-        {!loading && visibleActivities.length > 0 ? (
+        {loading && visibleActivities.length === 0 ? (
+          // Show skeleton cards while loading
+          <FlatList
+            data={Array.from({ length: SKELETON_COUNT }, (_, i) => i)}
+            renderItem={({ item }) => <SkeletonCard index={item} />}
+            keyExtractor={(item) => `skeleton-${item}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}
+            scrollEnabled={false}
+          />
+        ) : visibleActivities.length > 0 ? (
           <FlatList
             ref={listRef}
             data={visibleActivities}
@@ -1333,16 +1412,18 @@ const styles = StyleSheet.create({
   map: {
     ...StyleSheet.absoluteFillObject,
   },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  loadingIndicator: {
+    position: 'absolute',
+    top: 56,
+    right: 60,
     backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   actionButtons: {
     position: 'absolute',

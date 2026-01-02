@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getAIOrchestrator } from '../index';
+import { verifyToken } from '../../middleware/auth';
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
  * Generate an optimal weekly activity schedule for the family.
  * Considers multiple children, time conflicts, travel distance, and activity balance.
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', verifyToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
 

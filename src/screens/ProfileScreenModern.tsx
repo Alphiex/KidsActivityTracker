@@ -23,8 +23,6 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { logout, updateUserProfile } from '../store/slices/authSlice';
 // PreferencesService removed - location now managed per-child
 import * as SecureStore from '../utils/secureStorage';
-import axios from 'axios';
-import { API_CONFIG } from '../config/api';
 import { authService } from '../services/authService';
 import useSubscription from '../hooks/useSubscription';
 import TopTabNavigation from '../components/TopTabNavigation';
@@ -65,7 +63,10 @@ const ModernColors = {
 const ProfileScreenModern = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, authProvider } = useAppSelector((state) => state.auth);
+
+  // Check if user signed in with email (can change password) vs Google/Apple (cannot)
+  const canChangePassword = authProvider === 'email';
 
   // Subscription state
   const {
@@ -111,7 +112,7 @@ const ProfileScreenModern = () => {
     newPassword: '',
     confirmPassword: '',
   });
-  const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Get app version from native iOS project settings
@@ -150,40 +151,31 @@ const ProfileScreenModern = () => {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      const token = await SecureStore.getAccessToken();
-      if (!token) throw new Error('No token found');
+      const response = await authService.updateProfile({
+        name: profileData.name || undefined,
+      });
 
-      const response = await axios.put(
-        `${API_CONFIG.BASE_URL}/api/auth/profile`,
-        {
-          name: profileData.name || undefined,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
+      if (response.success) {
         dispatch(updateUserProfile({
           name: profileData.name,
         }));
         setIsEditingProfile(false);
         Alert.alert('Success', 'Profile updated successfully');
-      } else {
-        throw new Error(response.data.error || 'Unknown error');
       }
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      const message = error.response?.data?.error || error.message || 'Failed to update profile';
-      Alert.alert('Error', message);
+      Alert.alert('Error', error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleChangePassword = async () => {
+    if (!passwordData.currentPassword) {
+      Alert.alert('Error', 'Please enter your current password');
+      return;
+    }
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       Alert.alert('Error', 'New passwords do not match');
       return;
@@ -196,61 +188,34 @@ const ProfileScreenModern = () => {
 
     setIsLoading(true);
     try {
-      const token = await SecureStore.getAccessToken();
-      if (!token) throw new Error('No token found');
-
-      const response = await axios.post(
-        `${API_CONFIG.BASE_URL}/api/v1/auth/change-password`,
-        {
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      // Use Firebase to change password (re-authenticates then updates)
+      const { firebaseAuthService } = await import('../services/firebaseAuthService');
+      await firebaseAuthService.changePassword(
+        passwordData.currentPassword,
+        passwordData.newPassword
       );
 
-      if (response.data.success) {
-        Alert.alert('Success', 'Password changed successfully');
-        setIsChangingPassword(false);
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: '',
-        });
-      }
+      Alert.alert('Success', 'Password changed successfully');
+      setIsChangingPassword(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
     } catch (error: any) {
       console.error('Error changing password:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to change password');
+      Alert.alert('Error', error.message || 'Failed to change password');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleContactSupport = () => {
-    Alert.alert(
-      'Contact Support',
-      'How would you like to contact us?',
-      [
-        {
-          text: 'Email',
-          onPress: () => {
-            // Open email client
-            Alert.alert('Support', 'Email: support@kidsactivitytracker.com');
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    );
+    Linking.openURL('mailto:kiddio@support.com?subject=Kids%20Activity%20Tracker%20Support%20Request');
   };
 
   const handleDeleteAccount = async () => {
-    if (!deleteAccountPassword) {
+    if (deleteConfirmText !== 'DELETE') {
       Alert.alert('Error', 'Please type "DELETE" to confirm account deletion');
       return;
     }
@@ -262,7 +227,7 @@ const ProfileScreenModern = () => {
       // Clear local data and logout
       await SecureStore.clearAllAuthData();
       setIsDeletingAccount(false);
-      setDeleteAccountPassword('');
+      setDeleteConfirmText('');
 
       Alert.alert(
         'Account Deleted',
@@ -529,13 +494,18 @@ const ProfileScreenModern = () => {
 
         {/* Account Settings */}
         <ProfileSection title="Account Settings">
-          <ProfileItem
-            icon="lock-outline"
-            title="Change Password"
-            subtitle="Update your account password"
-            onPress={() => setIsChangingPassword(true)}
-          />
-          <View style={styles.divider} />
+          {/* Only show Change Password for email sign-in users */}
+          {canChangePassword && (
+            <>
+              <ProfileItem
+                icon="lock-outline"
+                title="Change Password"
+                subtitle="Update your account password"
+                onPress={() => setIsChangingPassword(true)}
+              />
+              <View style={styles.divider} />
+            </>
+          )}
           <ProfileItem
             icon="bell-outline"
             title="Notifications"
@@ -557,8 +527,8 @@ const ProfileScreenModern = () => {
           <ProfileItem
             icon="help-circle-outline"
             title="Help Center"
-            subtitle="Get help and find answers"
-            onPress={() => Linking.openURL('mailto:support@kidsactivitytracker.com?subject=Help%20Request')}
+            subtitle="FAQs and common questions"
+            onPress={() => Linking.openURL('https://kidsactivitytracker.ca/faq')}
           />
           <View style={styles.divider} />
           <ProfileItem
@@ -566,6 +536,13 @@ const ProfileScreenModern = () => {
             title="Contact Support"
             subtitle="Get in touch with our team"
             onPress={handleContactSupport}
+          />
+          <View style={styles.divider} />
+          <ProfileItem
+            icon="map-marker-plus-outline"
+            title="Request a City"
+            subtitle="Ask us to add activities in your area"
+            onPress={() => Linking.openURL('https://kidsactivitytracker.ca/request-city')}
           />
         </ProfileSection>
 
@@ -575,14 +552,14 @@ const ProfileScreenModern = () => {
             icon="shield-check-outline"
             title="Privacy Policy"
             subtitle="How we protect your data"
-            onPress={() => Linking.openURL('https://kidsactivitytracker.app/privacy')}
+            onPress={() => Linking.openURL('https://kidsactivitytracker.ca/privacy')}
           />
           <View style={styles.divider} />
           <ProfileItem
             icon="file-document-outline"
             title="Terms of Service"
             subtitle="Terms and conditions"
-            onPress={() => Linking.openURL('https://kidsactivitytracker.app/terms')}
+            onPress={() => Linking.openURL('https://kidsactivitytracker.ca/terms')}
           />
         </ProfileSection>
 
@@ -730,7 +707,7 @@ const ProfileScreenModern = () => {
         transparent={true}
         onRequestClose={() => {
           setIsDeletingAccount(false);
-          setDeleteAccountPassword('');
+          setDeleteConfirmText('');
         }}
       >
         <KeyboardAvoidingView
@@ -741,7 +718,7 @@ const ProfileScreenModern = () => {
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => {
                 setIsDeletingAccount(false);
-                setDeleteAccountPassword('');
+                setDeleteConfirmText('');
               }}>
                 <Text style={styles.modalCancel}>Cancel</Text>
               </TouchableOpacity>
@@ -757,31 +734,31 @@ const ProfileScreenModern = () => {
                   Deleting your account will permanently remove:
                 </Text>
                 <View style={styles.deleteList}>
-                  <Text style={styles.deleteListItem}>Your profile and personal information</Text>
-                  <Text style={styles.deleteListItem}>All children profiles</Text>
-                  <Text style={styles.deleteListItem}>Your saved favorites</Text>
-                  <Text style={styles.deleteListItem}>Sharing settings with family members</Text>
-                  <Text style={styles.deleteListItem}>All preferences and settings</Text>
+                  <Text style={styles.deleteListItem}>• Your profile and personal information</Text>
+                  <Text style={styles.deleteListItem}>• All children profiles</Text>
+                  <Text style={styles.deleteListItem}>• Your saved favorites</Text>
+                  <Text style={styles.deleteListItem}>• Sharing settings with family members</Text>
+                  <Text style={styles.deleteListItem}>• All preferences and settings</Text>
                 </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Enter your password to confirm</Text>
+                <Text style={styles.inputLabel}>Type DELETE to confirm</Text>
                 <TextInput
                   style={styles.input}
-                  value={deleteAccountPassword}
-                  onChangeText={setDeleteAccountPassword}
-                  placeholder="Enter your password"
+                  value={deleteConfirmText}
+                  onChangeText={setDeleteConfirmText}
+                  placeholder="Type DELETE"
                   placeholderTextColor={ModernColors.textLight}
-                  secureTextEntry
-                  autoCapitalize="none"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
                 />
               </View>
 
               <TouchableOpacity
-                style={[styles.deleteButton, !deleteAccountPassword && styles.deleteButtonDisabled]}
+                style={[styles.deleteButton, deleteConfirmText !== 'DELETE' && styles.deleteButtonDisabled]}
                 onPress={handleDeleteAccount}
-                disabled={isLoading || !deleteAccountPassword}
+                disabled={isLoading || deleteConfirmText !== 'DELETE'}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />

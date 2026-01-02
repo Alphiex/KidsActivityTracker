@@ -9,6 +9,7 @@ import {
   WeeklyScheduleResponse,
   ActivityExplanation,
   WeeklySchedule,
+  ScheduleEntry,
   PlannerConstraints,
 } from '../types/ai';
 
@@ -341,6 +342,58 @@ class AIService {
         success: false,
         schedule: null,
         error: 'Failed to generate weekly schedule'
+      };
+    }
+  }
+
+  /**
+   * Find an alternative activity for a specific schedule slot
+   *
+   * @param params - Parameters for finding alternative
+   * @returns Alternative activity suggestion
+   */
+  async findAlternativeActivity(params: {
+    child_id: string;
+    day: string;
+    time_slot: string;
+    excluded_activity_ids: string[];
+    week_start: string;
+  }): Promise<{
+    success: boolean;
+    alternative: ScheduleEntry | null;
+    error?: string;
+  }> {
+    try {
+      console.log('[AIService] Finding alternative for:', params);
+
+      const response = await apiClient.post<{
+        success: boolean;
+        alternative: ScheduleEntry | null;
+        error?: string;
+      }>(
+        '/api/v1/ai/find-alternative',
+        params,
+        { timeout: 30000 }
+      );
+
+      console.log('[AIService] Found alternative:', response.alternative?.activity_name);
+      return response;
+
+    } catch (error: any) {
+      console.error('[AIService] Error finding alternative:', error);
+
+      if (error?.response?.status === 401) {
+        return {
+          success: false,
+          alternative: null,
+          error: 'Please log in to use this feature'
+        };
+      }
+
+      return {
+        success: false,
+        alternative: null,
+        error: 'Failed to find alternative activity'
       };
     }
   }

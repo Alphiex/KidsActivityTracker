@@ -310,6 +310,36 @@ class FirebaseAuthService {
   }
 
   /**
+   * Change password for email/password users
+   * Requires re-authentication with current password
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const user = auth().currentUser;
+    if (!user) {
+      throw new Error('No user is currently signed in');
+    }
+
+    if (!user.email) {
+      throw new Error('User does not have an email address');
+    }
+
+    try {
+      secureLog('[FirebaseAuth] Re-authenticating user...');
+      // Re-authenticate user with current password
+      const credential = auth.EmailAuthProvider.credential(user.email, currentPassword);
+      await user.reauthenticateWithCredential(credential);
+
+      secureLog('[FirebaseAuth] Updating password...');
+      // Update to new password
+      await user.updatePassword(newPassword);
+      secureLog('[FirebaseAuth] Password changed successfully');
+    } catch (error: any) {
+      secureError('[FirebaseAuth] Password change failed:', error.code);
+      throw this.handleAuthError(error);
+    }
+  }
+
+  /**
    * Send email verification
    */
   async sendEmailVerification(): Promise<void> {
