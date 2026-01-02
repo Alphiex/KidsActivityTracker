@@ -499,6 +499,15 @@ class PerfectMindScraper extends BaseScraper {
     const kidsSectionPatterns = this.kidsSectionPatterns;
     const excludePatterns = this.excludePatterns;
 
+    // Get configured sections from provider config (if specified)
+    const configuredSections = this.config.scraperConfig?.sections || [];
+    const hasConfiguredSections = configuredSections.length > 0;
+
+    // Log what sections we're filtering to
+    if (hasConfiguredSections) {
+      this.logProgress(`Filtering to configured sections: ${configuredSections.join(', ')}`);
+    }
+
     return links.filter(link => {
       const text = link.text.toLowerCase();
       const section = link.section.toLowerCase();
@@ -518,26 +527,29 @@ class PerfectMindScraper extends BaseScraper {
         return false;
       }
 
-      // The link text must indicate a kids-related category
-      // This works for grid layouts where the link text IS the category
-      const textIsKidsRelated = kidsSectionPatterns.some(p => p.test(text));
+      // If sections are configured, ONLY include links matching those sections
+      if (hasConfiguredSections) {
+        const matchesConfiguredSection = configuredSections.some(configSection => {
+          const configLower = configSection.toLowerCase();
+          return text.includes(configLower) || section.includes(configLower);
+        });
+        if (!matchesConfiguredSection) {
+          return false;
+        }
+      }
 
-      // Or it's under a kids section (for hierarchical layouts)
+      // The link text must indicate a kids-related category
+      const textIsKidsRelated = kidsSectionPatterns.some(p => p.test(text));
       const sectionIsKidsRelated = section && kidsSectionPatterns.some(p => p.test(section));
 
-      // Check if it matches an activity pattern
-      const isActivity = activityPatterns.some(p => p.test(text));
-
-      // CHANGED: Include ALL activity links, even if not explicitly kids-related
-      // The recursive navigation (findKidsSubcategories) will discover kids subcategories
-      // within top-level categories like "Arts", "Sports", "Swimming", etc.
-      // This is necessary because many sites organize by activity type first, then by age
-      if (isActivity) {
+      // Include if it matches kids patterns or activity patterns
+      if (textIsKidsRelated || sectionIsKidsRelated) {
         return true;
       }
 
-      // Also include explicitly kids-related links even if they don't match activity patterns
-      if (textIsKidsRelated || sectionIsKidsRelated) {
+      // Also include activity-type links (swimming, sports, etc.) if they passed section filter
+      const isActivity = activityPatterns.some(p => p.test(text));
+      if (isActivity) {
         return true;
       }
 
