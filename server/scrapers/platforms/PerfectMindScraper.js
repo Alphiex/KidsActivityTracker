@@ -171,7 +171,7 @@ class PerfectMindScraper extends BaseScraper {
   }
 
   async extractPerfectMindActivities() {
-    const activities = [];
+    let activities = [];
     const { entryPoints, maxConcurrency = 10 } = this.config.scraperConfig;
 
     const entryPoint = entryPoints[0];
@@ -248,8 +248,10 @@ class PerfectMindScraper extends BaseScraper {
           pagesPerBrowser
         );
 
-        // Use concat instead of spread to avoid stack overflow with large arrays
-        browserActivities = browserActivities.concat(results);
+        // Use push loop instead of concat to avoid stack overflow with very large arrays
+        for (let i = 0; i < results.length; i++) {
+          browserActivities.push(results[i]);
+        }
 
         // Incremental save: save activities after processing this browser's queue
         if (this.currentProviderId && browserActivities.length > 0) {
@@ -272,8 +274,10 @@ class PerfectMindScraper extends BaseScraper {
       // Wait for all browsers to complete
       const allResults = await Promise.all(browserWorkers);
       for (const browserActivities of allResults) {
-        // Use concat instead of spread to avoid stack overflow with large arrays
-        activities = activities.concat(browserActivities);
+        // Use push loop instead of concat to avoid stack overflow with very large arrays
+        for (let i = 0; i < browserActivities.length; i++) {
+          activities.push(browserActivities[i]);
+        }
       }
     } finally {
       // Close all browsers in pool
@@ -298,7 +302,7 @@ class PerfectMindScraper extends BaseScraper {
    * @returns {Promise<Array>} - All extracted activities
    */
   async processLinksWithPagePool(browser, browserIndex, widgetUrl, links, poolSize) {
-    const activities = [];
+    let activities = [];
     const queue = [...links];
     let processed = 0;
     const total = links.length;
@@ -312,7 +316,10 @@ class PerfectMindScraper extends BaseScraper {
         try {
           const linkActivities = await this.extractActivitiesFromLink(widgetUrl, link, browser);
           if (linkActivities.length > 0) {
-            activities = activities.concat(linkActivities);
+            // Use push loop instead of concat to avoid stack overflow with very large arrays
+            for (let i = 0; i < linkActivities.length; i++) {
+              activities.push(linkActivities[i]);
+            }
             this.logProgress(`  B${browserIndex + 1} ✅ ${link.text}: ${linkActivities.length} activities`);
           }
         } catch (error) {
@@ -544,7 +551,7 @@ class PerfectMindScraper extends BaseScraper {
     const MAX_DEPTH = 3; // Prevent infinite recursion
     let browser = sharedBrowser;
     let ownsBrowser = false;
-    const activities = [];
+    let activities = [];
 
     if (depth > MAX_DEPTH) {
       this.logProgress(`    Max depth ${MAX_DEPTH} reached, stopping recursion`);
