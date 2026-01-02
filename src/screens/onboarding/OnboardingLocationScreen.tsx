@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   Alert,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import PreferencesService from '../../services/preferencesService';
-import ActivityService from '../../services/activityService';
 import { locationService } from '../../services/locationService';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
@@ -23,13 +20,7 @@ import { EnhancedAddress } from '../../types/preferences';
 
 type NavigationProp = StackNavigationProp<OnboardingStackParamList, 'OnboardingLocation'>;
 
-interface City {
-  city: string;
-  state: string;
-  count: number;
-}
-
-type LocationMode = 'none' | 'gps' | 'address' | 'cities';
+type LocationMode = 'none' | 'gps' | 'address';
 
 const distanceOptions = [
   { value: 5, label: '5 km' },
@@ -42,7 +33,6 @@ const distanceOptions = [
 const OnboardingLocationScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const preferencesService = PreferencesService.getInstance();
-  const activityService = ActivityService.getInstance();
 
   const [locationMode, setLocationMode] = useState<LocationMode>('none');
   const [selectedDistance, setSelectedDistance] = useState<number>(25);
@@ -52,49 +42,6 @@ const OnboardingLocationScreen: React.FC = () => {
   // Address selection state
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
 
-  // City selection state
-  const [cities, setCities] = useState<City[]>([]);
-  const [filteredCities, setFilteredCities] = useState<City[]>([]);
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [searchText, setSearchText] = useState('');
-  const [isCitiesLoading, setIsCitiesLoading] = useState(false);
-
-  useEffect(() => {
-    if (locationMode === 'cities' && cities.length === 0) {
-      loadCities();
-    }
-  }, [locationMode]);
-
-  useEffect(() => {
-    if (searchText.length > 0) {
-      const filtered = cities.filter(city =>
-        city.city.toLowerCase().includes(searchText.toLowerCase()) ||
-        city.state.toLowerCase().includes(searchText.toLowerCase())
-      );
-      setFilteredCities(filtered);
-    } else {
-      setFilteredCities(cities.slice(0, 20));
-    }
-  }, [searchText, cities]);
-
-  const loadCities = async () => {
-    setIsCitiesLoading(true);
-    try {
-      const citiesData = await activityService.getCitiesWithCounts(true);
-      const sortedCities = citiesData.sort((a, b) => {
-        if (b.count !== a.count) return b.count - a.count;
-        return a.city.localeCompare(b.city);
-      });
-      setCities(sortedCities);
-      setFilteredCities(sortedCities.slice(0, 20));
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      setCities([]);
-      setFilteredCities([]);
-    } finally {
-      setIsCitiesLoading(false);
-    }
-  };
 
   const handleSelectGps = async () => {
     setIsGpsLoading(true);
@@ -125,11 +72,6 @@ const OnboardingLocationScreen: React.FC = () => {
     }
   };
 
-  const handleSelectCities = () => {
-    setLocationMode('cities');
-    setGpsEnabled(false);
-  };
-
   const handleSelectAddress = () => {
     setLocationMode('address');
     setGpsEnabled(false);
@@ -137,14 +79,6 @@ const OnboardingLocationScreen: React.FC = () => {
 
   const handleAddressSelect = (address: EnhancedAddress | null) => {
     setSelectedAddress(address);
-  };
-
-  const handleToggleCity = (cityName: string) => {
-    setSelectedCities(prev =>
-      prev.includes(cityName)
-        ? prev.filter(c => c !== cityName)
-        : [...prev, cityName]
-    );
   };
 
   const handleNext = async () => {
@@ -166,11 +100,6 @@ const OnboardingLocationScreen: React.FC = () => {
         // Also set preferred location to city if available
         ...(selectedAddress.city && { preferredLocation: selectedAddress.city }),
       });
-    } else if (locationMode === 'cities' && selectedCities.length > 0) {
-      await preferencesService.updatePreferences({
-        preferredLocation: selectedCities[0], // Use first selected city as primary
-        locationPermissionAsked: true,
-      });
     } else {
       await preferencesService.updatePreferences({
         locationPermissionAsked: true,
@@ -190,40 +119,6 @@ const OnboardingLocationScreen: React.FC = () => {
     navigation.goBack();
   };
 
-  const renderCityItem = ({ item }: { item: City }) => {
-    const isSelected = selectedCities.includes(item.city);
-    return (
-      <TouchableOpacity
-        style={[styles.cityItem, isSelected && styles.cityItemSelected]}
-        onPress={() => handleToggleCity(item.city)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cityInfo}>
-          <Icon
-            name="map-marker"
-            size={20}
-            color={isSelected ? '#E8638B' : '#9CA3AF'}
-            style={styles.cityIcon}
-          />
-          <View>
-            <Text style={[styles.cityName, isSelected && styles.cityNameSelected]}>
-              {item.city}
-            </Text>
-            <Text style={styles.cityState}>{item.state}</Text>
-          </View>
-        </View>
-        <View style={styles.cityRight}>
-          <Text style={styles.activityCount}>{item.count} activities</Text>
-          {isSelected && (
-            <View style={styles.checkmark}>
-              <Icon name="check" size={14} color="#FFFFFF" />
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={handleBack}>
@@ -240,9 +135,9 @@ const OnboardingLocationScreen: React.FC = () => {
           <View style={styles.stepDot} />
           <View style={[styles.stepDot, styles.stepDotActive]} />
         </View>
-        <Text style={styles.title}>Where are you located?</Text>
+        <Text style={styles.title}>Where would you like to find activities?</Text>
         <Text style={styles.subtitle}>
-          Find activities near you
+          Set your location to find activities nearby
         </Text>
       </View>
 
@@ -376,78 +271,6 @@ const OnboardingLocationScreen: React.FC = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Cities Option */}
-        <TouchableOpacity
-          style={[
-            styles.optionCard,
-            locationMode === 'cities' && styles.optionCardSelected,
-          ]}
-          onPress={handleSelectCities}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.iconContainer, locationMode === 'cities' && styles.iconContainerSelected]}>
-            <Icon
-              name="city-variant"
-              size={28}
-              color={locationMode === 'cities' ? '#FFFFFF' : '#E8638B'}
-            />
-          </View>
-          <View style={styles.optionText}>
-            <Text style={[styles.optionTitle, locationMode === 'cities' && styles.optionTitleSelected]}>
-              Select cities
-            </Text>
-            <Text style={styles.optionDescription}>
-              Choose specific cities of interest
-            </Text>
-          </View>
-          {locationMode === 'cities' && selectedCities.length > 0 && (
-            <View style={styles.selectedCount}>
-              <Text style={styles.selectedCountText}>{selectedCities.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* City selection - only show when cities mode is selected */}
-        {locationMode === 'cities' && (
-          <View style={styles.citiesSection}>
-            <View style={styles.searchContainer}>
-              <Icon name="magnify" size={20} color="#9CA3AF" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search cities..."
-                placeholderTextColor="#9CA3AF"
-                value={searchText}
-                onChangeText={setSearchText}
-              />
-              {searchText.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchText('')}>
-                  <Icon name="close-circle" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {isCitiesLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#E8638B" />
-              </View>
-            ) : (
-              <View style={styles.cityListContainer}>
-                {filteredCities.slice(0, 10).map((city) => (
-                  <View key={`${city.city}-${city.state}`}>
-                    {renderCityItem({ item: city })}
-                  </View>
-                ))}
-                {filteredCities.length === 0 && (
-                  <View style={styles.emptyContainer}>
-                    <Icon name="map-marker-off" size={48} color="#9CA3AF" />
-                    <Text style={styles.emptyText}>No cities found</Text>
-                  </View>
-                )}
               </View>
             )}
           </View>
@@ -587,19 +410,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  selectedCount: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E8638B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedCountText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   distanceSection: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
@@ -640,96 +450,6 @@ const styles = StyleSheet.create({
   },
   distanceChipTextSelected: {
     color: '#FFFFFF',
-  },
-  citiesSection: {
-    marginTop: 8,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 12,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  loadingContainer: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  cityListContainer: {
-    marginBottom: 16,
-  },
-  cityItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  cityItemSelected: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#E8638B',
-  },
-  cityInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cityIcon: {
-    marginRight: 12,
-  },
-  cityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  cityNameSelected: {
-    color: '#E8638B',
-  },
-  cityState: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  cityRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activityCount: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginRight: 8,
-  },
-  checkmark: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#E8638B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 12,
   },
   infoBox: {
     flexDirection: 'row',

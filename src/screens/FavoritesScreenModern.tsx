@@ -53,6 +53,7 @@ const FavoritesScreenModern: React.FC = () => {
   // Waitlist/Watching data
   const [watchingEntries, setWatchingEntries] = useState<CachedWaitlistEntry[]>([]);
   const [availableEntries, setAvailableEntries] = useState<CachedWaitlistEntry[]>([]);
+  const [closedCount, setClosedCount] = useState(0);
 
   // Subscription hooks
   const {
@@ -101,6 +102,10 @@ const FavoritesScreenModern: React.FC = () => {
       const available = waitlistEntries.filter(e => e.hasAvailability);
       setWatchingEntries(watching);
       setAvailableEntries(available);
+
+      // Count closed activities for purge button
+      const closed = waitlistEntries.filter(e => e.activity?.registrationStatus === 'Closed');
+      setClosedCount(closed.length);
     } catch (error) {
       console.error('[FavoritesScreen] Error loading data:', error);
     } finally {
@@ -194,6 +199,33 @@ const FavoritesScreenModern: React.FC = () => {
     } else {
       handleWaitlistActivityPress(entry);
     }
+  };
+
+  const handlePurgeClosedActivities = () => {
+    Alert.alert(
+      'Clear Closed Activities',
+      `Remove ${closedCount} closed ${closedCount === 1 ? 'activity' : 'activities'} from your watch list?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await waitlistService.purgeClosedActivities();
+            if (result.success) {
+              // Reload the data
+              loadData(true);
+              syncWaitlistCount();
+              if (result.removedCount > 0) {
+                Alert.alert('Done', result.message || 'Closed activities removed');
+              }
+            } else {
+              Alert.alert('Error', result.message || 'Failed to remove closed activities');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -375,9 +407,9 @@ const FavoritesScreenModern: React.FC = () => {
       case 'available':
         return (
           <EmptyState
-            icon="bell-check-outline"
-            title="No spots opened yet"
-            subtitle="When activities you're watching have spots open up, they'll appear here"
+            icon="clipboard-list-outline"
+            title="No waiting list activities"
+            subtitle="Add activities with 'Waitlist' status to monitor when spots become available"
           />
         );
     }
@@ -563,6 +595,21 @@ const FavoritesScreenModern: React.FC = () => {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Clear Closed Button - shows when Waiting List tab is active and there are closed activities */}
+        {activeTab === 'available' && closedCount > 0 && (
+          <View style={styles.clearClosedContainer}>
+            <TouchableOpacity
+              style={styles.clearClosedButton}
+              onPress={handlePurgeClosedActivities}
+            >
+              <Icon name="close-circle-outline" size={18} color="#EF4444" />
+              <Text style={styles.clearClosedText}>
+                Clear {closedCount} Closed {closedCount === 1 ? 'Activity' : 'Activities'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Content */}
         {renderContent()}
@@ -813,6 +860,28 @@ const styles = StyleSheet.create({
     fontSize: ModernTypography.sizes.sm,
     fontWeight: '600',
     marginLeft: ModernSpacing.xs,
+  },
+  // Clear Closed Button styles
+  clearClosedContainer: {
+    paddingHorizontal: ModernSpacing.md,
+    paddingVertical: ModernSpacing.sm,
+  },
+  clearClosedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: ModernBorderRadius.md,
+    paddingVertical: ModernSpacing.sm,
+    paddingHorizontal: ModernSpacing.md,
+    gap: 8,
+  },
+  clearClosedText: {
+    color: '#DC2626',
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '600',
   },
 });
 

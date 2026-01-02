@@ -24,32 +24,42 @@ const PREMIUM_FEATURES = [
   {
     icon: 'account-child-circle',
     title: 'Unlimited Child Profiles',
-    description: 'Track activities for your entire family',
+    description: 'Track activities for your entire family with individual preferences',
   },
   {
-    icon: 'heart-multiple',
-    title: 'Unlimited Favorites',
-    description: 'Save all activities you love',
+    icon: 'account-group',
+    title: 'Friends & Family Sharing',
+    description: 'Coordinate with grandparents, caregivers, and your child\'s friends\' parents',
   },
   {
-    icon: 'share-variant',
-    title: 'Family Sharing',
-    description: 'Share with caregivers and grandparents',
+    icon: 'bell-ring',
+    title: 'Smart Notifications',
+    description: 'Spot alerts, registration reminders, new activity matches & schedule changes',
+  },
+  {
+    icon: 'robot',
+    title: 'AI Recommendations & Chat',
+    description: 'Personalized suggestions and natural language search powered by AI',
+  },
+  {
+    icon: 'calendar-sync',
+    title: 'Calendar Integration',
+    description: 'Sync activities to Google Calendar, Apple Calendar & Outlook',
   },
   {
     icon: 'filter-variant',
     title: 'Advanced Filters',
-    description: 'Filter by budget, time, distance & more',
+    description: 'Filter by budget, schedule, distance, age group & activity type',
   },
   {
-    icon: 'bell-ring',
-    title: 'Availability Alerts',
-    description: 'Get notified when spots open up',
+    icon: 'heart-multiple',
+    title: 'Unlimited Favorites & Collections',
+    description: 'Save and organize all activities you love into custom collections',
   },
   {
-    icon: 'robot',
-    title: 'AI Recommendations',
-    description: 'Personalized activity suggestions',
+    icon: 'map-marker-radius',
+    title: 'Multi-Location Search',
+    description: 'Search activities near home, work, school, or grandparents\' house',
   },
 ];
 

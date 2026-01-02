@@ -273,6 +273,46 @@ class WaitlistService {
   getEntry(activityId: string): CachedWaitlistEntry | undefined {
     return this.cachedEntries.find(e => e.activityId === activityId);
   }
+
+  /**
+   * Remove all waitlist entries where activity status is 'Closed'
+   * Returns the number of entries removed
+   */
+  async purgeClosedActivities(): Promise<{ success: boolean; removedCount: number; message?: string }> {
+    const closedEntries = this.cachedEntries.filter(
+      e => e.activity?.registrationStatus === 'Closed'
+    );
+
+    if (closedEntries.length === 0) {
+      return { success: true, removedCount: 0, message: 'No closed activities to remove' };
+    }
+
+    let removedCount = 0;
+    const errors: string[] = [];
+
+    for (const entry of closedEntries) {
+      const result = await this.leaveWaitlist(entry.activityId);
+      if (result.success) {
+        removedCount++;
+      } else {
+        errors.push(entry.activity?.name || entry.activityId);
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        success: removedCount > 0,
+        removedCount,
+        message: `Removed ${removedCount} activities. Failed to remove: ${errors.join(', ')}`,
+      };
+    }
+
+    return {
+      success: true,
+      removedCount,
+      message: `Removed ${removedCount} closed ${removedCount === 1 ? 'activity' : 'activities'}`,
+    };
+  }
 }
 
 export default WaitlistService;

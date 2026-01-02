@@ -37,6 +37,15 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
+
+  // Debug: Log API key status on mount
+  React.useEffect(() => {
+    const apiKey = GOOGLE_PLACES_CONFIG.API_KEY;
+    console.log('[AddressAutocomplete] Component mounted');
+    console.log('[AddressAutocomplete] API Key configured:', !!apiKey);
+    console.log('[AddressAutocomplete] API Key length:', apiKey?.length || 0);
+    console.log('[AddressAutocomplete] API Key prefix:', apiKey?.substring(0, 10) || 'N/A');
+  }, []);
   const [manualAddress, setManualAddress] = useState('');
   const [manualStreet, setManualStreet] = useState('');
   const [manualCity, setManualCity] = useState('');
@@ -320,8 +329,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           onFail={(error) => {
             console.error('[AddressAutocomplete] API error:', error);
             console.error('[AddressAutocomplete] API Key configured:', !!GOOGLE_PLACES_CONFIG.API_KEY);
+            console.error('[AddressAutocomplete] Error details:', JSON.stringify(error));
             if (!GOOGLE_PLACES_CONFIG.API_KEY) {
               setApiError('Address search not configured. Please enter manually.');
+            } else if (error?.toString().includes('REQUEST_DENIED')) {
+              setApiError('API access denied. Check Google Cloud Console settings.');
+            } else if (error?.toString().includes('OVER_QUERY_LIMIT')) {
+              setApiError('Too many requests. Please try again later.');
             } else {
               setApiError('Address search unavailable. Try entering manually below.');
             }

@@ -8,6 +8,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Dimensions,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +21,9 @@ import ScreenBackground from '../components/ScreenBackground';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import EmptyState from '../components/EmptyState';
+
+const { height } = Dimensions.get('window');
+const HeaderImage = require('../assets/images/browse-activity-types-header.png');
 
 type NavigationProp = StackNavigationProp<any>;
 
@@ -104,27 +109,33 @@ const AllActivityTypesScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <LinearGradient
-        colors={['#E8638B', '#D53F8C']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
+      <ImageBackground
+        source={HeaderImage}
+        style={styles.heroSection}
+        imageStyle={styles.heroImageStyle}
       >
-        <SafeAreaView edges={['top']} style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={22} color="#FFF" />
-          </TouchableOpacity>
-          <View style={styles.countBadge}>
-            <Text style={styles.countNumber}>{totalActivities.toLocaleString()}</Text>
-            <Text style={styles.countLabel}>activities</Text>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
+          style={styles.heroGradient}
+        >
+          <SafeAreaView edges={['top']} style={styles.heroTopRow}>
+            <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
+              <View style={styles.backButtonInner}>
+                <Icon name="arrow-left" size={22} color="#333" />
+              </View>
+            </TouchableOpacity>
+          </SafeAreaView>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>Activity Types</Text>
           </View>
-        </SafeAreaView>
-        <View style={styles.headerContent}>
-          <Icon name="shape-outline" size={40} color="#FFF" style={styles.headerIcon} />
-          <Text style={styles.headerTitle}>Activity Types</Text>
-          <Text style={styles.headerSubtitle}>Browse by category</Text>
-        </View>
-      </LinearGradient>
+          <View style={styles.countBadgeRow}>
+            <View style={styles.countBadge}>
+              <Text style={styles.countNumber}>{totalActivities.toLocaleString()}</Text>
+              <Text style={styles.countLabel}>ACTIVITIES</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
     </View>
   );
 
@@ -193,60 +204,84 @@ const styles = StyleSheet.create({
   headerContainer: {
     marginBottom: 16,
   },
-  headerGradient: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+  heroSection: {
+    height: height * 0.22,
+    width: '100%',
   },
-  headerTopRow: {
+  heroImageStyle: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  heroGradient: {
+    flex: 1,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    justifyContent: 'space-between',
+  },
+  heroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
+  backButtonHero: {},
+  backButtonInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: 'white',
+    flex: 1,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  countBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
   },
   countBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     alignItems: 'center',
-    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   countNumber: {
-    fontSize: 14,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#FFF',
+    color: '#E8638B',
   },
   countLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.9)',
-  },
-  headerContent: {
-    alignItems: 'center',
-    paddingTop: 16,
-  },
-  headerIcon: {
-    marginBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFF',
-    marginTop: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#718096',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   listContent: {
     paddingBottom: 20,

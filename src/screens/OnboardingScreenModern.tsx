@@ -32,20 +32,20 @@ const slides: OnboardingSlide[] = [
   {
     id: '1',
     image: discoverImage,
-    title: 'Discover Activities',
-    subtitle: 'Find amazing sports, arts, music, and educational activities for your kids in your area',
+    title: 'Find the Perfect Activity',
+    subtitle: 'Thousands of sports, arts, camps & classes from local providers - all in one place, updated daily',
   },
   {
     id: '2',
     image: scheduleImage,
-    title: 'Plan & Schedule',
-    subtitle: 'Easily manage your family calendar and never miss an activity or registration deadline',
+    title: 'Personalized for Your Kids',
+    subtitle: 'AI-powered recommendations based on age, interests & schedule. Filter by budget, location & availability',
   },
   {
     id: '3',
     image: familyImage,
-    title: 'Family Fun',
-    subtitle: 'Create memorable experiences together and watch your kids grow through play and learning',
+    title: 'Keep Everyone in Sync',
+    subtitle: 'Share with grandparents & caregivers, sync to your calendar, and get notified when spots open up',
   },
 ];
 

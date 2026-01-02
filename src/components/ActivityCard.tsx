@@ -23,7 +23,6 @@ import ChildActivityStatus from './activities/ChildActivityStatus';
 import { formatActivityPrice } from '../utils/formatters';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
-import { consolidateActivityTypes } from '../utils/activityTypeConsolidation';
 import { safeFirst, safeSubstring, safeParseDate } from '../utils/safeAccessors';
 import AddToCalendarModal from './AddToCalendarModal';
 
@@ -277,28 +276,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     return sortedDays.join(', ');
   };
 
-  const getActivityIcon = (type: string) => {
-    const iconMap: { [key: string]: string } = {
-      // Original lowercase keys
-      camps: 'tent',
-      sports: 'basketball',
-      arts: 'palette',
-      swimming: 'swim',
-      education: 'school',
-      general: 'star',
-      
-      // Consolidated activity types
-      'Swimming': 'swim',
-      'Music': 'music-note',
-      'Sports': 'basketball',
-      'Skating': 'skate',
-      'Visual Arts': 'palette',
-      'Dance': 'dance-ballroom',
-      'Martial Arts': 'karate',
-      'Camps': 'tent',
-    };
-    return iconMap[type] || 'star';
-  };
 
   const getCapacityColor = (spotsLeft?: number) => {
     if (!spotsLeft) return Colors.success;
@@ -734,29 +711,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             ) : null}
           </View>
 
-          <View style={styles.activityIcons}>
-            {consolidateActivityTypes(
-              Array.isArray(activity.activityType)
-                ? activity.activityType.map((t: any) => typeof t === 'string' ? t : t?.name).filter(Boolean)
-                : (activity.activityType as any)?.name
-                  ? [(activity.activityType as any).name]
-                  : []
-            ).slice(0, 3).map((type) => (
-              <View 
-                key={type} 
-                style={[
-                  styles.activityIcon,
-                  { backgroundColor: (Colors.activities[type] || Colors.primary) + '20' }
-                ]}
-              >
-                <Icon 
-                  name={getActivityIcon(type)} 
-                  size={20} 
-                  color={Colors.activities[type] || Colors.primary} 
-                />
-              </View>
-            ))}
-          </View>
         </View>
 
         {/* Show registered children status */}
@@ -1125,17 +1079,31 @@ const styles = StyleSheet.create({
     color: Colors.success,
     marginLeft: 4,
   },
-  activityIcons: {
+  // Watch for Spots button for Waitlist activities
+  watchSpotsButton: {
     flexDirection: 'row',
-    marginLeft: Theme.spacing.sm,
-  },
-  activityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Theme.borderRadius.round,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: Theme.spacing.xs,
+    justifyContent: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: Theme.spacing.sm,
+    gap: 8,
+  },
+  watchSpotsButtonActive: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#22C55E',
+  },
+  watchSpotsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#B45309',
+  },
+  watchSpotsButtonTextActive: {
+    color: '#15803D',
   },
 });
 

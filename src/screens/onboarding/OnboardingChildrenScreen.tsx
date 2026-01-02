@@ -77,12 +77,12 @@ const OnboardingChildrenScreen: React.FC = () => {
         </View>
         <Text style={styles.title}>
           {children.length === 0
-            ? 'Add your children'
+            ? 'Who are we finding activities for?'
             : 'Your children'}
         </Text>
         <Text style={styles.subtitle}>
           {children.length === 0
-            ? 'Add your children to get personalized activity recommendations'
+            ? 'Add your kids to get age-appropriate recommendations tailored just for them'
             : 'Add more children or continue to the next step'}
         </Text>
       </View>
@@ -98,7 +98,7 @@ const OnboardingChildrenScreen: React.FC = () => {
               <Icon name="account-child-outline" size={64} color="#E8638B" />
             </View>
             <Text style={styles.emptyText}>
-              Adding your children helps us find age-appropriate activities
+              We'll suggest activities perfect for their age and interests
             </Text>
           </View>
         ) : (

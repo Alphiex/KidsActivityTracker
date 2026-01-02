@@ -59,11 +59,11 @@ const OnboardingActivityTypesScreen: React.FC = () => {
     await preferencesService.updatePreferences({
       preferredActivityTypes: selectedTypes,
     });
-    navigation.navigate('OnboardingAge');
+    navigation.navigate('OnboardingChildren');
   };
 
   const handleSkip = () => {
-    navigation.navigate('OnboardingAge');
+    navigation.navigate('OnboardingChildren');
   };
 
   return (
@@ -78,8 +78,8 @@ const OnboardingActivityTypesScreen: React.FC = () => {
           <View style={styles.stepDot} />
           <View style={styles.stepDot} />
         </View>
-        <Text style={styles.title}>What activities interest you?</Text>
-        <Text style={styles.subtitle}>Select the types of activities you'd like to see</Text>
+        <Text style={styles.title}>What does your family love?</Text>
+        <Text style={styles.subtitle}>Select activities to personalize your recommendations</Text>
       </View>
 
       {isLoading ? (
