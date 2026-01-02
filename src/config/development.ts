@@ -43,7 +43,7 @@ export const DEV_CONFIG = {
   SKIP_ONBOARDING: false,
 
   // Force onboarding flow even if user has completed it before (for testing)
-  FORCE_ONBOARDING: true,
+  FORCE_ONBOARDING: false,
   
   // Use local API in dev mode
   USE_LOCAL_API: false,
