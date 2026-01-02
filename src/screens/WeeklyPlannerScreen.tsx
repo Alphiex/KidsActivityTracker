@@ -16,6 +16,7 @@ import {
   Platform,
   FlatList,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -218,6 +219,10 @@ const WeeklyPlannerScreen = () => {
   const [showOtherInput, setShowOtherInput] = useState(false);
   const chatScrollRef = React.useRef<FlatList>(null);
 
+  // First-time explanation modal
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
+  const EXPLANATION_SHOWN_KEY = 'weeklyPlannerExplanationShown';
+
   // Animation
   const fadeAnim = useState(new Animated.Value(0))[0];
 
@@ -306,6 +311,16 @@ const WeeklyPlannerScreen = () => {
           }
         }));
         setActivityDetails(details);
+
+        // Show explanation modal on first schedule generation
+        try {
+          const hasSeenExplanation = await AsyncStorage.getItem(EXPLANATION_SHOWN_KEY);
+          if (!hasSeenExplanation) {
+            setShowExplanationModal(true);
+          }
+        } catch (storageErr) {
+          console.warn('Failed to check explanation status:', storageErr);
+        }
       } else {
         setError(result.error || 'Failed to generate schedule');
       }
@@ -423,19 +438,6 @@ const WeeklyPlannerScreen = () => {
   }, [getChildInfo]);
 
   /**
-   * Handle quick response selection
-   */
-  const handleQuickResponse = useCallback((response: QuickResponse) => {
-    if (response.value === null) {
-      // "Other..." was selected - show text input
-      setShowOtherInput(true);
-    } else {
-      // Send the quick response as feedback
-      handleChatSubmit(response.value);
-    }
-  }, [handleChatSubmit]);
-
-  /**
    * Handle chat message submission
    */
   const handleChatSubmit = useCallback(async (feedback: string) => {
@@ -524,6 +526,19 @@ const WeeklyPlannerScreen = () => {
   }, [activeChatContext, schedule, selectedWeekStart, getDeclinedActivityIds, activityService]);
 
   /**
+   * Handle quick response selection
+   */
+  const handleQuickResponse = useCallback((response: QuickResponse) => {
+    if (response.value === null) {
+      // "Other..." was selected - show text input
+      setShowOtherInput(true);
+    } else {
+      // Send the quick response as feedback
+      handleChatSubmit(response.value);
+    }
+  }, [handleChatSubmit]);
+
+  /**
    * Accept a suggested activity from chat
    */
   const handleAcceptFromChat = useCallback((suggestedActivity: ScheduleEntry) => {
@@ -586,6 +601,18 @@ const WeeklyPlannerScreen = () => {
     setChatMessages([]);
     setShowOtherInput(false);
   }, []);
+
+  /**
+   * Dismiss explanation modal and mark as seen
+   */
+  const dismissExplanationModal = useCallback(async () => {
+    setShowExplanationModal(false);
+    try {
+      await AsyncStorage.setItem(EXPLANATION_SHOWN_KEY, 'true');
+    } catch (err) {
+      console.warn('Failed to save explanation status:', err);
+    }
+  }, [EXPLANATION_SHOWN_KEY]);
 
   /**
    * Legacy function for backwards compatibility - now opens chat
@@ -929,6 +956,75 @@ const WeeklyPlannerScreen = () => {
   );
 
   /**
+   * Render first-time explanation modal
+   */
+  const renderExplanationModal = () => (
+    <Modal
+      visible={showExplanationModal}
+      transparent
+      animationType="fade"
+      onRequestClose={dismissExplanationModal}
+    >
+      <View style={styles.explanationOverlay}>
+        <View style={styles.explanationModal}>
+          {/* Header with icon */}
+          <View style={styles.explanationHeader}>
+            <View style={styles.explanationIconContainer}>
+              <Icon name="lightbulb-on" size={32} color={ModernColors.warning} />
+            </View>
+            <Text style={styles.explanationTitle}>How to Refine Your Plan</Text>
+          </View>
+
+          {/* Instructions */}
+          <View style={styles.explanationContent}>
+            <View style={styles.explanationItem}>
+              <View style={[styles.explanationBadge, { backgroundColor: `${ModernColors.success}20` }]}>
+                <Icon name="check" size={18} color={ModernColors.success} />
+              </View>
+              <View style={styles.explanationItemText}>
+                <Text style={styles.explanationItemTitle}>Accept</Text>
+                <Text style={styles.explanationItemDesc}>Add this activity to your plan</Text>
+              </View>
+            </View>
+
+            <View style={styles.explanationItem}>
+              <View style={[styles.explanationBadge, { backgroundColor: `${ModernColors.error}20` }]}>
+                <Icon name="close" size={18} color={ModernColors.error} />
+              </View>
+              <View style={styles.explanationItemText}>
+                <Text style={styles.explanationItemTitle}>No</Text>
+                <Text style={styles.explanationItemDesc}>Remove this suggestion from the plan</Text>
+              </View>
+            </View>
+
+            <View style={styles.explanationItem}>
+              <View style={[styles.explanationBadge, { backgroundColor: `${ModernColors.primary}20` }]}>
+                <Icon name="refresh" size={18} color={ModernColors.primary} />
+              </View>
+              <View style={styles.explanationItemText}>
+                <Text style={styles.explanationItemTitle}>Different</Text>
+                <Text style={styles.explanationItemDesc}>Chat with AI to find a better match</Text>
+              </View>
+            </View>
+
+            <Text style={styles.explanationTip}>
+              Tap "Different" to tell me what you'd prefer and I'll find better options!
+            </Text>
+          </View>
+
+          {/* Got it button */}
+          <TouchableOpacity
+            style={styles.explanationButton}
+            onPress={dismissExplanationModal}
+          >
+            <Text style={styles.explanationButtonText}>Got it!</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  /**
    * Render a schedule entry card (ActivityCard-style)
    */
   const renderScheduleEntry = (entry: ScheduleEntry, dayIndex: number, entryIndex: number) => {
@@ -938,7 +1034,7 @@ const WeeklyPlannerScreen = () => {
     const activity = activityDetails[entry.activity_id];
 
     // Get activity image
-    const imageKey = activity ? getActivityImageKey(activity) : 'default';
+    const imageKey = activity ? getActivityImageKey(activity.category || '', activity.subcategory, activity.name) : 'default';
     const fallbackImage = getActivityImageByKey(imageKey);
 
     return (
@@ -963,9 +1059,8 @@ const WeeklyPlannerScreen = () => {
         <View style={styles.scheduleCardImageContainer}>
           {activity?.imageUrl ? (
             <OptimizedActivityImage
-              activity={activity}
+              source={{ uri: activity.imageUrl }}
               style={styles.scheduleCardImage}
-              fallbackImage={fallbackImage}
             />
           ) : (
             <Image source={fallbackImage} style={styles.scheduleCardImage} />
@@ -1007,10 +1102,10 @@ const WeeklyPlannerScreen = () => {
                 <Text style={styles.durationBadgeText}>{entry.duration_minutes} min</Text>
               </View>
             )}
-            {activity?.daysOfWeek && activity.daysOfWeek.length > 0 && (
+            {activity?.schedule && typeof activity.schedule === 'object' && activity.schedule.days?.length > 0 && (
               <View style={styles.daysBadge}>
                 <Text style={styles.daysBadgeText}>
-                  {activity.daysOfWeek.slice(0, 2).map(d => d.slice(0, 3)).join(', ')}
+                  {activity.schedule.days.slice(0, 2).map((d: string) => d.slice(0, 3)).join(', ')}
                 </Text>
               </View>
             )}
@@ -1376,29 +1471,62 @@ const WeeklyPlannerScreen = () => {
   );
 
   /**
+   * Clear the current schedule/plan
+   */
+  const clearSchedule = useCallback(() => {
+    setSchedule(null);
+    setEntryApprovals({});
+    setActivityDetails({});
+    setChatMessages([]);
+    setActiveChatContext(null);
+    setShowChat(false);
+    setFeedbackHistory([]);
+  }, []);
+
+  /**
    * Render floating action bar
    */
   const renderActionBar = () => {
-    const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
+    if (!schedule) return null;
 
-    if (!schedule || approvedCount === 0) return null;
+    const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
+    const totalCount = Object.keys(entryApprovals).length;
+    const pendingCount = Object.values(entryApprovals).filter(s => s === 'pending').length;
 
     return (
       <View style={styles.actionBar}>
+        {/* Cancel button */}
         <TouchableOpacity
-          style={styles.actionBarButton}
+          style={styles.actionBarCancelButton}
+          onPress={clearSchedule}
+        >
+          <Icon name="close" size={18} color={ModernColors.textSecondary} />
+          <Text style={styles.actionBarCancelText}>Cancel</Text>
+        </TouchableOpacity>
+
+        {/* Add to calendar button */}
+        <TouchableOpacity
+          style={[styles.actionBarButton, approvedCount === 0 && styles.actionBarButtonDisabled]}
           onPress={addApprovedToCalendar}
+          disabled={approvedCount === 0}
         >
           <LinearGradient
-            colors={ModernColors.primaryGradient as any}
+            colors={approvedCount > 0 ? ModernColors.primaryGradient as any : ['#D1D5DB', '#D1D5DB']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.actionBarButtonGradient}
           >
-            <Icon name="calendar-plus" size={20} color="#FFFFFF" />
-            <Text style={styles.actionBarButtonText}>
-              Add {approvedCount} to Calendar
+            <Icon name="calendar-plus" size={20} color={approvedCount > 0 ? '#FFFFFF' : '#9CA3AF'} />
+            <Text style={[styles.actionBarButtonText, approvedCount === 0 && styles.actionBarButtonTextDisabled]}>
+              {approvedCount > 0
+                ? `Add ${approvedCount} to Calendar`
+                : 'Select activities'}
             </Text>
+            {pendingCount > 0 && approvedCount > 0 && (
+              <View style={styles.partialBadge}>
+                <Text style={styles.partialBadgeText}>{pendingCount} pending</Text>
+              </View>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -1509,6 +1637,7 @@ const WeeklyPlannerScreen = () => {
       {renderDatePicker()}
       {renderAvailabilityPicker()}
       {renderChatPanel()}
+      {renderExplanationModal()}
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -2215,11 +2344,34 @@ const styles = StyleSheet.create({
     backgroundColor: ModernColors.surface,
     borderTopWidth: 1,
     borderTopColor: ModernColors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     ...ModernShadows.lg,
   },
+  actionBarCancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: ModernBorderRadius.lg,
+    backgroundColor: ModernColors.background,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    gap: 6,
+  },
+  actionBarCancelText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ModernColors.textSecondary,
+  },
   actionBarButton: {
+    flex: 1,
     borderRadius: ModernBorderRadius.lg,
     overflow: 'hidden',
+  },
+  actionBarButtonDisabled: {
+    opacity: 0.7,
   },
   actionBarButtonGradient: {
     flexDirection: 'row',
@@ -2231,6 +2383,21 @@ const styles = StyleSheet.create({
   actionBarButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  actionBarButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  partialBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 4,
+  },
+  partialBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
     color: '#FFFFFF',
   },
 
@@ -2556,6 +2723,94 @@ const styles = StyleSheet.create({
   chatSkipText: {
     fontSize: 14,
     color: ModernColors.textSecondary,
+  },
+  // Explanation modal styles
+  explanationOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  explanationModal: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.xl,
+    width: '100%',
+    maxWidth: 360,
+    ...ModernShadows.lg,
+  },
+  explanationHeader: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.border,
+  },
+  explanationIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: ModernColors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  explanationTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: ModernColors.text,
+    textAlign: 'center',
+  },
+  explanationContent: {
+    padding: 24,
+    gap: 16,
+  },
+  explanationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  explanationBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  explanationItemText: {
+    flex: 1,
+  },
+  explanationItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 2,
+  },
+  explanationItemDesc: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+  },
+  explanationTip: {
+    fontSize: 13,
+    color: ModernColors.primary,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
+  explanationButton: {
+    backgroundColor: ModernColors.primary,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    paddingVertical: 14,
+    borderRadius: ModernBorderRadius.lg,
+    alignItems: 'center',
+  },
+  explanationButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
