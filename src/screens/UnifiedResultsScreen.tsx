@@ -326,6 +326,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
+        imageHeight={150}
       />
     );
   };
@@ -365,6 +366,8 @@ const UnifiedResultsScreenTest: React.FC = () => {
             {/* Title and Count */}
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>{String(config.title || '')}</Text>
+            </View>
+            <View style={styles.countBadgeRow}>
               <View style={styles.countBadge}>
                 <Text style={styles.countNumber}>{totalCount.toLocaleString()}</Text>
                 <Text style={styles.countLabel}>activities</Text>
@@ -510,8 +513,13 @@ const styles = StyleSheet.create({
   },
   heroContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'flex-end',
+  },
+  countBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
   },
   heroTitle: {
     fontSize: 28,
