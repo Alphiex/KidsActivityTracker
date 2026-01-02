@@ -1034,7 +1034,7 @@ const SearchScreen = () => {
         </View>
 
         {/* Search Content */}
-        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.searchContainer}>
             {/* What? section - always visible, not collapsible */}
             <View style={styles.whatSection}>

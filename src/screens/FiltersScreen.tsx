@@ -1756,10 +1756,11 @@ const FiltersScreen = () => {
       </View>
 
       {/* Scrollable Content */}
-      <Animated.ScrollView 
+      <Animated.ScrollView
         ref={scrollViewRef}
-        style={styles.scrollView} 
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }

@@ -395,7 +395,7 @@ const ProfileScreenModern = () => {
         {/* Top Tab Navigation */}
         <TopTabNavigation />
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header with Illustration */}
           <View style={styles.headerSection}>
             {/* Header Title */}

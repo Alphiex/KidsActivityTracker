@@ -109,7 +109,7 @@ const DistancePreferencesScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={[styles.description, { color: colors.textSecondary }]}>
           Filter activities by distance from your location. Only activities within your
           selected radius will appear in search results.

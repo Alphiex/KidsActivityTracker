@@ -324,11 +324,14 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             components: Array.isArray(country)
               ? country.map(c => `country:${c}`).join('|')
               : `country:${country}`,
-            types: types.join('|'),
+          }}
+          GooglePlacesDetailsQuery={{
+            fields: 'formatted_address,geometry,address_components,place_id,types,name',
           }}
           onFail={(error) => {
             console.error('[AddressAutocomplete] API error:', error);
             console.error('[AddressAutocomplete] API Key configured:', !!GOOGLE_PLACES_CONFIG.API_KEY);
+            console.error('[AddressAutocomplete] API Key value:', GOOGLE_PLACES_CONFIG.API_KEY?.substring(0, 15) + '...');
             console.error('[AddressAutocomplete] Error details:', JSON.stringify(error));
             if (!GOOGLE_PLACES_CONFIG.API_KEY) {
               setApiError('Address search not configured. Please enter manually.');
@@ -344,11 +347,17 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             setApiError('No addresses found. Try a different search.');
           }}
           debounce={GOOGLE_PLACES_CONFIG.DEBOUNCE_DELAY}
-          minLength={3}
+          minLength={2}
           enablePoweredByContainer={false}
+          listViewDisplayed="auto"
+          keepResultsAfterBlur={true}
+          keyboardShouldPersistTaps="handled"
           textInputProps={{
             placeholderTextColor: colors.textSecondary,
             editable: !disabled && !isLoading,
+            autoCorrect: false,
+            autoCapitalize: 'none',
+            returnKeyType: 'search',
             style: [
               styles.textInput,
               {
@@ -361,11 +370,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           }}
           styles={{
             container: styles.autocompleteContainer,
+            textInputContainer: styles.textInputContainer,
             listView: [styles.listView, { backgroundColor: colors.surface }],
             row: [styles.row, { backgroundColor: colors.surface }],
             separator: [styles.separator, { backgroundColor: colors.border }],
             description: [styles.description, { color: colors.text }],
             predefinedPlacesDescription: { color: colors.primary },
+            poweredContainer: { display: 'none' },
           }}
           renderLeftButton={() => (
             <View style={styles.searchIconContainer}>
@@ -405,6 +416,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
+    zIndex: 1000,
   },
   label: {
     fontSize: 14,
@@ -412,12 +424,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   autocompleteWrapper: {
-    zIndex: 10,
+    zIndex: 1000,
     width: '100%',
+    position: 'relative',
   },
   autocompleteContainer: {
     flex: 0,
     width: '100%',
+    zIndex: 1000,
+  },
+  textInputContainer: {
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    marginHorizontal: 0,
+    marginVertical: 0,
   },
   textInput: {
     flex: 1,
@@ -428,6 +451,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     width: '100%',
+    height: 50,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
   },
   searchIconContainer: {
     position: 'absolute',
@@ -443,19 +471,20 @@ const styles = StyleSheet.create({
   },
   listView: {
     position: 'absolute',
-    top: 54,
+    top: 52,
     left: 0,
     right: 0,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 10,
-    zIndex: 1000,
-    maxHeight: 200,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 50,
+    zIndex: 9999,
+    maxHeight: 250,
+    overflow: 'hidden',
   },
   row: {
     paddingVertical: 12,

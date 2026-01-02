@@ -141,7 +141,12 @@ const OnboardingLocationScreen: React.FC = () => {
         </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+      >
         {/* GPS Option */}
         <TouchableOpacity
           style={[
@@ -419,6 +424,7 @@ const styles = StyleSheet.create({
   addressSection: {
     marginBottom: 12,
     marginTop: 4,
+    zIndex: 1000,
   },
   distanceLabel: {
     fontSize: 14,
