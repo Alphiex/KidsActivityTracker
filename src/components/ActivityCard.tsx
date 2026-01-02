@@ -436,9 +436,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           style={styles.imageGradient}
         />
         {activity.isFeatured && (
-          <View style={[styles.featuredBadge, activity.featuredTier === 'gold' ? styles.featuredGold : activity.featuredTier === 'silver' ? styles.featuredSilver : styles.featuredBronze]}>
+          <View style={[styles.sponsoredBadge, activity.featuredTier === 'gold' ? styles.sponsoredGold : activity.featuredTier === 'silver' ? styles.sponsoredSilver : styles.sponsoredBronze]}>
             <Icon name="star" size={12} color="#FFF" />
-            <Text style={styles.featuredText}>Featured</Text>
+            <Text style={styles.sponsoredText}>Sponsored</Text>
           </View>
         )}
         {isOnCalendar && !activity.isFeatured && (
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
     padding: 6,
     marginHorizontal: 2,
   },
-  featuredBadge: {
+  sponsoredBadge: {
     position: 'absolute',
     top: Theme.spacing.sm,
     left: Theme.spacing.sm,
@@ -843,16 +843,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  featuredGold: {
+  sponsoredGold: {
     backgroundColor: '#FFB800',
   },
-  featuredSilver: {
+  sponsoredSilver: {
     backgroundColor: '#8E8E93',
   },
-  featuredBronze: {
+  sponsoredBronze: {
     backgroundColor: '#CD7F32',
   },
-  featuredText: {
+  sponsoredText: {
     color: '#FFF',
     fontSize: 11,
     fontWeight: '700',

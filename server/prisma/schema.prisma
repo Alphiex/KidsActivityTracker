@@ -96,6 +96,10 @@ model Activity {
   snapshots              ActivitySnapshot[]
   waitlistEntries        WaitlistEntry[]
 
+  // Child-centric favorites and waitlist
+  childFavorites         ChildFavorite[]
+  childWaitlistEntries   ChildWaitlistEntry[]
+
   // AI semantic search fields
   searchText             String?                // Pre-computed search text for embeddings
   embeddingUpdatedAt     DateTime?              // When embedding was last computed
@@ -280,6 +284,11 @@ model Child {
   skillProgress   ChildSkillProgress[]
   preferences     ChildPreferences?      // Child-specific activity preferences
 
+  // Child-centric favorites, waitlist, and notifications
+  childFavorites            ChildFavorite[]                  // Activities favorited for this child
+  childWaitlistEntries      ChildWaitlistEntry[]             // Waitlist entries for this child
+  notificationPreferences   ChildNotificationPreferences?    // Notification settings for this child
+
   @@index([userId])
 }
 
@@ -336,6 +345,72 @@ model ChildPreferences {
 
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
+
+  @@index([childId])
+}
+
+// Child-specific favorites (replacing user-level Favorite model)
+// Each child has their own list of favorite activities
+model ChildFavorite {
+  id             String    @id @default(uuid())
+  childId        String
+  activityId     String
+  notifyOnChange Boolean   @default(true)  // Notify when capacity/price changes
+  createdAt      DateTime  @default(now())
+
+  child          Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  activity       Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, activityId])
+  @@index([childId])
+  @@index([activityId])
+}
+
+// Child-specific waitlist entries (replacing user-level WaitlistEntry model)
+// Each child can be on a waitlist for activities that are full
+model ChildWaitlistEntry {
+  id         String    @id @default(uuid())
+  childId    String
+  activityId String
+  createdAt  DateTime  @default(now())
+  notifiedAt DateTime? // When user was notified that spots became available
+
+  child      Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, activityId])
+  @@index([childId])
+  @@index([activityId])
+}
+
+// Child-specific notification preferences
+// Each child can have their own notification settings
+model ChildNotificationPreferences {
+  id                 String   @id @default(uuid())
+  childId            String   @unique
+
+  // Global notification toggle
+  enabled            Boolean  @default(true)
+
+  // Email notification preferences
+  spotsAvailable     Boolean  @default(true)   // Notify when waitlisted activity has spots
+  favoriteCapacity   Boolean  @default(true)   // Notify when favorite is almost full
+  capacityThreshold  Int      @default(3)      // Alert when X or fewer spots remain
+  priceDrops         Boolean  @default(true)   // Notify on price decreases
+  newActivities      Boolean  @default(true)   // Notify about new matching activities
+  dailyDigest        Boolean  @default(false)  // Daily summary email
+  weeklyDigest       Boolean  @default(false)  // Weekly summary email
+
+  // Push notification preferences
+  pushEnabled        Boolean  @default(false)  // Master push toggle for this child
+  pushSpotsAvailable Boolean  @default(true)   // Push when waitlisted activity has spots
+  pushCapacityAlerts Boolean  @default(true)   // Push when favorite is almost full
+  pushPriceDrops     Boolean  @default(true)   // Push on price decreases
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  child              Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
 
   @@index([childId])
 }

@@ -27,6 +27,7 @@ Kids Activity Tracker helps parents find and organize activities for their child
 - **Calendar Integration** - Visual scheduling with conflict detection and export capabilities
 - **Child Profiles** - Track multiple children with interests and activity history
 - **Family Sharing** - Share activity plans with co-parents and caregivers
+- **Activity Sharing** - Share activities via social media/messaging with deep links that open directly in the app
 - **Real-time Updates** - Daily automated scraping keeps activity data fresh
 - **Email Notifications** - Daily/weekly digests, capacity alerts, price drop notifications, and waitlist alerts
 - **Freemium Model** - Free tier with limits, premium subscription for power users
@@ -72,7 +73,7 @@ cd server && npm run dev
 | [AI Chat Feature](AI-CHAT-FEATURE-PLAN.md) | Conversational AI, recommendations, guardrails |
 | [Subscriptions](SUBSCRIPTIONS.md) | Consumer subscription system, purchase flow, auditing |
 | [Subscription Setup](SUBSCRIPTION_SETUP.md) | RevenueCat & App Store/Play Store configuration |
-| [Featured Partners](FEATURED-PARTNERS.md) | Partner system for activity providers with analytics |
+| [Sponsored Partners](SPONSORED-PARTNERS.md) | Partner system for activity providers with analytics |
 | [Stripe Integration](STRIPE-INTEGRATION.md) | Stripe setup for partner/sponsor payments |
 | [Privacy Policy](PRIVACY-POLICY.md) | User privacy and data handling |
 | [App Store Listing](APP-STORE-LISTING.md) | App Store metadata and screenshots |

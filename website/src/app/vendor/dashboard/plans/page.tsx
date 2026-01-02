@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { getProfile } from '@/lib/vendorApi';
 
 interface Plan {
@@ -249,7 +248,7 @@ export default function PlansPage() {
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2 text-gray-700">
                     <CheckIcon className="text-green-500" />
-                    Featured &quot;Sponsored&quot; badge on your activities
+                    &quot;Sponsored&quot; badge on your activities
                   </li>
                   <li className="flex items-center gap-2 text-gray-700">
                     <CheckIcon className="text-green-500" />
@@ -266,46 +265,57 @@ export default function PlansPage() {
                 </ul>
               </div>
               <div className="bg-gray-100 rounded-xl p-4">
-                <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="text-sm text-gray-500 mb-2">Search Results: &quot;Swimming lessons in Vancouver&quot;</div>
-                  </div>
-                  {/* Sponsored Result */}
-                  <div className="p-4 bg-purple-50 border-l-4 border-purple-500">
-                    <div className="flex items-start gap-3">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center text-white text-2xl">
-                        🏊
+                <div className="text-sm text-gray-500 mb-3 text-center">Your activity appears at the top of search results</div>
+                <div className="flex gap-3 justify-center">
+                  {/* Sponsored Activity Card */}
+                  <div className="bg-white rounded-xl shadow-lg overflow-hidden w-[200px] flex-shrink-0">
+                    <div className="relative h-24">
+                      <img
+                        src="/images/activities/swimming.jpg"
+                        alt="Swimming activity"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 bg-pink-500 rounded-full">
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span className="text-[10px] font-bold text-white">SPONSORED</span>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded">Sponsored</span>
+                      <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-purple-600 rounded-full">
+                        <span className="text-[10px] font-bold text-white">$150</span>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Your Swimming Academy</h4>
+                      <div className="mt-1.5 space-y-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <span>📍</span>
+                          <span>Vancouver Aquatic Centre</span>
                         </div>
-                        <h4 className="font-semibold text-gray-900 mt-1">Your Swimming Academy</h4>
-                        <p className="text-sm text-gray-500">Vancouver • Ages 3-12</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-yellow-400">★★★★★</span>
-                          <span className="text-xs text-gray-500">(48 reviews)</span>
+                        <div className="flex items-center gap-1 text-pink-500 font-medium">
+                          <span>🕐</span>
+                          <span>9:00 - 10:30 AM</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-green-600">
+                          <span>✓</span>
+                          <span>12 spots available</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  {/* Regular Results */}
-                  <div className="p-4 border-t border-gray-100 opacity-60">
-                    <div className="flex items-start gap-3">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">Another Swimming School</h4>
-                        <p className="text-sm text-gray-500">Vancouver • Ages 4-10</p>
-                      </div>
+                  {/* Faded Regular Results */}
+                  <div className="bg-white rounded-xl shadow overflow-hidden w-[160px] flex-shrink-0 opacity-50">
+                    <div className="h-20 bg-gray-200"></div>
+                    <div className="p-2">
+                      <div className="h-3 bg-gray-200 rounded w-3/4 mb-1"></div>
+                      <div className="h-2 bg-gray-100 rounded w-1/2"></div>
                     </div>
                   </div>
-                  <div className="p-4 border-t border-gray-100 opacity-40">
-                    <div className="flex items-start gap-3">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">Third Swimming Option</h4>
-                        <p className="text-sm text-gray-500">Burnaby • Ages 5-14</p>
-                      </div>
+                  <div className="bg-white rounded-xl shadow overflow-hidden w-[140px] flex-shrink-0 opacity-30 hidden xl:block">
+                    <div className="h-20 bg-gray-200"></div>
+                    <div className="p-2">
+                      <div className="h-3 bg-gray-200 rounded w-3/4 mb-1"></div>
+                      <div className="h-2 bg-gray-100 rounded w-1/2"></div>
                     </div>
                   </div>
                 </div>
@@ -479,9 +489,9 @@ export default function PlansPage() {
               <tr>
                 <td className="px-6 py-4 text-sm text-gray-700">Sponsored Badge</td>
                 <td className="px-6 py-4 text-center"><XIcon className="mx-auto text-gray-300" /></td>
-                <td className="px-6 py-4 text-center bg-orange-50"><span className="text-xs font-medium text-orange-600">Bronze</span></td>
-                <td className="px-6 py-4 text-center bg-gray-50"><span className="text-xs font-medium text-gray-600">Silver</span></td>
-                <td className="px-6 py-4 text-center bg-yellow-50"><span className="text-xs font-medium text-yellow-600">Gold</span></td>
+                <td className="px-6 py-4 text-center bg-orange-50"><CheckIcon className="mx-auto text-green-500" /></td>
+                <td className="px-6 py-4 text-center bg-gray-50"><CheckIcon className="mx-auto text-green-500" /></td>
+                <td className="px-6 py-4 text-center bg-yellow-50"><CheckIcon className="mx-auto text-green-500" /></td>
               </tr>
               <tr>
                 <td className="px-6 py-4 text-sm text-gray-700">Analytics Dashboard</td>
@@ -580,7 +590,7 @@ export default function PlansPage() {
                   {features?.badge && (
                     <li className="flex items-center gap-2">
                       <CheckIcon className="text-green-500" />
-                      <span>{features.badge} badge on activities</span>
+                      <span>Sponsored badge on activities</span>
                     </li>
                   )}
                 </ul>
@@ -677,25 +687,8 @@ export default function PlansPage() {
       {plans.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl shadow">
           <p className="text-gray-500">No plans available at the moment.</p>
-          <p className="text-gray-500 mt-2">Contact support for partnership options.</p>
         </div>
       )}
-
-      {/* Contact Section */}
-      <div className="bg-white rounded-xl shadow p-6 text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Need a custom plan?
-        </h3>
-        <p className="text-gray-500 mb-4">
-          Contact us for enterprise pricing and custom features
-        </p>
-        <a
-          href="mailto:partners@kidsactivitytracker.ca"
-          className="inline-block px-6 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
-        >
-          Contact Sales
-        </a>
-      </div>
     </div>
   );
 }

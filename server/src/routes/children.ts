@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { verifyToken } from '../middleware/auth';
 import { childrenService } from '../services/childrenService';
 import { subscriptionService } from '../services/subscriptionService';
-import { body, validationResult } from 'express-validator';
+import { childFavoritesService } from '../services/childFavoritesService';
+import { body, param, validationResult } from 'express-validator';
 
 const router = Router();
 
@@ -818,6 +819,497 @@ router.post('/preferences/initialize-all', verifyToken, async (req: Request, res
       success: true,
       ...result,
       message: `Initialized preferences for ${result.initialized} children`
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============= Child Favorites Management =============
+
+// Get all favorites for a specific child
+router.get('/:childId/favorites', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const favorites = await childFavoritesService.getChildFavorites(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      favorites
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get favorites for multiple children (for filtering)
+router.get('/favorites/multi', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+    if (!childIds || childIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'childIds query parameter is required'
+      });
+    }
+
+    const favorites = await childFavoritesService.getFavoritesForChildren(
+      childIds,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      favorites
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Add activity to child's favorites
+router.post(
+  '/:childId/favorites/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const notifyOnChange = req.body.notifyOnChange !== false;
+
+      const favorite = await childFavoritesService.addFavorite(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id,
+        notifyOnChange
+      );
+
+      res.status(201).json({
+        success: true,
+        favorite,
+        message: 'Added to favorites'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Remove activity from child's favorites
+router.delete(
+  '/:childId/favorites/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      await childFavoritesService.removeFavorite(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        message: 'Removed from favorites'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Check if activity is favorited for a child
+router.get(
+  '/:childId/favorites/:activityId/status',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const isFavorited = await childFavoritesService.isFavorited(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        isFavorited
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get favorite status for an activity across multiple children
+router.get(
+  '/favorites/status/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+      if (!childIds || childIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'childIds query parameter is required'
+        });
+      }
+
+      const status = await childFavoritesService.getFavoriteStatusForChildren(
+        req.params.activityId,
+        childIds,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        status
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Update notification preference for a favorite
+router.patch(
+  '/:childId/favorites/:activityId/notify',
+  verifyToken,
+  [param('activityId').isUUID(), body('notifyOnChange').isBoolean()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const favorite = await childFavoritesService.updateFavoriteNotification(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id,
+        req.body.notifyOnChange
+      );
+
+      res.json({
+        success: true,
+        favorite
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// ============= Child Waitlist Management =============
+
+// Get all waitlist entries for a specific child
+router.get('/:childId/waitlist', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const waitlist = await childFavoritesService.getChildWaitlist(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      waitlist
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get waitlist entries for multiple children
+router.get('/waitlist/multi', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+    if (!childIds || childIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'childIds query parameter is required'
+      });
+    }
+
+    const waitlist = await childFavoritesService.getWaitlistForChildren(
+      childIds,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      waitlist
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Add child to waitlist for an activity
+router.post(
+  '/:childId/waitlist/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const entry = await childFavoritesService.joinWaitlist(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.status(201).json({
+        success: true,
+        waitlistEntry: entry,
+        message: 'Added to waitlist'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Remove child from waitlist
+router.delete(
+  '/:childId/waitlist/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      await childFavoritesService.leaveWaitlist(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        message: 'Removed from waitlist'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Check if child is on waitlist for an activity
+router.get(
+  '/:childId/waitlist/:activityId/status',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const isOnWaitlist = await childFavoritesService.isOnWaitlist(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        isOnWaitlist
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get waitlist status for an activity across multiple children
+router.get(
+  '/waitlist/status/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+      if (!childIds || childIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'childIds query parameter is required'
+        });
+      }
+
+      const status = await childFavoritesService.getWaitlistStatusForChildren(
+        req.params.activityId,
+        childIds,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        status
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get combined activity status (favorite + waitlist) for multiple children
+router.get(
+  '/activity-status/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+      if (!childIds || childIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'childIds query parameter is required'
+        });
+      }
+
+      const status = await childFavoritesService.getActivityStatusForChildren(
+        req.params.activityId,
+        childIds,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        status
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// ============= Child Notification Preferences =============
+
+// Get notification preferences for a child
+router.get('/:childId/notifications', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const preferences = await childFavoritesService.getChildNotificationPreferences(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      preferences
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update notification preferences for a child
+router.put(
+  '/:childId/notifications',
+  verifyToken,
+  [
+    body('enabled').optional().isBoolean(),
+    body('spotsAvailable').optional().isBoolean(),
+    body('favoriteCapacity').optional().isBoolean(),
+    body('capacityThreshold').optional().isInt({ min: 1, max: 10 }),
+    body('priceDrops').optional().isBoolean(),
+    body('newActivities').optional().isBoolean(),
+    body('dailyDigest').optional().isBoolean(),
+    body('weeklyDigest').optional().isBoolean(),
+    body('pushEnabled').optional().isBoolean(),
+    body('pushSpotsAvailable').optional().isBoolean(),
+    body('pushCapacityAlerts').optional().isBoolean(),
+    body('pushPriceDrops').optional().isBoolean()
+  ],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const preferences = await childFavoritesService.updateChildNotificationPreferences(
+        req.params.childId,
+        req.user!.id,
+        req.body
+      );
+
+      res.json({
+        success: true,
+        preferences,
+        message: 'Notification preferences updated'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// ============= Migration Helpers =============
+
+// Migrate user-level favorites to a specific child
+router.post('/:childId/favorites/migrate', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const result = await childFavoritesService.migrateUserFavoritesToChild(
+      req.user!.id,
+      req.params.childId
+    );
+
+    res.json({
+      success: true,
+      ...result,
+      message: `Migrated ${result.migrated} favorites to child`
     });
   } catch (error: any) {
     res.status(400).json({

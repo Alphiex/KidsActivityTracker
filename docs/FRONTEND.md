@@ -55,6 +55,7 @@ src/
 │   ├── DashboardScreenModern.tsx  # Main dashboard with AI Recommendations button
 │   ├── AIRecommendationsScreen.tsx # Personalized AI activity recommendations
 │   ├── AIChatScreen.tsx           # Conversational AI assistant
+│   ├── WeeklyPlannerScreen.tsx    # AI weekly schedule planner
 │   ├── CalendarScreenModernFixed.tsx
 │   ├── FiltersScreen.tsx          # Activity type icons and cascading selection
 │   ├── ActivityDetailScreenModern.tsx
@@ -116,6 +117,7 @@ App
     │   ├── Dashboard
     │   ├── Filters
     │   ├── Calendar
+    │   │   └── WeeklyPlanner (AI Schedule)
     │   ├── Activity List
     │   ├── Activity Detail
     │   ├── Search Results
@@ -198,6 +200,27 @@ Conversational AI assistant:
 - Suggested prompts for common queries
 - Follow-up suggestions after responses
 - Quota display (free vs pro tier)
+
+### WeeklyPlannerScreen.tsx
+AI-powered weekly activity schedule planner:
+- **Week Selection**: Calendar picker to choose planning week
+- **Per-Child Availability**: Grid-based time picker (7 days x 3 time slots per child)
+  - Morning (6am-12pm), Afternoon (12pm-5pm), Evening (5pm-9pm)
+  - Tap to toggle availability slots
+  - Tab navigation between children
+- **Sibling Grouping**: Toggle to schedule siblings together when possible
+- **Constraints**: Max activities per child, avoid back-to-back toggle
+- **AI Schedule Generation**: Calls AI to create optimal weekly schedule
+- **Semi-Interactive Results**:
+  - Approve/reject buttons on each activity card
+  - Color-coded by child (pink, green, amber, cyan, purple)
+  - Horizontal scrolling week view
+- **Conflict Detection**: Visual warnings for time overlaps, travel distance, back-to-back
+- **AI Suggestions**: Smart recommendations for schedule optimization
+- **Add to Calendar**: Bulk-add approved activities to calendar
+- **Summary Stats**: Total activities, approved count, estimated cost
+
+Access: Calendar screen → "AI Plan" button (pink gradient with robot icon)
 
 ### FavoritesScreenModern.tsx (My Collection)
 Three-tab collection management:
@@ -581,8 +604,9 @@ npm run lint -- --fix
 
 ---
 
-**Document Version**: 4.3
+**Document Version**: 4.4
 **Last Updated**: January 2026
 
 ### Changelog
+- v4.4: Added WeeklyPlannerScreen documentation (AI-powered weekly schedule planner)
 - v4.3: Added gender filter documentation (All/Boys/Girls filter in FiltersScreen)

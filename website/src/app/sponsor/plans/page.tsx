@@ -189,7 +189,7 @@ export default function PlansPage() {
                   {features?.badge && (
                     <li className="flex items-center gap-2">
                       <CheckIcon />
-                      <span>{features.badge} badge on activities</span>
+                      <span>Sponsored badge on activities</span>
                     </li>
                   )}
                 </ul>
@@ -307,25 +307,8 @@ export default function PlansPage() {
       {plans.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl shadow">
           <p className="text-gray-500">No plans available at the moment.</p>
-          <p className="text-gray-500 mt-2">Contact support for partnership options.</p>
         </div>
       )}
-
-      {/* Contact Section */}
-      <div className="mt-8 bg-white rounded-xl shadow p-6 text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Need a custom plan?
-        </h3>
-        <p className="text-gray-500 mb-4">
-          Contact us for enterprise pricing and custom features
-        </p>
-        <a
-          href="mailto:partners@kidsactivitytracker.ca"
-          className="inline-block px-6 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
-        >
-          Contact Sales
-        </a>
-      </div>
     </div>
   );
 }

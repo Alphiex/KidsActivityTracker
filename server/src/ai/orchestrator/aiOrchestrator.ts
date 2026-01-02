@@ -226,6 +226,17 @@ export class AIOrchestrator {
       max_activities_per_child?: number;
       avoid_back_to_back?: boolean;
       max_travel_between_activities_km?: number;
+      schedule_siblings_together?: boolean;
+      child_availability?: Array<{
+        child_id: string;
+        available_slots: {
+          [day: string]: {
+            morning: boolean;
+            afternoon: boolean;
+            evening: boolean;
+          };
+        };
+      }>;
     }
   ): Promise<WeeklySchedule | null> {
     // Build family context
@@ -237,7 +248,7 @@ export class AIOrchestrator {
       user_id: userId,
       family_context: familyContext,
       search_intent: `Plan week starting ${weekStart}`,
-      parsed_filters: constraints as any,
+      planner_constraints: constraints,
     });
 
     return result.weekly_schedule || null;

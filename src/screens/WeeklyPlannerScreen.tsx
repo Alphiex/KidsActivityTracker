@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,31 +8,122 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Alert,
+  Modal,
+  Dimensions,
+  Animated,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { Calendar } from 'react-native-calendars';
 import aiService from '../services/aiService';
 import { WeeklySchedule, ScheduleEntry } from '../types/ai';
-import { useTheme } from '../contexts/ThemeContext';
+import { ModernColors, ModernShadows, ModernBorderRadius } from '../theme/modernTheme';
+import { useAppSelector } from '../store';
+import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
+import ScreenBackground from '../components/ScreenBackground';
+import { aiRobotImage } from '../assets/images';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const TIME_SLOTS = ['morning', 'afternoon', 'evening'] as const;
+const TIME_SLOT_LABELS: Record<typeof TIME_SLOTS[number], string> = {
+  morning: 'Morning\n6am-12pm',
+  afternoon: 'Afternoon\n12pm-5pm',
+  evening: 'Evening\n5pm-9pm',
+};
 
-// Colors for children
+// Child colors matching the app theme
 const CHILD_COLORS = [
-  '#E8638B', // teal
-  '#10B981', // green
-  '#F59E0B', // amber
-  '#06B6D4', // cyan
-  '#8B5CF6', // purple
+  ModernColors.primary,     // pink
+  ModernColors.success,     // green
+  ModernColors.warning,     // amber
+  '#06B6D4',               // cyan
+  '#8B5CF6',               // purple
 ];
 
 /**
- * Get color for a child based on their ID
+ * Get color for a child based on index
  */
-const getChildColor = (childId: string, childIds: string[]): string => {
-  const index = childIds.indexOf(childId);
+const getChildColor = (index: number): string => {
   return CHILD_COLORS[index % CHILD_COLORS.length];
+};
+
+/**
+ * Calculate child's age from date of birth
+ */
+const calculateAge = (dateOfBirth: string): number => {
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+/**
+ * Per-child availability slots
+ */
+interface ChildAvailability {
+  childId: string;
+  slots: {
+    [day: string]: {
+      morning: boolean;
+      afternoon: boolean;
+      evening: boolean;
+    };
+  };
+}
+
+/**
+ * Entry approval state
+ */
+type ApprovalState = 'pending' | 'approved' | 'declined';
+
+interface ScheduleEntryWithApproval extends ScheduleEntry {
+  approvalState: ApprovalState;
+  uniqueKey: string;
+}
+
+/**
+ * Get the next Monday date
+ */
+function getNextMonday(): Date {
+  const today = new Date();
+  const daysUntilMonday = (8 - today.getDay()) % 7 || 7;
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + daysUntilMonday);
+  return nextMonday;
+}
+
+/**
+ * Format date for display
+ */
+const formatDate = (date: Date): string => {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+/**
+ * Format date as ISO string (YYYY-MM-DD)
+ */
+const toISODateString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+/**
+ * Initialize availability for all children - all slots enabled by default
+ */
+const initializeAvailability = (children: ChildWithPreferences[]): ChildAvailability[] => {
+  return children.map(child => ({
+    childId: child.id,
+    slots: DAYS_OF_WEEK.reduce((acc, day) => ({
+      ...acc,
+      [day]: { morning: true, afternoon: true, evening: true },
+    }), {}),
+  }));
 };
 
 /**
@@ -41,57 +132,98 @@ const getChildColor = (childId: string, childIds: string[]): string => {
  */
 const WeeklyPlannerScreen = () => {
   const navigation = useNavigation();
-  const { colors, isDark } = useTheme();
+  const children = useAppSelector(selectAllChildren);
 
+  // Schedule state
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [schedule, setSchedule] = useState<WeeklySchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<string>(getNextMonday());
 
-  // Constraints state
+  // Configuration state
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(getNextMonday());
   const [maxActivitiesPerChild, setMaxActivitiesPerChild] = useState(3);
   const [avoidBackToBack, setAvoidBackToBack] = useState(true);
+  const [scheduleSiblingsTogether, setScheduleSiblingsTogether] = useState(false);
+  const [childAvailability, setChildAvailability] = useState<ChildAvailability[]>([]);
+  const [selectedChildTab, setSelectedChildTab] = useState(0);
 
-  // Get all unique child IDs from schedule
-  const childIds = schedule
-    ? [...new Set(Object.values(schedule.entries).flat().map(e => e.child_id))]
-    : [];
+  // UI state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  const [entryApprovals, setEntryApprovals] = useState<Record<string, ApprovalState>>({});
 
-  /**
-   * Get the next Monday date
-   */
-  function getNextMonday(): string {
-    const today = new Date();
-    const daysUntilMonday = (8 - today.getDay()) % 7 || 7;
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + daysUntilMonday);
-    return nextMonday.toISOString().split('T')[0];
-  }
+  // Animation
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
-  /**
-   * Format date for display
-   */
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+  // Initialize availability when children load
+  useEffect(() => {
+    if (children.length > 0 && childAvailability.length === 0) {
+      setChildAvailability(initializeAvailability(children));
+    }
+  }, [children]);
+
+  // Fade in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Get unique child IDs from schedule
+  const childIdsInSchedule = useMemo(() => {
+    if (!schedule) return [];
+    return [...new Set(Object.values(schedule.entries).flat().map(e => e.child_id))];
+  }, [schedule]);
+
+  // Get child info by ID
+  const getChildInfo = useCallback((childId: string) => {
+    const index = children.findIndex(c => c.id === childId);
+    const child = children[index];
+    return {
+      name: child?.name || 'Child',
+      color: getChildColor(index >= 0 ? index : 0),
+      index,
+    };
+  }, [children]);
 
   /**
    * Generate AI schedule
    */
   const generateSchedule = async () => {
+    if (children.length === 0) {
+      setError('Please add children to your profile first');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await aiService.planWeek(selectedWeek, {
+      // Build availability constraint for API
+      const availabilityForApi = childAvailability.map(ca => ({
+        child_id: ca.childId,
+        available_slots: ca.slots,
+      }));
+
+      const result = await aiService.planWeek(toISODateString(selectedWeekStart), {
         max_activities_per_child: maxActivitiesPerChild,
         avoid_back_to_back: avoidBackToBack,
+        schedule_siblings_together: scheduleSiblingsTogether,
+        child_availability: availabilityForApi,
       });
 
       if (result.success && result.schedule) {
         setSchedule(result.schedule);
+        // Initialize all entries as pending
+        const approvals: Record<string, ApprovalState> = {};
+        Object.values(result.schedule.entries).flat().forEach((entry, idx) => {
+          const key = `${entry.child_id}-${entry.activity_id}-${entry.day}-${idx}`;
+          approvals[key] = 'pending';
+        });
+        setEntryApprovals(approvals);
       } else {
         setError(result.error || 'Failed to generate schedule');
       }
@@ -104,12 +236,50 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
-   * Refresh schedule
+   * Toggle availability slot
    */
-  const onRefresh = async () => {
-    setIsRefreshing(true);
-    await generateSchedule();
-    setIsRefreshing(false);
+  const toggleAvailability = (childId: string, day: string, slot: typeof TIME_SLOTS[number]) => {
+    setChildAvailability(prev => prev.map(ca => {
+      if (ca.childId !== childId) return ca;
+      return {
+        ...ca,
+        slots: {
+          ...ca.slots,
+          [day]: {
+            ...ca.slots[day],
+            [slot]: !ca.slots[day][slot],
+          },
+        },
+      };
+    }));
+  };
+
+  /**
+   * Toggle all slots for a day
+   */
+  const toggleDayAll = (childId: string, day: string) => {
+    setChildAvailability(prev => prev.map(ca => {
+      if (ca.childId !== childId) return ca;
+      const allEnabled = TIME_SLOTS.every(slot => ca.slots[day][slot]);
+      return {
+        ...ca,
+        slots: {
+          ...ca.slots,
+          [day]: {
+            morning: !allEnabled,
+            afternoon: !allEnabled,
+            evening: !allEnabled,
+          },
+        },
+      };
+    }));
+  };
+
+  /**
+   * Set approval state for an entry
+   */
+  const setEntryApproval = (key: string, state: ApprovalState) => {
+    setEntryApprovals(prev => ({ ...prev, [key]: state }));
   };
 
   /**
@@ -120,38 +290,252 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
+   * Add approved activities to calendar
+   */
+  const addApprovedToCalendar = () => {
+    const approved = Object.entries(entryApprovals)
+      .filter(([_, state]) => state === 'approved')
+      .map(([key]) => key);
+
+    // TODO: Integrate with calendar service
+    console.log('Adding to calendar:', approved);
+    // For now, show success message
+    setError(null);
+  };
+
+  /**
+   * Render child availability picker
+   */
+  const renderAvailabilityPicker = () => {
+    if (children.length === 0) return null;
+
+    const currentChild = children[selectedChildTab];
+    const currentAvailability = childAvailability.find(ca => ca.childId === currentChild?.id);
+    if (!currentChild || !currentAvailability) return null;
+
+    return (
+      <Modal
+        visible={showAvailabilityModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAvailabilityModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Set Availability</Text>
+            <TouchableOpacity onPress={() => setShowAvailabilityModal(false)}>
+              <Icon name="close" size={24} color={ModernColors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Child tabs */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.childTabs}>
+            {children.map((child, idx) => (
+              <TouchableOpacity
+                key={child.id}
+                style={[
+                  styles.childTab,
+                  selectedChildTab === idx && { backgroundColor: getChildColor(idx) + '20', borderColor: getChildColor(idx) },
+                ]}
+                onPress={() => setSelectedChildTab(idx)}
+              >
+                <View style={[styles.childTabDot, { backgroundColor: getChildColor(idx) }]} />
+                <Text style={[
+                  styles.childTabText,
+                  selectedChildTab === idx && { color: getChildColor(idx), fontWeight: '600' },
+                ]}>
+                  {child.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.availabilityHint}>
+            Tap slots to toggle when {currentChild.name} is available
+          </Text>
+
+          {/* Availability grid */}
+          <ScrollView style={styles.availabilityGrid}>
+            {/* Header row */}
+            <View style={styles.gridRow}>
+              <View style={styles.gridHeaderCell} />
+              {TIME_SLOTS.map(slot => (
+                <View key={slot} style={styles.gridHeaderCell}>
+                  <Text style={styles.gridHeaderText}>{TIME_SLOT_LABELS[slot]}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Day rows */}
+            {DAYS_OF_WEEK.map(day => (
+              <View key={day} style={styles.gridRow}>
+                <TouchableOpacity
+                  style={styles.gridDayCell}
+                  onPress={() => toggleDayAll(currentChild.id, day)}
+                >
+                  <Text style={styles.gridDayText}>{day.substring(0, 3)}</Text>
+                </TouchableOpacity>
+                {TIME_SLOTS.map(slot => {
+                  const isEnabled = currentAvailability.slots[day]?.[slot] ?? true;
+                  return (
+                    <TouchableOpacity
+                      key={slot}
+                      style={[
+                        styles.gridSlotCell,
+                        isEnabled && { backgroundColor: getChildColor(selectedChildTab) + '30' },
+                      ]}
+                      onPress={() => toggleAvailability(currentChild.id, day, slot)}
+                    >
+                      {isEnabled && (
+                        <Icon name="check" size={20} color={getChildColor(selectedChildTab)} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.modalDoneButton}
+            onPress={() => setShowAvailabilityModal(false)}
+          >
+            <LinearGradient
+              colors={ModernColors.primaryGradient as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalDoneButtonGradient}
+            >
+              <Text style={styles.modalDoneButtonText}>Done</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </Modal>
+    );
+  };
+
+  /**
+   * Render date picker modal
+   */
+  const renderDatePicker = () => (
+    <Modal
+      visible={showDatePicker}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => setShowDatePicker(false)}
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Select Week</Text>
+          <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+            <Icon name="close" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.datePickerHint}>Select the Monday of the week you want to plan</Text>
+
+        <Calendar
+          current={toISODateString(selectedWeekStart)}
+          onDayPress={(day: any) => {
+            const selected = new Date(day.dateString);
+            // Find the Monday of that week
+            const dayOfWeek = selected.getDay();
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(selected);
+            monday.setDate(selected.getDate() + diff);
+            setSelectedWeekStart(monday);
+            setShowDatePicker(false);
+          }}
+          markedDates={{
+            [toISODateString(selectedWeekStart)]: {
+              selected: true,
+              selectedColor: ModernColors.primary,
+            },
+          }}
+          theme={{
+            selectedDayBackgroundColor: ModernColors.primary,
+            todayTextColor: ModernColors.primary,
+            arrowColor: ModernColors.primary,
+          }}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+
+  /**
    * Render a schedule entry card
    */
-  const renderScheduleEntry = (entry: ScheduleEntry) => {
-    const childColor = getChildColor(entry.child_id, childIds);
+  const renderScheduleEntry = (entry: ScheduleEntry, dayIndex: number, entryIndex: number) => {
+    const { name: childName, color: childColor } = getChildInfo(entry.child_id);
+    const uniqueKey = `${entry.child_id}-${entry.activity_id}-${entry.day}-${entryIndex}`;
+    const approvalState = entryApprovals[uniqueKey] || 'pending';
 
     return (
       <TouchableOpacity
-        key={`${entry.child_id}-${entry.activity_id}-${entry.time}`}
-        style={[styles.entryCard, { borderLeftColor: childColor }]}
+        key={uniqueKey}
+        style={[
+          styles.entryCard,
+          { borderLeftColor: childColor },
+          approvalState === 'approved' && styles.entryCardApproved,
+          approvalState === 'declined' && styles.entryCardDeclined,
+        ]}
         onPress={() => handleActivityPress(entry)}
+        activeOpacity={0.7}
       >
-        <View style={styles.entryTime}>
-          <Text style={styles.entryTimeText}>{entry.time}</Text>
-          {entry.duration_minutes && (
-            <Text style={styles.entryDuration}>{entry.duration_minutes} min</Text>
-          )}
-        </View>
         <View style={styles.entryContent}>
-          <Text style={styles.entryActivityName}>{entry.activity_name}</Text>
-          <View style={styles.entryMeta}>
-            <View style={[styles.childBadge, { backgroundColor: childColor + '20' }]}>
-              <Text style={[styles.childBadgeText, { color: childColor }]}>
-                {entry.child_name || 'Child'}
-              </Text>
+          <View style={styles.entryTime}>
+            <Text style={styles.entryTimeText}>{entry.time}</Text>
+            {entry.duration_minutes && (
+              <Text style={styles.entryDuration}>{entry.duration_minutes} min</Text>
+            )}
+          </View>
+          <View style={styles.entryDetails}>
+            <Text style={styles.entryActivityName} numberOfLines={2}>
+              {entry.activity_name}
+            </Text>
+            <View style={styles.entryMeta}>
+              <View style={[styles.childBadge, { backgroundColor: childColor + '20' }]}>
+                <Text style={[styles.childBadgeText, { color: childColor }]}>
+                  {entry.child_name || childName}
+                </Text>
+              </View>
             </View>
             <View style={styles.locationRow}>
-              <Icon name="map-marker" size={12} color="#6B7280" />
-              <Text style={styles.entryLocation}>{entry.location}</Text>
+              <Icon name="map-marker" size={12} color={ModernColors.textSecondary} />
+              <Text style={styles.entryLocation} numberOfLines={1}>{entry.location}</Text>
             </View>
           </View>
         </View>
-        <Icon name="chevron-right" size={20} color="#9CA3AF" />
+
+        {/* Approval buttons */}
+        <View style={styles.approvalButtons}>
+          <TouchableOpacity
+            style={[
+              styles.approvalButton,
+              approvalState === 'approved' && styles.approvalButtonActive,
+            ]}
+            onPress={() => setEntryApproval(uniqueKey, approvalState === 'approved' ? 'pending' : 'approved')}
+          >
+            <Icon
+              name="check"
+              size={18}
+              color={approvalState === 'approved' ? '#FFFFFF' : ModernColors.success}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.approvalButton,
+              approvalState === 'declined' && styles.approvalButtonDeclined,
+            ]}
+            onPress={() => setEntryApproval(uniqueKey, approvalState === 'declined' ? 'pending' : 'declined')}
+          >
+            <Icon
+              name="close"
+              size={18}
+              color={approvalState === 'declined' ? '#FFFFFF' : ModernColors.error}
+            />
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -159,7 +543,7 @@ const WeeklyPlannerScreen = () => {
   /**
    * Render a day column
    */
-  const renderDayColumn = (day: string) => {
+  const renderDayColumn = (day: string, dayIndex: number) => {
     const entries = schedule?.entries[day] || [];
     const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }) === day;
 
@@ -172,11 +556,11 @@ const WeeklyPlannerScreen = () => {
         </View>
         <View style={styles.dayContent}>
           {entries.length > 0 ? (
-            entries.map(entry => renderScheduleEntry(entry))
+            entries.map((entry, idx) => renderScheduleEntry(entry, dayIndex, idx))
           ) : (
             <View style={styles.emptyDay}>
-              <Icon name="calendar-blank" size={24} color="#D1D5DB" />
-              <Text style={styles.emptyDayText}>No activities</Text>
+              <Icon name="calendar-blank" size={24} color={ModernColors.border} />
+              <Text style={styles.emptyDayText}>Free day</Text>
             </View>
           )}
         </View>
@@ -193,7 +577,7 @@ const WeeklyPlannerScreen = () => {
     return (
       <View style={styles.conflictsSection}>
         <View style={styles.conflictsHeader}>
-          <Icon name="alert-circle" size={20} color="#F59E0B" />
+          <Icon name="alert-circle" size={20} color={ModernColors.warning} />
           <Text style={styles.conflictsTitle}>Scheduling Conflicts</Text>
         </View>
         {schedule.conflicts.map((conflict, index) => (
@@ -207,7 +591,7 @@ const WeeklyPlannerScreen = () => {
                   : 'run-fast'
               }
               size={18}
-              color="#F59E0B"
+              color={ModernColors.warning}
             />
             <Text style={styles.conflictText}>{conflict.description}</Text>
           </View>
@@ -225,12 +609,12 @@ const WeeklyPlannerScreen = () => {
     return (
       <View style={styles.suggestionsSection}>
         <View style={styles.suggestionsHeader}>
-          <Icon name="lightbulb-outline" size={20} color="#6B46C1" />
+          <Icon name="lightbulb-outline" size={20} color={ModernColors.primary} />
           <Text style={styles.suggestionsTitle}>AI Suggestions</Text>
         </View>
         {schedule.suggestions.map((suggestion, index) => (
           <View key={index} style={styles.suggestionCard}>
-            <Icon name="sparkles" size={16} color="#6B46C1" />
+            <Icon name="sparkles" size={16} color={ModernColors.primary} />
             <Text style={styles.suggestionText}>{suggestion}</Text>
           </View>
         ))}
@@ -239,185 +623,381 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
-   * Render empty state
-   */
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Icon name="calendar-star" size={64} color="#D1D5DB" />
-      <Text style={styles.emptyStateTitle}>Plan Your Week</Text>
-      <Text style={styles.emptyStateDescription}>
-        Let AI create an optimal activity schedule for your family, balancing
-        activities across children and avoiding conflicts.
-      </Text>
-
-      {/* Constraints */}
-      <View style={styles.constraintsSection}>
-        <Text style={styles.constraintsTitle}>Settings</Text>
-
-        <View style={styles.constraintRow}>
-          <Text style={styles.constraintLabel}>Max activities per child</Text>
-          <View style={styles.constraintStepper}>
-            <TouchableOpacity
-              style={styles.stepperButton}
-              onPress={() => setMaxActivitiesPerChild(Math.max(1, maxActivitiesPerChild - 1))}
-            >
-              <Icon name="minus" size={18} color="#6B7280" />
-            </TouchableOpacity>
-            <Text style={styles.stepperValue}>{maxActivitiesPerChild}</Text>
-            <TouchableOpacity
-              style={styles.stepperButton}
-              onPress={() => setMaxActivitiesPerChild(Math.min(10, maxActivitiesPerChild + 1))}
-            >
-              <Icon name="plus" size={18} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.constraintRow}
-          onPress={() => setAvoidBackToBack(!avoidBackToBack)}
-        >
-          <Text style={styles.constraintLabel}>Avoid back-to-back activities</Text>
-          <Icon
-            name={avoidBackToBack ? 'checkbox-marked' : 'checkbox-blank-outline'}
-            size={24}
-            color={avoidBackToBack ? '#6B46C1' : '#9CA3AF'}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity style={styles.generateButton} onPress={generateSchedule}>
-        <Icon name="robot" size={20} color="#FFFFFF" />
-        <Text style={styles.generateButtonText}>Generate Schedule</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  /**
    * Render schedule summary
    */
   const renderSummary = () => {
     if (!schedule) return null;
 
+    const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
+    const declinedCount = Object.values(entryApprovals).filter(s => s === 'declined').length;
+    const pendingCount = Object.values(entryApprovals).filter(s => s === 'pending').length;
+
     return (
       <View style={styles.summarySection}>
         <View style={styles.summaryCard}>
-          <Icon name="calendar-check" size={24} color="#10B981" />
+          <Icon name="calendar-check" size={24} color={ModernColors.success} />
           <View>
             <Text style={styles.summaryValue}>{schedule.total_activities}</Text>
             <Text style={styles.summaryLabel}>Activities</Text>
           </View>
         </View>
+        <View style={styles.summaryCard}>
+          <Icon name="check-circle" size={24} color={ModernColors.success} />
+          <View>
+            <Text style={styles.summaryValue}>{approvedCount}</Text>
+            <Text style={styles.summaryLabel}>Approved</Text>
+          </View>
+        </View>
         {schedule.total_cost !== undefined && (
           <View style={styles.summaryCard}>
-            <Icon name="currency-usd" size={24} color="#F59E0B" />
+            <Icon name="currency-usd" size={24} color={ModernColors.warning} />
             <View>
               <Text style={styles.summaryValue}>${schedule.total_cost}</Text>
-              <Text style={styles.summaryLabel}>Total Cost</Text>
+              <Text style={styles.summaryLabel}>Est. Cost</Text>
             </View>
           </View>
         )}
-        <View style={styles.summaryCard}>
-          <Icon name="account-group" size={24} color="#E8638B" />
-          <View>
-            <Text style={styles.summaryValue}>{childIds.length}</Text>
-            <Text style={styles.summaryLabel}>Children</Text>
+      </View>
+    );
+  };
+
+  /**
+   * Render empty state with configuration
+   */
+  const renderEmptyState = () => (
+    <ScrollView style={styles.emptyStateScroll} contentContainerStyle={styles.emptyStateContent}>
+      {/* Header */}
+      <View style={styles.emptyStateHeader}>
+        <LinearGradient
+          colors={[ModernColors.primaryLight + '40', ModernColors.primary + '20']}
+          style={styles.emptyStateIconContainer}
+        >
+          <Icon name="calendar-star" size={48} color={ModernColors.primary} />
+        </LinearGradient>
+        <Text style={styles.emptyStateTitle}>AI Weekly Planner</Text>
+        <Text style={styles.emptyStateDescription}>
+          Let AI create an optimal activity schedule for your family, balancing
+          each child's availability and preferences.
+        </Text>
+      </View>
+
+      {/* Week selection */}
+      <View style={styles.configSection}>
+        <Text style={styles.configSectionTitle}>Planning Week</Text>
+        <TouchableOpacity
+          style={styles.weekSelector}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Icon name="calendar" size={20} color={ModernColors.primary} />
+          <Text style={styles.weekSelectorText}>
+            Week of {formatDate(selectedWeekStart)}
+          </Text>
+          <Icon name="chevron-right" size={20} color={ModernColors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Children availability */}
+      {children.length > 0 && (
+        <View style={styles.configSection}>
+          <Text style={styles.configSectionTitle}>Children's Availability</Text>
+          <TouchableOpacity
+            style={styles.availabilityButton}
+            onPress={() => setShowAvailabilityModal(true)}
+          >
+            <View style={styles.availabilityButtonContent}>
+              <View style={styles.childrenAvatars}>
+                {children.slice(0, 3).map((child, idx) => (
+                  <View
+                    key={child.id}
+                    style={[
+                      styles.childAvatar,
+                      { backgroundColor: getChildColor(idx), marginLeft: idx > 0 ? -8 : 0 },
+                    ]}
+                  >
+                    <Text style={styles.childAvatarText}>{child.name[0]}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.availabilityButtonText}>
+                <Text style={styles.availabilityButtonTitle}>Set when each child is free</Text>
+                <Text style={styles.availabilityButtonSubtitle}>
+                  {children.map(c => c.name).join(', ')}
+                </Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={20} color={ModernColors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Settings */}
+      <View style={styles.configSection}>
+        <Text style={styles.configSectionTitle}>Settings</Text>
+
+        <View style={styles.settingsCard}>
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Max activities per child</Text>
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setMaxActivitiesPerChild(Math.max(1, maxActivitiesPerChild - 1))}
+              >
+                <Icon name="minus" size={18} color={ModernColors.textSecondary} />
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{maxActivitiesPerChild}</Text>
+              <TouchableOpacity
+                style={styles.stepperButton}
+                onPress={() => setMaxActivitiesPerChild(Math.min(10, maxActivitiesPerChild + 1))}
+              >
+                <Icon name="plus" size={18} color={ModernColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => setAvoidBackToBack(!avoidBackToBack)}
+          >
+            <Text style={styles.settingLabel}>Avoid back-to-back activities</Text>
+            <Icon
+              name={avoidBackToBack ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={24}
+              color={avoidBackToBack ? ModernColors.primary : ModernColors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {children.length >= 2 && (
+            <TouchableOpacity
+              style={[styles.settingRow, styles.settingRowLast]}
+              onPress={() => setScheduleSiblingsTogether(!scheduleSiblingsTogether)}
+            >
+              <View>
+                <Text style={styles.settingLabel}>Schedule siblings together</Text>
+                <Text style={styles.settingHint}>Try to book same activities when possible</Text>
+              </View>
+              <Icon
+                name={scheduleSiblingsTogether ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                size={24}
+                color={scheduleSiblingsTogether ? ModernColors.primary : ModernColors.textMuted}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Generate button with AI robot */}
+      <View style={styles.generateButtonWrapper}>
+        <TouchableOpacity
+          style={styles.generateButton}
+          onPress={generateSchedule}
+          disabled={children.length === 0}
+        >
+          <LinearGradient
+            colors={children.length === 0 ? ['#ccc', '#aaa'] : ModernColors.primaryGradient as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.generateButtonGradient}
+          >
+            <Icon name="sparkles" size={20} color="#FFFFFF" />
+            <Text style={styles.generateButtonText}>Generate Schedule</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <Image source={aiRobotImage} style={styles.generateButtonRobot} />
+      </View>
+
+      {children.length === 0 && (
+        <Text style={styles.noChildrenHint}>
+          Add children to your profile to use the AI planner
+        </Text>
+      )}
+    </ScrollView>
+  );
+
+  /**
+   * Render loading state
+   */
+  const renderLoadingState = () => (
+    <View style={styles.loadingContainer}>
+      <View style={styles.loadingContent}>
+        <LinearGradient
+          colors={[ModernColors.primaryLight + '40', ModernColors.primary + '20']}
+          style={styles.loadingIconContainer}
+        >
+          <ActivityIndicator size="large" color={ModernColors.primary} />
+        </LinearGradient>
+        <Text style={styles.loadingText}>Creating your schedule...</Text>
+        <Text style={styles.loadingSubtext}>
+          AI is finding the best activities for your family
+        </Text>
+      </View>
+    </View>
+  );
+
+  /**
+   * Render error state
+   */
+  const renderErrorState = () => (
+    <View style={styles.errorContainer}>
+      <Icon name="alert-circle" size={48} color={ModernColors.error} />
+      <Text style={styles.errorText}>{error}</Text>
+      <TouchableOpacity style={styles.retryButton} onPress={generateSchedule}>
+        <Text style={styles.retryButtonText}>Try Again</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => setError(null)}
+      >
+        <Text style={styles.backButtonText}>Change Settings</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  /**
+   * Render floating action bar
+   */
+  const renderActionBar = () => {
+    const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
+
+    if (!schedule || approvedCount === 0) return null;
+
+    return (
+      <View style={styles.actionBar}>
+        <TouchableOpacity
+          style={styles.actionBarButton}
+          onPress={addApprovedToCalendar}
+        >
+          <LinearGradient
+            colors={ModernColors.primaryGradient as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.actionBarButtonGradient}
+          >
+            <Icon name="calendar-plus" size={20} color="#FFFFFF" />
+            <Text style={styles.actionBarButtonText}>
+              Add {approvedCount} to Calendar
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  /**
+   * Render legend
+   */
+  const renderLegend = () => {
+    if (!schedule || childIdsInSchedule.length === 0) return null;
+
+    return (
+      <View style={styles.legendSection}>
+        <Text style={styles.legendTitle}>Children</Text>
+        <View style={styles.legendItems}>
+          {childIdsInSchedule.map(childId => {
+            const { name, color } = getChildInfo(childId);
+            return (
+              <View key={childId} style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: color }]} />
+                <Text style={styles.legendText}>{name}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#111827" />
+    <ScreenBackground>
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Icon name="arrow-left" size={24} color={ModernColors.text} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Weekly Planner</Text>
-          <Text style={styles.headerSubtitle}>
-            Week of {formatDate(selectedWeek)}
-          </Text>
+          {schedule && (
+            <Text style={styles.headerSubtitle}>
+              Week of {formatDate(selectedWeekStart)}
+            </Text>
+          )}
         </View>
         {schedule && (
-          <TouchableOpacity onPress={generateSchedule} disabled={isLoading}>
-            <Icon name="refresh" size={24} color={isLoading ? '#D1D5DB' : '#6B46C1'} />
+          <TouchableOpacity
+            onPress={generateSchedule}
+            disabled={isLoading}
+            style={styles.headerButton}
+          >
+            <Icon
+              name="refresh"
+              size={24}
+              color={isLoading ? ModernColors.border : ModernColors.primary}
+            />
           </TouchableOpacity>
         )}
+        {!schedule && <View style={styles.headerButton} />}
       </View>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6B46C1" />
-          <Text style={styles.loadingText}>Generating optimal schedule...</Text>
-          <Text style={styles.loadingSubtext}>
-            AI is analyzing activities for your family
-          </Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Icon name="alert-circle" size={48} color="#EF4444" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={generateSchedule}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : !schedule ? (
-        renderEmptyState()
-      ) : (
-        <ScrollView
-          style={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-          }
-        >
-          {renderSummary()}
-          {renderConflicts()}
-          {renderSuggestions()}
+      {/* Content */}
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        {isLoading ? (
+          renderLoadingState()
+        ) : error ? (
+          renderErrorState()
+        ) : !schedule ? (
+          renderEmptyState()
+        ) : (
+          <ScrollView
+            style={styles.scrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={generateSchedule}
+                tintColor={ModernColors.primary}
+              />
+            }
+          >
+            {renderSummary()}
+            {renderConflicts()}
+            {renderSuggestions()}
 
-          {/* Calendar view */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.calendarContainer}>
-              {DAYS_OF_WEEK.map(day => renderDayColumn(day))}
-            </View>
+            {/* Calendar view */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.calendarScroll}
+            >
+              <View style={styles.calendarContainer}>
+                {DAYS_OF_WEEK.map((day, idx) => renderDayColumn(day, idx))}
+              </View>
+            </ScrollView>
+
+            {renderLegend()}
+
+            {/* Spacing for action bar */}
+            <View style={{ height: 100 }} />
           </ScrollView>
+        )}
+      </Animated.View>
 
-          {/* Legend */}
-          <View style={styles.legendSection}>
-            <Text style={styles.legendTitle}>Children</Text>
-            <View style={styles.legendItems}>
-              {childIds.map(childId => {
-                const entry = Object.values(schedule.entries)
-                  .flat()
-                  .find(e => e.child_id === childId);
-                return (
-                  <View key={childId} style={styles.legendItem}>
-                    <View
-                      style={[
-                        styles.legendColor,
-                        { backgroundColor: getChildColor(childId, childIds) },
-                      ]}
-                    />
-                    <Text style={styles.legendText}>
-                      {entry?.child_name || 'Child'}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+      {/* Action bar */}
+      {renderActionBar()}
+
+      {/* Modals */}
+      {renderDatePicker()}
+      {renderAvailabilityPicker()}
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'transparent',
+  },
+  content: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -425,40 +1005,62 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: ModernColors.border,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerCenter: {
+    flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: ModernColors.text,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: ModernColors.textSecondary,
     marginTop: 2,
   },
+
+  // Loading state
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
   },
+  loadingContent: {
+    alignItems: 'center',
+  },
+  loadingIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
   loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111827',
-    marginTop: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 8,
   },
   loadingSubtext: {
     fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
   },
+
+  // Error state
   errorContainer: {
     flex: 1,
     alignItems: 'center',
@@ -467,106 +1069,233 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#EF4444',
+    color: ModernColors.error,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 16,
+    marginBottom: 24,
   },
   retryButton: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    backgroundColor: '#6B46C1',
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    backgroundColor: ModernColors.primary,
+    borderRadius: ModernBorderRadius.lg,
   },
   retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  backButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: ModernColors.textSecondary,
+  },
+
+  // Empty state
+  emptyStateScroll: {
+    flex: 1,
+  },
+  emptyStateContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  emptyStateHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  emptyStateIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: ModernColors.text,
+    marginBottom: 8,
+  },
+  emptyStateDescription: {
+    fontSize: 15,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 20,
+  },
+
+  // Config sections
+  configSection: {
+    marginBottom: 24,
+  },
+  configSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.textSecondary,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // Week selector
+  weekSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    gap: 12,
+  },
+  weekSelectorText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: ModernColors.text,
+  },
+
+  // Availability button
+  availabilityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+  },
+  availabilityButtonContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  childrenAvatars: {
+    flexDirection: 'row',
+  },
+  childAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: ModernColors.surface,
+  },
+  childAvatarText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  scrollContent: {
+  availabilityButtonText: {
     flex: 1,
   },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 16,
-  },
-  emptyStateDescription: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  constraintsSection: {
-    width: '100%',
-    marginTop: 32,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  constraintsTitle: {
+  availabilityButtonTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    fontWeight: '500',
+    color: ModernColors.text,
   },
-  constraintRow: {
+  availabilityButtonSubtitle: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+    marginTop: 2,
+  },
+
+  // Settings card
+  settingsCard: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    overflow: 'hidden',
+  },
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: ModernColors.borderLight,
   },
-  constraintLabel: {
-    fontSize: 14,
-    color: '#374151',
+  settingRowLast: {
+    borderBottomWidth: 0,
   },
-  constraintStepper: {
+  settingLabel: {
+    fontSize: 15,
+    color: ModernColors.text,
+  },
+  settingHint: {
+    fontSize: 12,
+    color: ModernColors.textSecondary,
+    marginTop: 2,
+  },
+  stepper: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   stepperButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: ModernColors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
-    minWidth: 24,
+    color: ModernColors.text,
+    minWidth: 28,
     textAlign: 'center',
   },
+
+  // Generate button
+  generateButtonWrapper: {
+    marginTop: 16,
+    position: 'relative',
+  },
   generateButton: {
+    borderRadius: ModernBorderRadius.lg,
+    overflow: 'hidden',
+    ...ModernShadows.md,
+  },
+  generateButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    backgroundColor: '#6B46C1',
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 16,
+    gap: 10,
   },
   generateButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  generateButtonRobot: {
+    position: 'absolute',
+    right: -8,
+    top: -20,
+    width: 56,
+    height: 56,
+    resizeMode: 'contain',
+  },
+  noChildrenHint: {
+    fontSize: 13,
+    color: ModernColors.textMuted,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+
+  // Schedule view
+  scrollContent: {
+    flex: 1,
   },
   summarySection: {
     flexDirection: 'row',
@@ -578,27 +1307,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: ModernColors.border,
     gap: 10,
   },
   summaryValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: ModernColors.text,
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    color: ModernColors.textSecondary,
   },
+
+  // Conflicts
   conflictsSection: {
     margin: 16,
     marginTop: 0,
     padding: 16,
     backgroundColor: '#FFFBEB',
-    borderRadius: 12,
+    borderRadius: ModernBorderRadius.lg,
     borderWidth: 1,
     borderColor: '#FEF3C7',
   },
@@ -625,14 +1356,16 @@ const styles = StyleSheet.create({
     color: '#92400E',
     lineHeight: 18,
   },
+
+  // Suggestions
   suggestionsSection: {
     margin: 16,
     marginTop: 0,
     padding: 16,
-    backgroundColor: '#F3E8FF',
-    borderRadius: 12,
+    backgroundColor: ModernColors.primaryLight + '15',
+    borderRadius: ModernBorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E9D5FF',
+    borderColor: ModernColors.primaryLight + '30',
   },
   suggestionsHeader: {
     flexDirection: 'row',
@@ -643,7 +1376,7 @@ const styles = StyleSheet.create({
   suggestionsTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B21A8',
+    color: ModernColors.primaryDark,
   },
   suggestionCard: {
     flexDirection: 'row',
@@ -654,13 +1387,17 @@ const styles = StyleSheet.create({
   suggestionText: {
     flex: 1,
     fontSize: 13,
-    color: '#6B21A8',
+    color: ModernColors.primaryDark,
     lineHeight: 18,
+  },
+
+  // Calendar
+  calendarScroll: {
+    paddingHorizontal: 16,
   },
   calendarContainer: {
     flexDirection: 'row',
-    padding: 16,
-    paddingTop: 0,
+    paddingBottom: 16,
   },
   dayColumn: {
     width: 160,
@@ -668,21 +1405,21 @@ const styles = StyleSheet.create({
   },
   dayHeader: {
     padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.md,
     alignItems: 'center',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: ModernColors.border,
   },
   dayHeaderToday: {
-    backgroundColor: '#6B46C1',
-    borderColor: '#6B46C1',
+    backgroundColor: ModernColors.primary,
+    borderColor: ModernColors.primary,
   },
   dayName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: ModernColors.text,
   },
   dayNameToday: {
     color: '#FFFFFF',
@@ -694,37 +1431,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: ModernColors.border,
     borderLeftWidth: 4,
+  },
+  entryCardApproved: {
+    backgroundColor: ModernColors.success + '10',
+    borderColor: ModernColors.success + '30',
+  },
+  entryCardDeclined: {
+    backgroundColor: ModernColors.error + '08',
+    borderColor: ModernColors.error + '20',
+    opacity: 0.6,
+  },
+  entryContent: {
+    flex: 1,
+    flexDirection: 'row',
     gap: 10,
   },
   entryTime: {
     alignItems: 'center',
+    minWidth: 50,
   },
   entryTimeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#111827',
+    color: ModernColors.text,
   },
   entryDuration: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: ModernColors.textMuted,
     marginTop: 2,
   },
-  entryContent: {
+  entryDetails: {
     flex: 1,
   },
   entryActivityName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    color: '#111827',
+    color: ModernColors.text,
     marginBottom: 6,
   },
   entryMeta: {
-    gap: 4,
+    marginBottom: 4,
   },
   childBadge: {
     alignSelf: 'flex-start',
@@ -733,33 +1484,58 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   childBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
   },
   entryLocation: {
+    flex: 1,
     fontSize: 11,
-    color: '#6B7280',
+    color: ModernColors.textSecondary,
+  },
+  approvalButtons: {
+    flexDirection: 'column',
+    gap: 4,
+    marginLeft: 8,
+  },
+  approvalButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ModernColors.background,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+  },
+  approvalButtonActive: {
+    backgroundColor: ModernColors.success,
+    borderColor: ModernColors.success,
+  },
+  approvalButtonDeclined: {
+    backgroundColor: ModernColors.error,
+    borderColor: ModernColors.error,
   },
   emptyDay: {
     alignItems: 'center',
     paddingVertical: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: ModernColors.border,
     borderStyle: 'dashed',
   },
   emptyDayText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: ModernColors.textMuted,
     marginTop: 8,
   },
+
+  // Legend
   legendSection: {
     padding: 16,
     paddingTop: 0,
@@ -767,7 +1543,7 @@ const styles = StyleSheet.create({
   legendTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: ModernColors.text,
     marginBottom: 12,
   },
   legendItems: {
@@ -787,7 +1563,150 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: ModernColors.textSecondary,
+  },
+
+  // Action bar
+  actionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: ModernColors.surface,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+    ...ModernShadows.lg,
+  },
+  actionBarButton: {
+    borderRadius: ModernBorderRadius.lg,
+    overflow: 'hidden',
+  },
+  actionBarButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  actionBarButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: ModernColors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.border,
+    backgroundColor: ModernColors.surface,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: ModernColors.text,
+  },
+  childTabs: {
+    flexGrow: 0,
+    padding: 16,
+    paddingBottom: 8,
+  },
+  childTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: ModernBorderRadius.full,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    marginRight: 8,
+    gap: 8,
+  },
+  childTabDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  childTabText: {
+    fontSize: 14,
+    color: ModernColors.textSecondary,
+  },
+  availabilityHint: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  availabilityGrid: {
+    flex: 1,
+    padding: 16,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  gridHeaderCell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  gridHeaderText: {
+    fontSize: 11,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
+  },
+  gridDayCell: {
+    width: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  gridDayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.text,
+  },
+  gridSlotCell: {
+    flex: 1,
+    height: 48,
+    marginHorizontal: 4,
+    borderRadius: ModernBorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ModernColors.surface,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+  },
+  modalDoneButton: {
+    margin: 16,
+    borderRadius: ModernBorderRadius.lg,
+    overflow: 'hidden',
+  },
+  modalDoneButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalDoneButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  datePickerHint: {
+    fontSize: 14,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
+    padding: 16,
   },
 });
 

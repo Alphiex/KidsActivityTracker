@@ -69,12 +69,79 @@ const ActivityDetailScreenModern = () => {
   const [geocodedCoords, setGeocodedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [freshActivity, setFreshActivity] = useState<Activity | null>(null);
   const [fetchingDetails, setFetchingDetails] = useState(true);
+  const [loadingFromDeepLink, setLoadingFromDeepLink] = useState(false);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
   const mapRef = React.useRef<MapView>(null);
   const { user } = useAppSelector((state) => state.auth);
 
   const serializedActivity = (route.params as any)?.activity;
+  const activityIdFromDeepLink = (route.params as any)?.activityId;
 
-  if (!serializedActivity) {
+  // Handle deep link - fetch activity by ID if no activity object provided
+  useEffect(() => {
+    const fetchActivityFromDeepLink = async () => {
+      if (serializedActivity || !activityIdFromDeepLink) return;
+
+      try {
+        setLoadingFromDeepLink(true);
+        setDeepLinkError(null);
+        console.log('[ActivityDetail] Fetching activity from deep link:', activityIdFromDeepLink);
+        const details = await activityService.getActivityDetails(activityIdFromDeepLink);
+
+        if (details) {
+          const parsedActivity = {
+            ...details,
+            dateRange: details.dateRange ? {
+              start: new Date(details.dateRange.start),
+              end: new Date(details.dateRange.end),
+            } : null,
+            scrapedAt: new Date(details.scrapedAt || details.updatedAt),
+          };
+          setFreshActivity(parsedActivity);
+        } else {
+          setDeepLinkError('Activity not found');
+        }
+      } catch (error) {
+        console.error('[ActivityDetail] Error fetching activity from deep link:', error);
+        setDeepLinkError('Unable to load activity');
+      } finally {
+        setLoadingFromDeepLink(false);
+        setFetchingDetails(false);
+      }
+    };
+
+    fetchActivityFromDeepLink();
+  }, [activityIdFromDeepLink, serializedActivity]);
+
+  // Show loading state for deep links
+  if (loadingFromDeepLink) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={ModernColors.primary} />
+          <Text style={styles.loadingText}>Loading activity...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error for deep link failures
+  if (deepLinkError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
+          <Icon name="alert-circle-outline" size={64} color={ModernColors.textMuted} style={{ marginBottom: 16 }} />
+          <Text style={styles.errorText}>{deepLinkError}</Text>
+          <Text style={styles.errorSubtext}>This activity may have been removed or is no longer available.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!serializedActivity && !freshActivity) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
@@ -1010,6 +1077,12 @@ const styles = StyleSheet.create({
     fontSize: ModernTypography.sizes.lg,
     color: ModernColors.text,
     textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textMuted,
+    textAlign: 'center',
+    marginTop: ModernSpacing.sm,
   },
   backButton: {
     position: 'absolute',

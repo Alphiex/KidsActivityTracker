@@ -833,9 +833,9 @@ export default function EditActivityPage() {
           </div>
         </div>
 
-        {/* Featured Partner Settings */}
+        {/* Sponsored Partner Settings */}
         <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Featured Partner Settings</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Sponsored Partner Settings</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center">
               <label className="flex items-center gap-2">
@@ -846,11 +846,11 @@ export default function EditActivityPage() {
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm font-medium text-gray-700">Is Featured Activity</span>
+                <span className="text-sm font-medium text-gray-700">Is Sponsored Activity</span>
               </label>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Featured Tier</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sponsored Tier</label>
               <select
                 name="featuredTier"
                 value={formData.featuredTier}
@@ -865,7 +865,7 @@ export default function EditActivityPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Featured Start Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sponsored Start Date</label>
               <input
                 type="date"
                 name="featuredStartDate"
@@ -876,7 +876,7 @@ export default function EditActivityPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Featured End Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sponsored End Date</label>
               <input
                 type="date"
                 name="featuredEndDate"

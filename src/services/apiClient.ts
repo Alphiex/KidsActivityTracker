@@ -68,7 +68,7 @@ class ApiClient {
             '/api/v1/ai/chat/quota',
             '/api/v1/ai/chat',
             '/api/v1/ai/recommendations',
-            '/api/v1/ai/weekly-plan',
+            '/api/v1/ai/plan-week',
           ];
 
           const shouldSkipLogout = gracefulAuthEndpoints.some(endpoint => url.includes(endpoint));

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
   Image,
   Animated,
   Share,
@@ -15,7 +14,6 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
 import { Activity } from '../types';
-import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey, aiRobotImage } from '../assets/images';
 import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
@@ -41,10 +39,15 @@ const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
   const isTrialing = useSelector(selectIsTrialing);
   const trialDaysRemaining = useSelector(selectTrialDaysRemaining);
-  const [loading, setLoading] = useState(true);
+  // Section-level loading states for progressive skeleton loading
+  const [sponsoredLoading, setSponsoredLoading] = useState(true);
   const [recommendedLoading, setRecommendedLoading] = useState(true);
+  const [newLoading, setNewLoading] = useState(true);
+  const [budgetLoading, setBudgetLoading] = useState(true);
+  const [typesLoading, setTypesLoading] = useState(true);
+  const [ageGroupsLoading, setAgeGroupsLoading] = useState(true);
   const shimmerAnim = useRef(new Animated.Value(0)).current;
-  const [reloading, setReloading] = useState(false);
+  const [_reloading, setReloading] = useState(false); // Used to track reload state, may be used for refresh indicator
   const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
   const [budgetFriendlyActivities, setBudgetFriendlyActivities] = useState<Activity[]>([]);
@@ -63,6 +66,7 @@ const DashboardScreenModern = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const isMountedRef = useRef(true);
   const isLoadingRef = useRef(false);
+  const hasInitialLoadRef = useRef(false);
 
   // Subscription-aware favorites
   const {
@@ -93,11 +97,50 @@ const DashboardScreenModern = () => {
   const selectedChildIds = useAppSelector(selectSelectedChildIds);
   const filterMode = useAppSelector(selectFilterMode);
 
-  // Handler for child selection changes - will reload data when child filter changes
-  const handleChildFilterChange = useCallback((_newSelectedIds: string[], _newMode: ChildFilterMode) => {
-    // Note: The actual filtering will be implemented in getChildBasedFilterParams()
-    // For now, we just trigger a visual refresh
-    console.log('[Dashboard] Child filter changed');
+  // Helper to calculate child age from dateOfBirth
+  const calculateAge = useCallback((dateOfBirth: string): number => {
+    const dob = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return Math.max(0, Math.min(18, age));
+  }, []);
+
+  // Get age range for selected children
+  const getSelectedChildrenAgeRange = useCallback((): { ageMin: number; ageMax: number } | null => {
+    if (children.length === 0 || selectedChildIds.length === 0) return null;
+
+    const selectedChildren = children.filter(c => selectedChildIds.includes(c.id));
+    if (selectedChildren.length === 0) return null;
+
+    const ages = selectedChildren
+      .filter(c => c.dateOfBirth)
+      .map(c => calculateAge(c.dateOfBirth));
+
+    if (ages.length === 0) return null;
+
+    if (filterMode === 'or') {
+      // OR mode: expand age range to include all selected children (with 1 year buffer)
+      return {
+        ageMin: Math.max(0, Math.min(...ages) - 1),
+        ageMax: Math.min(18, Math.max(...ages) + 1),
+      };
+    } else {
+      // AND mode: activities must fit all children (narrower range)
+      return {
+        ageMin: Math.max(...ages),
+        ageMax: Math.min(...ages),
+      };
+    }
+  }, [children, selectedChildIds, filterMode, calculateAge]);
+
+  // Handler for child selection changes - the useEffect above handles reload
+  const handleChildFilterChange = useCallback((newSelectedIds: string[], newMode: ChildFilterMode) => {
+    console.log('[Dashboard] Child filter changed:', { selectedCount: newSelectedIds.length, mode: newMode });
+    // The useEffect watching selectedChildIds/filterMode will trigger the reload
   }, []);
 
   // Shuffle array using Fisher-Yates algorithm for randomization
@@ -117,6 +160,45 @@ const DashboardScreenModern = () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  // Track previous selection to detect changes
+  const prevSelectionRef = useRef<{ ids: string[]; mode: string }>({ ids: [], mode: 'or' });
+
+  // Reload activities when child selection changes (after initial load)
+  useEffect(() => {
+    const currentKey = `${selectedChildIds.join(',')}-${filterMode}`;
+    const prevKey = `${prevSelectionRef.current.ids.join(',')}-${prevSelectionRef.current.mode}`;
+
+    // Skip on first render or if nothing changed
+    if (prevKey === '-or' || currentKey === prevKey) {
+      prevSelectionRef.current = { ids: selectedChildIds, mode: filterMode };
+      return;
+    }
+
+    // Update ref
+    prevSelectionRef.current = { ids: selectedChildIds, mode: filterMode };
+
+    // Don't reload if already loading
+    if (isLoadingRef.current) return;
+
+    const reloadActivities = async () => {
+      console.log('[Dashboard] Reloading due to child selection change:', currentKey);
+      isLoadingRef.current = true;
+      setReloading(true);
+      try {
+        await Promise.all([
+          loadRecommendedActivities(),
+          loadBudgetFriendlyActivities(),
+          loadNewActivities(),
+        ]);
+      } finally {
+        isLoadingRef.current = false;
+        setReloading(false);
+      }
+    };
+
+    reloadActivities();
+  }, [selectedChildIds, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load dashboard data on mount and when screen comes into focus
   useFocusEffect(
@@ -147,10 +229,10 @@ const DashboardScreenModern = () => {
           console.error('[Dashboard] Error loading data:', error);
         } finally {
           if (isMountedRef.current) {
-            setLoading(false);
             setReloading(false);
           }
           isLoadingRef.current = false;
+          hasInitialLoadRef.current = true; // Mark initial load as complete
         }
       };
 
@@ -163,9 +245,12 @@ const DashboardScreenModern = () => {
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // Shimmer animation for loading placeholders
+  // Check if any section is still loading (for shimmer animation)
+  const isAnyLoading = sponsoredLoading || recommendedLoading || newLoading || budgetLoading || typesLoading || ageGroupsLoading;
+
+  // Shimmer animation for loading placeholders - runs while any section is loading
   useEffect(() => {
-    if (recommendedLoading) {
+    if (isAnyLoading) {
       const shimmerLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(shimmerAnim, {
@@ -183,7 +268,7 @@ const DashboardScreenModern = () => {
       shimmerLoop.start();
       return () => shimmerLoop.stop();
     }
-  }, [recommendedLoading, shimmerAnim]);
+  }, [isAnyLoading, shimmerAnim]);
 
   const loadFavorites = () => {
     try {
@@ -266,6 +351,7 @@ const DashboardScreenModern = () => {
 
   const loadSponsoredActivities = async () => {
     try {
+      setSponsoredLoading(true);
       console.log('[Dashboard] Loading sponsored activities...');
       const sponsors = await activityService.getSponsoredActivities(6);
       console.log(`[Dashboard] Found ${sponsors.length} sponsored activities`);
@@ -276,6 +362,10 @@ const DashboardScreenModern = () => {
       console.error('Error loading sponsored activities:', error);
       if (isMountedRef.current) {
         setSponsoredActivities([]);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setSponsoredLoading(false);
       }
     }
   };
@@ -294,10 +384,25 @@ const DashboardScreenModern = () => {
         hideFullActivities: true
       };
 
-      // Apply global active filters first (from search screen)
+      // Apply child-based age filtering FIRST (highest priority)
+      const childAgeRange = getSelectedChildrenAgeRange();
+      if (childAgeRange) {
+        filterParams.ageMin = childAgeRange.ageMin;
+        filterParams.ageMax = childAgeRange.ageMax;
+        console.log('[Dashboard] Applying child age filter:', childAgeRange);
+      }
+
+      // Apply global active filters (from search screen)
       const activeFilters = preferencesService.getActiveFilters();
       if (activeFilters && Object.keys(activeFilters).length > 0) {
-        Object.assign(filterParams, activeFilters);
+        // Don't override child age range with global filters
+        const { ageMin, ageMax, ...otherFilters } = activeFilters;
+        Object.assign(filterParams, otherFilters);
+        // Only use global age filters if no child filter set
+        if (!childAgeRange) {
+          if (ageMin !== undefined) filterParams.ageMin = ageMin;
+          if (ageMax !== undefined) filterParams.ageMax = ageMax;
+        }
         console.log('[Dashboard] Applying global active filters:', activeFilters);
       }
 
@@ -396,6 +501,7 @@ const DashboardScreenModern = () => {
 
   const loadBudgetFriendlyActivities = async () => {
     try {
+      setBudgetLoading(true);
       // Get user preferences
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
@@ -409,11 +515,24 @@ const DashboardScreenModern = () => {
         hideFullActivities: true
       };
 
-      // Apply global active filters first (from search screen)
+      // Apply child-based age filtering FIRST (highest priority)
+      const childAgeRange = getSelectedChildrenAgeRange();
+      if (childAgeRange) {
+        filterParams.ageMin = childAgeRange.ageMin;
+        filterParams.ageMax = childAgeRange.ageMax;
+      }
+
+      // Apply global active filters (from search screen)
       const activeFilters = preferencesService.getActiveFilters();
       if (activeFilters && Object.keys(activeFilters).length > 0) {
-        Object.assign(filterParams, activeFilters);
+        const { ageMin, ageMax, ...otherFilters } = activeFilters;
+        Object.assign(filterParams, otherFilters);
         filterParams.maxCost = maxBudgetAmount; // Preserve budget limit
+        // Only use global age filters if no child filter set
+        if (!childAgeRange) {
+          if (ageMin !== undefined) filterParams.ageMin = ageMin;
+          if (ageMax !== undefined) filterParams.ageMax = ageMax;
+        }
       }
 
       // Apply activity type preferences
@@ -421,8 +540,8 @@ const DashboardScreenModern = () => {
         filterParams.activityTypes = preferences.preferredActivityTypes;
       }
 
-      // Apply age range preferences (only if changed from defaults)
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+      // Apply age range preferences (only if changed from defaults and no child filter)
+      if (!childAgeRange && preferences.ageRanges && preferences.ageRanges.length > 0) {
         const ageRange = preferences.ageRanges[0];
         if (ageRange.min > 0 || ageRange.max < 18) {
           filterParams.ageMin = ageRange.min;
@@ -457,11 +576,16 @@ const DashboardScreenModern = () => {
       if (isMountedRef.current) {
         setBudgetFriendlyActivities([]); // Set empty array on error
       }
+    } finally {
+      if (isMountedRef.current) {
+        setBudgetLoading(false);
+      }
     }
   };
 
   const loadNewActivities = async () => {
     try {
+      setNewLoading(true);
       // Get user preferences
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
@@ -475,10 +599,23 @@ const DashboardScreenModern = () => {
         hideFullActivities: true
       };
 
-      // Apply global active filters first (from search screen)
+      // Apply child-based age filtering FIRST (highest priority)
+      const childAgeRange = getSelectedChildrenAgeRange();
+      if (childAgeRange) {
+        filterParams.ageMin = childAgeRange.ageMin;
+        filterParams.ageMax = childAgeRange.ageMax;
+      }
+
+      // Apply global active filters (from search screen)
       const activeFilters = preferencesService.getActiveFilters();
       if (activeFilters && Object.keys(activeFilters).length > 0) {
-        Object.assign(filterParams, activeFilters);
+        const { ageMin, ageMax, ...otherFilters } = activeFilters;
+        Object.assign(filterParams, otherFilters);
+        // Only use global age filters if no child filter set
+        if (!childAgeRange) {
+          if (ageMin !== undefined) filterParams.ageMin = ageMin;
+          if (ageMax !== undefined) filterParams.ageMax = ageMax;
+        }
       }
 
       // Apply activity type preferences
@@ -486,8 +623,8 @@ const DashboardScreenModern = () => {
         filterParams.activityTypes = preferences.preferredActivityTypes;
       }
 
-      // Apply age range preferences (only if changed from defaults)
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+      // Apply age range preferences (only if changed from defaults and no child filter)
+      if (!childAgeRange && preferences.ageRanges && preferences.ageRanges.length > 0) {
         const ageRange = preferences.ageRanges[0];
         if (ageRange.min > 0 || ageRange.max < 18) {
           filterParams.ageMin = ageRange.min;
@@ -527,11 +664,16 @@ const DashboardScreenModern = () => {
       if (isMountedRef.current) {
         setNewActivities([]); // Set empty array on error
       }
+    } finally {
+      if (isMountedRef.current) {
+        setNewLoading(false);
+      }
     }
   };
 
   const loadActivityTypes = async () => {
     try {
+      setTypesLoading(true);
       console.log('Loading activity types from database...');
       const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/activity-types`);
       const result = await response.json();
@@ -596,10 +738,18 @@ const DashboardScreenModern = () => {
           { id: 6, name: 'Martial Arts', code: 'martial-arts', activityCount: 0 },
         ]);
       }
+    } finally {
+      if (isMountedRef.current) {
+        setTypesLoading(false);
+      }
     }
   };
 
   const loadAgeGroups = async () => {
+    if (!isMountedRef.current) return;
+    setAgeGroupsLoading(true);
+    // Simulate a small delay to allow skeleton to show (age groups are static data)
+    await new Promise(resolve => setTimeout(resolve, 100));
     if (!isMountedRef.current) return;
     setAgeGroups([
       {
@@ -639,6 +789,7 @@ const DashboardScreenModern = () => {
         image: require('../assets/images/activities/other/family_fun.jpg'),
       },
     ]);
+    setAgeGroupsLoading(false);
   };
 
   const handleNavigate = (screen: string, params?: any) => {
@@ -690,6 +841,23 @@ const DashboardScreenModern = () => {
           {/* Days badge placeholder */}
           <Animated.View style={[styles.skeletonBadge, { opacity: shimmerOpacity }]} />
         </View>
+      </View>
+    );
+  };
+
+  /**
+   * Render skeleton loading card for type/category sections (smaller cards)
+   */
+  const renderTypeSkeletonCard = (index: number) => {
+    const shimmerOpacity = shimmerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.3, 0.7],
+    });
+
+    return (
+      <View key={`type-skeleton-${index}`} style={styles.skeletonTypeCard}>
+        <Animated.View style={[styles.skeletonTypeImage, { opacity: shimmerOpacity }]} />
+        <Animated.View style={[styles.skeletonTypeTitle, { opacity: shimmerOpacity }]} />
       </View>
     );
   };
@@ -973,11 +1141,11 @@ const DashboardScreenModern = () => {
             </View>
           )}
 
-          {/* Featured badge for featured partner activities */}
+          {/* Sponsored badge for sponsored partner activities */}
           {activity.isFeatured && (
-            <View style={styles.featuredBadge}>
+            <View style={styles.sponsoredBadge}>
               <Icon name="star" size={10} color="#FFF" />
-              <Text style={styles.featuredBadgeText}>FEATURED</Text>
+              <Text style={styles.sponsoredBadgeText}>SPONSORED</Text>
             </View>
           )}
 
@@ -1054,12 +1222,6 @@ const DashboardScreenModern = () => {
         {/* Tab Navigation - Fixed at top */}
         <TopTabNavigation />
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#E8638B" />
-          </View>
-        ) : (
-          <>
         {/* Fixed Header with Search */}
         <View style={styles.fixedHeader}>
         {/* Search Bar */}
@@ -1094,7 +1256,7 @@ const DashboardScreenModern = () => {
           daysRemaining={trialDaysRemaining ?? 0}
         />
 
-        {/* Child Filter Selector - shown when user has multiple children */}
+        {/* Child Filter Selector - filters activities by selected children */}
         {children.length > 1 && (
           <ChildFilterSelector
             compact
@@ -1103,20 +1265,27 @@ const DashboardScreenModern = () => {
           />
         )}
 
-        {/* Featured Partners / Sponsor Section - only shown when sponsors exist */}
-        {sponsoredActivities.length > 0 && (
+        {/* Sponsored Partners Section - shows skeleton while loading, then content or nothing */}
+        {(sponsoredLoading || sponsoredActivities.length > 0) && (
           <View style={styles.section}>
             <TouchableOpacity
               style={styles.sectionHeader}
-              onPress={() => handleNavigate('FeaturedPartners')}
+              onPress={() => handleNavigate('SponsoredPartners')}
             >
               <View style={styles.sectionHeaderLeft}>
-                <Text style={styles.sectionTitle}>Featured Partners</Text>
+                <Text style={styles.sectionTitle}>Sponsored Partners</Text>
                 <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
               </View>
             </TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {sponsoredActivities.map(renderActivityCard)}
+              {sponsoredLoading ? (
+                // Skeleton loading cards
+                <>
+                  {[0, 1, 2].map(renderSkeletonCard)}
+                </>
+              ) : (
+                sponsoredActivities.map(renderActivityCard)
+              )}
             </ScrollView>
           </View>
         )}
@@ -1221,11 +1390,11 @@ const DashboardScreenModern = () => {
             </View>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#E8638B" />
-                <Text style={styles.emptyText}>Loading activities...</Text>
-              </View>
+            {newLoading ? (
+              // Skeleton loading cards
+              <>
+                {[0, 1, 2].map(renderSkeletonCard)}
+              </>
             ) : newActivities.length > 0 ? (
               newActivities.map(renderActivityCard)
             ) : (
@@ -1250,11 +1419,11 @@ const DashboardScreenModern = () => {
             </View>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#E8638B" />
-                <Text style={styles.emptyText}>Loading activities...</Text>
-              </View>
+            {budgetLoading ? (
+              // Skeleton loading cards
+              <>
+                {[0, 1, 2].map(renderSkeletonCard)}
+              </>
             ) : budgetFriendlyActivities.length > 0 ? (
               budgetFriendlyActivities.map(renderActivityCard)
             ) : (
@@ -1279,21 +1448,28 @@ const DashboardScreenModern = () => {
             </View>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {activityTypes.map((type) => {
-              // Use getActivityImageKey with type name to get proper image mapping
-              const imageKey = getActivityImageKey(type.name, type.code);
-              const imageSource = getActivityImageByKey(imageKey, type.name);
-              return (
-                <TouchableOpacity
-                  key={type.id}
-                  style={styles.typeCard}
-                  onPress={() => handleNavigate('ActivityTypeDetail', { activityType: type })}
-                >
-                  <Image source={imageSource} style={styles.typeImage} />
-                  <Text style={styles.typeTitle}>{type.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            {typesLoading ? (
+              // Skeleton loading cards for types
+              <>
+                {[0, 1, 2, 3, 4, 5].map(renderTypeSkeletonCard)}
+              </>
+            ) : (
+              activityTypes.map((type) => {
+                // Use getActivityImageKey with type name to get proper image mapping
+                const imageKey = getActivityImageKey(type.name, type.code);
+                const imageSource = getActivityImageByKey(imageKey, type.name);
+                return (
+                  <TouchableOpacity
+                    key={type.id}
+                    style={styles.typeCard}
+                    onPress={() => handleNavigate('ActivityTypeDetail', { activityType: type })}
+                  >
+                    <Image source={imageSource} style={styles.typeImage} />
+                    <Text style={styles.typeTitle}>{type.name}</Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </ScrollView>
         </View>
 
@@ -1309,41 +1485,48 @@ const DashboardScreenModern = () => {
             </View>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {ageGroups.map((group) => {
-              // Parse age range to get min and max ages
-              let ageMin = 0;
-              let ageMax = 18;
-              let ageGroupName = group.name;
+            {ageGroupsLoading ? (
+              // Skeleton loading cards for age groups
+              <>
+                {[0, 1, 2, 3, 4, 5].map(renderTypeSkeletonCard)}
+              </>
+            ) : (
+              ageGroups.map((group) => {
+                // Parse age range to get min and max ages
+                let ageMin = 0;
+                let ageMax = 18;
+                let ageGroupName = group.name;
 
-              if (group.range !== 'all') {
-                const parts = group.range.split('-');
-                if (parts.length === 2) {
-                  ageMin = parseInt(parts[0]);
-                  ageMax = parts[1].includes('+') ? 18 : parseInt(parts[1]);
-                } else if (group.range.includes('+')) {
-                  ageMin = parseInt(group.range.replace('+', ''));
-                  ageMax = 18;
+                if (group.range !== 'all') {
+                  const parts = group.range.split('-');
+                  if (parts.length === 2) {
+                    ageMin = parseInt(parts[0]);
+                    ageMax = parts[1].includes('+') ? 18 : parseInt(parts[1]);
+                  } else if (group.range.includes('+')) {
+                    ageMin = parseInt(group.range.replace('+', ''));
+                    ageMax = 18;
+                  }
                 }
-              }
 
-              return (
-                <TouchableOpacity
-                  key={group.id}
-                  style={styles.ageCard}
-                  onPress={() => navigation.navigate('UnifiedResults' as never, {
-                    type: 'ageGroup',
-                    ageMin,
-                    ageMax,
-                    ageGroupName,
-                    title: group.name,
-                    subtitle: 'Perfect for this age range',
-                  } as never)}
-                >
-                  <Image source={group.image} style={styles.ageImage} />
-                  <Text style={styles.ageTitle}>{group.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
+                return (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={styles.ageCard}
+                    onPress={() => navigation.navigate('UnifiedResults' as never, {
+                      type: 'ageGroup',
+                      ageMin,
+                      ageMax,
+                      ageGroupName,
+                      title: group.name,
+                      subtitle: 'Perfect for this age range',
+                    } as never)}
+                  >
+                    <Image source={group.image} style={styles.ageImage} />
+                    <Text style={styles.ageTitle}>{group.name}</Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </ScrollView>
         </View>
 
@@ -1375,8 +1558,6 @@ const DashboardScreenModern = () => {
           onClose={() => setCalendarModalActivity(null)}
         />
       )}
-          </>
-        )}
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -1826,7 +2007,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     letterSpacing: 0.5,
   },
-  featuredBadge: {
+  sponsoredBadge: {
     position: 'absolute',
     top: 10,
     left: 10,
@@ -1837,7 +2018,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#E8638B',
   },
-  featuredBadgeText: {
+  sponsoredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FFF',
@@ -1922,6 +2103,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE5EC',
     borderRadius: 6,
     marginTop: 4,
+  },
+  // Skeleton styles for type/category cards
+  skeletonTypeCard: {
+    width: 120,
+    marginLeft: 20,
+    alignItems: 'center',
+  },
+  skeletonTypeImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#FFE5EC',
+  },
+  skeletonTypeTitle: {
+    height: 14,
+    width: 80,
+    backgroundColor: '#FFE5EC',
+    borderRadius: 4,
   },
 });
 

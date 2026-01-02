@@ -86,11 +86,18 @@ export interface UserPreferences {
   preferredLocation?: string; // For onboarding
 
   // Distance-based filtering preferences
-  distanceFilterEnabled: boolean; // Whether distance filtering is active
-  distanceRadiusKm: number; // Radius in km (5, 10, 25, 50, 100)
-  locationSource: 'gps' | 'saved_address'; // Location source preference
-  savedAddress?: EnhancedAddress | LegacyAddress; // Supports both formats for backward compatibility
-  locationPermissionAsked: boolean; // Whether we've asked for location permission
+  // DEPRECATED: These are now managed per-child via ChildPreferences
+  // Kept for backward compatibility but not used in filtering logic
+  /** @deprecated Use child preferences instead */
+  distanceFilterEnabled: boolean;
+  /** @deprecated Use child preferences instead */
+  distanceRadiusKm: number;
+  /** @deprecated Use child preferences instead */
+  locationSource: 'gps' | 'saved_address';
+  /** @deprecated Use child preferences instead */
+  savedAddress?: EnhancedAddress | LegacyAddress;
+  /** @deprecated Use child preferences instead */
+  locationPermissionAsked: boolean;
   
   // Age preferences
   ageRanges: {

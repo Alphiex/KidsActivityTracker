@@ -130,7 +130,7 @@ export default function SponsorDetailPage() {
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-600">{error || 'Partner not found'}</p>
         <Link href="/admin/sponsors" className="mt-2 text-purple-600 hover:text-purple-700">
-          Back to Featured Partners
+          Back to Sponsored Partners
         </Link>
       </div>
     );

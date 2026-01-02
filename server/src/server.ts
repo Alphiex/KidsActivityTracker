@@ -214,7 +214,7 @@ app.use('/api/v1/categories', categoriesRoutes);
 // Locations routes (v1 API)
 app.use('/api/v1/locations', locationsRoutes);
 
-// Featured Partners routes (v1 API) - new naming
+// Sponsored Partners routes (v1 API)
 app.use('/api/v1/partners', partnersRoutes);
 // Backward compatibility - keep old /sponsors endpoint working
 app.use('/api/v1/sponsors', partnersRoutes);

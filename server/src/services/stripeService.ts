@@ -15,7 +15,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 export const PARTNER_TIERS = {
   bronze: {
     name: 'Bronze Partner',
-    description: 'Featured placement for small activity providers',
+    description: 'Sponsored placement for small activity providers',
     monthlyPrice: 4900, // $49.00 in cents
     yearlyPrice: 49000, // $490.00 in cents
     impressionLimit: 5000,

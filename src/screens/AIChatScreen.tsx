@@ -25,6 +25,11 @@ import {
   setLastActivityIds,
   clearChat,
 } from '../store/slices/chatSlice';
+import {
+  selectAllChildren,
+  selectSelectedChildIds,
+  selectFilterMode,
+} from '../store/slices/childrenSlice';
 import PreferencesService from '../services/preferencesService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
@@ -217,8 +222,16 @@ const AIChatScreen = () => {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
-  // Get children from Redux store
-  const children = useAppSelector((state) => state.children?.children || []);
+  // Get children and filter state from Redux store
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Use selected children IDs or all children if none selected
+  const effectiveChildIds = useMemo(() => {
+    if (selectedChildIds?.length > 0) return selectedChildIds;
+    return children.map(c => c.id);
+  }, [children, selectedChildIds]);
 
   // Get user preferences for personalized prompts
   const preferencesService = PreferencesService.getInstance();
@@ -312,7 +325,8 @@ const AIChatScreen = () => {
       const response = await aiService.chat(
         text.trim(),
         conversationId || undefined,
-        children.map((c) => c.id)
+        effectiveChildIds,
+        filterMode
       );
 
       dispatch(setConversationId(response.conversationId));

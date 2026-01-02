@@ -68,6 +68,36 @@ export interface WeeklySchedule {
 export type MultiChildMode = 'together' | 'parallel' | 'any';
 
 /**
+ * Time slot availability
+ */
+export interface TimeSlotAvailability {
+  morning: boolean;
+  afternoon: boolean;
+  evening: boolean;
+}
+
+/**
+ * Per-child availability for weekly planning
+ */
+export interface ChildAvailabilitySlots {
+  child_id: string;
+  available_slots: {
+    [day: string]: TimeSlotAvailability;
+  };
+}
+
+/**
+ * Constraints for weekly schedule planning
+ */
+export interface PlannerConstraints {
+  max_activities_per_child?: number;
+  avoid_back_to_back?: boolean;
+  max_travel_between_activities_km?: number;
+  schedule_siblings_together?: boolean;
+  child_availability?: ChildAvailabilitySlots[];
+}
+
+/**
  * LangGraph shared state - uses Annotation for proper state management
  */
 export const AIGraphState = Annotation.Root({
@@ -110,7 +140,13 @@ export const AIGraphState = Annotation.Root({
     reducer: (_, b) => b,
     default: () => undefined,
   }),
-  
+
+  // === Planner specific ===
+  planner_constraints: Annotation<PlannerConstraints | undefined>({
+    reducer: (_, b) => b,
+    default: () => undefined,
+  }),
+
   // === Parsed/Enriched Data ===
   parsed_filters: Annotation<ActivitySearchParams | undefined>({
     reducer: (_, b) => b,

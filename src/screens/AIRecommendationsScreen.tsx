@@ -22,6 +22,11 @@ import aiService from '../services/aiService';
 import PreferencesService from '../services/preferencesService';
 import locationService from '../services/locationService';
 import { useAppSelector } from '../store';
+import {
+  selectAllChildren,
+  selectSelectedChildIds,
+  selectFilterMode,
+} from '../store/slices/childrenSlice';
 import { AIRecommendation, AIRecommendationResponse, AISourceType } from '../types/ai';
 import { Activity } from '../types';
 import {
@@ -33,6 +38,7 @@ import {
 } from '../components/ai';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import ChildFilterSelector from '../components/ChildFilterSelector';
 
 interface RouteParams {
   search_intent?: string;
@@ -50,8 +56,16 @@ const AIRecommendationsScreen = () => {
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const { colors, isDark } = useTheme();
 
-  // Get children from Redux store
-  const children = useAppSelector((state) => state.children?.children || []);
+  // Get children and filter state from Redux store
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children only
+  const selectedChildren = useMemo(() => {
+    if (!selectedChildIds || selectedChildIds.length === 0) return children;
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
 
   // State
   const [loading, setLoading] = useState(true);
@@ -66,11 +80,11 @@ const AIRecommendationsScreen = () => {
   const searchIntent = route.params?.search_intent || 'Find the best activities for my family';
   const filters = useMemo(() => route.params?.filters || {}, [route.params?.filters]);
 
-  // Calculate age range from children
+  // Calculate age range from selected children
   const childrenAgeRange = useMemo(() => {
-    if (!children || children.length === 0) return null;
+    if (!selectedChildren || selectedChildren.length === 0) return null;
 
-    const ages = children.map(child => {
+    const ages = selectedChildren.map(child => {
       const birthDate = new Date(child.dateOfBirth);
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
@@ -83,11 +97,21 @@ const AIRecommendationsScreen = () => {
 
     if (ages.length === 0) return null;
 
-    return {
-      min: Math.max(0, Math.min(...ages) - 1), // Allow 1 year younger
-      max: Math.min(18, Math.max(...ages) + 1), // Allow 1 year older
-    };
-  }, [children]);
+    // Apply filter mode logic
+    if (filterMode === 'or') {
+      // OR: expand range to include all selected children
+      return {
+        min: Math.max(0, Math.min(...ages) - 1),
+        max: Math.min(18, Math.max(...ages) + 1),
+      };
+    } else {
+      // AND: narrow range to overlap (activities all children can do)
+      return {
+        min: Math.max(...ages),
+        max: Math.min(...ages),
+      };
+    }
+  }, [selectedChildren, filterMode]);
   
   /**
    * Fetch AI recommendations
@@ -149,11 +173,13 @@ const AIRecommendationsScreen = () => {
 
       console.log('[AIRecommendationsScreen] Enriched filters with preferences:', enrichedFilters);
 
-      // Get AI recommendations
+      // Get AI recommendations with child selection context
       const result = await aiService.getRecommendations({
         search_intent: searchIntent,
         filters: enrichedFilters,
         include_explanations: true,
+        childIds: selectedChildIds?.length > 0 ? selectedChildIds : undefined,
+        filterMode: filterMode,
       });
 
       if (!result.success && result.error) {
@@ -190,7 +216,7 @@ const AIRecommendationsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchIntent, filters, childrenAgeRange]);
+  }, [searchIntent, filters, childrenAgeRange, selectedChildIds, filterMode]);
   
   /**
    * Handle pull to refresh
@@ -400,6 +426,18 @@ const AIRecommendationsScreen = () => {
 
         {/* Top Tab Navigation */}
         <TopTabNavigation />
+
+        {/* Child Filter Selector - only show if multiple children */}
+        {children.length > 1 && (
+          <ChildFilterSelector
+            compact
+            showModeToggle={true}
+            onSelectionChange={() => {
+              // Refetch will happen automatically via dependency on selectedChildIds/filterMode
+              setLoading(true);
+            }}
+          />
+        )}
 
         {/* Content area */}
         <View style={styles.contentGradient}>

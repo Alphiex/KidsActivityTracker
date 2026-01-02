@@ -240,6 +240,7 @@ KidsActivityTracker/
 - Dashboard: `src/screens/DashboardScreenModern.tsx`
 - Calendar: `src/screens/CalendarScreenModernFixed.tsx`
 - Activity Card: `src/components/ActivityCard.tsx`
+- Activity Detail: `src/screens/activities/ActivityDetailScreenModern.tsx`
 - AI Recommendations: `src/screens/AIRecommendationsScreen.tsx`
 - AI Chat: `src/screens/AIChatScreen.tsx`
 - AI Components: `src/components/ai/` (AIRecommendationCard, AILoadingState, etc.)
@@ -249,6 +250,42 @@ KidsActivityTracker/
 - Onboarding: `src/screens/onboarding/` (ActivityTypes, Age, Location screens)
 - Favorites: `src/services/favoritesService.ts`
 - Preferences: `src/services/preferencesService.ts`
+- Deep Link Service: `src/services/deepLinkService.ts`
+- Activity Sharing: `src/utils/sharing.ts`
+
+## Deep Linking & Activity Sharing
+
+### Overview
+Users can share activities via social media/messaging. Shared links open directly in the app (if installed) or show a web fallback page with download options.
+
+### URL Format
+- Activity links: `https://kidsactivitytracker.ca/activity/{activityId}`
+- Invitation links: `https://kidsactivitytracker.ca/invite/{token}`
+- Custom scheme: `kidsactivitytracker://activity/{activityId}`
+
+### Key Files
+- **Navigation**: `src/navigation/RootNavigator.tsx` - Deep link routing config
+- **Deep Link Service**: `src/services/deepLinkService.ts` - URL parsing and handling
+- **Sharing Utility**: `src/utils/sharing.ts` - `generateActivityDeepLink()`, `shareActivity()`
+- **Activity Detail**: `src/screens/activities/ActivityDetailScreenModern.tsx` - Handles `activityId` param from deep links
+- **Web Fallback**: `website/src/app/activity/[id]/page.tsx` - Shows activity preview + download buttons
+
+### Configuration Files
+| Platform | File | Purpose |
+|----------|------|---------|
+| iOS | `website/public/.well-known/apple-app-site-association` | Universal Links config |
+| iOS | `ios/KidsActivityTracker/KidsActivityTracker.entitlements` | Associated domains |
+| Android | `android/app/src/main/AndroidManifest.xml` | App Links intent filters |
+| Android | `website/public/.well-known/assetlinks.json` | Digital Asset Links |
+
+### Testing Deep Links
+```bash
+# iOS Simulator
+xcrun simctl openurl booted "https://kidsactivitytracker.ca/activity/test-id"
+
+# Android Emulator
+adb shell am start -a android.intent.action.VIEW -d "https://kidsactivitytracker.ca/activity/test-id"
+```
 
 ## Activity Types & Icons
 - Icons defined in `src/utils/activityTypeIcons.ts` using Material Community Icons
@@ -269,6 +306,17 @@ KidsActivityTracker/
 - **AI Chat**: Conversational assistant for activity discovery
   - Screen: `src/screens/AIChatScreen.tsx`
   - Multi-turn conversations with context retention
+- **AI Weekly Planner**: Generate optimal weekly activity schedules for families
+  - Screen: `src/screens/WeeklyPlannerScreen.tsx`
+  - Access: Calendar screen → "AI Plan" button
+  - Features:
+    - Per-child availability grid (7 days × 3 time slots: morning/afternoon/evening)
+    - Sibling grouping toggle (schedule together when possible)
+    - Week selection with calendar picker
+    - Semi-interactive results: approve/reject activities, then bulk-add to calendar
+    - Conflict detection and AI suggestions
+  - Backend: `server/src/ai/graph/nodes/plannerNode.ts`
+  - API: POST `/api/v1/ai/plan-week` with constraints
 - **Navigation**: AIRecommendations screen does not highlight any top/bottom menu items
 
 ## Scraper Validation System

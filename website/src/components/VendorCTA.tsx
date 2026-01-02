@@ -17,7 +17,7 @@ export default function VendorCTA() {
               {[
                 'Upload your activities via CSV or Excel',
                 'Manage and update your listings anytime',
-                'Get featured with sponsored placements',
+                'Get visibility with sponsored placements',
                 'Reach parents actively searching for activities',
               ].map((item, index) => (
                 <li key={index} className="flex items-center gap-3 text-white">

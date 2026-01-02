@@ -974,6 +974,99 @@ End a conversation and clear its state.
 }
 ```
 
+### POST /api/v1/ai/plan-week
+
+Generate an optimal weekly activity schedule for the family. **Requires authentication**.
+
+**Request**
+```json
+{
+  "week_start": "2026-01-06",
+  "max_activities_per_child": 3,
+  "avoid_back_to_back": true,
+  "schedule_siblings_together": false,
+  "child_availability": [
+    {
+      "child_id": "uuid",
+      "available_slots": {
+        "Monday": { "morning": false, "afternoon": true, "evening": true },
+        "Tuesday": { "morning": false, "afternoon": true, "evening": false },
+        "Wednesday": { "morning": false, "afternoon": true, "evening": true },
+        "Thursday": { "morning": false, "afternoon": true, "evening": false },
+        "Friday": { "morning": false, "afternoon": true, "evening": false },
+        "Saturday": { "morning": true, "afternoon": true, "evening": false },
+        "Sunday": { "morning": true, "afternoon": true, "evening": false }
+      }
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `week_start` | string | No | ISO date for Monday of planning week (defaults to next Monday) |
+| `max_activities_per_child` | number | No | Maximum activities per child (1-10, default: 3) |
+| `avoid_back_to_back` | boolean | No | Avoid scheduling consecutive activities |
+| `schedule_siblings_together` | boolean | No | Try to schedule siblings in same activities |
+| `child_availability` | array | No | Per-child availability slots |
+
+**Time Slot Definitions**:
+- Morning: 6am - 12pm
+- Afternoon: 12pm - 5pm
+- Evening: 5pm - 9pm
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "schedule": {
+    "week_start": "2026-01-06",
+    "entries": {
+      "Monday": [
+        {
+          "child_id": "uuid",
+          "child_name": "Emma",
+          "activity_id": "uuid",
+          "activity_name": "Swimming Lessons",
+          "day": "Monday",
+          "time": "16:00",
+          "location": "Aquatic Centre",
+          "duration_minutes": 60
+        }
+      ],
+      "Tuesday": [...],
+      "Wednesday": [...],
+      "Thursday": [...],
+      "Friday": [...],
+      "Saturday": [...],
+      "Sunday": [...]
+    },
+    "conflicts": [
+      {
+        "type": "time_overlap",
+        "description": "Emma and Jack both scheduled at 4pm on Monday",
+        "affected_entries": ["activity_id_1", "activity_id_2"]
+      }
+    ],
+    "suggestions": [
+      "Consider adding a creative activity for Emma",
+      "Jack has no activities on weekends - good for rest"
+    ],
+    "total_cost": 250,
+    "total_activities": 5
+  }
+}
+```
+
+**Conflict Types**:
+| Type | Description |
+|------|-------------|
+| `time_overlap` | Two activities scheduled at the same time |
+| `travel_distance` | Activities too far apart to travel between |
+| `back_to_back` | Consecutive activities with no break |
+
+---
+
 ### GET /api/v1/ai/chat/quota
 
 Get user's AI quota status. **Requires authentication**.
@@ -1241,5 +1334,8 @@ GET /api/v1/activities?page=2&limit=20
 
 ---
 
-**Document Version**: 5.3
+**Document Version**: 5.4
 **Last Updated**: January 2026
+
+### Changelog
+- v5.4: Added POST /api/v1/ai/plan-week endpoint documentation with child_availability constraints

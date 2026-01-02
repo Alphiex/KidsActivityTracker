@@ -82,7 +82,7 @@ export interface Activity {
   popularityCount?: number;
   createdAt?: Date | string;
 
-  // Featured partner fields
+  // Sponsored partner fields
   isFeatured?: boolean;
   featuredTier?: 'gold' | 'silver' | 'bronze';
   featuredStartDate?: Date | string;

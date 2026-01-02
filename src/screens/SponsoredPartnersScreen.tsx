@@ -26,7 +26,7 @@ import { useAppSelector } from '../store';
 
 const { width } = Dimensions.get('window');
 
-const FeaturedPartnersScreen: React.FC = () => {
+const SponsoredPartnersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAppSelector((state) => state.auth);
 
@@ -110,7 +110,7 @@ const FeaturedPartnersScreen: React.FC = () => {
         setHasMore(offset + newActivities.length < total);
       }
     } catch (error) {
-      console.error('Error loading featured partners:', error);
+      console.error('Error loading sponsored partners:', error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -191,11 +191,11 @@ const FeaturedPartnersScreen: React.FC = () => {
         <View style={styles.cardImageContainer}>
           <Image source={imageSource} style={styles.cardImage} />
 
-          {/* Featured badge */}
+          {/* Sponsored badge */}
           {activity.isFeatured && (
-            <View style={styles.featuredBadge}>
+            <View style={styles.sponsoredBadge}>
               <Icon name="star" size={10} color="#FFF" />
-              <Text style={styles.featuredBadgeText}>FEATURED</Text>
+              <Text style={styles.sponsoredBadgeText}>SPONSORED</Text>
             </View>
           )}
 
@@ -254,15 +254,15 @@ const FeaturedPartnersScreen: React.FC = () => {
         style={styles.headerGradient}
       >
         <Icon name="star-circle" size={48} color="#FFF" />
-        <Text style={styles.headerTitle}>Featured Partners</Text>
+        <Text style={styles.headerTitle}>Sponsored Partners</Text>
         <Text style={styles.headerSubtitle}>
-          Discover sponsored activities from our trusted partners
+          Discover activities from our trusted sponsored partners
         </Text>
       </LinearGradient>
 
 
       {totalCount > 0 && (
-        <Text style={styles.resultCount}>{totalCount} featured {totalCount === 1 ? 'activity' : 'activities'}</Text>
+        <Text style={styles.resultCount}>{totalCount} sponsored {totalCount === 1 ? 'activity' : 'activities'}</Text>
       )}
     </View>
   );
@@ -282,7 +282,7 @@ const FeaturedPartnersScreen: React.FC = () => {
     return (
       <View style={styles.emptyContainer}>
         <Icon name="star-off-outline" size={64} color="#CCC" />
-        <Text style={styles.emptyTitle}>No Featured Partners</Text>
+        <Text style={styles.emptyTitle}>No Sponsored Partners</Text>
         <Text style={styles.emptySubtitle}>
           There are no sponsored activities matching your current filters
         </Text>
@@ -300,14 +300,14 @@ const FeaturedPartnersScreen: React.FC = () => {
         >
           <Icon name="arrow-left" size={24} color="#222" />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Featured Partners</Text>
+        <Text style={styles.navTitle}>Sponsored Partners</Text>
         <View style={styles.backButton} />
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#E8638B" />
-          <Text style={styles.loadingText}>Loading featured partners...</Text>
+          <Text style={styles.loadingText}>Loading sponsored partners...</Text>
         </View>
       ) : (
         <FlatList
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  featuredBadge: {
+  sponsoredBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8638B',
     gap: 4,
   },
-  featuredBadgeText: {
+  sponsoredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FFF',
@@ -520,4 +520,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FeaturedPartnersScreen;
+export default SponsoredPartnersScreen;

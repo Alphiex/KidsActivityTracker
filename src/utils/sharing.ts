@@ -1,13 +1,26 @@
-import { Linking, Alert, Share } from 'react-native';
+import { Linking, Alert, Share, Platform } from 'react-native';
 import { Activity } from '../types';
 import { Child } from '../store/slices/childrenSlice';
 import { formatActivityPrice } from './formatters';
+
+// Base URL for deep links - this should match your website domain
+const DEEP_LINK_BASE_URL = 'https://kidsactivitytracker.ca';
 
 interface ShareActivityOptions {
   activity: Activity;
   child?: Child;
   status?: 'planned' | 'in_progress' | 'completed';
 }
+
+/**
+ * Generate a shareable deep link URL for an activity
+ * When clicked, this link will:
+ * - Open the app directly to the activity if installed
+ * - Show a web page with download options if not installed
+ */
+export const generateActivityDeepLink = (activityId: string): string => {
+  return `${DEEP_LINK_BASE_URL}/activity/${activityId}`;
+};
 
 export const shareActivityViaEmail = async ({
   activity,
@@ -217,6 +230,12 @@ export const shareActivityViaEmail = async ({
       body += `\nMore information:\n${activity.sourceUrl}\n`;
     }
 
+    // Deep link to view in app
+    body += `\n📲 VIEW IN APP\n`;
+    body += `════════════════\n`;
+    body += `${generateActivityDeepLink(activity.id)}\n`;
+    body += `(Opens directly in Kids Activity Tracker if installed)\n`;
+
     body += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     body += `Shared from Kids Activity Tracker app\n`;
     body += `Find more great activities for your kids!\n`;
@@ -388,9 +407,10 @@ export const shareActivity = async ({
       details.push(`👧 For: ${child.name}`);
     }
 
+    // Add deep link to view in app
     details.push('');
-    details.push('Found on Kids Activity Tracker 📱');
-    details.push('https://apps.apple.com/app/kids-activity-tracker');
+    details.push('📲 View in Kids Activity Tracker:');
+    details.push(generateActivityDeepLink(activity.id));
 
     const message = details.join('\n');
 

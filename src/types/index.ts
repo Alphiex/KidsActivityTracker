@@ -87,7 +87,7 @@ export interface Activity {
   // Created timestamp
   createdAt?: Date | string;
 
-  // Featured partner support
+  // Sponsored partner support
   featuredTier?: 'gold' | 'silver' | 'bronze' | string | null;
   isFeatured?: boolean;
 

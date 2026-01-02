@@ -295,8 +295,8 @@ export default function ActivitiesListPage() {
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
             >
               <option value="">All Types</option>
-              <option value="true">Featured Only</option>
-              <option value="false">Non-Featured</option>
+              <option value="true">Sponsored Only</option>
+              <option value="false">Non-Sponsored</option>
             </select>
 
             <label className="flex items-center gap-2 px-3 py-2 text-sm">

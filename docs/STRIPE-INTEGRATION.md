@@ -446,7 +446,7 @@ STRIPE_WEBHOOK_SECRET=whsec_live_...
 
 ## Related Documentation
 
-- [FEATURED-PARTNERS.md](./FEATURED-PARTNERS.md) - Complete partner system docs
+- [SPONSORED-PARTNERS.md](./SPONSORED-PARTNERS.md) - Complete partner system docs
 - [Stripe Documentation](https://stripe.com/docs)
 - [Stripe API Reference](https://stripe.com/docs/api)
 - [Stripe Webhooks](https://stripe.com/docs/webhooks)

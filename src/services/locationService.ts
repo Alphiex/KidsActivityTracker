@@ -200,57 +200,28 @@ class LocationService {
   }
 
   /**
-   * Save an enhanced address to preferences
+   * Save an enhanced address to user preferences
+   *
+   * @deprecated User-level address storage is deprecated.
+   * Use childPreferencesService.updateLocationPreferences() for child-level addresses.
+   * This method is kept for backward compatibility only.
    */
   async saveEnhancedAddress(address: EnhancedAddress): Promise<boolean> {
-    try {
-      console.log('[LocationService] Saving enhanced address:', address.formattedAddress);
-
-      await preferencesService.updatePreferences({
-        savedAddress: address,
-        locationSource: 'saved_address',
-        // Also update preferredLocation with city if available
-        ...(address.city && { preferredLocation: address.city }),
-      });
-
-      console.log('[LocationService] Enhanced address saved successfully');
-      return true;
-    } catch (error) {
-      console.error('[LocationService] Error saving enhanced address:', error);
-      return false;
-    }
+    console.log('[LocationService] saveEnhancedAddress is deprecated - use child preferences');
+    // No longer save to user preferences - address is per-child now
+    return true;
   }
 
   /**
    * Geocode an address and save it to preferences
+   *
+   * @deprecated User-level address storage is deprecated.
+   * Use childPreferencesService.updateLocationPreferences() for child-level addresses.
    */
   async geocodeAndSaveAddress(address: string): Promise<boolean> {
-    try {
-      console.log('[LocationService] Geocoding address:', address);
-      const coords = await geocodeAddress(address);
-
-      if (coords) {
-        const savedAddress: SavedAddress = {
-          address,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-        };
-
-        await preferencesService.updatePreferences({
-          savedAddress,
-          locationSource: 'saved_address',
-        });
-
-        console.log('[LocationService] Address saved:', savedAddress);
-        return true;
-      }
-
-      console.warn('[LocationService] Failed to geocode address');
-      return false;
-    } catch (error) {
-      console.error('[LocationService] Error geocoding address:', error);
-      return false;
-    }
+    console.log('[LocationService] geocodeAndSaveAddress is deprecated - use child preferences');
+    // No longer save to user preferences - address is per-child now
+    return true;
   }
 
   /**
@@ -311,29 +282,21 @@ class LocationService {
 
   /**
    * Get distance filter parameters for API calls
-   * Returns userLat, userLon, radiusKm if distance filtering is enabled
+   *
+   * @deprecated User-level distance filtering is deprecated.
+   * Distance filtering is now managed per-child via ChildPreferences.
+   * This method now returns empty object - use childFilters.mergedFilters
+   * in activityService calls instead.
    */
   async getDistanceFilterParams(): Promise<{
     userLat?: number;
     userLon?: number;
     radiusKm?: number;
   }> {
-    const prefs = preferencesService.getPreferences();
-
-    if (!prefs.distanceFilterEnabled) {
-      return {};
-    }
-
-    const location = await this.getEffectiveLocation();
-    if (!location) {
-      return {};
-    }
-
-    return {
-      userLat: location.latitude,
-      userLon: location.longitude,
-      radiusKm: prefs.distanceRadiusKm || 25,
-    };
+    // DEPRECATED: Distance filtering now uses child-level preferences
+    // Return empty to disable user-level distance filtering
+    console.log('[LocationService] getDistanceFilterParams is deprecated - use child preferences');
+    return {};
   }
 
   /**

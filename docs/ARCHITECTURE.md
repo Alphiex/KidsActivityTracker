@@ -183,6 +183,9 @@ App.tsx
 │   │   ├── OnboardingAge
 │   │   ├── OnboardingLocation (GPS or city + distance)
 │   │   └── OnboardingComplete
+│   ├── Deep Link Screens (available in all auth states)
+│   │   ├── InvitationAccept (/invite/:token)
+│   │   └── ActivityDeepLink (/activity/:activityId)
 │   └── MainTabs
 │       ├── Explore (HomeStack)
 │       │   ├── DashboardScreenModern
@@ -208,6 +211,56 @@ App.tsx
 │           ├── Preferences
 │           └── Account
 ```
+
+### Deep Linking Architecture
+
+The app supports Universal Links (iOS) and App Links (Android) for seamless sharing.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      DEEP LINK FLOW                                  │
+│                                                                      │
+│  User shares activity → Generates link:                             │
+│  https://kidsactivitytracker.ca/activity/{activityId}               │
+│                                                                      │
+│  ┌─────────────────────┐    ┌─────────────────────────────────┐    │
+│  │   Recipient clicks  │───▶│  Device checks app association   │    │
+│  │       link          │    │  (apple-app-site-association /   │    │
+│  └─────────────────────┘    │   assetlinks.json)               │    │
+│                             └─────────────┬───────────────────┘    │
+│                                           │                         │
+│             ┌─────────────────────────────┼─────────────────────┐  │
+│             │                             │                      │  │
+│             ▼                             ▼                      │  │
+│  ┌─────────────────────┐     ┌─────────────────────────────┐   │  │
+│  │   App Installed     │     │     App Not Installed       │   │  │
+│  │                     │     │                             │   │  │
+│  │  Opens app directly │     │  Opens web fallback page    │   │  │
+│  │  to ActivityDetail  │     │  with activity preview +    │   │  │
+│  │  screen             │     │  App Store/Play Store links │   │  │
+│  └─────────────────────┘     └─────────────────────────────┘   │  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Supported Deep Link Paths**:
+
+| Path | Purpose | Handler |
+|------|---------|---------|
+| `/activity/{id}` | View shared activity | ActivityDetailScreen |
+| `/invite/{token}` | Accept family sharing invitation | InvitationAcceptScreen |
+
+**Configuration Files**:
+
+| Platform | File | Location |
+|----------|------|----------|
+| iOS | apple-app-site-association | website/public/.well-known/ |
+| Android | assetlinks.json | website/public/.well-known/ |
+| Android | AndroidManifest.xml | android/app/src/main/ |
+| iOS | KidsActivityTracker.entitlements | ios/KidsActivityTracker/ |
+
+**URL Schemes**:
+- Universal Links: `https://kidsactivitytracker.ca/*`
+- Custom Scheme: `kidsactivitytracker://*` (fallback)
 
 ## Data Flow
 

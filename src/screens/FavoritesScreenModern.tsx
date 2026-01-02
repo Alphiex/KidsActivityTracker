@@ -21,7 +21,7 @@ import TopTabNavigation from '../components/TopTabNavigation';
 import ActivityCard from '../components/ActivityCard';
 import EmptyState from '../components/EmptyState';
 import UpgradePromptModal from '../components/UpgradePromptModal';
-import FavoritesService from '../services/favoritesService';
+import ChildFilterSelector from '../components/ChildFilterSelector';
 import WaitlistService, { CachedWaitlistEntry } from '../services/waitlistService';
 import ActivityService from '../services/activityService';
 import { Activity } from '../types';
@@ -29,6 +29,17 @@ import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, Mode
 import { formatActivityPrice } from '../utils/formatters';
 import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
 import useFavoriteSubscription from '../hooks/useFavoriteSubscription';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectSelectedChildIds, selectAllChildren } from '../store/slices/childrenSlice';
+import {
+  fetchChildFavorites,
+  fetchChildWaitlist,
+  removeChildFavorite,
+  addChildFavorite,
+  selectFavoritesByChild,
+  selectFavoritesLoading,
+  selectWaitlistLoading,
+} from '../store/slices/childFavoritesSlice';
 
 const { width, height } = Dimensions.get('window');
 
@@ -38,19 +49,64 @@ type TabType = 'favorites' | 'watching' | 'available';
 
 const FavoritesScreenModern: React.FC = () => {
   const navigation = useNavigation<any>();
-  const favoritesService = FavoritesService.getInstance();
+  const dispatch = useAppDispatch();
   const waitlistService = WaitlistService.getInstance();
   const activityService = ActivityService.getInstance();
 
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Favorites data
-  const [favoriteActivities, setFavoriteActivities] = useState<Activity[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  // Redux state for child-centric data
+  const rawSelectedChildIds = useAppSelector(selectSelectedChildIds);
+  const selectedChildIds = React.useMemo(() => rawSelectedChildIds || [], [rawSelectedChildIds]);
+  const allChildren = useAppSelector(selectAllChildren);
+  const favoritesByChild = useAppSelector(selectFavoritesByChild);
+  const favoritesLoading = useAppSelector(selectFavoritesLoading);
+  const waitlistLoading = useAppSelector(selectWaitlistLoading);
 
-  // Waitlist/Watching data
+  const loading = favoritesLoading || waitlistLoading;
+
+  // Get unique favorited activities (deduplicated across children) for flat display
+  const allFavoriteActivities: Activity[] = React.useMemo(() => {
+    const activityMap = new Map<string, Activity>();
+    for (const childId of selectedChildIds) {
+      const childFavorites = favoritesByChild[childId] || [];
+      for (const fav of childFavorites) {
+        if (fav.activity && !activityMap.has(fav.activityId)) {
+          activityMap.set(fav.activityId, fav.activity as unknown as Activity);
+        }
+      }
+    }
+    return Array.from(activityMap.values());
+  }, [favoritesByChild, selectedChildIds]);
+
+  // Create a set of favorite activity IDs for quick lookup
+  const favoriteIds = React.useMemo(() => {
+    return new Set(allFavoriteActivities.map(a => a.id));
+  }, [allFavoriteActivities]);
+
+  // Track which children have favorited each activity
+  const activityChildMap = React.useMemo(() => {
+    const map = new Map<string, { childId: string; childName: string }[]>();
+    const childMap = new Map(allChildren.map(c => [c.id, c.name]));
+
+    for (const childId of selectedChildIds) {
+      const childFavorites = favoritesByChild[childId] || [];
+      for (const fav of childFavorites) {
+        if (!map.has(fav.activityId)) {
+          map.set(fav.activityId, []);
+        }
+        map.get(fav.activityId)!.push({
+          childId,
+          childName: childMap.get(childId) || 'Unknown',
+        });
+      }
+    }
+
+    return map;
+  }, [favoritesByChild, selectedChildIds, allChildren]);
+
+  // Waitlist/Watching data (still using old service for now)
   const [watchingEntries, setWatchingEntries] = useState<CachedWaitlistEntry[]>([]);
   const [availableEntries, setAvailableEntries] = useState<CachedWaitlistEntry[]>([]);
   const [closedCount, setClosedCount] = useState(0);
@@ -71,32 +127,15 @@ const FavoritesScreenModern: React.FC = () => {
     hideUpgradeModal: hideFavoritesUpgradeModal,
   } = useFavoriteSubscription();
 
-  const loadData = async (forceRefresh: boolean = false) => {
+  const loadData = useCallback(async (forceRefresh: boolean = false) => {
     try {
-      // Load favorites
-      const favorites = favoritesService.getFavorites();
-      const ids = new Set(favorites.map(fav => fav.activityId));
-      setFavoriteIds(ids);
-
-      // Load favorite activities details
-      if (favorites.length > 0) {
-        const activities: Activity[] = [];
-        for (const fav of favorites) {
-          try {
-            const activity = await activityService.getActivityDetails(fav.activityId);
-            if (activity) {
-              activities.push(activity);
-            }
-          } catch (err) {
-            console.error('Error loading favorite activity:', fav.activityId, err);
-          }
-        }
-        setFavoriteActivities(activities);
-      } else {
-        setFavoriteActivities([]);
+      // Fetch child-centric favorites via Redux
+      if (selectedChildIds.length > 0) {
+        dispatch(fetchChildFavorites(selectedChildIds));
+        dispatch(fetchChildWaitlist(selectedChildIds));
       }
 
-      // Load waitlist entries
+      // Load waitlist entries (using old service for now)
       const waitlistEntries = await waitlistService.getWaitlist(forceRefresh);
       const watching = waitlistEntries.filter(e => !e.hasAvailability);
       const available = waitlistEntries.filter(e => e.hasAvailability);
@@ -109,16 +148,22 @@ const FavoritesScreenModern: React.FC = () => {
     } catch (error) {
       console.error('[FavoritesScreen] Error loading data:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [dispatch, selectedChildIds, waitlistService]);
 
   useFocusEffect(
     useCallback(() => {
       loadData(true);
-    }, [])
+    }, [loadData])
   );
+
+  // Reload when selected children change
+  useEffect(() => {
+    if (selectedChildIds.length > 0) {
+      dispatch(fetchChildFavorites(selectedChildIds));
+    }
+  }, [selectedChildIds, dispatch]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -126,25 +171,26 @@ const FavoritesScreenModern: React.FC = () => {
   };
 
   const toggleFavorite = async (activity: Activity) => {
-    const isCurrentlyFavorite = favoriteIds.has(activity.id);
+    // Child-centric: toggle for all selected children
+    const childrenWhoFavorited = activityChildMap.get(activity.id) || [];
 
-    if (!isCurrentlyFavorite && !canAddFavorite) {
-      onFavoriteLimitReached();
-      return;
-    }
-
-    if (isCurrentlyFavorite) {
-      favoritesService.removeFavorite(activity.id);
-      setFavoriteIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(activity.id);
-        return newSet;
-      });
-      setFavoriteActivities(prev => prev.filter(a => a.id !== activity.id));
+    if (childrenWhoFavorited.length > 0) {
+      // Activity is favorited by at least one selected child - remove from all
+      for (const { childId } of childrenWhoFavorited) {
+        dispatch(removeChildFavorite({ childId, activityId: activity.id }));
+      }
     } else {
-      favoritesService.addFavorite(activity);
-      setFavoriteIds(prev => new Set([...prev, activity.id]));
-      setFavoriteActivities(prev => [...prev, activity]);
+      // Not favorited - add for all selected children (or show picker if multiple)
+      if (!canAddFavorite) {
+        onFavoriteLimitReached();
+        return;
+      }
+
+      // For simplicity, add for all selected children
+      // Could show modal to select specific children
+      for (const childId of selectedChildIds) {
+        dispatch(addChildFavorite({ childId, activityId: activity.id }));
+      }
     }
   };
 
@@ -236,17 +282,33 @@ const FavoritesScreenModern: React.FC = () => {
     });
   };
 
-  const renderFavoriteItem = ({ item }: { item: Activity }) => (
-    <ActivityCard
-      activity={item}
-      onPress={() => handleActivityPress(item)}
-      isFavorite={favoriteIds.has(item.id)}
-      onFavoritePress={() => toggleFavorite(item)}
-      imageHeight={90}
-      canAddToWaitlist={canAddToWaitlist}
-      onWaitlistLimitReached={onWaitlistLimitReached}
-    />
-  );
+  const renderFavoriteItem = ({ item }: { item: Activity }) => {
+    const childrenForActivity = activityChildMap.get(item.id) || [];
+    const childNames = childrenForActivity.map(c => c.childName);
+
+    return (
+      <View>
+        <ActivityCard
+          activity={item}
+          onPress={() => handleActivityPress(item)}
+          isFavorite={favoriteIds.has(item.id)}
+          onFavoritePress={() => toggleFavorite(item)}
+          imageHeight={90}
+          canAddToWaitlist={canAddToWaitlist}
+          onWaitlistLimitReached={onWaitlistLimitReached}
+        />
+        {/* Show which children saved this activity */}
+        {childNames.length > 0 && allChildren.length > 1 && (
+          <View style={styles.savedByContainer}>
+            <Icon name="heart" size={12} color={ModernColors.primary} />
+            <Text style={styles.savedByText}>
+              Saved for {childNames.join(' & ')}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderWatchingItem = ({ item }: { item: CachedWaitlistEntry }) => (
     <TouchableOpacity
@@ -418,7 +480,7 @@ const FavoritesScreenModern: React.FC = () => {
   const getTabCount = (tab: TabType): number => {
     switch (tab) {
       case 'favorites':
-        return favoriteActivities.length;
+        return allFavoriteActivities.length;
       case 'watching':
         return watchingEntries.length;
       case 'available':
@@ -437,9 +499,9 @@ const FavoritesScreenModern: React.FC = () => {
 
     switch (activeTab) {
       case 'favorites':
-        return favoriteActivities.length > 0 ? (
+        return allFavoriteActivities.length > 0 ? (
           <FlatList
-            data={favoriteActivities}
+            data={allFavoriteActivities}
             renderItem={renderFavoriteItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
@@ -520,12 +582,21 @@ const FavoritesScreenModern: React.FC = () => {
               <View style={styles.heroContent}>
                 <Text style={styles.heroTitle}>My Collection</Text>
                 <Text style={styles.heroSubtitle}>
-                  {favoriteActivities.length} favourites • {watchingEntries.length + availableEntries.length} watching
+                  {allFavoriteActivities.length} favourites • {watchingEntries.length + availableEntries.length} watching
                 </Text>
               </View>
             </LinearGradient>
           </ImageBackground>
         </View>
+
+        {/* Child Filter Selector */}
+        <ChildFilterSelector
+          compact
+          showModeToggle={false}
+          onSelectionChange={() => {
+            // Data will automatically refresh due to useEffect dependency
+          }}
+        />
 
         {/* Tabs */}
         <View style={styles.tabs}>
@@ -882,6 +953,21 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: ModernTypography.sizes.sm,
     fontWeight: '600',
+  },
+  // Child favorites attribution
+  savedByContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: ModernSpacing.md,
+    paddingVertical: ModernSpacing.xs,
+    marginTop: -ModernSpacing.xs,
+    marginBottom: ModernSpacing.sm,
+  },
+  savedByText: {
+    fontSize: ModernTypography.sizes.xs,
+    color: ModernColors.primary,
+    marginLeft: 4,
+    fontWeight: '500',
   },
 });
 

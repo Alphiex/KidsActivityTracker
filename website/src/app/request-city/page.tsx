@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
 import RequestCityForm from '@/components/RequestCityForm';
 
 export const metadata: Metadata = {
@@ -13,15 +12,6 @@ export default function RequestCityPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <Link
-            href="/cities"
-            className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium mb-4"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Cities
-          </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
             Request a <span className="gradient-text">City</span>
           </h1>

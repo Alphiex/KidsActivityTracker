@@ -16,6 +16,7 @@ import { combineReducers } from 'redux';
 import authReducer from './slices/authSlice';
 import childrenReducer from './slices/childrenSlice';
 import childActivitiesReducer from './slices/childActivitiesSlice';
+import childFavoritesReducer from './slices/childFavoritesSlice';
 import subscriptionReducer from './slices/subscriptionSlice';
 import chatReducer from './slices/chatSlice';
 
@@ -31,6 +32,7 @@ const rootReducer = combineReducers({
   auth: authReducer,
   children: childrenReducer,
   childActivities: childActivitiesReducer,
+  childFavorites: childFavoritesReducer,
   subscription: subscriptionReducer,
   chat: chatReducer,
 });

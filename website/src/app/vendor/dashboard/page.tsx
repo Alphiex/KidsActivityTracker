@@ -238,7 +238,7 @@ export default function VendorDashboardPage() {
         <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500">Featured</p>
+              <p className="text-sm font-medium text-gray-500">Sponsored</p>
               <p className="text-3xl font-bold text-yellow-600 mt-1">{stats?.featured ?? 0}</p>
             </div>
             <div className="p-3 bg-yellow-100 rounded-full">

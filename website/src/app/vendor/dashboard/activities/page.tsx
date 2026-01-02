@@ -277,7 +277,7 @@ export default function VendorActivitiesPage() {
                         </span>
                         {activity.isFeatured && (
                           <span className="ml-1 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                            Featured
+                            Sponsored
                           </span>
                         )}
                       </td>

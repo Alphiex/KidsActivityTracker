@@ -1,15 +1,15 @@
-# Featured Partners System
+# Sponsored Partners System
 
 Paid partnership capabilities for activity providers to promote their programs with priority visibility in the Kids Activity Tracker app.
 
 ## Overview
 
-The Featured Partners system allows recreation centers and activity providers to pay for enhanced visibility of their activities. Featured activities appear prominently on the dashboard and are filtered using the same criteria as regular activities, ensuring relevance to users.
+The Sponsored Partners system allows recreation centers and activity providers to pay for enhanced visibility of their activities. Sponsored activities appear prominently on the dashboard and are filtered using the same criteria as regular activities, ensuring relevance to users.
 
 | | |
 |---|---|
-| **Feature Tiers** | Gold, Silver, Bronze |
-| **Dashboard Display** | Up to 3 featured activities |
+| **Sponsorship Tiers** | Gold, Silver, Bronze |
+| **Dashboard Display** | Up to 3 sponsored activities |
 | **Filtering** | Matches user preferences (age, location, activity type) |
 | **Randomization** | Within each tier for fair rotation |
 | **Payment Processing** | Stripe Checkout |
@@ -28,7 +28,7 @@ Partners can subscribe to three tiers with different pricing and priority:
 ### Tier Benefits
 
 All tiers include:
-- Featured placement in the app
+- Sponsored placement in the app
 - Activity-level analytics
 - Click and impression tracking
 - Geographic targeting options
@@ -237,7 +237,7 @@ Pre-aggregated monthly stats in `SponsoredMonthlyStats` table:
 ### Indexes
 
 ```sql
--- Optimized indexes for featured partner queries
+-- Optimized indexes for sponsored partner queries
 @@index([isFeatured, featuredTier])
 @@index([isFeatured, featuredEndDate])
 ```
@@ -250,7 +250,7 @@ Pre-aggregated monthly stats in `SponsoredMonthlyStats` table:
 |----------|--------|-------------|
 | `/api/partner/login` | POST | Partner authentication |
 | `/api/partner/dashboard` | GET | Dashboard with stats |
-| `/api/partner/activities` | GET | List featured activities |
+| `/api/partner/activities` | GET | List sponsored activities |
 | `/api/partner/activities/:id/feature` | POST | Feature an activity |
 | `/api/partner/activities/:id/unfeature` | POST | Remove featuring |
 | `/api/partner/analytics` | GET | Overall performance metrics |
@@ -331,7 +331,7 @@ Handled events:
 
 #### GET /api/v1/partners
 
-Retrieve featured activities matching user filters.
+Retrieve sponsored activities matching user filters.
 
 **Query Parameters**
 
@@ -374,7 +374,7 @@ Retrieve featured activities matching user filters.
 
 ### Tracked Metrics
 
-The system tracks impressions and clicks for all featured activities:
+The system tracks impressions and clicks for all sponsored activities:
 
 #### PartnerImpression
 
@@ -497,7 +497,7 @@ The partner portal is available at `/sponsor` on the website:
 
 ### Dashboard Display
 
-Featured activities appear in a dedicated "Featured Partners" section at the top of the dashboard:
+Sponsored activities appear in a dedicated "Sponsored Partners" section at the top of the dashboard:
 
 ```typescript
 // src/screens/DashboardScreenModern.tsx
@@ -589,7 +589,7 @@ function weightedRandomSelection(activities, maxResults) {
 
 ### Selection Process
 
-1. Find all featured activities matching user filters
+1. Find all sponsored activities matching user filters
 2. Check each activity's monthly impression count against tier limit
 3. Exclude activities that have exceeded their limit
 4. Apply weighted random selection (max 3 for regular searches)
@@ -600,9 +600,9 @@ function weightedRandomSelection(activities, maxResults) {
 
 1. **Active Requirement**: Only `isActive = true` activities can be featured
 2. **Date Validation**: Featuring automatically expires based on `featuredEndDate`
-3. **Filter Compliance**: Featured activities must match user filters to appear
+3. **Filter Compliance**: Sponsored activities must match user filters to appear
 4. **Fair Rotation**: Randomization within tiers ensures equal exposure for same-tier partners
-5. **Limit Enforcement**: Maximum 3 featured activities shown per dashboard load
+5. **Limit Enforcement**: Maximum 3 sponsored activities shown per dashboard load
 6. **Auto-Flagging**: All provider activities are automatically featured when subscription is active
 7. **Auto-Unflagging**: All activities are unflagged when subscription expires
 

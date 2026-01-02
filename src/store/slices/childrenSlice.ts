@@ -154,10 +154,14 @@ const childrenSlice = createSlice({
     },
     // Multi-child selection reducers
     setSelectedChildIds: (state, action: PayloadAction<string[]>) => {
-      state.selectedChildIds = action.payload;
+      state.selectedChildIds = action.payload || [];
     },
     toggleChildSelection: (state, action: PayloadAction<string>) => {
       const childId = action.payload;
+      // Ensure selectedChildIds is an array (for migration safety)
+      if (!state.selectedChildIds) {
+        state.selectedChildIds = state.children.map(c => c.id);
+      }
       const index = state.selectedChildIds.indexOf(childId);
       if (index === -1) {
         state.selectedChildIds.push(childId);
@@ -343,15 +347,16 @@ export const selectSelectedChild = (state: RootState) => state.children.selected
 export const selectChildrenLoading = (state: RootState) => state.children.loading;
 export const selectChildrenError = (state: RootState) => state.children.error;
 
-// Multi-child selection selectors
-export const selectSelectedChildIds = (state: RootState) => state.children.selectedChildIds;
-export const selectFilterMode = (state: RootState) => state.children.filterMode;
+// Multi-child selection selectors (with fallbacks for migration safety)
+export const selectSelectedChildIds = (state: RootState) => state.children.selectedChildIds || [];
+export const selectFilterMode = (state: RootState) => state.children.filterMode || 'or';
 export const selectPreferencesLoading = (state: RootState) => state.children.preferencesLoading;
 
 // Derived selectors
 export const selectSelectedChildren = (state: RootState): ChildWithPreferences[] => {
   const { children, selectedChildIds } = state.children;
-  return children.filter(c => selectedChildIds.includes(c.id));
+  const safeSelectedIds = selectedChildIds || [];
+  return children.filter(c => safeSelectedIds.includes(c.id));
 };
 
 export const selectChildById = (childId: string) => (state: RootState): ChildWithPreferences | undefined => {

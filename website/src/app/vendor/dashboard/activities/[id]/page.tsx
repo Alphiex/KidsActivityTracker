@@ -426,7 +426,7 @@ export default function EditActivityPage() {
                 onChange={handleChange}
                 className="w-5 h-5 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500"
               />
-              <span className="text-gray-700">Featured</span>
+              <span className="text-gray-700">Sponsored</span>
             </label>
           </div>
         </div>

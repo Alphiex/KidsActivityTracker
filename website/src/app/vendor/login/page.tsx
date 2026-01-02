@@ -48,15 +48,6 @@ export default function VendorLoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <Link
-              href="/vendor"
-              className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium mb-4"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Partner Info
-            </Link>
             <h1 className="text-2xl font-bold text-gray-900">Partner Portal</h1>
             <p className="text-gray-600 mt-2">Sign in to manage your activities</p>
           </div>

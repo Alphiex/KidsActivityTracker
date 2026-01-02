@@ -22,29 +22,29 @@ export interface ChildBasedFilterParams {
 }
 
 /**
- * Sort activities with featured activities at the top, ordered by tier (gold > silver > bronze)
- * Non-featured activities maintain their original relative order
+ * Sort activities with sponsored activities at the top, ordered by tier (gold > silver > bronze)
+ * Non-sponsored activities maintain their original relative order
  */
-function sortWithFeaturedFirst(activities: Activity[]): Activity[] {
+function sortWithSponsoredFirst(activities: Activity[]): Activity[] {
   const tierOrder: Record<string, number> = { gold: 0, silver: 1, bronze: 2 };
 
   return [...activities].sort((a, b) => {
-    // Featured activities come first
-    const aFeatured = a.isFeatured ? 1 : 0;
-    const bFeatured = b.isFeatured ? 1 : 0;
+    // Sponsored activities come first
+    const aSponsored = a.isFeatured ? 1 : 0;
+    const bSponsored = b.isFeatured ? 1 : 0;
 
-    if (aFeatured !== bFeatured) {
-      return bFeatured - aFeatured; // Featured first
+    if (aSponsored !== bSponsored) {
+      return bSponsored - aSponsored; // Sponsored first
     }
 
-    // If both are featured, sort by tier
+    // If both are sponsored, sort by tier
     if (a.isFeatured && b.isFeatured) {
       const aTier = (a.featuredTier?.toLowerCase() || 'bronze');
       const bTier = (b.featuredTier?.toLowerCase() || 'bronze');
       return (tierOrder[aTier] ?? 3) - (tierOrder[bTier] ?? 3);
     }
 
-    // Non-featured activities maintain original order
+    // Non-sponsored activities maintain original order
     return 0;
   });
 }
@@ -503,8 +503,8 @@ class ActivityService {
         hasPrerequisites: activity.hasPrerequisites
       }));
 
-      // Sort with featured activities at the top, ordered by tier
-      return sortWithFeaturedFirst(mappedActivities);
+      // Sort with sponsored activities at the top, ordered by tier
+      return sortWithSponsoredFirst(mappedActivities);
     } catch (error: any) {
       console.error('Error searching activities:', error);
       
@@ -707,8 +707,8 @@ class ActivityService {
         // Fallback: calculate based on offset if API doesn't provide it
         const hasMore = response.data.hasMore ?? (offset + activities.length < total);
 
-        // Sort with featured activities at the top, ordered by tier
-        const sortedActivities = sortWithFeaturedFirst(activities);
+        // Sort with sponsored activities at the top, ordered by tier
+        const sortedActivities = sortWithSponsoredFirst(activities);
 
         return {
           items: sortedActivities,
@@ -811,8 +811,8 @@ class ActivityService {
             favoriteNotes: fav?.notes
           }));
 
-        // Sort with featured activities at the top, ordered by tier
-        return sortWithFeaturedFirst(favorites);
+        // Sort with sponsored activities at the top, ordered by tier
+        return sortWithSponsoredFirst(favorites);
       }
 
       return [];
@@ -1091,8 +1091,8 @@ class ActivityService {
         // Use hasMore directly from API response (correctly calculated using offset-based pagination)
         const hasMore = response.data.hasMore ?? (offset + activities.length < total);
 
-        // Sort with featured activities at the top, ordered by tier
-        const sortedActivities = sortWithFeaturedFirst(activities);
+        // Sort with sponsored activities at the top, ordered by tier
+        const sortedActivities = sortWithSponsoredFirst(activities);
 
         console.log(`✅ Venue API returned ${sortedActivities.length} activities out of ${total} total, hasMore: ${hasMore}`);
 
@@ -1259,7 +1259,7 @@ class ActivityService {
           location: activity.location?.name || activity.locationName || 'Unknown',
           locationAddress: activity.location?.fullAddress || activity.fullAddress || null,
           locationCity: activity.location?.cityRecord?.name || null,
-          // Include featured partner fields
+          // Include sponsored partner fields
           isFeatured: activity.isFeatured,
           featuredTier: activity.featuredTier,
           // Include all enhanced fields
@@ -1411,7 +1411,7 @@ class ActivityService {
         };
       }
 
-      console.log('[FeaturedService] No featured activities found');
+      console.log('[SponsoredService] No sponsored activities found');
       return { activities: [], total: 0 };
     } catch (error: any) {
       console.error('[SponsorService] Error fetching paginated sponsored activities:', error);

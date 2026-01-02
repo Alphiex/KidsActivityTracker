@@ -120,7 +120,7 @@ export default function SponsorsListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Featured Partners</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Sponsored Partners</h1>
         <button
           onClick={() => {/* TODO: Add new partner modal */}}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"

@@ -46,7 +46,7 @@ import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
 import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
-import FeaturedPartnersScreen from '../screens/FeaturedPartnersScreen';
+import SponsoredPartnersScreen from '../screens/SponsoredPartnersScreen';
 import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
@@ -96,7 +96,7 @@ const HomeStack = () => (
     <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
-    <Stack.Screen name="FeaturedPartners" component={FeaturedPartnersScreen} />
+    <Stack.Screen name="SponsoredPartners" component={SponsoredPartnersScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
     <Stack.Screen name="AIChat" component={AIChatScreen} />
@@ -363,6 +363,10 @@ const linking: LinkingOptions<any> = {
           token: (token: string) => token,
         },
       },
+      // Activity deep link - opens activity detail screen
+      ActivityDeepLink: {
+        path: 'activity/:activityId',
+      },
     },
   },
 };
@@ -505,6 +509,11 @@ const RootNavigator = () => {
                 component={InvitationAcceptScreen}
                 options={{ presentation: 'modal' }}
               />
+              <Stack.Screen
+                name="ActivityDeepLink"
+                component={ActivityDetailScreen}
+                options={{ presentation: 'modal' }}
+              />
             </>
           ) : !hasCompletedOnboarding ? (
             <>
@@ -512,6 +521,11 @@ const RootNavigator = () => {
               <Stack.Screen
                 name="InvitationAccept"
                 component={InvitationAcceptScreen}
+                options={{ presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name="ActivityDeepLink"
+                component={ActivityDetailScreen}
                 options={{ presentation: 'modal' }}
               />
             </>
@@ -532,6 +546,11 @@ const RootNavigator = () => {
               <Stack.Screen
                 name="InvitationAccept"
                 component={InvitationAcceptScreen}
+                options={{ presentation: 'modal' }}
+              />
+              <Stack.Screen
+                name="ActivityDeepLink"
+                component={ActivityDetailScreen}
                 options={{ presentation: 'modal' }}
               />
             </>

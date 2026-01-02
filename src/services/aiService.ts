@@ -9,6 +9,7 @@ import {
   WeeklyScheduleResponse,
   ActivityExplanation,
   WeeklySchedule,
+  PlannerConstraints,
 } from '../types/ai';
 
 // Chat types
@@ -301,18 +302,14 @@ class AIService {
 
   /**
    * Generate weekly activity schedule
-   * 
+   *
    * @param weekStart - Start date of the week (ISO string)
-   * @param constraints - Optional scheduling constraints
+   * @param constraints - Optional scheduling constraints including per-child availability
    * @returns Optimized weekly schedule
    */
   async planWeek(
     weekStart?: string,
-    constraints?: {
-      max_activities_per_child?: number;
-      avoid_back_to_back?: boolean;
-      max_travel_between_activities_km?: number;
-    }
+    constraints?: PlannerConstraints
   ): Promise<WeeklyScheduleResponse> {
     try {
       console.log('[AIService] Planning week starting:', weekStart);
@@ -358,6 +355,7 @@ class AIService {
    * @param message - User's message
    * @param conversationId - Optional conversation ID to continue
    * @param childIds - Optional specific children to focus on
+   * @param filterMode - 'or' (any child) or 'and' (all children together)
    * @param retryCount - Internal retry counter for auth timing
    * @returns AI response with activities and follow-up prompts
    */
@@ -365,10 +363,11 @@ class AIService {
     message: string,
     conversationId?: string,
     childIds?: string[],
+    filterMode: 'or' | 'and' = 'or',
     retryCount: number = 0
   ): Promise<ChatResponse> {
     try {
-      console.log('[AIService] Sending chat message:', { message, conversationId, retryCount });
+      console.log('[AIService] Sending chat message:', { message, conversationId, filterMode, retryCount });
 
       const response = await apiClient.post<ChatResponse>(
         '/api/v1/ai/chat',
@@ -376,6 +375,7 @@ class AIService {
           message,
           conversationId,
           childIds,
+          filterMode,
           childSelectionMode: childIds?.length ? 'manual' : 'auto',
         },
         { timeout: 60000 } // 60 second timeout for AI chat
@@ -410,7 +410,7 @@ class AIService {
             console.warn('[AIService] Token refresh failed:', tokenError);
           }
           await new Promise(resolve => setTimeout(resolve, 500));
-          return this.chat(message, conversationId, childIds, retryCount + 1);
+          return this.chat(message, conversationId, childIds, filterMode, retryCount + 1);
         }
         // After retries still failing, show generic error
         console.error('[AIService] Auth still failing after retries');

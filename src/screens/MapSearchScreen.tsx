@@ -33,6 +33,7 @@ import AddToCalendarModal from '../components/AddToCalendarModal';
 import { formatActivityPrice } from '../utils/formatters';
 import { useAppSelector } from '../store';
 import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
+import { selectAllChildren } from '../store/slices/childrenSlice';
 
 type MapSearchRouteProp = RouteProp<{
   MapSearch: {
@@ -58,6 +59,81 @@ const USER_LOCATION_DELTA = 0.15;
 
 // Threshold for grouping activities at "same" location (in degrees, ~100m)
 const CLUSTER_THRESHOLD = 0.001;
+
+// Minimum movement threshold before refetching (in degrees, ~5km)
+const REFETCH_THRESHOLD = 0.05;
+
+// Maximum radius to query from API (km) - prevents overly large queries
+const MAX_QUERY_RADIUS_KM = 100;
+
+/**
+ * Calculate approximate radius in km from map viewport deltas
+ * Using 111km per degree of latitude as approximation
+ */
+function calculateRadiusFromViewport(latitudeDelta: number, longitudeDelta: number): number {
+  // Use the larger of the two deltas to ensure we cover the viewport
+  const maxDelta = Math.max(latitudeDelta, longitudeDelta);
+  // Convert degrees to km (111km per degree) and use half (radius, not diameter)
+  // Multiply by 1.5 to add some buffer beyond the visible area
+  const radiusKm = (maxDelta / 2) * 111 * 1.5;
+  return Math.min(radiusKm, MAX_QUERY_RADIUS_KM);
+}
+
+/**
+ * Check if a region has moved significantly from another region
+ */
+function hasRegionMovedSignificantly(newRegion: Region, oldRegion: Region | null): boolean {
+  if (!oldRegion) return true;
+
+  const latDiff = Math.abs(newRegion.latitude - oldRegion.latitude);
+  const lngDiff = Math.abs(newRegion.longitude - oldRegion.longitude);
+  const zoomChanged = Math.abs(newRegion.latitudeDelta - oldRegion.latitudeDelta) > 0.02;
+
+  return latDiff > REFETCH_THRESHOLD || lngDiff > REFETCH_THRESHOLD || zoomChanged;
+}
+
+/**
+ * Calculate a region that encompasses all provided coordinates
+ * Returns null if no valid coordinates are provided
+ */
+function calculateRegionFromCoordinates(
+  coordinates: Array<{ latitude: number; longitude: number }>
+): Region | null {
+  if (coordinates.length === 0) return null;
+
+  if (coordinates.length === 1) {
+    // Single location - use city-level zoom
+    return {
+      latitude: coordinates[0].latitude,
+      longitude: coordinates[0].longitude,
+      latitudeDelta: USER_LOCATION_DELTA,
+      longitudeDelta: USER_LOCATION_DELTA,
+    };
+  }
+
+  // Multiple locations - calculate bounding box
+  const lats = coordinates.map(c => c.latitude);
+  const lngs = coordinates.map(c => c.longitude);
+
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLng = (minLng + maxLng) / 2;
+
+  // Add 20% padding to the delta to ensure all points are visible
+  const latDelta = Math.max((maxLat - minLat) * 1.3, USER_LOCATION_DELTA);
+  const lngDelta = Math.max((maxLng - minLng) * 1.3, USER_LOCATION_DELTA);
+
+  return {
+    latitude: centerLat,
+    longitude: centerLng,
+    latitudeDelta: latDelta,
+    longitudeDelta: lngDelta,
+  };
+}
 
 interface LocationCluster {
   id: string;
@@ -116,6 +192,9 @@ const MapSearchScreen = () => {
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
 
+  // Get children from Redux to center map on their locations
+  const children = useAppSelector(selectAllChildren);
+
   // State
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +206,9 @@ const MapSearchScreen = () => {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
   const regionChangeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFetchedRegion = useRef<Region | null>(null);
+  const refetchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasInitializedRegion = useRef(false);
 
   // Search filters state (received from SearchScreen)
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
@@ -150,8 +232,8 @@ const MapSearchScreen = () => {
     if (route.params?.filters) {
       setSearchFilters(route.params.filters);
       setSearchQuery(route.params.searchQuery || '');
-      // Reload activities with new filters
-      loadActivitiesWithFilters(route.params.filters);
+      // Reload activities with new filters, using current region if available
+      loadActivitiesWithFilters(route.params.filters, locationLoaded ? region : undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.params?.filters]);
@@ -164,8 +246,9 @@ const MapSearchScreen = () => {
 
   // Reload activities when search filters are cleared
   useEffect(() => {
-    if (searchFilters === null && !loading) {
-      loadActivities();
+    if (searchFilters === null && !loading && locationLoaded) {
+      // Reload activities for the current region
+      loadActivities(region);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters]);
@@ -173,7 +256,8 @@ const MapSearchScreen = () => {
   // Reload activities when preference filter toggle changes
   useEffect(() => {
     if (locationLoaded && !searchFilters) {
-      loadActivities();
+      // Reload activities for the current region
+      loadActivities(region);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usePreferencesFilter]);
@@ -202,10 +286,52 @@ const MapSearchScreen = () => {
     });
   }, [navigation]);
 
-  // Determine initial region based on priority: GPS > preferences > Canada
+  // Determine initial region based on priority: Children > GPS > preferences > Canada
+  // Also loads activities for the determined region
   useEffect(() => {
+    // Only run once to prevent re-initialization on children updates
+    if (hasInitializedRegion.current) return;
+
     const determineInitialRegion = async () => {
-      // Priority 1: Try to get user's current GPS location
+      hasInitializedRegion.current = true;
+
+      // Priority 1: Check for children with location data
+      const childrenWithLocations = children
+        .filter(child =>
+          child.locationDetails?.latitude != null &&
+          child.locationDetails?.longitude != null
+        )
+        .map(child => ({
+          latitude: child.locationDetails!.latitude!,
+          longitude: child.locationDetails!.longitude!,
+        }));
+
+      if (childrenWithLocations.length > 0) {
+        const childrenRegion = calculateRegionFromCoordinates(childrenWithLocations);
+        if (childrenRegion) {
+          if (__DEV__) {
+            console.log('[MapSearch] Using children locations:', {
+              childCount: childrenWithLocations.length,
+              region: childrenRegion,
+            });
+          }
+          // Set region immediately for initial render
+          setInitialRegion(childrenRegion);
+          setRegion(childrenRegion);
+          setLocationLoaded(true);
+
+          // Animate map to region
+          if (mapRef.current) {
+            mapRef.current.animateToRegion(childrenRegion, 500);
+          }
+
+          // Load activities asynchronously (don't wait)
+          loadActivities(childrenRegion);
+          return;
+        }
+      }
+
+      // Priority 2: Try to get user's current GPS location
       Geolocation.getCurrentPosition(
         (position) => {
           const userRegion: Region = {
@@ -219,15 +345,18 @@ const MapSearchScreen = () => {
           setRegion(userRegion);
           setLocationLoaded(true);
 
-          // Animate map to user location
+          // Animate map to region
           if (mapRef.current) {
             mapRef.current.animateToRegion(userRegion, 500);
           }
+
+          // Load activities asynchronously
+          loadActivities(userRegion);
         },
         (error) => {
           if (__DEV__) console.log('[MapSearch] GPS location error:', error.message);
 
-          // Priority 2: Check for saved address in preferences
+          // Priority 3: Check for saved address in preferences
           if (preferences.savedAddress &&
               preferences.savedAddress.latitude &&
               preferences.savedAddress.longitude) {
@@ -242,15 +371,22 @@ const MapSearchScreen = () => {
             setRegion(prefRegion);
             setLocationLoaded(true);
 
+            // Animate map to region
             if (mapRef.current) {
               mapRef.current.animateToRegion(prefRegion, 500);
             }
+
+            // Load activities asynchronously
+            loadActivities(prefRegion);
           } else {
-            // Priority 3: Default to Canada-wide view
+            // Priority 4: Default to Canada-wide view
             if (__DEV__) console.log('[MapSearch] Using Canada default region');
             setInitialRegion(CANADA_REGION);
             setRegion(CANADA_REGION);
             setLocationLoaded(true);
+
+            // For Canada-wide view, don't filter by location (load all)
+            loadActivities();
           }
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
@@ -259,7 +395,7 @@ const MapSearchScreen = () => {
 
     determineInitialRegion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [children]);
 
   // Filter activities based on user preferences (only apply non-default filters)
   const filteredActivities = useMemo(() => {
@@ -317,10 +453,17 @@ const MapSearchScreen = () => {
   }, []);
 
   // Update visible activities when region changes (debounced)
+  // Also triggers a refetch if region moved significantly
   const updateVisibleActivities = useCallback((newRegion: Region) => {
+    // Clear any pending timeouts
     if (regionChangeTimeout.current) {
       clearTimeout(regionChangeTimeout.current);
     }
+    if (refetchTimeout.current) {
+      clearTimeout(refetchTimeout.current);
+    }
+
+    // Immediately update visible activities from currently loaded data
     regionChangeTimeout.current = setTimeout(() => {
       const visible = getVisibleActivities(filteredActivities, newRegion);
       setTotalInViewport(visible.length);
@@ -331,8 +474,19 @@ const MapSearchScreen = () => {
         return distA - distB;
       });
       setVisibleActivities(sorted.slice(0, 50));
+
+      // If very few activities are visible and we might have more in this area, trigger refetch
+      // This helps when user zooms into an area with sparse or no loaded activities
+      if (visible.length < 10 && hasRegionMovedSignificantly(newRegion, lastFetchedRegion.current)) {
+        if (__DEV__) console.log('[MapSearch] Few activities visible, will refetch for new region');
+      }
     }, 300);
-  }, [filteredActivities, getVisibleActivities]);
+
+    // Debounced refetch - wait for user to stop panning/zooming
+    refetchTimeout.current = setTimeout(() => {
+      loadActivitiesForRegion(newRegion);
+    }, 800);
+  }, [filteredActivities, getVisibleActivities, loadActivitiesForRegion]);
 
   // Initial visible activities update when activities load
   useEffect(() => {
@@ -342,17 +496,17 @@ const MapSearchScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredActivities, locationLoaded]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadActivities(); }, []);
+  // Note: Initial load is now handled in the location determination effect above
 
   // Reload activities when screen comes into focus (to pick up any new global filters)
   useFocusEffect(
     useCallback(() => {
       if (locationLoaded && !searchFilters) {
-        loadActivities();
+        // Reload activities for the current region
+        loadActivities(region);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locationLoaded, searchFilters])
+    }, [locationLoaded, searchFilters, region])
   );
 
   // Process activities and set state
@@ -422,7 +576,7 @@ const MapSearchScreen = () => {
   };
 
   // Load activities with search filters applied
-  const loadActivitiesWithFilters = async (filters: ActivitySearchParams) => {
+  const loadActivitiesWithFilters = async (filters: ActivitySearchParams, forRegion?: Region) => {
     try {
       setLoading(true);
 
@@ -433,10 +587,30 @@ const MapSearchScreen = () => {
         hasCoordinates: true, // Only get activities with lat/lng
       };
 
+      // Add geographic filtering if region is provided
+      if (forRegion) {
+        const radiusKm = calculateRadiusFromViewport(forRegion.latitudeDelta, forRegion.longitudeDelta);
+        apiFilters.userLat = forRegion.latitude;
+        apiFilters.userLon = forRegion.longitude;
+        apiFilters.radiusKm = radiusKm;
+
+        if (__DEV__) {
+          console.log('[MapSearch] Loading filtered activities for region:', {
+            lat: forRegion.latitude,
+            lon: forRegion.longitude,
+            radiusKm,
+          });
+        }
+      }
+
       if (__DEV__) console.log('[MapSearch] Loading with search filters:', apiFilters);
 
       const activities = await activityService.searchActivities(apiFilters);
       processAndSetActivities(activities);
+
+      if (forRegion) {
+        lastFetchedRegion.current = forRegion;
+      }
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error loading filtered activities:', error);
     } finally {
@@ -476,7 +650,7 @@ const MapSearchScreen = () => {
     return filters;
   }, [preferencesService]);
 
-  const loadActivities = async () => {
+  const loadActivities = async (forRegion?: Region) => {
     try {
       setLoading(true);
 
@@ -485,6 +659,24 @@ const MapSearchScreen = () => {
         limit: 500, // Load more for map view
         hasCoordinates: true, // Only get activities with lat/lng
       };
+
+      // If a specific region is provided, use it for geographic filtering
+      // This enables fetching activities based on the current map viewport
+      if (forRegion) {
+        const radiusKm = calculateRadiusFromViewport(forRegion.latitudeDelta, forRegion.longitudeDelta);
+        filters.userLat = forRegion.latitude;
+        filters.userLon = forRegion.longitude;
+        filters.radiusKm = radiusKm;
+
+        if (__DEV__) {
+          console.log('[MapSearch] Loading for region:', {
+            lat: forRegion.latitude,
+            lon: forRegion.longitude,
+            radiusKm,
+            viewport: `${forRegion.latitudeDelta.toFixed(3)} x ${forRegion.longitudeDelta.toFixed(3)}`,
+          });
+        }
+      }
 
       // Apply global active filters first (from search screen)
       const activeFilters = preferencesService.getActiveFilters();
@@ -504,12 +696,35 @@ const MapSearchScreen = () => {
 
       const activities = await activityService.searchActivities(filters);
       processAndSetActivities(activities);
+
+      // Track the region we just fetched for
+      if (forRegion) {
+        lastFetchedRegion.current = forRegion;
+      }
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error loading activities:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Load activities for a specific region (called when map pans/zooms)
+  const loadActivitiesForRegion = useCallback(async (mapRegion: Region) => {
+    // Skip if we haven't moved significantly from last fetch
+    if (!hasRegionMovedSignificantly(mapRegion, lastFetchedRegion.current)) {
+      if (__DEV__) console.log('[MapSearch] Region change too small, skipping refetch');
+      return;
+    }
+
+    // Don't refetch if search filters are active (those take priority)
+    if (searchFilters) {
+      if (__DEV__) console.log('[MapSearch] Search filters active, skipping region-based refetch');
+      return;
+    }
+
+    if (__DEV__) console.log('[MapSearch] Region changed significantly, refetching activities');
+    await loadActivities(mapRegion);
+  }, [searchFilters, usePreferencesFilter, buildPreferenceFilters, preferencesService, activityService]);
 
   // Handle tapping a marker on the map - scroll list to show the card
   const handleMarkerPress = useCallback((cluster: LocationCluster) => {
@@ -1132,7 +1347,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     position: 'absolute',
     right: 12,
-    bottom: 12,
+    bottom: 24,
     gap: 10,
   },
   actionButton: {
@@ -1196,7 +1411,7 @@ const styles = StyleSheet.create({
   // Preferences toggle chip
   preferencesChip: {
     position: 'absolute',
-    top: 56,
+    top: 12,
     left: 12,
     flexDirection: 'row',
     alignItems: 'center',

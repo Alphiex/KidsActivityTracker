@@ -138,46 +138,14 @@ const SettingsScreen = () => {
 
   const settingsSections = [
     {
-      title: 'Preferences',
-      icon: 'tune',
+      title: 'Family',
+      icon: 'account-group',
       items: [
         {
-          title: 'Activity Types',
-          subtitle: `${(preferences.preferredActivityTypes || []).length} selected`,
-          icon: 'tag-multiple',
-          onPress: () => navigation.navigate('ActivityTypePreferences'),
-        },
-        {
-          title: 'Age Groups',
-          subtitle: (() => {
-            // Check if it's "All Ages" (single range 0-18)
-            if (preferences.ageRanges.length === 1 && 
-                preferences.ageRanges[0].min === 0 && 
-                preferences.ageRanges[0].max === 18) {
-              return 'All ages';
-            }
-            return `${preferences.ageRanges.length} range${preferences.ageRanges.length !== 1 ? 's' : ''} selected`;
-          })(),
+          title: 'Manage Children',
+          subtitle: 'Add, edit, or remove children profiles',
           icon: 'human-child',
-          onPress: () => navigation.navigate('AgePreferences'),
-        },
-        {
-          title: 'Locations',
-          subtitle: `${preferences.locations.length} location${preferences.locations.length !== 1 ? 's' : ''}`,
-          icon: 'map-marker-multiple',
-          onPress: () => navigation.navigate('LocationPreferences'),
-        },
-        {
-          title: 'Budget',
-          subtitle: `$${preferences.priceRange.min} - $${preferences.priceRange.max}`,
-          icon: 'cash',
-          onPress: () => navigation.navigate('BudgetPreferences'),
-        },
-        {
-          title: 'Schedule',
-          subtitle: `${preferences.daysOfWeek.length} days selected`,
-          icon: 'calendar-clock',
-          onPress: () => navigation.navigate('SchedulePreferences'),
+          onPress: () => navigation.navigate('Children'),
         },
       ],
     },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logout, updateUserProfile } from '../store/slices/authSlice';
-import PreferencesService from '../services/preferencesService';
+// PreferencesService removed - location now managed per-child
 import * as SecureStore from '../utils/secureStorage';
 import axios from 'axios';
 import { API_CONFIG } from '../config/api';
@@ -30,9 +30,7 @@ import useSubscription from '../hooks/useSubscription';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
 import { revenueCatService } from '../services/revenueCatService';
-import { AddressAutocomplete } from '../components/AddressAutocomplete';
-import { locationService } from '../services/locationService';
-import { EnhancedAddress, isEnhancedAddress } from '../types/preferences';
+// Address editing removed - location now managed per-child
 
 const ProfileIllustration = require('../assets/images/profile-illustration.png');
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -84,18 +82,7 @@ const ProfileScreenModern = () => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
-    location: user?.location || '',
   });
-  const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
-  const editProfileScrollRef = useRef<ScrollView>(null);
-
-  // Scroll to address field when focused to keep it visible above keyboard
-  const handleAddressFieldFocus = () => {
-    // Small delay to allow keyboard to start appearing
-    setTimeout(() => {
-      editProfileScrollRef.current?.scrollTo({ y: 150, animated: true });
-    }, 100);
-  };
 
   // Get subscription details
   const expirationDate = revenueCatService.getExpirationDate();
@@ -119,23 +106,6 @@ const ProfileScreenModern = () => {
     }
   };
 
-  // Load saved address from preferences on mount
-  useEffect(() => {
-    const loadSavedAddress = () => {
-      const preferencesService = PreferencesService.getInstance();
-      const prefs = preferencesService.getPreferences();
-      if (prefs.savedAddress && isEnhancedAddress(prefs.savedAddress)) {
-        const enhancedAddr = prefs.savedAddress;
-        setSelectedAddress(enhancedAddr);
-        // Update profileData.location for display
-        setProfileData(prev => ({
-          ...prev,
-          location: enhancedAddr.formattedAddress || enhancedAddr.city || '',
-        }));
-      }
-    };
-    loadSavedAddress();
-  }, []);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -183,16 +153,10 @@ const ProfileScreenModern = () => {
       const token = await SecureStore.getAccessToken();
       if (!token) throw new Error('No token found');
 
-      // Get display location from selected address or manual entry
-      const displayLocation = selectedAddress
-        ? selectedAddress.city || selectedAddress.formattedAddress
-        : profileData.location;
-
       const response = await axios.put(
-        `${API_CONFIG.BASE_URL}/api/v1/users/profile`,
+        `${API_CONFIG.BASE_URL}/api/auth/profile`,
         {
           name: profileData.name || undefined,
-          location: displayLocation || undefined,
         },
         {
           headers: {
@@ -202,22 +166,18 @@ const ProfileScreenModern = () => {
       );
 
       if (response.data.success) {
-        // Save enhanced address to preferences if selected
-        if (selectedAddress) {
-          await locationService.saveEnhancedAddress(selectedAddress);
-        }
-
         dispatch(updateUserProfile({
           name: profileData.name,
-          location: displayLocation,
         }));
-        setProfileData(prev => ({ ...prev, location: displayLocation || '' }));
         setIsEditingProfile(false);
         Alert.alert('Success', 'Profile updated successfully');
+      } else {
+        throw new Error(response.data.error || 'Unknown error');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      const message = error.response?.data?.error || error.message || 'Failed to update profile';
+      Alert.alert('Error', message);
     } finally {
       setIsLoading(false);
     }
@@ -434,12 +394,6 @@ const ProfileScreenModern = () => {
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
               <Text style={styles.userEmail}>{user?.email || ''}</Text>
-              {profileData.location && (
-                <View style={styles.locationContainer}>
-                  <Icon name="map-marker" size={14} color={ModernColors.primary} />
-                  <Text style={styles.userLocation}>{profileData.location}</Text>
-                </View>
-              )}
             </View>
             <TouchableOpacity
               style={styles.editButton}
@@ -668,12 +622,7 @@ const ProfileScreenModern = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              ref={editProfileScrollRef}
-              style={styles.modalBody}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.modalBodyContent}
-            >
+            <View style={styles.modalBody}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name (Optional)</Text>
                 <TextInput
@@ -685,19 +634,6 @@ const ProfileScreenModern = () => {
                 />
               </View>
 
-              <View style={[styles.inputGroup, { zIndex: 10 }]}>
-                <Text style={styles.inputLabel}>Location (Optional)</Text>
-                <AddressAutocomplete
-                  value={selectedAddress}
-                  onAddressSelect={(address) => setSelectedAddress(address)}
-                  placeholder="Search for your address..."
-                  country={['ca', 'us']}
-                  showFallbackOption={true}
-                  containerStyle={{ marginBottom: 0 }}
-                  onFocus={handleAddressFieldFocus}
-                />
-              </View>
-
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
@@ -706,7 +642,7 @@ const ProfileScreenModern = () => {
                   editable={false}
                 />
               </View>
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -942,17 +878,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: ModernColors.textLight,
     marginBottom: 4,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  userLocation: {
-    fontSize: 14,
-    color: ModernColors.primary,
-    marginLeft: 4,
-    fontWeight: '500',
   },
   editButton: {
     flexDirection: 'row',
@@ -1229,9 +1154,6 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: 20,
     flexGrow: 1,
-  },
-  modalBodyContent: {
-    paddingBottom: 350, // Extra padding to allow scrolling above keyboard
   },
   inputGroup: {
     marginBottom: 20,

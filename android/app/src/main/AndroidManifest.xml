@@ -40,6 +40,20 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="https" android:host="www.kidsactivitytracker.ca" android:pathPrefix="/invite" />
         </intent-filter>
+
+        <!-- Deep linking for shared activity links -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="kidsactivitytracker.ca" android:pathPrefix="/activity" />
+        </intent-filter>
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="www.kidsactivitytracker.ca" android:pathPrefix="/activity" />
+        </intent-filter>
         
         <!-- Custom URL scheme fallback -->
         <intent-filter>

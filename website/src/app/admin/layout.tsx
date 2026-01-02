@@ -12,7 +12,7 @@ interface AdminLayoutProps {
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: 'chart' },
   { href: '/admin/activities', label: 'Activities', icon: 'activities' },
-  { href: '/admin/sponsors', label: 'Featured Partners', icon: 'users' },
+  { href: '/admin/sponsors', label: 'Sponsored Partners', icon: 'users' },
   { href: '/admin/analytics', label: 'Analytics', icon: 'analytics' },
   { href: '/admin/monitoring', label: 'System Health', icon: 'monitoring' },
 ];

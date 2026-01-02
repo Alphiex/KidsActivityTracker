@@ -40,6 +40,10 @@ export interface AIRecommendationRequest {
   search_intent: string;
   filters?: ActivitySearchFilters;
   include_explanations?: boolean;
+  /** Specific child IDs to get recommendations for */
+  childIds?: string[];
+  /** Filter mode for multi-child: 'or' (any child) or 'and' (all together) */
+  filterMode?: 'or' | 'and';
 }
 
 /**
@@ -163,3 +167,33 @@ export interface WeeklyScheduleResponse {
  * Multi-child optimization mode
  */
 export type MultiChildMode = 'together' | 'parallel' | 'any';
+
+/**
+ * Time slot availability for a child
+ */
+export interface TimeSlotAvailability {
+  morning: boolean;    // 6am-12pm
+  afternoon: boolean;  // 12pm-5pm
+  evening: boolean;    // 5pm-9pm
+}
+
+/**
+ * Per-child availability for weekly planning
+ */
+export interface ChildAvailabilitySlots {
+  child_id: string;
+  available_slots: {
+    [day: string]: TimeSlotAvailability;
+  };
+}
+
+/**
+ * Constraints for weekly schedule planning
+ */
+export interface PlannerConstraints {
+  max_activities_per_child?: number;
+  avoid_back_to_back?: boolean;
+  max_travel_between_activities_km?: number;
+  schedule_siblings_together?: boolean;
+  child_availability?: ChildAvailabilitySlots[];
+}

@@ -20,11 +20,13 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const { 
-      week_start, 
+    const {
+      week_start,
       max_activities_per_child,
       avoid_back_to_back,
-      max_travel_between_activities_km
+      max_travel_between_activities_km,
+      schedule_siblings_together,
+      child_availability
     } = req.body;
 
     // Validate week_start
@@ -57,6 +59,12 @@ router.post('/', async (req: Request, res: Response) => {
     }
     if (typeof max_travel_between_activities_km === 'number') {
       constraints.max_travel_between_activities_km = max_travel_between_activities_km;
+    }
+    if (typeof schedule_siblings_together === 'boolean') {
+      constraints.schedule_siblings_together = schedule_siblings_together;
+    }
+    if (Array.isArray(child_availability)) {
+      constraints.child_availability = child_availability;
     }
 
     const orchestrator = getAIOrchestrator();

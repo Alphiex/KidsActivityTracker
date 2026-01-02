@@ -76,6 +76,13 @@ Consider:
 4. Balance activity types (sports, arts, academics)
 5. Respect budget constraints
 6. Allow rest days / don't over-schedule
+7. IMPORTANT: Only schedule activities during each child's available time slots
+8. If siblings should be together, try to find activities they can do together
+
+Time slot definitions:
+- Morning: 6am-12pm
+- Afternoon: 12pm-5pm
+- Evening: 5pm-9pm
 
 Return JSON with this structure:
 {
@@ -97,25 +104,58 @@ Return JSON with this structure:
 /**
  * Build context for planning
  */
-function buildPlannerContext(state: AIGraphStateType, candidates: any[]): string {
+function buildPlannerContext(state: AIGraphStateType, candidates: any[], constraints?: any): string {
   const parts: string[] = [];
-  
+
   // Add family context
   if (state.family_context) {
     const fc = state.family_context;
     parts.push('Family:');
     fc.children.forEach(child => {
-      parts.push(`- ${child.name || 'Child'} (age ${child.age}, interests: ${child.interests.join(', ') || 'various'})`);
+      parts.push(`- ${child.name || 'Child'} (ID: ${child.child_id}, age ${child.age}, interests: ${child.interests.join(', ') || 'various'})`);
     });
-    
+
     if (fc.preferences.budget_monthly) {
       parts.push(`Monthly Budget: $${fc.preferences.budget_monthly}`);
     }
-    if (fc.preferences.days_of_week?.length) {
-      parts.push(`Available Days: ${fc.preferences.days_of_week.join(', ')}`);
+  }
+
+  // Add scheduling constraints
+  if (constraints) {
+    parts.push('\nScheduling Constraints:');
+    if (constraints.max_activities_per_child) {
+      parts.push(`- Maximum ${constraints.max_activities_per_child} activities per child`);
+    }
+    if (constraints.avoid_back_to_back) {
+      parts.push('- Avoid scheduling back-to-back activities');
+    }
+    if (constraints.schedule_siblings_together) {
+      parts.push('- IMPORTANT: Try to schedule siblings in the same activities when age-appropriate');
+    }
+
+    // Add per-child availability
+    if (constraints.child_availability && Array.isArray(constraints.child_availability)) {
+      parts.push('\nChild Availability (ONLY schedule during available slots):');
+      constraints.child_availability.forEach((ca: any) => {
+        const childName = state.family_context?.children.find(c => c.child_id === ca.child_id)?.name || ca.child_id;
+        parts.push(`\n${childName}:`);
+        if (ca.available_slots) {
+          Object.entries(ca.available_slots).forEach(([day, slots]: [string, any]) => {
+            const availableSlots: string[] = [];
+            if (slots.morning) availableSlots.push('Morning (6am-12pm)');
+            if (slots.afternoon) availableSlots.push('Afternoon (12pm-5pm)');
+            if (slots.evening) availableSlots.push('Evening (5pm-9pm)');
+            if (availableSlots.length > 0) {
+              parts.push(`  ${day}: ${availableSlots.join(', ')}`);
+            } else {
+              parts.push(`  ${day}: NOT AVAILABLE`);
+            }
+          });
+        }
+      });
     }
   }
-  
+
   // Add parsed constraints
   if (state.parsed_filters) {
     const pf = state.parsed_filters;
@@ -123,15 +163,15 @@ function buildPlannerContext(state: AIGraphStateType, candidates: any[]): string
       parts.push(`Max cost per activity: $${pf.costMax}`);
     }
   }
-  
+
   // Add candidate activities
   parts.push(`\nAvailable Activities (${candidates.length}):`);
   candidates.forEach((act, idx) => {
     parts.push(`${idx + 1}. [${act.id}] ${act.name} - Ages ${act.age[0]}-${act.age[1]} - $${act.cost} - ${act.days.join(', ')}`);
   });
-  
-  parts.push('\nCreate an optimal weekly schedule. Return JSON only.');
-  
+
+  parts.push('\nCreate an optimal weekly schedule respecting all constraints. Return JSON only.');
+
   return parts.join('\n');
 }
 
@@ -178,7 +218,7 @@ export async function plannerNode(state: AIGraphStateType): Promise<Partial<AIGr
     
     // Use large model for complex planning
     const model = getLargeModel();
-    const context = buildPlannerContext(state, uniqueCandidates);
+    const context = buildPlannerContext(state, uniqueCandidates, state.planner_constraints);
     
     const result = await model.invoke([
       { role: 'system', content: PLANNER_SYSTEM_PROMPT },

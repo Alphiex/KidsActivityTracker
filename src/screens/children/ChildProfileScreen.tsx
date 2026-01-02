@@ -31,6 +31,7 @@ type ChildrenStackParamList = {
   ChildProfile: { childId: string };
   ChildActivityHistory: { childId: string; childName: string };
   ChildProgress: { child: { id: string; name: string; dateOfBirth: string } };
+  ChildPreferencesSettings: { childId: string };
 };
 
 type NavigationProp = StackNavigationProp<ChildrenStackParamList, 'ChildProfile'>;
@@ -207,16 +208,27 @@ const ChildProfileScreen: React.FC = () => {
           
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonProgress]}
-            onPress={() => navigation.navigate('ChildProgress', { 
+            onPress={() => navigation.navigate('ChildProgress', {
               child: {
                 id: child.id,
                 name: child.name,
-                dateOfBirth: child.dateOfBirth.toISOString()
+                dateOfBirth: typeof child.dateOfBirth === 'string' ? child.dateOfBirth : child.dateOfBirth.toISOString()
               }
             })}
           >
             <Icon name="chart-line" size={24} color="#8B5CF6" />
             <Text style={styles.actionButtonText}>View Skill Progress</Text>
+            <Icon name="chevron-right" size={24} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonPreferences]}
+            onPress={() => navigation.navigate('ChildPreferencesSettings', {
+              childId: child.id
+            })}
+          >
+            <Icon name="tune" size={24} color="#E8638B" />
+            <Text style={styles.actionButtonText}>Activity Preferences</Text>
             <Icon name="chevron-right" size={24} color="#999" />
           </TouchableOpacity>
         </View>
@@ -412,6 +424,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   actionButtonProgress: {
+    marginTop: 12,
+  },
+  actionButtonPreferences: {
     marginTop: 12,
   },
 });
