@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -87,6 +87,15 @@ const ProfileScreenModern = () => {
     location: user?.location || '',
   });
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
+  const editProfileScrollRef = useRef<ScrollView>(null);
+
+  // Scroll to address field when focused to keep it visible above keyboard
+  const handleAddressFieldFocus = () => {
+    // Small delay to allow keyboard to start appearing
+    setTimeout(() => {
+      editProfileScrollRef.current?.scrollTo({ y: 150, animated: true });
+    }, 100);
+  };
 
   // Get subscription details
   const expirationDate = revenueCatService.getExpirationDate();
@@ -660,6 +669,7 @@ const ProfileScreenModern = () => {
             </View>
 
             <ScrollView
+              ref={editProfileScrollRef}
               style={styles.modalBody}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.modalBodyContent}
@@ -684,6 +694,7 @@ const ProfileScreenModern = () => {
                   country={['ca', 'us']}
                   showFallbackOption={true}
                   containerStyle={{ marginBottom: 0 }}
+                  onFocus={handleAddressFieldFocus}
                 />
               </View>
 
@@ -1220,7 +1231,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   modalBodyContent: {
-    paddingBottom: 20,
+    paddingBottom: 350, // Extra padding to allow scrolling above keyboard
   },
   inputGroup: {
     marginBottom: 20,

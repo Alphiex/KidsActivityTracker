@@ -28,6 +28,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   error,
   onFallbackToManual,
   showFallbackOption = true,
+  onFocus,
   containerStyle,
   inputStyle,
 }) => {
@@ -52,6 +53,8 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   // Debug log on mount
   useEffect(() => {
     console.log('[AddressAutocomplete] Native SDK component mounted');
+    console.log('[AddressAutocomplete] GooglePlacesSDK:', typeof GooglePlacesSDK);
+    console.log('[AddressAutocomplete] fetchPredictions method:', typeof GooglePlacesSDK.fetchPredictions);
   }, []);
 
   const fetchPredictions = useCallback(async (text: string) => {
@@ -63,18 +66,24 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
     setIsLoading(true);
     setApiError(null);
+    console.log('[AddressAutocomplete] Fetching predictions for:', text);
 
     try {
       const countries = Array.isArray(country) ? country : [country];
+      console.log('[AddressAutocomplete] Countries filter:', countries);
+      console.log('[AddressAutocomplete] Calling GooglePlacesSDK.fetchPredictions...');
+
       const results = await GooglePlacesSDK.fetchPredictions(text, {
         countries,
       });
 
-      console.log('[AddressAutocomplete] Predictions:', results?.length || 0);
+      console.log('[AddressAutocomplete] Predictions received:', results?.length || 0);
+      console.log('[AddressAutocomplete] First prediction:', results?.[0] ? JSON.stringify(results[0]) : 'none');
       setPredictions(results || []);
       setShowDropdown(true);
     } catch (err: any) {
       console.error('[AddressAutocomplete] Fetch predictions error:', err);
+      console.error('[AddressAutocomplete] Error details:', err?.message, err?.code);
       setApiError('Address search failed. Try entering manually.');
       setPredictions([]);
     } finally {
@@ -297,6 +306,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             autoCapitalize="words"
             autoCorrect={false}
             editable={!disabled && !isGeocodingManual}
+            onFocus={onFocus}
           />
 
           <TextInput
@@ -315,6 +325,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             autoCapitalize="words"
             autoCorrect={false}
             editable={!disabled && !isGeocodingManual}
+            onFocus={onFocus}
           />
 
           <View style={styles.manualInputRow}>
@@ -335,6 +346,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               autoCapitalize="characters"
               autoCorrect={false}
               editable={!disabled && !isGeocodingManual}
+              onFocus={onFocus}
             />
             <TextInput
               style={[
@@ -353,6 +365,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               autoCapitalize="characters"
               autoCorrect={false}
               editable={!disabled && !isGeocodingManual}
+              onFocus={onFocus}
             />
           </View>
 
@@ -431,6 +444,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             if (predictions.length > 0) {
               setShowDropdown(true);
             }
+            onFocus?.();
           }}
         />
 

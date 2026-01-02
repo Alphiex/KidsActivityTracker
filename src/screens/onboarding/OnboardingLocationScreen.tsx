@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,14 @@ const OnboardingLocationScreen: React.FC = () => {
 
   // Address selection state
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Scroll to address field when focused to keep it visible above keyboard
+  const handleAddressFieldFocus = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 200, animated: true });
+    }, 100);
+  };
 
 
   const handleSelectGps = async () => {
@@ -173,6 +181,7 @@ const OnboardingLocationScreen: React.FC = () => {
         </View>
 
         <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -282,6 +291,7 @@ const OnboardingLocationScreen: React.FC = () => {
               placeholder="Start typing your address..."
               country={['ca', 'us']}
               showFallbackOption={true}
+              onFocus={handleAddressFieldFocus}
             />
             {selectedAddress && (
               <View style={styles.distanceSection}>
@@ -498,7 +508,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 300, // Extra padding to allow scrolling above keyboard
     gap: 12,
   },
   infoText: {

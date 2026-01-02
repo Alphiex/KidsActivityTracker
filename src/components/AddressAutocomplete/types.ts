@@ -23,6 +23,9 @@ export interface AddressAutocompleteProps {
   onFallbackToManual?: () => void; // Called when Places API fails
   showFallbackOption?: boolean;
 
+  // Events
+  onFocus?: () => void;            // Called when input is focused (useful for scrolling into view)
+
   // Styling
   containerStyle?: ViewStyle;
   inputStyle?: TextStyle;
