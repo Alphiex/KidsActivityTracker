@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { MMKV } from 'react-native-mmkv';
 import { UIManager, NativeModules, Platform } from 'react-native';
+import GooglePlacesSDK from 'react-native-google-places-sdk';
 import RootNavigator from './src/navigation/RootNavigator';
 import NetworkStatus from './src/components/NetworkStatus';
 import { store, persistor } from './src/store';
@@ -13,6 +14,7 @@ import ActivityService from './src/services/activityService';
 import { revenueCatService } from './src/services/revenueCatService';
 import { pushNotificationService } from './src/services/pushNotificationService';
 import { deepLinkService } from './src/services/deepLinkService';
+import { GOOGLE_PLACES_CONFIG } from './src/config/google';
 
 // Debug: Check Google Maps native module availability
 if (__DEV__ && Platform.OS === 'ios') {
@@ -48,6 +50,18 @@ function App() {
   // Initialize RevenueCat and Push Notifications on app start
   useEffect(() => {
     const initServices = async () => {
+      // Initialize Google Places SDK
+      try {
+        if (GOOGLE_PLACES_CONFIG.API_KEY) {
+          GooglePlacesSDK.initialize(GOOGLE_PLACES_CONFIG.API_KEY);
+          console.log('[App] Google Places SDK initialized successfully');
+        } else {
+          console.warn('[App] Google Places API key not configured');
+        }
+      } catch (error) {
+        console.error('[App] Google Places SDK initialization failed:', error);
+      }
+
       // Initialize RevenueCat
       try {
         await revenueCatService.initialize();

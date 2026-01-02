@@ -15,6 +15,7 @@ import {
   Switch,
   ImageBackground,
   Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -623,7 +624,10 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
@@ -634,7 +638,11 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.modalBody}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.modalBodyContent}
+          >
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
@@ -824,7 +832,7 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -1030,6 +1038,10 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: 20,
+    flexGrow: 1,
+  },
+  modalBodyContent: {
+    paddingBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,

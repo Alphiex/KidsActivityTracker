@@ -29,6 +29,7 @@ interface SearchParams {
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability';
   sortOrder?: 'asc' | 'desc';
   includeInactive?: boolean; // Only for admin use
+  includePastActivities?: boolean; // Only for admin use - include activities with end dates in the past
   randomSeed?: string; // Seed for consistent random ordering across pagination
 }
 
@@ -66,6 +67,7 @@ export class EnhancedActivityService {
       sortBy = 'availability', // Default to availability-first random ordering
       sortOrder = 'asc',
       includeInactive = false,
+      includePastActivities = false,
       randomSeed
     } = params;
 
@@ -100,6 +102,28 @@ export class EnhancedActivityService {
       where.isActive = true;
     }
     // When includeInactive is true, we don't filter by isActive at all
+
+    // Exclude past activities filter:
+    // - By default, hide activities whose end date has passed
+    // - Activities with no end date (null) are included
+    // - For admin use, can include past activities with includePastActivities=true
+    if (!includePastActivities) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+
+      // Add as AND condition - activity must have either:
+      // 1. An end date >= today (not yet ended)
+      // 2. No end date (dateEnd is null)
+      where.AND = where.AND || [];
+      (where.AND as Prisma.ActivityWhereInput[]).push({
+        OR: [
+          { dateEnd: { gte: today } },
+          { dateEnd: null }
+        ]
+      });
+
+      console.log('📅 [ActivityService] Excluding past activities (dateEnd >= today or null)');
+    }
 
     // Map view filter - only return activities with coordinates
     if (hasCoordinates) {

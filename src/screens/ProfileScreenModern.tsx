@@ -659,7 +659,11 @@ const ProfileScreenModern = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView
+              style={styles.modalBody}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalBodyContent}
+            >
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name (Optional)</Text>
                 <TextInput
@@ -691,7 +695,7 @@ const ProfileScreenModern = () => {
                   editable={false}
                 />
               </View>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1213,6 +1217,10 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: 20,
+    flexGrow: 1,
+  },
+  modalBodyContent: {
+    paddingBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,

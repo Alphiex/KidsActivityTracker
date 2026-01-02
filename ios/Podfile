@@ -122,6 +122,10 @@ target 'KidsActivityTracker' do
         if config.name == 'Debug'
           config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
         end
+        # Set Swift version for react-native-google-places-sdk
+        if target.name == 'react-native-google-places-sdk'
+          config.build_settings['SWIFT_VERSION'] = '5.0'
+        end
       end
     end
 

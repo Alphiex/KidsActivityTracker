@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,14 @@ import {
   TextInput,
   ActivityIndicator,
   Keyboard,
+  FlatList,
 } from 'react-native';
-import { GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
+import GooglePlacesSDK, { PLACE_FIELDS, PlacePrediction } from 'react-native-google-places-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { GOOGLE_PLACES_CONFIG } from '../../config/google';
 import { EnhancedAddress } from '../../types/preferences';
-import { AddressAutocompleteProps, GooglePlaceData, GooglePlaceDetails } from './types';
-import { parseGooglePlaceDetails, formatAddressForDisplay, formatLocationDetails } from './utils';
+import { AddressAutocompleteProps } from './types';
+import { formatAddressForDisplay, formatLocationDetails } from './utils';
 import { geocodeAddress } from '../../utils/geocoding';
 
 const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
@@ -24,7 +24,6 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   label,
   showClearButton = true,
   country = ['ca', 'us'],
-  types = ['address', 'geocode'],
   disabled = false,
   error,
   onFallbackToManual,
@@ -33,57 +32,150 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   inputStyle,
 }) => {
   const { colors } = useTheme();
-  const autocompleteRef = useRef<GooglePlacesAutocompleteRef>(null);
+  const inputRef = useRef<TextInput>(null);
+  const [searchText, setSearchText] = useState('');
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debug: Log API key status on mount
-  React.useEffect(() => {
-    const apiKey = GOOGLE_PLACES_CONFIG.API_KEY;
-    console.log('[AddressAutocomplete] Component mounted');
-    console.log('[AddressAutocomplete] API Key configured:', !!apiKey);
-    console.log('[AddressAutocomplete] API Key length:', apiKey?.length || 0);
-    console.log('[AddressAutocomplete] API Key prefix:', apiKey?.substring(0, 10) || 'N/A');
-  }, []);
-  const [manualAddress, setManualAddress] = useState('');
+  // Manual entry state
   const [manualStreet, setManualStreet] = useState('');
   const [manualCity, setManualCity] = useState('');
   const [manualProvince, setManualProvince] = useState('');
   const [manualPostalCode, setManualPostalCode] = useState('');
   const [isGeocodingManual, setIsGeocodingManual] = useState(false);
 
-  const handlePlaceSelect = useCallback(async (
-    data: GooglePlaceData,
-    details: GooglePlaceDetails | null
-  ) => {
+  // Debug log on mount
+  useEffect(() => {
+    console.log('[AddressAutocomplete] Native SDK component mounted');
+  }, []);
+
+  const fetchPredictions = useCallback(async (text: string) => {
+    if (text.length < 2) {
+      setPredictions([]);
+      setShowDropdown(false);
+      return;
+    }
+
     setIsLoading(true);
     setApiError(null);
 
     try {
-      const enhancedAddress = parseGooglePlaceDetails(data, details);
+      const countries = Array.isArray(country) ? country : [country];
+      const results = await GooglePlacesSDK.fetchPredictions(text, {
+        countries,
+      });
 
-      // If we don't have coordinates from details, something went wrong
-      if (!enhancedAddress.latitude || !enhancedAddress.longitude) {
+      console.log('[AddressAutocomplete] Predictions:', results?.length || 0);
+      setPredictions(results || []);
+      setShowDropdown(true);
+    } catch (err: any) {
+      console.error('[AddressAutocomplete] Fetch predictions error:', err);
+      setApiError('Address search failed. Try entering manually.');
+      setPredictions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [country]);
+
+  const handleTextChange = useCallback((text: string) => {
+    setSearchText(text);
+
+    // Debounce the API call
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      fetchPredictions(text);
+    }, 300);
+  }, [fetchPredictions]);
+
+  const handleSelectPrediction = useCallback(async (prediction: PlacePrediction) => {
+    setIsFetchingDetails(true);
+    setApiError(null);
+    setShowDropdown(false);
+    setSearchText(prediction.primaryText || prediction.description);
+
+    try {
+      // Fetch place details using the place ID
+      const place = await GooglePlacesSDK.fetchPlaceByID(prediction.placeID, [
+        PLACE_FIELDS.NAME,
+        PLACE_FIELDS.FORMATTED_ADDRESS,
+        PLACE_FIELDS.ADDRESS_COMPONENTS,
+        PLACE_FIELDS.COORDINATE,
+        PLACE_FIELDS.TYPES,
+      ]);
+
+      console.log('[AddressAutocomplete] Place details:', place);
+
+      if (!place || !place.coordinate) {
         throw new Error('Could not get location coordinates');
       }
 
+      // Parse address components
+      let streetNumber = '';
+      let streetName = '';
+      let city = '';
+      let state = '';
+      let postalCode = '';
+      let countryName = '';
+
+      if (place.addressComponents) {
+        for (const component of place.addressComponents) {
+          const types = component.types || [];
+          if (types.includes('street_number')) {
+            streetNumber = component.name;
+          } else if (types.includes('route')) {
+            streetName = component.name;
+          } else if (types.includes('locality')) {
+            city = component.name;
+          } else if (types.includes('administrative_area_level_1')) {
+            state = component.shortName || component.name;
+          } else if (types.includes('postal_code')) {
+            postalCode = component.name;
+          } else if (types.includes('country')) {
+            countryName = component.name;
+          }
+        }
+      }
+
+      const streetAddress = [streetNumber, streetName].filter(Boolean).join(' ');
+
+      const enhancedAddress: EnhancedAddress = {
+        formattedAddress: place.formattedAddress || prediction.description,
+        streetAddress: streetAddress || undefined,
+        city: city || undefined,
+        state: state || undefined,
+        postalCode: postalCode || undefined,
+        country: countryName || undefined,
+        latitude: place.coordinate!.latitude,
+        longitude: place.coordinate!.longitude,
+        placeId: prediction.placeID,
+        updatedAt: new Date().toISOString(),
+      };
+
       onAddressSelect(enhancedAddress);
       Keyboard.dismiss();
-    } catch (err) {
-      console.error('[AddressAutocomplete] Error processing place:', err);
+    } catch (err: any) {
+      console.error('[AddressAutocomplete] Fetch place details error:', err);
       setApiError('Failed to get address details. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsFetchingDetails(false);
     }
   }, [onAddressSelect]);
 
   const handleClear = useCallback(() => {
     onAddressSelect(null);
-    autocompleteRef.current?.clear();
+    setSearchText('');
+    setPredictions([]);
     setApiError(null);
     setShowManualEntry(false);
-    setManualAddress('');
+    setShowDropdown(false);
     setManualStreet('');
     setManualCity('');
     setManualProvince('');
@@ -91,7 +183,6 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   }, [onAddressSelect]);
 
   const handleManualGeocode = useCallback(async () => {
-    // Require at least city
     if (!manualCity.trim()) {
       setApiError('Please enter at least a city name.');
       return;
@@ -100,7 +191,6 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     setIsGeocodingManual(true);
     setApiError(null);
 
-    // Build full address string for geocoding
     const addressParts = [
       manualStreet.trim(),
       manualCity.trim(),
@@ -139,6 +229,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
   const handleFallback = useCallback(() => {
     setShowManualEntry(true);
+    setShowDropdown(false);
     onFallbackToManual?.();
   }, [onFallbackToManual]);
 
@@ -149,7 +240,11 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
         {label && (
           <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         )}
-        <View style={[styles.selectedContainer, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+        <TouchableOpacity
+          style={[styles.selectedContainer, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+          onPress={() => !disabled && handleClear()}
+          activeOpacity={0.7}
+        >
           <View style={styles.selectedContent}>
             <Icon name="map-marker-check" size={24} color={colors.primary} />
             <View style={styles.selectedTextContainer}>
@@ -163,12 +258,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               )}
             </View>
           </View>
-          {showClearButton && !disabled && (
-            <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
-              <Icon name="close-circle" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+          {!disabled && (
+            <View style={styles.editButton}>
+              <Icon name="pencil" size={16} color={colors.primary} />
+              <Text style={[styles.editButtonText, { color: colors.primary }]}>Change</Text>
+            </View>
           )}
-        </View>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -185,11 +281,9 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             Enter your address:
           </Text>
 
-          {/* Street Address (optional) */}
           <TextInput
             style={[
               styles.manualInput,
-              styles.manualInputSmall,
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
@@ -205,11 +299,9 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             editable={!disabled && !isGeocodingManual}
           />
 
-          {/* City (required) */}
           <TextInput
             style={[
               styles.manualInput,
-              styles.manualInputSmall,
               {
                 backgroundColor: colors.surface,
                 borderColor: apiError && !manualCity.trim() ? '#EF4444' : colors.border,
@@ -225,12 +317,10 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             editable={!disabled && !isGeocodingManual}
           />
 
-          {/* Province/State and Postal Code row */}
           <View style={styles.manualInputRow}>
             <TextInput
               style={[
                 styles.manualInput,
-                styles.manualInputSmall,
                 styles.manualInputHalf,
                 {
                   backgroundColor: colors.surface,
@@ -249,7 +339,6 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             <TextInput
               style={[
                 styles.manualInput,
-                styles.manualInputSmall,
                 styles.manualInputHalf,
                 {
                   backgroundColor: colors.surface,
@@ -270,6 +359,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           {apiError && (
             <Text style={styles.errorText}>{apiError}</Text>
           )}
+
           <View style={styles.manualButtonsRow}>
             <TouchableOpacity
               style={[styles.backButton, { borderColor: colors.border }]}
@@ -306,92 +396,78 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     );
   }
 
-  // Autocomplete input
+  // Autocomplete input with predictions dropdown
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
         <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       )}
-      <View style={styles.autocompleteWrapper}>
-        <GooglePlacesAutocomplete
-          ref={autocompleteRef}
+
+      <View style={styles.inputWrapper}>
+        <View style={styles.searchIconContainer}>
+          <Icon name="magnify" size={20} color={colors.textSecondary} />
+        </View>
+
+        <TextInput
+          ref={inputRef}
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: colors.surface,
+              borderColor: apiError ? '#EF4444' : colors.border,
+              color: colors.text,
+            },
+            inputStyle,
+          ]}
+          value={searchText}
+          onChangeText={handleTextChange}
           placeholder={placeholder}
-          onPress={(data, details) => handlePlaceSelect(data as GooglePlaceData, details as GooglePlaceDetails)}
-          fetchDetails={true}
-          query={{
-            key: GOOGLE_PLACES_CONFIG.API_KEY,
-            language: 'en',
-            components: Array.isArray(country)
-              ? country.map(c => `country:${c}`).join('|')
-              : `country:${country}`,
-          }}
-          GooglePlacesDetailsQuery={{
-            fields: 'formatted_address,geometry,address_components,place_id,types,name',
-          }}
-          onFail={(error) => {
-            console.error('[AddressAutocomplete] API error:', error);
-            console.error('[AddressAutocomplete] API Key configured:', !!GOOGLE_PLACES_CONFIG.API_KEY);
-            console.error('[AddressAutocomplete] API Key value:', GOOGLE_PLACES_CONFIG.API_KEY?.substring(0, 15) + '...');
-            console.error('[AddressAutocomplete] Error details:', JSON.stringify(error));
-            if (!GOOGLE_PLACES_CONFIG.API_KEY) {
-              setApiError('Address search not configured. Please enter manually.');
-            } else if (error?.toString().includes('REQUEST_DENIED')) {
-              setApiError('API access denied. Check Google Cloud Console settings.');
-            } else if (error?.toString().includes('OVER_QUERY_LIMIT')) {
-              setApiError('Too many requests. Please try again later.');
-            } else {
-              setApiError('Address search unavailable. Try entering manually below.');
+          placeholderTextColor={colors.textSecondary}
+          editable={!disabled && !isFetchingDetails}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          onFocus={() => {
+            if (predictions.length > 0) {
+              setShowDropdown(true);
             }
           }}
-          onNotFound={() => {
-            setApiError('No addresses found. Try a different search.');
-          }}
-          debounce={GOOGLE_PLACES_CONFIG.DEBOUNCE_DELAY}
-          minLength={2}
-          enablePoweredByContainer={false}
-          listViewDisplayed="auto"
-          keepResultsAfterBlur={true}
-          keyboardShouldPersistTaps="handled"
-          textInputProps={{
-            placeholderTextColor: colors.textSecondary,
-            editable: !disabled && !isLoading,
-            autoCorrect: false,
-            autoCapitalize: 'none',
-            returnKeyType: 'search',
-            style: [
-              styles.textInput,
-              {
-                backgroundColor: colors.surface,
-                borderColor: apiError ? '#EF4444' : colors.border,
-                color: colors.text,
-              },
-              inputStyle,
-            ],
-          }}
-          styles={{
-            container: styles.autocompleteContainer,
-            textInputContainer: styles.textInputContainer,
-            listView: [styles.listView, { backgroundColor: colors.surface }],
-            row: [styles.row, { backgroundColor: colors.surface }],
-            separator: [styles.separator, { backgroundColor: colors.border }],
-            description: [styles.description, { color: colors.text }],
-            predefinedPlacesDescription: { color: colors.primary },
-            poweredContainer: { display: 'none' },
-          }}
-          renderLeftButton={() => (
-            <View style={styles.searchIconContainer}>
-              <Icon name="magnify" size={20} color={colors.textSecondary} />
-            </View>
-          )}
-          renderRightButton={() => (
-            isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : null
-          )}
         />
+
+        {(isLoading || isFetchingDetails) && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        )}
       </View>
+
+      {/* Predictions dropdown */}
+      {showDropdown && predictions.length > 0 && (
+        <View style={[styles.predictionsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <FlatList
+            data={predictions}
+            keyExtractor={(item) => item.placeID}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.predictionRow, { borderBottomColor: colors.border }]}
+                onPress={() => handleSelectPrediction(item)}
+              >
+                <Icon name="map-marker-outline" size={18} color={colors.textSecondary} style={styles.predictionIcon} />
+                <View style={styles.predictionTextContainer}>
+                  <Text style={[styles.predictionPrimary, { color: colors.text }]} numberOfLines={1}>
+                    {item.primaryText}
+                  </Text>
+                  <Text style={[styles.predictionSecondary, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {item.secondaryText}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
 
       {apiError && (
         <Text style={styles.errorText}>{apiError}</Text>
@@ -423,39 +499,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
-  autocompleteWrapper: {
-    zIndex: 1000,
-    width: '100%',
+  inputWrapper: {
     position: 'relative',
-  },
-  autocompleteContainer: {
-    flex: 0,
-    width: '100%',
-    zIndex: 1000,
-  },
-  textInputContainer: {
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
-    borderBottomWidth: 0,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    marginHorizontal: 0,
-    marginVertical: 0,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingLeft: 40,
-    paddingRight: 40,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    width: '100%',
-    height: 50,
-    marginTop: 0,
-    marginBottom: 0,
-    marginLeft: 0,
-    marginRight: 0,
   },
   searchIconContainer: {
     position: 'absolute',
@@ -469,32 +514,51 @@ const styles = StyleSheet.create({
     top: 14,
     zIndex: 1,
   },
-  listView: {
-    position: 'absolute',
-    top: 52,
-    left: 0,
-    right: 0,
+  textInput: {
+    fontSize: 16,
+    paddingLeft: 40,
+    paddingRight: 40,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    height: 50,
+  },
+  predictionsContainer: {
+    position: 'absolute',
+    top: 58,
+    left: 0,
+    right: 0,
+    maxHeight: 220,
+    borderRadius: 12,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 50,
+    elevation: 8,
     zIndex: 9999,
-    maxHeight: 250,
     overflow: 'hidden',
   },
-  row: {
+  predictionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
   },
-  separator: {
-    height: 1,
+  predictionIcon: {
+    marginRight: 10,
   },
-  description: {
-    fontSize: 14,
+  predictionTextContainer: {
+    flex: 1,
+  },
+  predictionPrimary: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  predictionSecondary: {
+    fontSize: 13,
+    marginTop: 2,
   },
   selectedContainer: {
     flexDirection: 'row',
@@ -524,6 +588,20 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
     marginLeft: 8,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(232, 99, 139, 0.1)',
+    marginLeft: 8,
+  },
+  editButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   errorText: {
     color: '#EF4444',
@@ -555,10 +633,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  manualInputSmall: {
     minHeight: 48,
     marginBottom: 10,
   },

@@ -40,6 +40,8 @@ const DashboardScreenModern = () => {
   const isTrialing = useSelector(selectIsTrialing);
   const trialDaysRemaining = useSelector(selectTrialDaysRemaining);
   const [loading, setLoading] = useState(true);
+  const [recommendedLoading, setRecommendedLoading] = useState(true);
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
   const [reloading, setReloading] = useState(false);
   const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
@@ -135,6 +137,28 @@ const DashboardScreenModern = () => {
     loadWaitlistCount();
   }, []);
 
+  // Shimmer animation for loading placeholders
+  useEffect(() => {
+    if (recommendedLoading) {
+      const shimmerLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      shimmerLoop.start();
+      return () => shimmerLoop.stop();
+    }
+  }, [recommendedLoading, shimmerAnim]);
+
   const loadFavorites = () => {
     try {
       const favorites = favoritesService.getFavorites();
@@ -226,6 +250,7 @@ const DashboardScreenModern = () => {
 
   const loadRecommendedActivities = async () => {
     try {
+      setRecommendedLoading(true);
       // Get user preferences for filtering
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
@@ -326,6 +351,8 @@ const DashboardScreenModern = () => {
       // On error, set empty to show error state
       setRecommendedActivities([]);
       console.log('Recommended activities: Error occurred');
+    } finally {
+      setRecommendedLoading(false);
     }
   };
 
@@ -581,6 +608,44 @@ const DashboardScreenModern = () => {
   const handleAIRecommendations = useCallback(() => {
     navigation.navigate('AIRecommendations');
   }, [navigation]);
+
+  /**
+   * Render skeleton loading card for activity sections
+   */
+  const renderSkeletonCard = (index: number) => {
+    const shimmerOpacity = shimmerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.3, 0.7],
+    });
+
+    return (
+      <View key={`skeleton-${index}`} style={styles.skeletonCard}>
+        {/* Image placeholder */}
+        <Animated.View style={[styles.skeletonImage, { opacity: shimmerOpacity }]} />
+
+        {/* Content placeholders */}
+        <View style={styles.skeletonContent}>
+          {/* Title placeholder */}
+          <Animated.View style={[styles.skeletonTitle, { opacity: shimmerOpacity }]} />
+
+          {/* Location placeholder */}
+          <View style={styles.skeletonRow}>
+            <Animated.View style={[styles.skeletonIcon, { opacity: shimmerOpacity }]} />
+            <Animated.View style={[styles.skeletonText, { opacity: shimmerOpacity }]} />
+          </View>
+
+          {/* Date placeholder */}
+          <View style={styles.skeletonRow}>
+            <Animated.View style={[styles.skeletonIcon, { opacity: shimmerOpacity }]} />
+            <Animated.View style={[styles.skeletonTextShort, { opacity: shimmerOpacity }]} />
+          </View>
+
+          {/* Days badge placeholder */}
+          <Animated.View style={[styles.skeletonBadge, { opacity: shimmerOpacity }]} />
+        </View>
+      </View>
+    );
+  };
 
   const renderActivityCard = (activity: Activity) => {
     // Get image based on activityType or category
@@ -1062,16 +1127,11 @@ const DashboardScreenModern = () => {
             </View>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyCard}>
-                <ActivityIndicator size="small" color="#E8638B" />
-                <Text style={styles.emptyText}>Loading activities...</Text>
-              </View>
-            ) : reloading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#E8638B" />
-                <Text style={styles.emptyText}>Refreshing...</Text>
-              </View>
+            {recommendedLoading ? (
+              // Skeleton loading cards
+              <>
+                {[0, 1, 2].map(renderSkeletonCard)}
+              </>
             ) : recommendedActivities.length > 0 ? (
               recommendedActivities.map(renderActivityCard)
             ) : (
@@ -1745,6 +1805,67 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginLeft: 4,
     letterSpacing: 0.5,
+  },
+  // Skeleton loading styles
+  skeletonCard: {
+    width: 280,
+    marginLeft: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  skeletonImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#FFE5EC',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  skeletonContent: {
+    padding: 12,
+  },
+  skeletonTitle: {
+    height: 18,
+    width: '80%',
+    backgroundColor: '#FFE5EC',
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  skeletonIcon: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#FFE5EC',
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  skeletonText: {
+    height: 12,
+    width: '60%',
+    backgroundColor: '#FFE5EC',
+    borderRadius: 4,
+  },
+  skeletonTextShort: {
+    height: 12,
+    width: '40%',
+    backgroundColor: '#FFE5EC',
+    borderRadius: 4,
+  },
+  skeletonBadge: {
+    height: 24,
+    width: '50%',
+    backgroundColor: '#FFE5EC',
+    borderRadius: 6,
+    marginTop: 4,
   },
 });
 

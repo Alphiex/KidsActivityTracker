@@ -40,6 +40,7 @@ export interface EnhancedAddress {
   longitude: number;
 
   // Address Components (all optional)
+  streetAddress?: string;          // Combined street address
   streetNumber?: string;
   streetName?: string;
   neighborhood?: string;

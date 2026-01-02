@@ -7,16 +7,23 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import axios from 'axios';
 import PreferencesService from '../../services/preferencesService';
 import { locationService } from '../../services/locationService';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { EnhancedAddress } from '../../types/preferences';
+import { API_CONFIG } from '../../config/api';
+import * as SecureStore from '../../utils/secureStorage';
+import { useAppDispatch } from '../../store';
+import { updateUserProfile } from '../../store/slices/authSlice';
 
 type NavigationProp = StackNavigationProp<OnboardingStackParamList, 'OnboardingLocation'>;
 
@@ -32,6 +39,7 @@ const distanceOptions = [
 
 const OnboardingLocationScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useAppDispatch();
   const preferencesService = PreferencesService.getInstance();
 
   const [locationMode, setLocationMode] = useState<LocationMode>('none');
@@ -100,6 +108,25 @@ const OnboardingLocationScreen: React.FC = () => {
         // Also set preferred location to city if available
         ...(selectedAddress.city && { preferredLocation: selectedAddress.city }),
       });
+
+      // Also save to user's backend profile
+      try {
+        const token = await SecureStore.getAccessToken();
+        if (token) {
+          const displayLocation = selectedAddress.city || selectedAddress.formattedAddress;
+          await axios.put(
+            `${API_CONFIG.BASE_URL}/api/v1/users/profile`,
+            { location: displayLocation },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          // Update Redux state
+          dispatch(updateUserProfile({ location: displayLocation }));
+          console.log('[OnboardingLocation] Saved location to user profile:', displayLocation);
+        }
+      } catch (error) {
+        console.error('[OnboardingLocation] Error saving location to profile:', error);
+        // Don't block navigation, just log the error
+      }
     } else {
       await preferencesService.updatePreferences({
         locationPermissionAsked: true,
@@ -121,27 +148,31 @@ const OnboardingLocationScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-        <Icon name="arrow-left" size={24} color="#1F2937" />
-      </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Icon name="arrow-left" size={24} color="#1F2937" />
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-        <Text style={styles.skipText}>Skip</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
 
-      <View style={styles.header}>
-        <View style={styles.stepIndicator}>
-          <View style={styles.stepDot} />
-          <View style={styles.stepDot} />
-          <View style={[styles.stepDot, styles.stepDotActive]} />
+        <View style={styles.header}>
+          <View style={styles.stepIndicator}>
+            <View style={styles.stepDot} />
+            <View style={styles.stepDot} />
+            <View style={[styles.stepDot, styles.stepDotActive]} />
+          </View>
+          <Text style={styles.title}>Where would you like to find activities?</Text>
+          <Text style={styles.subtitle}>
+            Set your location to find activities nearby
+          </Text>
         </View>
-        <Text style={styles.title}>Where would you like to find activities?</Text>
-        <Text style={styles.subtitle}>
-          Set your location to find activities nearby
-        </Text>
-      </View>
 
-      <ScrollView
+        <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -290,15 +321,16 @@ const OnboardingLocationScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.nextButton}
-          onPress={handleNext}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.nextButtonText}>Continue</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.nextButton}
+            onPress={handleNext}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.nextButtonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -307,6 +339,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   backButton: {
     position: 'absolute',

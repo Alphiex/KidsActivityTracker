@@ -96,6 +96,76 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
     return null;
   };
 
+  // Extract days of week from activity
+  const extractDaysOfWeek = (): string | null => {
+    const daysSet = new Set<string>();
+    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Extract from dayOfWeek array (e.g., ["Monday", "Wednesday"])
+    if (activity.dayOfWeek && Array.isArray(activity.dayOfWeek)) {
+      activity.dayOfWeek.forEach((day: string) => {
+        if (day && typeof day === 'string') {
+          const abbrev = day.substring(0, 3);
+          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
+
+    // Extract from sessions array
+    if (activity.sessions && Array.isArray(activity.sessions)) {
+      activity.sessions.forEach((session: any) => {
+        const dayOfWeek = session?.dayOfWeek;
+        if (dayOfWeek && typeof dayOfWeek === 'string') {
+          const abbrev = dayOfWeek.substring(0, 3);
+          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
+
+    // Extract from schedule object with days array
+    if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
+      const scheduleObj = activity.schedule as { days?: string[] };
+      if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
+        scheduleObj.days.forEach((day: string) => {
+          const abbrev = day.substring(0, 3);
+          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        });
+      }
+    }
+
+    if (daysSet.size === 0) return null;
+
+    // Sort days in order
+    const sortedDays = Array.from(daysSet).sort((a, b) =>
+      dayOrder.indexOf(a) - dayOrder.indexOf(b)
+    );
+
+    // Check for common patterns
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const weekend = ['Sat', 'Sun'];
+
+    if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) {
+      return 'Weekdays';
+    }
+    if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) {
+      return 'Weekends';
+    }
+    if (sortedDays.length === 7) {
+      return 'Daily';
+    }
+
+    return sortedDays.join(', ');
+  };
+
   // Get location name
   const getLocation = () => {
     if (typeof activity.location === 'string') return activity.location;
@@ -184,12 +254,22 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
           </View>
         )}
 
-        {/* Time */}
+        {/* Time with Days */}
         {formatTime() && (
           <View style={[styles.infoRow, styles.timeRow]}>
             <Icon name="clock-outline" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.timeText, { color: colors.text }]}>
-              {formatTime()}
+              {extractDaysOfWeek() ? `${extractDaysOfWeek()} • ` : ''}{formatTime()}
+            </Text>
+          </View>
+        )}
+
+        {/* Days of Week (only shown if no time info) */}
+        {extractDaysOfWeek() && !formatTime() && (
+          <View style={[styles.infoRow, styles.daysRow]}>
+            <Icon name="calendar-week" size={16} color={Colors.primary} />
+            <Text style={[styles.infoText, styles.daysText, { color: Colors.primary }]}>
+              {extractDaysOfWeek()}
             </Text>
           </View>
         )}
@@ -439,6 +519,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
     color: Colors.primary,
+  },
+  daysRow: {
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginHorizontal: -4,
+    marginBottom: 8,
+  },
+  daysText: {
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
   spotsContainer: {
     marginTop: 8,
