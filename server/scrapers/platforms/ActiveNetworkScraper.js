@@ -2205,10 +2205,39 @@ class ActiveNetworkScraper extends BaseScraper {
 
                 // === DESCRIPTION ===
                 // Look for description section - extract full description
-                const descMatch = pageText.match(/Description\s*\n\s*(.+?)(?=\n\s*(?:Keyboard|Activity meeting|Instructor|More Information|What to Bring|Requirements|Prerequisites))/s);
-                if (descMatch) {
-                  data.description = descMatch[1].trim().substring(0, 500); // Short description
-                  data.fullDescription = descMatch[1].trim().substring(0, 5000); // Full description
+                // Try multiple patterns to capture description content
+                let descText = null;
+
+                // Pattern 1: Text between "Description" and end markers
+                const descMatch1 = pageText.match(/Description\s*\n(.+?)(?=\n(?:Keyboard|Activity meeting dates|Instructor|More Information|What to Bring|Requirements|Prerequisites|Map data|©\d{4} Google))/is);
+                if (descMatch1) {
+                  descText = descMatch1[1];
+                }
+
+                // Pattern 2: Look for Description section followed by any typical footer markers
+                if (!descText) {
+                  const descMatch2 = pageText.match(/Description\s*\n(.+?)(?=\n(?:Terms|Privacy|Copyright|Footer|Navigation|©|All rights reserved))/is);
+                  if (descMatch2) {
+                    descText = descMatch2[1];
+                  }
+                }
+
+                // Pattern 3: Get text between Description header and the map section
+                if (!descText) {
+                  const descMatch3 = pageText.match(/Description\s*\n(.+?)(?=\nGoogle\n|\nMap\n)/is);
+                  if (descMatch3) {
+                    descText = descMatch3[1];
+                  }
+                }
+
+                if (descText) {
+                  // Clean up the text - remove multiple newlines, trim
+                  descText = descText.trim()
+                    .replace(/\n{3,}/g, '\n\n')  // Normalize multiple newlines
+                    .replace(/\t/g, ' ');         // Replace tabs with spaces
+
+                  data.description = descText.substring(0, 500); // Short description
+                  data.fullDescription = descText.substring(0, 5000); // Full description (up to 5000 chars)
                 }
 
                 // === WHAT TO BRING ===

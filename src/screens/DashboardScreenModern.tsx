@@ -59,7 +59,8 @@ const DashboardScreenModern = () => {
   const favoritesService = FavoritesService.getInstance();
   const waitlistService = WaitlistService.getInstance();
   const scrollViewRef = useRef<ScrollView>(null);
-  const isInitialMount = useRef(true);
+  const isMountedRef = useRef(true);
+  const isLoadingRef = useRef(false);
 
   // Subscription-aware favorites
   const {
@@ -95,46 +96,58 @@ const DashboardScreenModern = () => {
     return shuffled;
   };
 
-  // Reload dashboard data when screen comes into focus (e.g., returning from Filters)
-  // Skip on initial mount since useEffect already loads data
+  // Load dashboard data on mount and when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (isInitialMount.current) {
-        isInitialMount.current = false;
+      // Prevent concurrent loads
+      if (isLoadingRef.current) {
+        console.log('[Dashboard] Already loading, skipping...');
         return;
       }
 
-      // Reload all dashboard data when returning to the screen
-      const reloadData = async () => {
-        console.log('[Dashboard] Reloading data on focus...');
+      const loadData = async () => {
+        console.log('[Dashboard] Loading data on focus...');
+        isLoadingRef.current = true;
         setReloading(true);
+
         try {
+          // Load all data in parallel
           await Promise.all([
             loadSponsoredActivities(),
             loadRecommendedActivities(),
             loadBudgetFriendlyActivities(),
             loadNewActivities(),
+            loadActivityTypes(),
+            loadAgeGroups(),
           ]);
-          console.log('[Dashboard] Data reload complete');
+          console.log('[Dashboard] Data load complete');
         } catch (error) {
-          console.error('[Dashboard] Error reloading data:', error);
+          console.error('[Dashboard] Error loading data:', error);
         } finally {
-          setReloading(false);
+          if (isMountedRef.current) {
+            setReloading(false);
+          }
+          isLoadingRef.current = false;
         }
       };
 
-      reloadData();
+      loadData();
+      loadFavorites();
+      loadWaitlistCount();
 
       return () => {
-        // Cleanup if needed
+        // Mark as unmounted to prevent state updates
+        isMountedRef.current = false;
       };
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // Reset mounted ref when component mounts
   useEffect(() => {
-    loadDashboardData();
-    loadFavorites();
-    loadWaitlistCount();
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Shimmer animation for loading placeholders
@@ -232,7 +245,9 @@ const DashboardScreenModern = () => {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -241,10 +256,14 @@ const DashboardScreenModern = () => {
       console.log('[Dashboard] Loading sponsored activities...');
       const sponsors = await activityService.getSponsoredActivities(6);
       console.log(`[Dashboard] Found ${sponsors.length} sponsored activities`);
-      setSponsoredActivities(sponsors);
+      if (isMountedRef.current) {
+        setSponsoredActivities(sponsors);
+      }
     } catch (error) {
       console.error('Error loading sponsored activities:', error);
-      setSponsoredActivities([]);
+      if (isMountedRef.current) {
+        setSponsoredActivities([]);
+      }
     }
   };
 
@@ -337,22 +356,28 @@ const DashboardScreenModern = () => {
         }
       }
 
-      if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
-        // Shuffle results for variety on each load
-        setRecommendedActivities(shuffleArray(response.items));
-        console.log('Set recommended activities (shuffled):', response.items.length);
-      } else {
-        // Truly no activities found - set empty array to show empty state
-        setRecommendedActivities([]);
-        console.log('Recommended activities: No activities found even with fallback');
+      if (isMountedRef.current) {
+        if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
+          // Shuffle results for variety on each load
+          setRecommendedActivities(shuffleArray(response.items));
+          console.log('Set recommended activities (shuffled):', response.items.length);
+        } else {
+          // Truly no activities found - set empty array to show empty state
+          setRecommendedActivities([]);
+          console.log('Recommended activities: No activities found even with fallback');
+        }
       }
     } catch (error) {
       console.error('Error loading recommended activities:', error);
       // On error, set empty to show error state
-      setRecommendedActivities([]);
+      if (isMountedRef.current) {
+        setRecommendedActivities([]);
+      }
       console.log('Recommended activities: Error occurred');
     } finally {
-      setRecommendedLoading(false);
+      if (isMountedRef.current) {
+        setRecommendedLoading(false);
+      }
     }
   };
 
