@@ -347,6 +347,7 @@ const ProfileScreenModern = () => {
     onPress,
     showArrow = true,
     value,
+    showPremiumBadge,
   }: {
     icon?: string;
     title: string;
@@ -354,6 +355,7 @@ const ProfileScreenModern = () => {
     onPress?: () => void;
     showArrow?: boolean;
     value?: string;
+    showPremiumBadge?: boolean;
   }) => (
     <TouchableOpacity
       style={styles.profileItem}
@@ -368,7 +370,15 @@ const ProfileScreenModern = () => {
           </View>
         )}
         <View style={styles.profileItemContent}>
-          <Text style={styles.profileItemTitle}>{title}</Text>
+          <View style={styles.profileItemTitleRow}>
+            <Text style={styles.profileItemTitle}>{title}</Text>
+            {showPremiumBadge && (
+              <View style={styles.premiumBadge}>
+                <Icon name="lock" size={10} color="#FFD700" />
+                <Text style={styles.premiumBadgeText}>Premium</Text>
+              </View>
+            )}
+          </View>
           {subtitle && <Text style={styles.profileItemSubtitle}>{subtitle}</Text>}
         </View>
       </View>
@@ -568,6 +578,7 @@ const ProfileScreenModern = () => {
             title="Notifications"
             subtitle="Manage your notification preferences"
             onPress={() => navigation.navigate('NotificationPreferences' as never)}
+            showPremiumBadge={!isPremium}
           />
           <View style={styles.divider} />
           <ProfileItem
@@ -971,6 +982,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: ModernColors.text,
     marginBottom: 2,
+  },
+  profileItemTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  premiumBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B8860B',
+    marginLeft: 3,
   },
   profileItemSubtitle: {
     fontSize: 14,

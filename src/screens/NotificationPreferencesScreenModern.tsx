@@ -42,6 +42,7 @@ const NotificationPreferencesScreenModern = () => {
   const canAccessNotifications = hasInstantAlerts || isPremium;
 
   const [notificationSettings, setNotificationSettings] = useState({
+    // Email notifications
     enabled: false,
     newActivities: true,
     dailyDigest: false,
@@ -54,6 +55,12 @@ const NotificationPreferencesScreenModern = () => {
     quietHoursEnabled: true,
     quietHoursStart: 21,
     quietHoursEnd: 8,
+    // Push notifications
+    pushEnabled: false,
+    pushNewActivities: true,
+    pushPriceDrops: true,
+    pushSpotsAvailable: true,
+    pushCapacityAlerts: true,
   });
 
   // Load preferences from server on mount
@@ -81,6 +88,7 @@ const NotificationPreferencesScreenModern = () => {
       }
 
       setNotificationSettings({
+        // Email settings
         enabled: serverPrefs.enabled ?? false,
         newActivities: serverPrefs.newActivities ?? true,
         dailyDigest: serverPrefs.dailyDigest ?? false,
@@ -93,6 +101,12 @@ const NotificationPreferencesScreenModern = () => {
         quietHoursEnabled: !!(serverPrefs.quietHoursStart && serverPrefs.quietHoursEnd),
         quietHoursStart,
         quietHoursEnd,
+        // Push settings
+        pushEnabled: serverPrefs.pushEnabled ?? false,
+        pushNewActivities: serverPrefs.pushNewActivities ?? true,
+        pushPriceDrops: serverPrefs.pushPriceDrops ?? true,
+        pushSpotsAvailable: serverPrefs.pushSpotsAvailable ?? true,
+        pushCapacityAlerts: serverPrefs.pushCapacityAlerts ?? true,
       });
     } catch (error) {
       console.error('Failed to load notification preferences:', error);
@@ -112,6 +126,7 @@ const NotificationPreferencesScreenModern = () => {
         : undefined;
 
       await notificationService.updatePreferences({
+        // Email settings
         enabled: notificationSettings.enabled,
         newActivities: notificationSettings.newActivities,
         dailyDigest: notificationSettings.dailyDigest,
@@ -122,6 +137,12 @@ const NotificationPreferencesScreenModern = () => {
         capacityThreshold: notificationSettings.capacityThreshold,
         quietHoursStart,
         quietHoursEnd,
+        // Push settings
+        pushEnabled: notificationSettings.pushEnabled,
+        pushNewActivities: notificationSettings.pushNewActivities,
+        pushPriceDrops: notificationSettings.pushPriceDrops,
+        pushSpotsAvailable: notificationSettings.pushSpotsAvailable,
+        pushCapacityAlerts: notificationSettings.pushCapacityAlerts,
       });
 
       // Also update local preferences
@@ -165,27 +186,6 @@ const NotificationPreferencesScreenModern = () => {
     setHasChanges(true);
   };
 
-  // Premium upgrade banner component
-  const PremiumBanner = () => (
-    <TouchableOpacity
-      style={styles.premiumBanner}
-      onPress={() => setShowUpgradeModal(true)}
-    >
-      <View style={styles.premiumBannerContent}>
-        <View style={styles.premiumIconContainer}>
-          <Icon name="crown" size={24} color="#FFD700" />
-        </View>
-        <View style={styles.premiumBannerText}>
-          <Text style={styles.premiumBannerTitle}>Premium Feature</Text>
-          <Text style={styles.premiumBannerSubtitle}>
-            Notifications require a premium subscription
-          </Text>
-        </View>
-        <Icon name="chevron-right" size={24} color={ModernColors.primary} />
-      </View>
-    </TouchableOpacity>
-  );
-
   const sendTestNotification = async () => {
     const result = await notificationService.sendTestNotification();
     Alert.alert(
@@ -219,6 +219,8 @@ const NotificationPreferencesScreenModern = () => {
     value,
     onToggle,
     disabled,
+    showPremiumLock,
+    onPremiumLockPress,
   }: {
     icon?: string;
     title: string;
@@ -226,6 +228,8 @@ const NotificationPreferencesScreenModern = () => {
     value: boolean;
     onToggle: (value: boolean) => void;
     disabled?: boolean;
+    showPremiumLock?: boolean;
+    onPremiumLockPress?: () => void;
   }) => (
     <View style={[styles.toggleItem, disabled && styles.toggleDisabled]}>
       <View style={styles.toggleLeft}>
@@ -235,18 +239,40 @@ const NotificationPreferencesScreenModern = () => {
           </View>
         )}
         <View style={styles.toggleContent}>
-          <Text style={[styles.toggleTitle, disabled && styles.textDisabled]}>{title}</Text>
+          <View style={styles.toggleTitleRow}>
+            <Text style={[styles.toggleTitle, disabled && styles.textDisabled]}>{title}</Text>
+            {showPremiumLock && (
+              <TouchableOpacity
+                style={styles.premiumLockBadge}
+                onPress={onPremiumLockPress}
+              >
+                <Icon name="lock" size={12} color="#FFD700" />
+                <Text style={styles.premiumLockText}>Premium</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {subtitle && <Text style={styles.toggleSubtitle}>{subtitle}</Text>}
         </View>
       </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: '#E0E0E0', true: ModernColors.primary }}
-        thumbColor={value ? '#FFFFFF' : '#F4F4F4'}
-        ios_backgroundColor="#E0E0E0"
-        disabled={disabled}
-      />
+      {showPremiumLock ? (
+        <TouchableOpacity
+          style={styles.lockedSwitchContainer}
+          onPress={onPremiumLockPress}
+        >
+          <View style={styles.lockedSwitch}>
+            <Icon name="lock" size={16} color="#FFD700" />
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <Switch
+          value={value}
+          onValueChange={onToggle}
+          trackColor={{ false: '#E0E0E0', true: ModernColors.primary }}
+          thumbColor={value ? '#FFFFFF' : '#F4F4F4'}
+          ios_backgroundColor="#E0E0E0"
+          disabled={disabled}
+        />
+      )}
     </View>
   );
 
@@ -299,24 +325,19 @@ const NotificationPreferencesScreenModern = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Premium Banner for free users */}
-        {!canAccessNotifications && <PremiumBanner />}
-
         {/* Master Toggle */}
         <NotificationSection
           title="Email Notifications"
-          description={canAccessNotifications
-            ? "Enable email notifications to stay updated"
-            : "Upgrade to Premium to receive email notifications"
-          }
+          description="Enable email notifications to stay updated"
         >
           <NotificationToggle
             icon="email-check-outline"
             title="Enable Email Notifications"
             subtitle="Receive activity updates via email"
-            value={notificationSettings.enabled && canAccessNotifications}
+            value={notificationSettings.enabled}
             onToggle={(value) => updateSetting('enabled', value)}
-            disabled={!canAccessNotifications}
+            showPremiumLock={!canAccessNotifications}
+            onPremiumLockPress={() => setShowUpgradeModal(true)}
           />
         </NotificationSection>
 
@@ -329,45 +350,45 @@ const NotificationPreferencesScreenModern = () => {
             icon="bell-outline"
             title="New Activities"
             subtitle="Get notified when new activities match your preferences"
-            value={notificationSettings.newActivities && canAccessNotifications}
+            value={notificationSettings.newActivities}
             onToggle={(value) => updateSetting('newActivities', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
             icon="calendar-today"
             title="Daily Digest"
             subtitle="Receive a daily summary of new activities"
-            value={notificationSettings.dailyDigest && canAccessNotifications}
+            value={notificationSettings.dailyDigest}
             onToggle={(value) => updateSetting('dailyDigest', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
             icon="tag-outline"
             title="Price Drops"
             subtitle="Alert when activities reduce their prices"
-            value={notificationSettings.priceDrops && canAccessNotifications}
+            value={notificationSettings.priceDrops}
             onToggle={(value) => updateSetting('priceDrops', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
             icon="account-check-outline"
             title="Spots Available"
             subtitle="Know when spots open up in waitlisted activities"
-            value={notificationSettings.spotsAvailable && canAccessNotifications}
+            value={notificationSettings.spotsAvailable}
             onToggle={(value) => updateSetting('spotsAvailable', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
           <NotificationToggle
             icon="calendar-week"
             title="Weekly Digest"
             subtitle="Summary of activities and updates every week"
-            value={notificationSettings.weeklyDigest && canAccessNotifications}
+            value={notificationSettings.weeklyDigest}
             onToggle={(value) => updateSetting('weeklyDigest', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
         </NotificationSection>
 
@@ -380,18 +401,18 @@ const NotificationPreferencesScreenModern = () => {
             icon="alert-circle-outline"
             title="Enable Capacity Alerts"
             subtitle="Get notified when favorites are almost full"
-            value={notificationSettings.favoriteCapacity && canAccessNotifications}
+            value={notificationSettings.favoriteCapacity}
             onToggle={(value) => updateSetting('favoriteCapacity', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
           <View style={styles.divider} />
-          <View style={[styles.thresholdContainer, (!canAccessNotifications || !notificationSettings.enabled || !notificationSettings.favoriteCapacity) && styles.toggleDisabled]}>
-            <Text style={[styles.thresholdLabel, (!canAccessNotifications || !notificationSettings.enabled || !notificationSettings.favoriteCapacity) && styles.textDisabled]}>
+          <View style={[styles.thresholdContainer, (!notificationSettings.enabled || !notificationSettings.favoriteCapacity) && styles.toggleDisabled]}>
+            <Text style={[styles.thresholdLabel, (!notificationSettings.enabled || !notificationSettings.favoriteCapacity) && styles.textDisabled]}>
               Alert when spots remaining:
             </Text>
             <TouchableOpacity
               style={styles.thresholdPicker}
-              disabled={!canAccessNotifications || !notificationSettings.enabled || !notificationSettings.favoriteCapacity}
+              disabled={!notificationSettings.enabled || !notificationSettings.favoriteCapacity}
               onPress={() => {
                 Alert.alert(
                   'Capacity Threshold',
@@ -423,11 +444,11 @@ const NotificationPreferencesScreenModern = () => {
             icon="moon-waning-crescent"
             title="Enable Quiet Hours"
             subtitle="Silence notifications during sleep"
-            value={notificationSettings.quietHoursEnabled && canAccessNotifications}
+            value={notificationSettings.quietHoursEnabled}
             onToggle={(value) => updateSetting('quietHoursEnabled', value)}
-            disabled={!canAccessNotifications || !notificationSettings.enabled}
+            disabled={!notificationSettings.enabled}
           />
-          {notificationSettings.quietHoursEnabled && notificationSettings.enabled && canAccessNotifications && (
+          {notificationSettings.quietHoursEnabled && notificationSettings.enabled && (
             <>
               <View style={styles.divider} />
               <View style={styles.timeRangeContainer}>
@@ -485,7 +506,7 @@ const NotificationPreferencesScreenModern = () => {
         </NotificationSection>
 
         {/* Test Notification */}
-        {notificationSettings.enabled && canAccessNotifications && (
+        {notificationSettings.enabled && (
           <View style={styles.testSection}>
             <TouchableOpacity
               style={styles.testButton}
@@ -708,42 +729,39 @@ const styles = StyleSheet.create({
   bottomPadding: {
     height: 40,
   },
-  premiumBanner: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 8,
-    backgroundColor: '#FFF8E7',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFD700',
-    overflow: 'hidden',
-  },
-  premiumBannerContent: {
+  toggleTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
   },
-  premiumIconContainer: {
+  premiumLockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  premiumLockText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B8860B',
+    marginLeft: 3,
+  },
+  lockedSwitchContainer: {
+    padding: 4,
+  },
+  lockedSwitch: {
     width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFF2CC',
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFF8E7',
+    borderWidth: 1,
+    borderColor: '#FFD700',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  premiumBannerText: {
-    flex: 1,
-  },
-  premiumBannerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: ModernColors.text,
-    marginBottom: 2,
-  },
-  premiumBannerSubtitle: {
-    fontSize: 14,
-    color: ModernColors.textLight,
   },
 });
 
