@@ -561,10 +561,88 @@ class ScraperOrchestrator {
   }
 
   /**
-   * Clean up resources
+   * Clean up resources including temp directories
    */
   async cleanup() {
     await this.prisma.$disconnect();
+
+    // Clean up Puppeteer temp directories to prevent disk filling
+    await this.cleanupPuppeteerTempDirs();
+
+    // Clean up old screenshots if they exist
+    await this.cleanupOldScreenshots();
+  }
+
+  /**
+   * Clean up Puppeteer temporary directories older than 1 hour
+   */
+  async cleanupPuppeteerTempDirs() {
+    const fsp = require('fs').promises;
+    const os = require('os');
+
+    try {
+      const tmpDir = os.tmpdir();
+      const files = await fsp.readdir(tmpDir);
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      let cleaned = 0;
+
+      for (const file of files) {
+        if (!file.startsWith('puppeteer') &&
+            !file.startsWith('.org.chromium') &&
+            !file.startsWith('.com.google.Chrome')) {
+          continue;
+        }
+
+        const filePath = path.join(tmpDir, file);
+        try {
+          const stats = await fsp.stat(filePath);
+          if (stats.isDirectory() && stats.mtimeMs < oneHourAgo) {
+            await fsp.rm(filePath, { recursive: true, force: true });
+            cleaned++;
+          }
+        } catch (e) {
+          // Ignore individual file errors
+        }
+      }
+
+      if (cleaned > 0) {
+        console.log(`🧹 Cleaned up ${cleaned} old Puppeteer temp directories`);
+      }
+    } catch (error) {
+      // Silently ignore cleanup errors
+    }
+  }
+
+  /**
+   * Clean up old validation screenshots (older than 7 days)
+   */
+  async cleanupOldScreenshots() {
+    const fsp = require('fs').promises;
+    const screenshotDir = path.join(__dirname, '../validation/screenshots');
+
+    try {
+      const files = await fsp.readdir(screenshotDir);
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      let deleted = 0;
+
+      for (const file of files) {
+        if (!file.endsWith('.png')) continue;
+
+        const filepath = path.join(screenshotDir, file);
+        const stats = await fsp.stat(filepath);
+
+        if (stats.mtimeMs < sevenDaysAgo) {
+          await fsp.unlink(filepath);
+          deleted++;
+        }
+      }
+
+      if (deleted > 0) {
+        console.log(`🧹 Cleaned up ${deleted} old screenshots`);
+      }
+    } catch (error) {
+      // Silently ignore if directory doesn't exist
+    }
   }
 }
 

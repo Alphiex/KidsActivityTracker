@@ -919,11 +919,57 @@ ${((this.activities.length - stats.errors) / this.activities.length * 100).toFix
   }
 
   /**
-   * Clean up resources
+   * Clean up resources including Puppeteer temp directories
    */
   async cleanup() {
     if (this.prisma) {
       await this.prisma.$disconnect();
+    }
+
+    // Clean up old Puppeteer temp directories to prevent disk filling
+    await this.cleanupPuppeteerTempDirs();
+  }
+
+  /**
+   * Clean up Puppeteer temporary directories older than 1 hour
+   * These accumulate in /tmp and can fill up disk space
+   */
+  async cleanupPuppeteerTempDirs() {
+    const fs = require('fs').promises;
+    const path = require('path');
+    const os = require('os');
+
+    try {
+      const tmpDir = os.tmpdir();
+      const files = await fs.readdir(tmpDir);
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      let cleaned = 0;
+
+      for (const file of files) {
+        // Match Puppeteer temp directory patterns
+        if (!file.startsWith('puppeteer') &&
+            !file.startsWith('.org.chromium') &&
+            !file.startsWith('.com.google.Chrome')) {
+          continue;
+        }
+
+        const filePath = path.join(tmpDir, file);
+        try {
+          const stats = await fs.stat(filePath);
+          if (stats.isDirectory() && stats.mtimeMs < oneHourAgo) {
+            await fs.rm(filePath, { recursive: true, force: true });
+            cleaned++;
+          }
+        } catch (e) {
+          // Ignore errors for individual files
+        }
+      }
+
+      if (cleaned > 0) {
+        this.logProgress(`Cleaned up ${cleaned} old Puppeteer temp directories`);
+      }
+    } catch (error) {
+      // Silently ignore cleanup errors - not critical
     }
   }
 
