@@ -251,7 +251,7 @@ class DataNormalizer {
       }
 
       if (mapping.transform) {
-        return this.applyTransform(value, mapping.transform);
+        return this.applyTransform(value, mapping.transform, rawData);
       }
 
       return value;
@@ -278,13 +278,14 @@ class DataNormalizer {
    * Apply transformation to a value
    * @param {*} value - Value to transform
    * @param {String|Function} transform - Transformation to apply
+   * @param {Object} rawData - Original raw data object (for transforms that need context)
    * @returns {*} - Transformed value
    */
-  static applyTransform(value, transform) {
+  static applyTransform(value, transform, rawData = null) {
     if (!value) return value;
-    
+
     if (typeof transform === 'function') {
-      return transform(value);
+      return transform(value, rawData);
     }
     
     switch (transform) {

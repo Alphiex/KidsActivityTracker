@@ -14,6 +14,11 @@ const { generateExternalId, extractNativeId } = require('../utils/stableIdGenera
 function generateStableActivityId(activity) {
   const crypto = require('crypto');
 
+  // Handle undefined or null activity
+  if (!activity) {
+    return `pm-${crypto.createHash('md5').update('unknown').digest('hex').substring(0, 12)}`;
+  }
+
   // Create stable hash from name + location + category (not courseId!)
   // This groups all sessions of the same activity together
   const name = (activity.name || '').toLowerCase().trim().replace(/\s+/g, ' ');
