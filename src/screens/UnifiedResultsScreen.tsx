@@ -326,7 +326,6 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
-        imageHeight={100}
       />
     );
   };
@@ -414,12 +413,15 @@ const UnifiedResultsScreenTest: React.FC = () => {
       <ScreenBackground>
         {/* Show TopTabNavigation for favorites (accessed from bottom tab) */}
         {isFavoritesScreen && <TopTabNavigation />}
+
+        {/* Fixed Header */}
+        {renderHeader()}
+
         <FlatList
           data={activities}
           renderItem={renderActivity}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
@@ -455,7 +457,7 @@ const styles = StyleSheet.create({
     marginBottom: ModernSpacing.md,
   },
   heroSection: {
-    height: height * 0.14,
+    height: height * 0.18,
     width: '100%',
   },
   heroSectionShort: {

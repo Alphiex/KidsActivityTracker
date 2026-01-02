@@ -306,24 +306,22 @@ const SearchResultsScreen = () => {
         {/* Top Tab Navigation */}
         <TopTabNavigation />
 
+        {/* Fixed Header */}
+        {renderHeader()}
+
         {/* Results list */}
         {activities.length === 0 ? (
-          <>
-            {renderHeader()}
-            {renderEmptyState()}
-          </>
+          renderEmptyState()
         ) : (
           <FlatList
           data={activities}
           keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderHeader}
           renderItem={({ item }) => (
             <ActivityCard
               activity={item}
               onPress={() => handleActivityPress(item)}
               isFavorite={favoriteIds.has(item.id)}
               onFavoritePress={() => toggleFavorite(item)}
-              imageHeight={100}
             />
           )}
           showsVerticalScrollIndicator={false}
@@ -373,7 +371,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   heroSection: {
-    height: height * 0.14,
+    height: height * 0.18,
     width: '100%',
   },
   heroImageStyle: {
