@@ -100,10 +100,11 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   const extractDaysOfWeek = (): string | null => {
     const daysSet = new Set<string>();
     const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const activityAny = activity as any;
 
     // Extract from dayOfWeek array (e.g., ["Monday", "Wednesday"])
-    if (activity.dayOfWeek && Array.isArray(activity.dayOfWeek)) {
-      activity.dayOfWeek.forEach((day: string) => {
+    if (activityAny.dayOfWeek && Array.isArray(activityAny.dayOfWeek)) {
+      activityAny.dayOfWeek.forEach((day: string) => {
         if (day && typeof day === 'string') {
           const abbrev = day.substring(0, 3);
           const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
@@ -140,6 +141,26 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
           }
         });
       }
+    }
+
+    // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
+    if (typeof activity.schedule === 'string' && activity.schedule) {
+      const dayPatterns = [
+        /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
+        /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
+        /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
+      ];
+
+      dayPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(activity.schedule as string)) !== null) {
+          const day = match[1].substring(0, 3);
+          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
     }
 
     if (daysSet.size === 0) return null;

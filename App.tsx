@@ -52,6 +52,12 @@ function App() {
     const initServices = async () => {
       // Initialize Google Places SDK
       try {
+        console.log('[App] Checking Google Places API key...');
+        console.log('[App] API Key available:', !!GOOGLE_PLACES_CONFIG.API_KEY);
+        console.log('[App] API Key length:', GOOGLE_PLACES_CONFIG.API_KEY?.length || 0);
+        console.log('[App] GooglePlacesSDK module:', typeof GooglePlacesSDK);
+        console.log('[App] GooglePlacesSDK.initialize:', typeof GooglePlacesSDK.initialize);
+
         if (GOOGLE_PLACES_CONFIG.API_KEY) {
           GooglePlacesSDK.initialize(GOOGLE_PLACES_CONFIG.API_KEY);
           console.log('[App] Google Places SDK initialized successfully');

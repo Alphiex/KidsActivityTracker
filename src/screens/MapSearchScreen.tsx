@@ -9,6 +9,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Share,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -28,6 +29,10 @@ import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
 import UpgradePromptModal from '../components/UpgradePromptModal';
+import AddToCalendarModal from '../components/AddToCalendarModal';
+import { formatActivityPrice } from '../utils/formatters';
+import { useAppSelector } from '../store';
+import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 
 type MapSearchRouteProp = RouteProp<{
   MapSearch: {
@@ -126,6 +131,10 @@ const MapSearchScreen = () => {
   // Search filters state (received from SearchScreen)
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Calendar modal state
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [selectedActivityForCalendar, setSelectedActivityForCalendar] = useState<Activity | null>(null);
 
   // Get user preferences for filtering
   const preferences = preferencesService.getPreferences();
@@ -575,6 +584,113 @@ const MapSearchScreen = () => {
   const favoritesService = FavoritesService.getInstance();
   const waitlistService = WaitlistService.getInstance();
 
+  // Extract days of week from activity
+  const extractDaysOfWeek = (activity: Activity): string | null => {
+    const daysSet = new Set<string>();
+    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Extract from sessions array
+    if (activity.sessions && activity.sessions.length > 0) {
+      activity.sessions.forEach(session => {
+        const dayOfWeek = session?.dayOfWeek;
+        if (dayOfWeek && typeof dayOfWeek === 'string') {
+          const day = dayOfWeek.substring(0, 3);
+          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
+
+    // Extract from schedule object
+    if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
+      const scheduleObj = activity.schedule as { days?: string[] };
+      if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
+        scheduleObj.days.forEach(day => {
+          const abbrev = day.substring(0, 3);
+          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        });
+      }
+    }
+
+    // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
+    if (typeof activity.schedule === 'string' && activity.schedule) {
+      const dayPatterns = [
+        /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
+        /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
+        /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
+      ];
+
+      dayPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(activity.schedule as string)) !== null) {
+          const day = match[1].substring(0, 3);
+          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
+
+    // Extract from daysOfWeek array
+    const activityAny = activity as any;
+    if (activityAny.daysOfWeek && Array.isArray(activityAny.daysOfWeek)) {
+      activityAny.daysOfWeek.forEach((day: string) => {
+        const abbrev = day.substring(0, 3);
+        const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+        if (dayOrder.includes(normalized)) {
+          daysSet.add(normalized);
+        }
+      });
+    }
+
+    if (daysSet.size === 0) return null;
+
+    const sortedDays = Array.from(daysSet).sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const weekend = ['Sat', 'Sun'];
+
+    if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) return 'Weekdays';
+    if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) return 'Weekends';
+    if (sortedDays.length === 7) return 'Daily';
+
+    return sortedDays.join(', ');
+  };
+
+  // Handle share
+  const handleShareActivity = async (activity: Activity) => {
+    try {
+      const locationName = typeof activity.location === 'string'
+        ? activity.location
+        : activity.location?.name || activity.locationName || '';
+
+      const details: string[] = [];
+      details.push(`🎯 ${activity.name}`);
+      details.push('');
+      if (locationName) details.push(`📍 ${locationName}`);
+      const price = formatActivityPrice(activity.cost);
+      if (price) details.push(`💰 ${price}`);
+      if (activity.ageMin != null && activity.ageMax != null) {
+        details.push(`👶 Ages ${activity.ageMin}-${activity.ageMax}`);
+      }
+      details.push('');
+      details.push('Found on Kids Activity Tracker 📱');
+      details.push('https://apps.apple.com/app/kids-activity-tracker');
+
+      await Share.share({
+        message: details.join('\n'),
+        title: `Check out: ${activity.name}`,
+      });
+    } catch (error) {
+      console.error('Error sharing activity:', error);
+    }
+  };
+
   // Render horizontal activity card with action buttons
   const renderActivityCard = useCallback(({ item }: { item: Activity }) => {
     const isSelected = selectedActivityId === item.id;
@@ -609,7 +725,8 @@ const MapSearchScreen = () => {
       dateRangeText = `${startStr} - ${endStr}`;
     }
 
-    // Format time
+    // Format time with days of week
+    const daysOfWeek = extractDaysOfWeek(item);
     let timeText = '';
     if (item.startTime && item.endTime) {
       timeText = `${item.startTime} - ${item.endTime}`;
@@ -625,8 +742,7 @@ const MapSearchScreen = () => {
       : '';
 
     // Format price
-    const priceText = item.price != null ? `$${item.price.toFixed(2)}` :
-                      item.cost != null ? `$${item.cost.toFixed(2)}` : 'Free';
+    const priceText = formatActivityPrice(item.cost);
 
     const handleToggleFavorite = () => {
       favoritesService.toggleFavorite(item);
@@ -634,6 +750,11 @@ const MapSearchScreen = () => {
 
     const handleToggleWaitlist = async () => {
       await waitlistService.toggleWaitlist(item);
+    };
+
+    const handleOpenCalendar = () => {
+      setSelectedActivityForCalendar(item);
+      setShowCalendarModal(true);
     };
 
     return (
@@ -649,12 +770,12 @@ const MapSearchScreen = () => {
           {/* Price overlay */}
           <View style={styles.priceOverlay}>
             <Text style={styles.priceText}>{priceText}</Text>
-            {(item.price != null || item.cost != null) && ((item.price ?? 0) > 0 || (item.cost ?? 0) > 0) && (
+            {item.cost != null && item.cost > 0 && (
               <Text style={styles.priceLabel}>per child</Text>
             )}
           </View>
 
-          {/* Action buttons */}
+          {/* Action buttons - all 4 matching home screen */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity style={styles.cardActionButton} onPress={handleToggleFavorite}>
               <Icon
@@ -670,6 +791,12 @@ const MapSearchScreen = () => {
                 color={isOnWaitlist ? '#FFB800' : '#FFF'}
               />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.cardActionButton} onPress={() => handleShareActivity(item)}>
+              <Icon name="share-variant" size={16} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cardActionButton} onPress={handleOpenCalendar}>
+              <Icon name="calendar-plus" size={16} color="#FFF" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -684,17 +811,20 @@ const MapSearchScreen = () => {
             </View>
           ) : null}
 
+          {/* Combined days and time row - matches DashboardScreenModern */}
+          {(daysOfWeek || timeText) ? (
+            <View style={styles.daysRow}>
+              <Icon name="calendar-week" size={12} color="#E8638B" />
+              <Text style={styles.daysText}>
+                {daysOfWeek}{daysOfWeek && timeText ? ' • ' : ''}{timeText ? timeText : ''}
+              </Text>
+            </View>
+          ) : null}
+
           {dateRangeText ? (
             <View style={styles.cardInfoRow}>
               <Icon name="calendar" size={12} color="#717171" />
               <Text style={styles.cardInfoText}>{dateRangeText}</Text>
-            </View>
-          ) : null}
-
-          {timeText ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="clock-outline" size={12} color="#717171" />
-              <Text style={styles.cardInfoText}>{timeText}</Text>
             </View>
           ) : null}
 
@@ -923,6 +1053,18 @@ const MapSearchScreen = () => {
         feature="filters"
         onClose={() => setShowUpgradeModal(false)}
       />
+
+      {/* Calendar Modal */}
+      {selectedActivityForCalendar && (
+        <AddToCalendarModal
+          visible={showCalendarModal}
+          activity={selectedActivityForCalendar}
+          onClose={() => {
+            setShowCalendarModal(false);
+            setSelectedActivityForCalendar(null);
+          }}
+        />
+      )}
     </ScreenBackground>
   );
 };
@@ -1149,7 +1291,7 @@ const styles = StyleSheet.create({
   },
   cardImageContainer: {
     position: 'relative',
-    height: 100,
+    height: 80,
   },
   cardImage: {
     width: '100%',
@@ -1162,7 +1304,7 @@ const styles = StyleSheet.create({
     left: 8,
   },
   priceText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
     color: '#FFFFFF',
     textShadowColor: 'rgba(0,0,0,0.7)',
@@ -1209,6 +1351,18 @@ const styles = StyleSheet.create({
   cardInfoText: {
     fontSize: 11,
     color: '#717171',
+    flex: 1,
+  },
+  daysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  daysText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E8638B',
     flex: 1,
   },
   spotsBadge: {

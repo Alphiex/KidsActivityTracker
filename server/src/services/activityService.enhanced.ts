@@ -351,11 +351,12 @@ export class EnhancedActivityService {
       }
     }
 
-    // Day of week filter - filter through sessions table
-    // The dayOfWeek data is stored in ActivitySession, not Activity
+    // Day of week filter - check both Activity.dayOfWeek array and ActivitySession.dayOfWeek
+    // Activity.dayOfWeek is a String[] with abbreviated day names (Mon, Tue, etc.)
+    // ActivitySession.dayOfWeek is a String? with abbreviated day names
     // Frontend sends full names (Monday, Tuesday) but DB has abbreviated (Mon, Tue)
     if (dayOfWeek && dayOfWeek.length > 0) {
-      // Map full day names to abbreviated format used in ActivitySession
+      // Map full day names to abbreviated format
       const dayNameMap: Record<string, string> = {
         'Monday': 'Mon',
         'Tuesday': 'Tue',
@@ -379,12 +380,22 @@ export class EnhancedActivityService {
         .filter(day => day); // Remove any unmapped values
 
       if (abbreviatedDays.length > 0) {
-        // Filter activities that have sessions on the specified days
-        where.sessions = {
-          some: {
-            dayOfWeek: { in: abbreviatedDays }
-          }
+        // Filter activities that have the day in EITHER:
+        // 1. Activity.dayOfWeek array (primary storage)
+        // 2. ActivitySession.dayOfWeek (legacy/secondary storage)
+        const dayOfWeekFilter: Prisma.ActivityWhereInput = {
+          OR: [
+            // Check Activity.dayOfWeek array - hasSome checks if array contains any of the values
+            { dayOfWeek: { hasSome: abbreviatedDays } },
+            // Also check sessions table for activities that store days there
+            { sessions: { some: { dayOfWeek: { in: abbreviatedDays } } } }
+          ]
         };
+
+        // Add to AND conditions to combine with other filters
+        where.AND = where.AND || [];
+        (where.AND as Prisma.ActivityWhereInput[]).push(dayOfWeekFilter);
+
         console.log(`📅 [ActivityService] Day of week filter: ${dayOfWeek.join(', ')} → ${abbreviatedDays.join(', ')}`);
       }
     }

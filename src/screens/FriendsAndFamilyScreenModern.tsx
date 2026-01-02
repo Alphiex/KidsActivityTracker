@@ -627,6 +627,7 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalOverlay}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -1041,7 +1042,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   modalBodyContent: {
-    paddingBottom: 20,
+    paddingBottom: 350, // Extra padding to allow scrolling above keyboard
   },
   inputGroup: {
     marginBottom: 20,

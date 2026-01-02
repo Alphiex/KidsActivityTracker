@@ -46,6 +46,108 @@ const calculateAge = (dateOfBirth: string): number => {
 };
 
 /**
+ * Extract days of week from activity data
+ */
+const extractDaysOfWeek = (activity: any): string | null => {
+  const daysSet = new Set<string>();
+  const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Extract from sessions array
+  if (activity.sessions && Array.isArray(activity.sessions)) {
+    activity.sessions.forEach((session: any) => {
+      const dayOfWeek = session?.dayOfWeek;
+      if (dayOfWeek && typeof dayOfWeek === 'string') {
+        const day = dayOfWeek.substring(0, 3);
+        const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+        if (dayOrder.includes(normalized)) {
+          daysSet.add(normalized);
+        }
+      }
+    });
+  }
+
+  // Extract from schedule object with days array
+  if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
+    const scheduleObj = activity.schedule as { days?: string[] };
+    if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
+      scheduleObj.days.forEach((day: string) => {
+        const abbrev = day.substring(0, 3);
+        const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+        if (dayOrder.includes(normalized)) {
+          daysSet.add(normalized);
+        }
+      });
+    }
+  }
+
+  // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
+  if (typeof activity.schedule === 'string' && activity.schedule) {
+    const dayPatterns = [
+      /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
+      /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
+      /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
+    ];
+
+    dayPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(activity.schedule as string)) !== null) {
+        const day = match[1].substring(0, 3);
+        const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+        if (dayOrder.includes(normalized)) {
+          daysSet.add(normalized);
+        }
+      }
+    });
+  }
+
+  // Extract from daysOfWeek array
+  if (activity.daysOfWeek && Array.isArray(activity.daysOfWeek)) {
+    activity.daysOfWeek.forEach((day: string) => {
+      const abbrev = day.substring(0, 3);
+      const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+      if (dayOrder.includes(normalized)) {
+        daysSet.add(normalized);
+      }
+    });
+  }
+
+  // Extract from dayOfWeek array
+  if (activity.dayOfWeek && Array.isArray(activity.dayOfWeek)) {
+    activity.dayOfWeek.forEach((day: string) => {
+      if (day && typeof day === 'string') {
+        const abbrev = day.substring(0, 3);
+        const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+        if (dayOrder.includes(normalized)) {
+          daysSet.add(normalized);
+        }
+      }
+    });
+  }
+
+  if (daysSet.size === 0) return null;
+
+  const sortedDays = Array.from(daysSet).sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const weekend = ['Sat', 'Sun'];
+
+  if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) return 'Weekdays';
+  if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) return 'Weekends';
+  if (sortedDays.length === 7) return 'Daily';
+
+  return sortedDays.join(', ');
+};
+
+/**
+ * Format time display from activity
+ */
+const formatActivityTime = (activity: any): string | null => {
+  if (activity.startTime || activity.endTime) {
+    return `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
+  }
+  return null;
+};
+
+/**
  * Generate personalized prompts based on user data
  */
 const generatePersonalizedPrompts = (
@@ -360,15 +462,22 @@ const AIChatScreen = () => {
                         </View>
                       )}
 
-                      {/* Dates & Time */}
-                      {(activity.dates || activity.schedule) && (
-                        <View style={styles.activityDateRow}>
-                          <Icon name="calendar-outline" size={12} color="#888" />
-                          <Text style={styles.activityDates} numberOfLines={1}>
-                            {activity.dates || activity.schedule}
-                          </Text>
-                        </View>
-                      )}
+                      {/* Days of Week & Time */}
+                      {(() => {
+                        const daysOfWeek = extractDaysOfWeek(activity);
+                        const timeText = formatActivityTime(activity);
+                        if (daysOfWeek || timeText) {
+                          return (
+                            <View style={styles.activityDaysRow}>
+                              <Icon name="calendar-week" size={12} color="#E8638B" />
+                              <Text style={styles.activityDaysText} numberOfLines={1}>
+                                {daysOfWeek}{daysOfWeek && timeText ? ' • ' : ''}{timeText || ''}
+                              </Text>
+                            </View>
+                          );
+                        }
+                        return null;
+                      })()}
 
                       {/* Bottom row: Spots, Cost, Distance */}
                       <View style={styles.activityBottomRow}>
@@ -810,6 +919,18 @@ const styles = StyleSheet.create({
   activityDates: {
     fontSize: 11,
     color: '#888',
+    flex: 1,
+  },
+  activityDaysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  activityDaysText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E8638B',
     flex: 1,
   },
   activityBottomRow: {
