@@ -11,6 +11,10 @@ import {
   Modal,
   Animated,
   Image,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -71,6 +75,68 @@ interface ChildAvailability {
  * Entry approval state
  */
 type ApprovalState = 'pending' | 'approved' | 'declined';
+
+/**
+ * Chat message for activity refinement
+ */
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  activityContext?: {
+    childId: string;
+    day: string;
+    activityId: string;
+    activityName: string;
+  };
+  suggestedActivity?: ScheduleEntry;
+}
+
+/**
+ * Feedback history for AI context
+ */
+interface FeedbackHistory {
+  activityId: string;
+  feedback: string;
+  timestamp: Date;
+}
+
+/**
+ * Chat context for current refinement session
+ */
+interface ChatContext {
+  childId: string;
+  childName: string;
+  day: string;
+  entryIndex: number;
+  currentActivityId: string;
+  currentActivityName: string;
+}
+
+/**
+ * Quick response option
+ */
+interface QuickResponse {
+  label: string;
+  value: string | null;
+}
+
+const QUICK_RESPONSES: QuickResponse[] = [
+  { label: 'Too expensive', value: 'too expensive, looking for cheaper options' },
+  { label: 'Too far', value: 'too far from our location, need something closer' },
+  { label: 'Wrong time', value: 'the time doesn\'t work, need different hours' },
+  { label: 'Not interested', value: 'this type of activity doesn\'t interest my child' },
+  { label: 'Already tried', value: 'we\'ve already done this activity before' },
+  { label: 'Other...', value: null },
+];
+
+/**
+ * Generate a simple unique ID
+ */
+const generateId = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
 
 /**
  * Get the next Monday date
@@ -139,8 +205,18 @@ const WeeklyPlannerScreen = () => {
 
   // Activity details cache (loaded from API when schedule is generated)
   const [activityDetails, setActivityDetails] = useState<Record<string, Activity>>({});
-  const [loadingAlternative, setLoadingAlternative] = useState<string | null>(null);
   const activityService = ActivityService.getInstance();
+
+  // Chat state for activity refinement
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInputText, setChatInputText] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [activeChatContext, setActiveChatContext] = useState<ChatContext | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [feedbackHistory, setFeedbackHistory] = useState<FeedbackHistory[]>([]);
+  const [showChat, setShowChat] = useState(false);
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const chatScrollRef = React.useRef<FlatList>(null);
 
   // Animation
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -296,75 +372,227 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
-   * Request AI to find a different activity for this slot
+   * Get declined activity IDs for exclusion
    */
-  const handleFindDifferent = async (entry: ScheduleEntry, uniqueKey: string, entryIndex: number) => {
-    setLoadingAlternative(uniqueKey);
+  const getDeclinedActivityIds = useCallback((): string[] => {
+    return Object.entries(entryApprovals)
+      .filter(([_, state]) => state === 'declined')
+      .map(([key]) => {
+        const parts = key.split('-');
+        return parts.length >= 2 ? parts[1] : null;
+      })
+      .filter(Boolean) as string[];
+  }, [entryApprovals]);
+
+  /**
+   * Open chat panel for refining an activity
+   */
+  const openChatForActivity = useCallback((entry: ScheduleEntry, uniqueKey: string, entryIndex: number) => {
+    const { name: childName } = getChildInfo(entry.child_id);
+
+    // Set chat context
+    setActiveChatContext({
+      childId: entry.child_id,
+      childName,
+      day: entry.day,
+      entryIndex,
+      currentActivityId: entry.activity_id,
+      currentActivityName: entry.activity_name,
+    });
+
+    // Clear previous messages and add initial AI message
+    setChatMessages([{
+      id: generateId(),
+      role: 'assistant',
+      content: `I noticed "${entry.activity_name}" isn't quite right for ${childName}. What didn't work about it?`,
+      timestamp: new Date(),
+      activityContext: {
+        childId: entry.child_id,
+        day: entry.day,
+        activityId: entry.activity_id,
+        activityName: entry.activity_name,
+      },
+    }]);
+
+    // Reset state
+    setChatInputText('');
+    setShowOtherInput(false);
+
+    // Show chat panel
+    setShowChat(true);
+  }, [getChildInfo]);
+
+  /**
+   * Handle quick response selection
+   */
+  const handleQuickResponse = useCallback((response: QuickResponse) => {
+    if (response.value === null) {
+      // "Other..." was selected - show text input
+      setShowOtherInput(true);
+    } else {
+      // Send the quick response as feedback
+      handleChatSubmit(response.value);
+    }
+  }, [handleChatSubmit]);
+
+  /**
+   * Handle chat message submission
+   */
+  const handleChatSubmit = useCallback(async (feedback: string) => {
+    if (!activeChatContext || !feedback.trim()) return;
+
+    // Add user message
+    const userMessage: ChatMessage = {
+      id: generateId(),
+      role: 'user',
+      content: feedback,
+      timestamp: new Date(),
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInputText('');
+    setShowOtherInput(false);
+
+    // Store feedback for future context
+    setFeedbackHistory(prev => [...prev, {
+      activityId: activeChatContext.currentActivityId,
+      feedback,
+      timestamp: new Date(),
+    }]);
+
+    setIsChatLoading(true);
 
     try {
-      // Get declined activity IDs to exclude
-      const declinedActivityIds = Object.entries(entryApprovals)
-        .filter(([_, state]) => state === 'declined')
-        .map(([key]) => {
-          // Extract activity_id from key format: childId-activityId-day-index
-          const parts = key.split('-');
-          return parts.length >= 2 ? parts[1] : null;
-        })
-        .filter(Boolean) as string[];
+      // Get declined activity IDs
+      const excludedIds = getDeclinedActivityIds();
+      excludedIds.push(activeChatContext.currentActivityId);
 
-      // Add current activity to exclusions
-      declinedActivityIds.push(entry.activity_id);
-
-      // Request AI to find alternative
+      // Request AI to find alternative with feedback context
       const result = await aiService.findAlternativeActivity({
-        child_id: entry.child_id,
-        day: entry.day,
-        time_slot: entry.time,
-        excluded_activity_ids: declinedActivityIds,
+        child_id: activeChatContext.childId,
+        day: activeChatContext.day,
+        time_slot: schedule?.entries[activeChatContext.day]?.[activeChatContext.entryIndex]?.time || 'morning',
+        excluded_activity_ids: excludedIds,
         week_start: toISODateString(selectedWeekStart),
       });
 
       if (result.success && result.alternative) {
-        // Update schedule with new activity
-        setSchedule(prev => {
-          if (!prev) return prev;
-          const newEntries = { ...prev.entries };
-          const dayEntries = [...(newEntries[entry.day] || [])];
-          if (entryIndex < dayEntries.length) {
-            dayEntries[entryIndex] = result.alternative;
-            newEntries[entry.day] = dayEntries;
-          }
-          return { ...prev, entries: newEntries };
-        });
-
-        // Load activity details for new activity
+        // Load activity details for the suggestion
+        let activityDetail: Activity | null = null;
         try {
-          const activity = await activityService.getActivityDetails(result.alternative.activity_id);
-          if (activity) {
-            setActivityDetails(prev => ({ ...prev, [result.alternative.activity_id]: activity }));
+          activityDetail = await activityService.getActivityDetails(result.alternative.activity_id);
+          if (activityDetail) {
+            setActivityDetails(prev => ({ ...prev, [result.alternative!.activity_id]: activityDetail! }));
           }
         } catch (err) {
           console.warn('Failed to load alternative activity details');
         }
 
-        // Reset approval for new entry
-        const newKey = `${result.alternative.child_id}-${result.alternative.activity_id}-${result.alternative.day}-${entryIndex}`;
-        setEntryApprovals(prev => {
-          const updated = { ...prev };
-          delete updated[uniqueKey];
-          updated[newKey] = 'pending';
-          return updated;
-        });
+        // Add AI response with suggested activity
+        const aiMessage: ChatMessage = {
+          id: generateId(),
+          role: 'assistant',
+          content: `Based on your feedback, here's an alternative that might work better:`,
+          timestamp: new Date(),
+          suggestedActivity: result.alternative,
+        };
+        setChatMessages(prev => [...prev, aiMessage]);
+
+        // Scroll to bottom
+        setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
       } else {
-        setError(result.error || 'No alternative activity found for this slot');
+        // No alternatives found
+        const aiMessage: ChatMessage = {
+          id: generateId(),
+          role: 'assistant',
+          content: "I couldn't find a better match with those criteria. Would you like to skip this time slot, or try different feedback?",
+          timestamp: new Date(),
+        };
+        setChatMessages(prev => [...prev, aiMessage]);
       }
     } catch (err) {
-      console.error('Failed to find alternative:', err);
-      setError('Failed to find alternative activity');
+      console.error('Chat error:', err);
+      const errorMessage: ChatMessage = {
+        id: generateId(),
+        role: 'assistant',
+        content: "Sorry, I had trouble finding alternatives. Please try again.",
+        timestamp: new Date(),
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
     } finally {
-      setLoadingAlternative(null);
+      setIsChatLoading(false);
     }
-  };
+  }, [activeChatContext, schedule, selectedWeekStart, getDeclinedActivityIds, activityService]);
+
+  /**
+   * Accept a suggested activity from chat
+   */
+  const handleAcceptFromChat = useCallback((suggestedActivity: ScheduleEntry) => {
+    if (!activeChatContext) return;
+
+    // Update schedule with new activity
+    setSchedule(prev => {
+      if (!prev) return prev;
+      const newEntries = { ...prev.entries };
+      const dayEntries = [...(newEntries[activeChatContext.day] || [])];
+      if (activeChatContext.entryIndex < dayEntries.length) {
+        dayEntries[activeChatContext.entryIndex] = suggestedActivity;
+        newEntries[activeChatContext.day] = dayEntries;
+      }
+      return { ...prev, entries: newEntries };
+    });
+
+    // Update approval state
+    const oldKey = `${activeChatContext.childId}-${activeChatContext.currentActivityId}-${activeChatContext.day}-${activeChatContext.entryIndex}`;
+    const newKey = `${suggestedActivity.child_id}-${suggestedActivity.activity_id}-${suggestedActivity.day}-${activeChatContext.entryIndex}`;
+    setEntryApprovals(prev => {
+      const updated = { ...prev };
+      delete updated[oldKey];
+      updated[newKey] = 'approved';
+      return updated;
+    });
+
+    // Close chat
+    setShowChat(false);
+    setActiveChatContext(null);
+  }, [activeChatContext]);
+
+  /**
+   * Decline a suggested activity in chat and request another
+   */
+  const handleDeclineFromChat = useCallback((suggestedActivity: ScheduleEntry) => {
+    // Add to feedback history
+    setFeedbackHistory(prev => [...prev, {
+      activityId: suggestedActivity.activity_id,
+      feedback: 'declined without specific feedback',
+      timestamp: new Date(),
+    }]);
+
+    // Add another AI message asking for feedback
+    const aiMessage: ChatMessage = {
+      id: generateId(),
+      role: 'assistant',
+      content: `Got it, "${suggestedActivity.activity_name}" isn't right either. What would you prefer instead?`,
+      timestamp: new Date(),
+    };
+    setChatMessages(prev => [...prev, aiMessage]);
+  }, []);
+
+  /**
+   * Close chat panel
+   */
+  const closeChat = useCallback(() => {
+    setShowChat(false);
+    setActiveChatContext(null);
+    setChatMessages([]);
+    setShowOtherInput(false);
+  }, []);
+
+  /**
+   * Legacy function for backwards compatibility - now opens chat
+   */
+  const handleFindDifferent = useCallback((entry: ScheduleEntry, uniqueKey: string, entryIndex: number) => {
+    openChatForActivity(entry, uniqueKey, entryIndex);
+  }, [openChatForActivity]);
 
   /**
    * Add approved activities to calendar
@@ -540,6 +768,167 @@ const WeeklyPlannerScreen = () => {
   );
 
   /**
+   * Render chat message with optional activity card
+   */
+  const renderChatMessage = ({ item }: { item: ChatMessage }) => {
+    const isUser = item.role === 'user';
+
+    return (
+      <View style={[styles.chatMessageContainer, isUser ? styles.chatMessageUser : styles.chatMessageAssistant]}>
+        {!isUser && (
+          <View style={styles.chatAvatarContainer}>
+            <Image source={aiRobotImage} style={styles.chatAvatar} />
+          </View>
+        )}
+        <View style={[styles.chatBubble, isUser ? styles.chatBubbleUser : styles.chatBubbleAssistant]}>
+          <Text style={[styles.chatMessageText, isUser && styles.chatMessageTextUser]}>
+            {item.content}
+          </Text>
+
+          {/* Suggested activity card */}
+          {item.suggestedActivity && (
+            <View style={styles.chatActivityCard}>
+              {/* Activity info */}
+              <View style={styles.chatActivityInfo}>
+                <Text style={styles.chatActivityName} numberOfLines={2}>
+                  {item.suggestedActivity.activity_name}
+                </Text>
+                <View style={styles.chatActivityRow}>
+                  <Icon name="map-marker" size={12} color={ModernColors.textSecondary} />
+                  <Text style={styles.chatActivityDetail} numberOfLines={1}>
+                    {item.suggestedActivity.location}
+                  </Text>
+                </View>
+                <View style={styles.chatActivityRow}>
+                  <Icon name="clock-outline" size={12} color={ModernColors.textSecondary} />
+                  <Text style={styles.chatActivityDetail}>{item.suggestedActivity.time}</Text>
+                  {item.suggestedActivity.duration_minutes && (
+                    <Text style={styles.chatActivityDetail}> • {item.suggestedActivity.duration_minutes} min</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Action buttons */}
+              <View style={styles.chatActivityActions}>
+                <TouchableOpacity
+                  style={[styles.chatActivityButton, styles.chatActivityButtonAccept]}
+                  onPress={() => handleAcceptFromChat(item.suggestedActivity!)}
+                >
+                  <Icon name="check" size={16} color="#FFFFFF" />
+                  <Text style={styles.chatActivityButtonTextLight}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chatActivityButton, styles.chatActivityButtonDecline]}
+                  onPress={() => handleDeclineFromChat(item.suggestedActivity!)}
+                >
+                  <Icon name="close" size={16} color={ModernColors.error} />
+                  <Text style={[styles.chatActivityButtonText, { color: ModernColors.error }]}>No</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  /**
+   * Render chat panel modal
+   */
+  const renderChatPanel = () => (
+    <Modal
+      visible={showChat}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={closeChat}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.chatContainer}
+      >
+        <SafeAreaView style={styles.chatContainer}>
+          {/* Chat Header */}
+          <View style={styles.chatHeader}>
+            <View style={styles.chatHeaderContent}>
+              <Text style={styles.chatHeaderTitle}>
+                Refining activity for {activeChatContext?.childName || 'your child'}
+              </Text>
+              <Text style={styles.chatHeaderSubtitle}>
+                {activeChatContext?.day} • Tell me what you'd prefer
+              </Text>
+            </View>
+            <TouchableOpacity onPress={closeChat} style={styles.chatCloseButton}>
+              <Icon name="close" size={24} color={ModernColors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Chat Messages */}
+          <FlatList
+            ref={chatScrollRef}
+            data={chatMessages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderChatMessage}
+            contentContainerStyle={styles.chatMessagesList}
+            onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
+          />
+
+          {/* Loading indicator */}
+          {isChatLoading && (
+            <View style={styles.chatLoadingContainer}>
+              <ActivityIndicator size="small" color={ModernColors.primary} />
+              <Text style={styles.chatLoadingText}>Finding alternatives...</Text>
+            </View>
+          )}
+
+          {/* Quick responses (shown when no custom input is active) */}
+          {!showOtherInput && !isChatLoading && (
+            <View style={styles.quickResponsesContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {QUICK_RESPONSES.map((response, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.quickResponseChip}
+                    onPress={() => handleQuickResponse(response)}
+                  >
+                    <Text style={styles.quickResponseText}>{response.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Text input (shown when "Other..." is selected or after quick response) */}
+          {showOtherInput && (
+            <View style={styles.chatInputContainer}>
+              <TextInput
+                style={styles.chatInput}
+                value={chatInputText}
+                onChangeText={setChatInputText}
+                placeholder="Tell me what you're looking for..."
+                placeholderTextColor={ModernColors.textSecondary}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                style={[styles.chatSendButton, !chatInputText.trim() && styles.chatSendButtonDisabled]}
+                onPress={() => handleChatSubmit(chatInputText)}
+                disabled={!chatInputText.trim() || isChatLoading}
+              >
+                <Icon name="send" size={20} color={chatInputText.trim() ? '#FFFFFF' : ModernColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Skip button */}
+          <TouchableOpacity style={styles.chatSkipButton} onPress={closeChat}>
+            <Text style={styles.chatSkipText}>Skip this time slot</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  /**
    * Render a schedule entry card (ActivityCard-style)
    */
   const renderScheduleEntry = (entry: ScheduleEntry, dayIndex: number, entryIndex: number) => {
@@ -547,20 +936,21 @@ const WeeklyPlannerScreen = () => {
     const uniqueKey = `${entry.child_id}-${entry.activity_id}-${entry.day}-${entryIndex}`;
     const approvalState = entryApprovals[uniqueKey] || 'pending';
     const activity = activityDetails[entry.activity_id];
-    const isLoadingAlternative = loadingAlternative === uniqueKey;
 
     // Get activity image
     const imageKey = activity ? getActivityImageKey(activity) : 'default';
     const fallbackImage = getActivityImageByKey(imageKey);
 
     return (
-      <View
+      <TouchableOpacity
         key={uniqueKey}
         style={[
           styles.scheduleCard,
           approvalState === 'approved' && styles.scheduleCardApproved,
           approvalState === 'declined' && styles.scheduleCardDeclined,
         ]}
+        onPress={() => handleActivityPress(entry)}
+        activeOpacity={0.8}
       >
         {/* Child color indicator bar at top */}
         <View style={[styles.childColorBar, { backgroundColor: childColor }]}>
@@ -569,59 +959,63 @@ const WeeklyPlannerScreen = () => {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.scheduleCardContent}
-          onPress={() => handleActivityPress(entry)}
-          activeOpacity={0.7}
-        >
-          {/* Activity Image */}
-          <View style={styles.scheduleCardImageContainer}>
-            {activity?.imageUrl ? (
-              <OptimizedActivityImage
-                activity={activity}
-                style={styles.scheduleCardImage}
-                fallbackImage={fallbackImage}
-              />
-            ) : (
-              <Image source={fallbackImage} style={styles.scheduleCardImage} />
-            )}
-            {/* Time badge overlay */}
-            <View style={styles.timeBadge}>
-              <Icon name="clock-outline" size={12} color="#FFFFFF" />
-              <Text style={styles.timeBadgeText}>{entry.time}</Text>
-            </View>
-          </View>
-
-          {/* Activity Details */}
-          <View style={styles.scheduleCardDetails}>
-            <Text style={styles.scheduleCardTitle} numberOfLines={2}>
-              {entry.activity_name}
-            </Text>
-
-            {/* Location */}
-            <View style={styles.scheduleCardRow}>
-              <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
-              <Text style={styles.scheduleCardRowText} numberOfLines={1}>
-                {entry.location}
+        {/* Activity Image - Full width, taller */}
+        <View style={styles.scheduleCardImageContainer}>
+          {activity?.imageUrl ? (
+            <OptimizedActivityImage
+              activity={activity}
+              style={styles.scheduleCardImage}
+              fallbackImage={fallbackImage}
+            />
+          ) : (
+            <Image source={fallbackImage} style={styles.scheduleCardImage} />
+          )}
+          {/* Price overlay - bottom left */}
+          {activity?.cost !== undefined && activity.cost !== null && (
+            <View style={styles.priceOverlay}>
+              <Text style={styles.priceOverlayText}>
+                {formatActivityPrice(activity.cost)}
               </Text>
             </View>
-
-            {/* Duration & Cost */}
-            <View style={styles.scheduleCardRow}>
-              {entry.duration_minutes && (
-                <>
-                  <Icon name="timer-outline" size={14} color={ModernColors.textSecondary} />
-                  <Text style={styles.scheduleCardRowText}>{entry.duration_minutes} min</Text>
-                </>
-              )}
-              {activity?.cost !== undefined && activity.cost !== null && (
-                <Text style={styles.scheduleCardCost}>
-                  {formatActivityPrice(activity.cost)}
-                </Text>
-              )}
-            </View>
+          )}
+          {/* Time badge - bottom right */}
+          <View style={styles.timeBadge}>
+            <Icon name="clock-outline" size={12} color="#FFFFFF" />
+            <Text style={styles.timeBadgeText}>{entry.time}</Text>
           </View>
-        </TouchableOpacity>
+        </View>
+
+        {/* Activity Details */}
+        <View style={styles.scheduleCardDetails}>
+          <Text style={styles.scheduleCardTitle} numberOfLines={2}>
+            {entry.activity_name}
+          </Text>
+
+          {/* Location */}
+          <View style={styles.scheduleCardRow}>
+            <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
+            <Text style={styles.scheduleCardRowText} numberOfLines={1}>
+              {entry.location}
+            </Text>
+          </View>
+
+          {/* Duration & Days */}
+          <View style={styles.scheduleCardRow}>
+            {entry.duration_minutes && (
+              <View style={styles.durationBadge}>
+                <Icon name="timer-outline" size={12} color={ModernColors.textSecondary} />
+                <Text style={styles.durationBadgeText}>{entry.duration_minutes} min</Text>
+              </View>
+            )}
+            {activity?.daysOfWeek && activity.daysOfWeek.length > 0 && (
+              <View style={styles.daysBadge}>
+                <Text style={styles.daysBadgeText}>
+                  {activity.daysOfWeek.slice(0, 2).map(d => d.slice(0, 3)).join(', ')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsRow}>
@@ -632,7 +1026,10 @@ const WeeklyPlannerScreen = () => {
               styles.actionButtonAccept,
               approvalState === 'approved' && styles.actionButtonAcceptActive,
             ]}
-            onPress={() => setEntryApproval(uniqueKey, approvalState === 'approved' ? 'pending' : 'approved')}
+            onPress={(e) => {
+              e.stopPropagation();
+              setEntryApproval(uniqueKey, approvalState === 'approved' ? 'pending' : 'approved');
+            }}
           >
             <Icon
               name={approvalState === 'approved' ? 'check-circle' : 'check'}
@@ -654,7 +1051,10 @@ const WeeklyPlannerScreen = () => {
               styles.actionButtonDecline,
               approvalState === 'declined' && styles.actionButtonDeclineActive,
             ]}
-            onPress={() => setEntryApproval(uniqueKey, approvalState === 'declined' ? 'pending' : 'declined')}
+            onPress={(e) => {
+              e.stopPropagation();
+              setEntryApproval(uniqueKey, approvalState === 'declined' ? 'pending' : 'declined');
+            }}
           >
             <Icon
               name={approvalState === 'declined' ? 'close-circle' : 'close'}
@@ -669,25 +1069,21 @@ const WeeklyPlannerScreen = () => {
             </Text>
           </TouchableOpacity>
 
-          {/* Find Different Button */}
+          {/* Find Different Button - Opens chat panel */}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonAlternative]}
-            onPress={() => handleFindDifferent(entry, uniqueKey, entryIndex)}
-            disabled={isLoadingAlternative}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleFindDifferent(entry, uniqueKey, entryIndex);
+            }}
           >
-            {isLoadingAlternative ? (
-              <ActivityIndicator size="small" color={ModernColors.primary} />
-            ) : (
-              <>
-                <Icon name="refresh" size={18} color={ModernColors.primary} />
-                <Text style={[styles.actionButtonText, { color: ModernColors.primary }]}>
-                  Different
-                </Text>
-              </>
-            )}
+            <Icon name="refresh" size={18} color={ModernColors.primary} />
+            <Text style={[styles.actionButtonText, { color: ModernColors.primary }]}>
+              Different
+            </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -745,28 +1141,6 @@ const WeeklyPlannerScreen = () => {
               color={ModernColors.warning}
             />
             <Text style={styles.conflictText}>{conflict.description}</Text>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  /**
-   * Render suggestions section
-   */
-  const renderSuggestions = () => {
-    if (!schedule?.suggestions || schedule.suggestions.length === 0) return null;
-
-    return (
-      <View style={styles.suggestionsSection}>
-        <View style={styles.suggestionsHeader}>
-          <Icon name="lightbulb-outline" size={20} color={ModernColors.primary} />
-          <Text style={styles.suggestionsTitle}>AI Suggestions</Text>
-        </View>
-        {schedule.suggestions.map((suggestion, index) => (
-          <View key={index} style={styles.suggestionCard}>
-            <Icon name="lightbulb-on" size={16} color={ModernColors.primary} />
-            <Text style={styles.suggestionText}>{suggestion}</Text>
           </View>
         ))}
       </View>
@@ -1108,7 +1482,6 @@ const WeeklyPlannerScreen = () => {
           >
             {renderSummary()}
             {renderConflicts()}
-            {renderSuggestions()}
 
             {/* Calendar view */}
             <ScrollView
@@ -1135,6 +1508,7 @@ const WeeklyPlannerScreen = () => {
       {/* Modals */}
       {renderDatePicker()}
       {renderAvailabilityPicker()}
+      {renderChatPanel()}
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -1506,40 +1880,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // Suggestions
-  suggestionsSection: {
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    backgroundColor: ModernColors.primaryLight + '15',
-    borderRadius: ModernBorderRadius.lg,
-    borderWidth: 1,
-    borderColor: ModernColors.primaryLight + '30',
-  },
-  suggestionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  suggestionsTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: ModernColors.primaryDark,
-  },
-  suggestionCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginTop: 8,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: 13,
-    color: ModernColors.primaryDark,
-    lineHeight: 18,
-  },
-
   // Calendar
   calendarScroll: {
     paddingHorizontal: 16,
@@ -1676,7 +2016,7 @@ const styles = StyleSheet.create({
     borderRadius: ModernBorderRadius.lg,
     overflow: 'hidden',
     marginBottom: 12,
-    ...ModernShadows.sm,
+    ...ModernShadows.md,
   },
   scheduleCardApproved: {
     borderWidth: 2,
@@ -1696,66 +2036,92 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  scheduleCardContent: {
-    flexDirection: 'row',
-    padding: 12,
-  },
   scheduleCardImageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: ModernBorderRadius.md,
-    overflow: 'hidden',
+    width: '100%',
+    height: 120,
+    position: 'relative',
     backgroundColor: ModernColors.background,
   },
   scheduleCardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: ModernBorderRadius.md,
+    width: '100%',
+    height: 120,
+  },
+  priceOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  priceOverlayText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   timeBadge: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   timeBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   scheduleCardDetails: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
+    padding: 12,
   },
   scheduleCardTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: ModernColors.text,
     marginBottom: 6,
+    lineHeight: 18,
   },
   scheduleCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 4,
+    flexWrap: 'wrap',
   },
   scheduleCardRowText: {
     fontSize: 12,
     color: ModernColors.textSecondary,
     flex: 1,
   },
-  scheduleCardCost: {
-    fontSize: 12,
+  durationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: ModernColors.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  durationBadgeText: {
+    fontSize: 11,
+    color: ModernColors.textSecondary,
+  },
+  daysBadge: {
+    backgroundColor: ModernColors.primaryLight + '30',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  daysBadgeText: {
+    fontSize: 11,
     fontWeight: '600',
     color: ModernColors.primary,
-    marginLeft: 8,
   },
   actionButtonsRow: {
     flexDirection: 'row',
@@ -1979,6 +2345,217 @@ const styles = StyleSheet.create({
     color: ModernColors.textSecondary,
     textAlign: 'center',
     padding: 16,
+  },
+
+  // Chat Panel Styles
+  chatContainer: {
+    flex: 1,
+    backgroundColor: ModernColors.background,
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: ModernColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.border,
+  },
+  chatHeaderContent: {
+    flex: 1,
+  },
+  chatHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.text,
+  },
+  chatHeaderSubtitle: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+    marginTop: 2,
+  },
+  chatCloseButton: {
+    padding: 8,
+  },
+  chatMessagesList: {
+    padding: 16,
+    flexGrow: 1,
+  },
+  chatMessageContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  chatMessageUser: {
+    justifyContent: 'flex-end',
+  },
+  chatMessageAssistant: {
+    justifyContent: 'flex-start',
+  },
+  chatAvatarContainer: {
+    marginRight: 8,
+  },
+  chatAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: ModernColors.primaryLight + '30',
+  },
+  chatBubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+  },
+  chatBubbleUser: {
+    backgroundColor: ModernColors.primary,
+    borderBottomRightRadius: 4,
+  },
+  chatBubbleAssistant: {
+    backgroundColor: ModernColors.surface,
+    borderBottomLeftRadius: 4,
+    ...ModernShadows.sm,
+  },
+  chatMessageText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: ModernColors.text,
+  },
+  chatMessageTextUser: {
+    color: '#FFFFFF',
+  },
+  chatActivityCard: {
+    marginTop: 12,
+    backgroundColor: ModernColors.background,
+    borderRadius: ModernBorderRadius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+  },
+  chatActivityInfo: {
+    marginBottom: 12,
+  },
+  chatActivityName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 6,
+  },
+  chatActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  chatActivityDetail: {
+    fontSize: 12,
+    color: ModernColors.textSecondary,
+  },
+  chatActivityActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chatActivityButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  chatActivityButtonAccept: {
+    backgroundColor: ModernColors.success,
+  },
+  chatActivityButtonDecline: {
+    backgroundColor: ModernColors.error + '10',
+    borderWidth: 1,
+    borderColor: ModernColors.error + '30',
+  },
+  chatActivityButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chatActivityButtonTextLight: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  chatLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    gap: 8,
+  },
+  chatLoadingText: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+  },
+  quickResponsesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+    backgroundColor: ModernColors.surface,
+  },
+  quickResponseChip: {
+    backgroundColor: ModernColors.primaryLight + '20',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.primary + '30',
+  },
+  quickResponseText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: ModernColors.primary,
+  },
+  chatInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.surface,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+    gap: 12,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: ModernColors.background,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: ModernColors.text,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+  },
+  chatSendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ModernColors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatSendButtonDisabled: {
+    backgroundColor: ModernColors.border,
+  },
+  chatSkipButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+    backgroundColor: ModernColors.surface,
+  },
+  chatSkipText: {
+    fontSize: 14,
+    color: ModernColors.textSecondary,
   },
 });
 

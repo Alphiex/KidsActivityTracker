@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
-  Switch,
   ImageBackground,
   Dimensions,
   KeyboardAvoidingView,
@@ -22,7 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppSelector } from '../store';
-import childrenService, { Child as ServiceChild, SharedChild as ServiceSharedChild } from '../services/childrenService';
+import childrenService from '../services/childrenService';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { EnhancedAddress } from '../types/preferences';
 import { locationService } from '../services/locationService';
@@ -58,6 +57,7 @@ interface Child {
   id: string;
   name: string;
   dateOfBirth?: string;
+  gender?: 'male' | 'female' | null;
   location?: string;
   avatarUrl?: string;
   activityCount?: number;
@@ -424,16 +424,15 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   onClose,
   onSave,
   child,
-  defaultLocation,
+  defaultLocation: _defaultLocation,
 }) => {
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
-  const [usePreferencesLocation, setUsePreferencesLocation] = useState(true);
-  const [preferencesAddress, setPreferencesAddress] = useState<EnhancedAddress | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [selectedSavedAddress, setSelectedSavedAddress] = useState<SavedAddress | null>(null);
-  const [showAddressOptions, setShowAddressOptions] = useState(false);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
@@ -443,9 +442,8 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
     const loadSavedAddresses = async () => {
       const addresses: SavedAddress[] = [];
 
-      // Load preferences address
+      // Load preferences address (user's default location)
       const prefAddress = locationService.getEnhancedAddress();
-      setPreferencesAddress(prefAddress);
       if (prefAddress) {
         addresses.push({
           label: 'My saved location',
@@ -454,7 +452,7 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
         });
       }
 
-      // Load other children's addresses
+      // Load other children's addresses (for "copy from another child" feature)
       try {
         const allChildren = await childrenService.getMyChildren();
         allChildren.forEach((c: Child) => {
@@ -491,7 +489,6 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       // Auto-select preferences address if available and creating new child
       if (!child && prefAddress) {
         setSelectedSavedAddress(addresses[0] || null);
-        setUsePreferencesLocation(true);
       }
     };
 
@@ -503,6 +500,7 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   useEffect(() => {
     if (child) {
       setName(child.name || '');
+      setGender(child.gender || null);
       if (child.dateOfBirth) {
         // Parse date as local date, not UTC
         // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
@@ -523,15 +521,19 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
           updatedAt: new Date().toISOString(),
         });
         setSelectedSavedAddress(null); // Show current address, not a saved one
+        setIsEditingAddress(false); // Not editing, just displaying
       } else {
         setSelectedAddress(null);
+        setIsEditingAddress(true); // No address, show input
         // Will auto-select first saved address in the loadSavedAddresses effect
       }
     } else {
       setName('');
+      setGender(null);
       setDateOfBirth('');
       setSelectedAddress(null);
       setSelectedSavedAddress(null);
+      setIsEditingAddress(true); // New child, show address input
       setSelectedDate(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
     }
   }, [child, visible]);
@@ -589,6 +591,7 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       name: name.trim(),
       // Always provide a dateOfBirth in ISO 8601 format
       dateOfBirth: dateOfBirth ? `${dateOfBirth}T00:00:00.000Z` : formattedDate,
+      gender: gender, // Optional - can be 'male', 'female', or null
     };
 
     // Add location data if available
@@ -718,97 +721,129 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
               )}
             </View>
 
+            {/* Gender (Optional) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Gender (Optional)</Text>
+              <View style={styles.genderOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.genderOption,
+                    gender === 'male' && styles.genderOptionSelected,
+                  ]}
+                  onPress={() => setGender(gender === 'male' ? null : 'male')}
+                >
+                  <Icon
+                    name="gender-male"
+                    size={20}
+                    color={gender === 'male' ? ModernColors.primary : ModernColors.textLight}
+                  />
+                  <Text style={[
+                    styles.genderOptionText,
+                    gender === 'male' && styles.genderOptionTextSelected,
+                  ]}>
+                    Boy
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.genderOption,
+                    gender === 'female' && styles.genderOptionSelected,
+                  ]}
+                  onPress={() => setGender(gender === 'female' ? null : 'female')}
+                >
+                  <Icon
+                    name="gender-female"
+                    size={20}
+                    color={gender === 'female' ? ModernColors.primary : ModernColors.textLight}
+                  />
+                  <Text style={[
+                    styles.genderOptionText,
+                    gender === 'female' && styles.genderOptionTextSelected,
+                  ]}>
+                    Girl
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View style={[styles.inputGroup, { zIndex: 100 }]}>
               <Text style={styles.inputLabel}>Location (Optional)</Text>
 
-              {/* Saved addresses list */}
-              {savedAddresses.length > 0 && (
-                <View style={styles.savedAddressesList}>
-                  {savedAddresses.map((savedAddr, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.savedAddressOption,
-                        selectedSavedAddress === savedAddr && styles.savedAddressOptionSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedSavedAddress(savedAddr);
-                        setSelectedAddress(null);
-                      }}
-                    >
-                      <Icon
-                        name={savedAddr.type === 'preferences' ? 'home-map-marker' : 'account-child'}
-                        size={20}
-                        color={selectedSavedAddress === savedAddr ? ModernColors.primary : ModernColors.textLight}
-                      />
-                      <View style={styles.savedAddressTextContainer}>
-                        <Text style={[
-                          styles.savedAddressLabel,
-                          selectedSavedAddress === savedAddr && styles.savedAddressLabelSelected,
-                        ]}>
-                          {savedAddr.label}
-                        </Text>
-                        <Text style={styles.savedAddressValue} numberOfLines={1}>
-                          {savedAddr.address.city || savedAddr.address.formattedAddress}
-                        </Text>
-                      </View>
-                      {selectedSavedAddress === savedAddr && (
-                        <Icon name="check-circle" size={20} color={ModernColors.primary} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-
-                  {/* Option to enter different address */}
+              {/* If address is set and not editing, show current address with Edit button */}
+              {!isEditingAddress && (selectedAddress || selectedSavedAddress) ? (
+                <View style={styles.currentAddressContainer}>
+                  <View style={styles.currentAddressInfo}>
+                    <Icon name="map-marker-check" size={20} color={ModernColors.success} />
+                    <Text style={styles.currentAddressText} numberOfLines={2}>
+                      {selectedSavedAddress?.address.city || selectedSavedAddress?.address.formattedAddress ||
+                       selectedAddress?.city || selectedAddress?.formattedAddress}
+                    </Text>
+                  </View>
                   <TouchableOpacity
-                    style={[
-                      styles.savedAddressOption,
-                      !selectedSavedAddress && selectedAddress && styles.savedAddressOptionSelected,
-                    ]}
-                    onPress={() => {
-                      setSelectedSavedAddress(null);
-                    }}
+                    style={styles.editAddressButton}
+                    onPress={() => setIsEditingAddress(true)}
                   >
-                    <Icon
-                      name="map-marker-plus"
-                      size={20}
-                      color={!selectedSavedAddress ? ModernColors.primary : ModernColors.textLight}
-                    />
-                    <View style={styles.savedAddressTextContainer}>
-                      <Text style={[
-                        styles.savedAddressLabel,
-                        !selectedSavedAddress && styles.savedAddressLabelSelected,
-                      ]}>
-                        Enter a different address
-                      </Text>
-                    </View>
+                    <Icon name="pencil" size={16} color={ModernColors.primary} />
+                    <Text style={styles.editAddressButtonText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
-              )}
+              ) : (
+                <>
+                  {/* Show saved addresses from other children (copy address feature) */}
+                  {savedAddresses.length > 0 && (
+                    <View style={styles.savedAddressesList}>
+                      {savedAddresses.map((savedAddr, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.savedAddressOption,
+                            selectedSavedAddress === savedAddr && styles.savedAddressOptionSelected,
+                          ]}
+                          onPress={() => {
+                            setSelectedSavedAddress(savedAddr);
+                            setSelectedAddress(null);
+                            setIsEditingAddress(false);
+                          }}
+                        >
+                          <Icon
+                            name={savedAddr.type === 'preferences' ? 'home-map-marker' : 'account-child'}
+                            size={20}
+                            color={selectedSavedAddress === savedAddr ? ModernColors.primary : ModernColors.textLight}
+                          />
+                          <View style={styles.savedAddressTextContainer}>
+                            <Text style={[
+                              styles.savedAddressLabel,
+                              selectedSavedAddress === savedAddr && styles.savedAddressLabelSelected,
+                            ]}>
+                              {savedAddr.label}
+                            </Text>
+                            <Text style={styles.savedAddressValue} numberOfLines={1}>
+                              {savedAddr.address.city || savedAddr.address.formattedAddress}
+                            </Text>
+                          </View>
+                          {selectedSavedAddress === savedAddr && (
+                            <Icon name="check-circle" size={20} color={ModernColors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
 
-              {/* Show address autocomplete when no saved address selected */}
-              {(!selectedSavedAddress || savedAddresses.length === 0) && (
-                <View style={styles.addressAutocompleteContainer}>
-                  <AddressAutocomplete
-                    value={selectedAddress}
-                    onAddressSelect={(addr) => {
-                      setSelectedAddress(addr);
-                      setSelectedSavedAddress(null);
-                    }}
-                    placeholder="Search for an address..."
-                    country={['ca', 'us']}
-                    showFallbackOption={true}
-                  />
-                </View>
-              )}
-
-              {/* Show current effective address */}
-              {selectedSavedAddress && (
-                <View style={styles.effectiveAddressRow}>
-                  <Icon name="map-marker-check" size={16} color={ModernColors.success} />
-                  <Text style={styles.effectiveAddressText}>
-                    Using: {selectedSavedAddress.address.city || selectedSavedAddress.address.formattedAddress}
-                  </Text>
-                </View>
+                  {/* Address search */}
+                  <View style={styles.addressAutocompleteContainer}>
+                    <AddressAutocomplete
+                      value={selectedAddress}
+                      onAddressSelect={(addr) => {
+                        setSelectedAddress(addr);
+                        setSelectedSavedAddress(null);
+                        setIsEditingAddress(false);
+                      }}
+                      placeholder="Search for an address..."
+                      country={['ca', 'us']}
+                      showFallbackOption={true}
+                    />
+                  </View>
+                </>
               )}
             </View>
           </ScrollView>
@@ -1180,6 +1215,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: ModernColors.textLight,
     marginTop: 2,
+  },
+  genderOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  genderOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: ModernColors.backgroundLight,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.borderLight,
+    gap: 8,
+  },
+  genderOptionSelected: {
+    backgroundColor: '#FDF2F8',
+    borderColor: ModernColors.primary,
+  },
+  genderOptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: ModernColors.textLight,
+  },
+  genderOptionTextSelected: {
+    color: ModernColors.primary,
+  },
+  currentAddressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: ModernColors.backgroundLight,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.borderLight,
+    marginTop: 8,
+  },
+  currentAddressInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currentAddressText: {
+    flex: 1,
+    fontSize: 14,
+    color: ModernColors.text,
+  },
+  editAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FDF2F8',
+    borderRadius: 6,
+    gap: 4,
+  },
+  editAddressButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ModernColors.primary,
   },
 });
 
