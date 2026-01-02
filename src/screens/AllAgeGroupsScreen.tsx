@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   heroSection: {
-    height: height * 0.22,
+    height: height * 0.28,
     width: '100%',
   },
   heroImageStyle: {
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
     paddingTop: 16,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 24,
     justifyContent: 'space-between',
   },
   heroTopRow: {
