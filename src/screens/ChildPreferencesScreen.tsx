@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 180,
   },
   header: {
     paddingHorizontal: 20,
@@ -1013,11 +1013,11 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 80,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 16,
     paddingTop: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,

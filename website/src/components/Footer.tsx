@@ -71,27 +71,27 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">Quick Links</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/cities" className="hover:text-purple-400 transition-colors">
+                <Link href="/cities" className="hover:text-[#E8638B] transition-colors">
                   Supported Cities
                 </Link>
               </li>
               <li>
-                <Link href="/request-city" className="hover:text-purple-400 transition-colors">
+                <Link href="/request-city" className="hover:text-[#E8638B] transition-colors">
                   Request a City
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="hover:text-purple-400 transition-colors">
+                <Link href="/faq" className="hover:text-[#E8638B] transition-colors">
                   FAQ
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-purple-400 transition-colors">
+                <Link href="/privacy" className="hover:text-[#E8638B] transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="#download" className="hover:text-purple-400 transition-colors">
+                <Link href="#download" className="hover:text-[#E8638B] transition-colors">
                   Download App
                 </Link>
               </li>
@@ -103,17 +103,17 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">For Vendors</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/vendor" className="hover:text-purple-400 transition-colors">
+                <Link href="/vendor" className="hover:text-[#E8638B] transition-colors">
                   List Your Activities
                 </Link>
               </li>
               <li>
-                <Link href="/vendor/register" className="hover:text-purple-400 transition-colors">
+                <Link href="/vendor/register" className="hover:text-[#E8638B] transition-colors">
                   Vendor Registration
                 </Link>
               </li>
               <li>
-                <Link href="/vendor/login" className="hover:text-purple-400 transition-colors">
+                <Link href="/vendor/login" className="hover:text-[#E8638B] transition-colors">
                   Vendor Login
                 </Link>
               </li>
@@ -127,7 +127,7 @@ export default function Footer() {
               <li>
                 <a
                   href="mailto:support@kidsactivitytracker.ca"
-                  className="hover:text-purple-400 transition-colors"
+                  className="hover:text-[#E8638B] transition-colors"
                 >
                   support@kidsactivitytracker.ca
                 </a>
@@ -172,7 +172,7 @@ export default function Footer() {
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
               <p>&copy; {currentYear} Kids Activity Tracker. All rights reserved.</p>
               <div className="flex items-center gap-4">
-                <Link href="/privacy" className="hover:text-purple-400 transition-colors">
+                <Link href="/privacy" className="hover:text-[#E8638B] transition-colors">
                   Privacy Policy
                 </Link>
               </div>

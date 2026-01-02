@@ -155,7 +155,7 @@ export default function AICapabilities() {
               <h3 className="text-2xl font-bold mb-2">
                 {activeItem.title}
               </h3>
-              <p className="text-purple-400 font-medium mb-4">
+              <p className="text-[#E8638B] font-medium mb-4">
                 {activeItem.subtitle}
               </p>
 
@@ -175,7 +175,7 @@ export default function AICapabilities() {
               )}
 
               {/* Decorative elements */}
-              <div className="absolute top-4 right-4 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-xl" />
+              <div className="absolute top-4 right-4 w-20 h-20 bg-gradient-to-br from-[#E8638B]/10 to-[#FFB5C5]/10 rounded-full blur-xl" />
               <div className="absolute bottom-4 left-4 w-16 h-16 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-xl" />
             </div>
           </div>
@@ -189,17 +189,17 @@ export default function AICapabilities() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-white/5 rounded-xl p-4 border border-gray-700">
-              <div className="text-purple-400 text-sm font-medium mb-2">Query</div>
+              <div className="text-[#E8638B] text-sm font-medium mb-2">Query</div>
               <p className="text-white text-sm mb-3">&quot;swimming for toddlers on weekends&quot;</p>
               <div className="text-green-400 text-xs">✓ Found 47 matching activities</div>
             </div>
             <div className="bg-white/5 rounded-xl p-4 border border-gray-700">
-              <div className="text-purple-400 text-sm font-medium mb-2">Query</div>
+              <div className="text-[#E8638B] text-sm font-medium mb-2">Query</div>
               <p className="text-white text-sm mb-3">&quot;art classes under $50 for 8 year old&quot;</p>
               <div className="text-green-400 text-xs">✓ Found 23 matching activities</div>
             </div>
             <div className="bg-white/5 rounded-xl p-4 border border-gray-700">
-              <div className="text-purple-400 text-sm font-medium mb-2">Query</div>
+              <div className="text-[#E8638B] text-sm font-medium mb-2">Query</div>
               <p className="text-white text-sm mb-3">&quot;soccer camps this summer near me&quot;</p>
               <div className="text-green-400 text-xs">✓ Found 12 matching activities</div>
             </div>
