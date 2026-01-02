@@ -5,18 +5,25 @@ const { generateExternalId, extractNativeId } = require('../utils/stableIdGenera
 
 /**
  * Generate a stable ID for PerfectMind activities.
- * Priority: courseId from page > courseId from URL > stable hash (name + location only)
+ * Uses name + location hash for grouping - NOT courseId!
+ * courseId is per-session, so using it would create duplicate activities.
  *
  * @param {Object} activity - Activity object
  * @returns {String} Stable external ID
  */
 function generateStableActivityId(activity) {
-  // Use the centralized ID generator with PerfectMind-specific options
-  return generateExternalId(activity, {
-    platform: 'perfectmind',
-    providerCode: 'pm',
-    hashPrefix: 'pm'
-  });
+  const crypto = require('crypto');
+
+  // Create stable hash from name + location + category (not courseId!)
+  // This groups all sessions of the same activity together
+  const name = (activity.name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const location = (activity.location || activity.locationName || '').toLowerCase().trim();
+  const category = (activity.section || activity.category || '').toLowerCase().trim();
+
+  const key = `${name}|${location}|${category}`;
+  const hash = crypto.createHash('md5').update(key).digest('hex').substring(0, 12);
+
+  return `pm-${hash}`;
 }
 
 /**
@@ -1262,7 +1269,10 @@ class PerfectMindScraper extends BaseScraper {
   getPerfectMindFieldMapping() {
     return {
       name: 'name',
-      externalId: { path: 'courseId', transform: (val, raw) => val || generateStableActivityId(raw) },
+      // Use stable hash (name + location) for grouping, NOT courseId
+      // courseId is per-session, so using it creates thousands of duplicate activities
+      externalId: { path: 'name', transform: (val, raw) => generateStableActivityId(raw) },
+      courseId: 'courseId', // Keep courseId separately for registration URL
       category: 'section',
       subcategory: 'activityType',
       cost: 'cost',
