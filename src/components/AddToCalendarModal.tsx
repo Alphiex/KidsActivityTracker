@@ -24,7 +24,6 @@ import {
   linkActivity,
   unlinkActivity,
   selectActivityChildren,
-  selectChildActivities
 } from '../store/slices/childActivitiesSlice';
 import { Activity } from '../types';
 import { Colors } from '../theme';

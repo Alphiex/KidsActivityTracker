@@ -364,6 +364,8 @@ const SearchScreen = () => {
     setEnvironmentFilter('all');
     setDistanceEnabled(false);
     setDistanceRadius(25);
+    // Clear global filters as well
+    PreferencesService.getInstance().clearActiveFilters();
   };
 
   const handleSearch = async () => {
@@ -388,6 +390,20 @@ const SearchScreen = () => {
     };
 
     console.log('🔍 [SearchScreen] Searching with params:', JSON.stringify(searchParams, null, 2));
+
+    // Save filters globally so they apply across all screens
+    const preferencesService = PreferencesService.getInstance();
+    preferencesService.setActiveFilters({
+      search: searchText || undefined,
+      activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
+      ageMin: minAge > 0 ? minAge : undefined,
+      ageMax: maxAge < 18 ? maxAge : undefined,
+      costMin: minCost > 0 ? minCost : undefined,
+      costMax: !isUnlimitedCost ? maxCost : undefined,
+      locations: allLocations.length > 0 ? allLocations : undefined,
+      daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
+      hideFullActivities: true,
+    });
 
     if (returnToMap) {
       // Return to map with filters applied

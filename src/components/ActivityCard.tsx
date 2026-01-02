@@ -380,7 +380,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           )}
           style={styles.image}
           resizeMode="cover"
-          containerStyle={styles.imageContainer}
+          containerStyle={{ flex: 1 }}
         />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}

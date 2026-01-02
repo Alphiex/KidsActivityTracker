@@ -5,6 +5,7 @@ import { emailService } from '../utils/emailService';
 import { userPreferenceMatcherService } from './userPreferenceMatcherService';
 import { activitySnapshotService, PriceDropEvent, CapacityChangeEvent } from './activitySnapshotService';
 import { pushNotificationService } from './pushNotificationService';
+import { subscriptionService } from './subscriptionService';
 
 type NotificationType = 'daily_digest' | 'weekly_digest' | 'capacity_alert' | 'price_drop' | 'spots_available';
 
@@ -23,6 +24,17 @@ export class NotificationService {
 
   constructor() {
     this.baseUrl = process.env.FRONTEND_URL || 'https://kidsactivitytracker.com';
+  }
+
+  /**
+   * Check if user has premium subscription (notifications are paywalled)
+   */
+  private async checkPremiumAccess(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+    const isPremium = await subscriptionService.isPremiumUser(userId);
+    if (!isPremium) {
+      return { allowed: false, reason: 'Notifications require premium subscription' };
+    }
+    return { allowed: true };
   }
 
   /**
@@ -110,6 +122,12 @@ export class NotificationService {
    */
   async sendDailyDigest(userId: string): Promise<EmailNotificationResult> {
     try {
+      // Check premium access (notifications are paywalled)
+      const premiumCheck = await this.checkPremiumAccess(userId);
+      if (!premiumCheck.allowed) {
+        return { success: false, error: premiumCheck.reason };
+      }
+
       // Check for recent digest
       if (await this.hasRecentNotification(userId, 'daily_digest')) {
         return { success: false, error: 'Daily digest already sent recently' };
@@ -162,6 +180,12 @@ export class NotificationService {
    */
   async sendWeeklyDigest(userId: string): Promise<EmailNotificationResult> {
     try {
+      // Check premium access (notifications are paywalled)
+      const premiumCheck = await this.checkPremiumAccess(userId);
+      if (!premiumCheck.allowed) {
+        return { success: false, error: premiumCheck.reason };
+      }
+
       if (await this.hasRecentNotification(userId, 'weekly_digest', undefined, 168)) {
         return { success: false, error: 'Weekly digest already sent recently' };
       }
@@ -218,6 +242,12 @@ export class NotificationService {
     spotsRemaining: number
   ): Promise<EmailNotificationResult> {
     try {
+      // Check premium access (notifications are paywalled)
+      const premiumCheck = await this.checkPremiumAccess(userId);
+      if (!premiumCheck.allowed) {
+        return { success: false, error: premiumCheck.reason };
+      }
+
       // Check for recent notification about this activity
       if (await this.hasRecentNotification(userId, 'capacity_alert', activityId, 4)) {
         return { success: false, error: 'Capacity alert already sent recently for this activity' };
@@ -270,6 +300,12 @@ export class NotificationService {
     newPrice: number
   ): Promise<EmailNotificationResult> {
     try {
+      // Check premium access (notifications are paywalled)
+      const premiumCheck = await this.checkPremiumAccess(userId);
+      if (!premiumCheck.allowed) {
+        return { success: false, error: premiumCheck.reason };
+      }
+
       if (await this.hasRecentNotification(userId, 'price_drop', activityId, 24)) {
         return { success: false, error: 'Price drop alert already sent recently for this activity' };
       }
@@ -316,6 +352,12 @@ export class NotificationService {
    */
   async sendSpotsAvailableAlert(userId: string, activityId: string): Promise<EmailNotificationResult> {
     try {
+      // Check premium access (notifications are paywalled)
+      const premiumCheck = await this.checkPremiumAccess(userId);
+      if (!premiumCheck.allowed) {
+        return { success: false, error: premiumCheck.reason };
+      }
+
       if (await this.hasRecentNotification(userId, 'spots_available', activityId, 24)) {
         return { success: false, error: 'Spots available alert already sent recently' };
       }

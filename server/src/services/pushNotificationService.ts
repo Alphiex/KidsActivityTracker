@@ -1,11 +1,13 @@
 /**
  * PushNotificationService
  * Sends push notifications via Firebase Cloud Messaging (FCM)
+ * Note: Activity notifications (spots, capacity, price drop) are paywalled for premium users only
  */
 
 import { prisma } from '../lib/prisma';
 import { Activity, User } from '../../generated/prisma';
 import { initializeFirebase, getFirebaseMessaging, admin } from '../config/firebase';
+import { subscriptionService } from './subscriptionService';
 
 export interface PushNotificationPayload {
   title: string;
@@ -25,6 +27,28 @@ class PushNotificationService {
 
   private constructor() {
     initializeFirebase();
+  }
+
+  /**
+   * Filter user IDs to only include premium subscribers
+   * Activity notifications (spots, capacity, price drop) are paywalled
+   */
+  private async filterPremiumUsers(userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+
+    const premiumUserIds: string[] = [];
+    for (const userId of userIds) {
+      const isPremium = await subscriptionService.isPremiumUser(userId);
+      if (isPremium) {
+        premiumUserIds.push(userId);
+      }
+    }
+
+    if (premiumUserIds.length < userIds.length) {
+      console.log(`[FCM] Filtered ${userIds.length - premiumUserIds.length} non-premium users from notification`);
+    }
+
+    return premiumUserIds;
   }
 
   static getInstance(): PushNotificationService {
@@ -174,6 +198,7 @@ class PushNotificationService {
 
   /**
    * Send "spots available" notification to waitlist users for an activity
+   * Note: Only premium users receive these notifications (paywalled)
    */
   async sendSpotsAvailableNotification(
     activityId: string,
@@ -192,7 +217,14 @@ class PushNotificationService {
       return { successCount: 0, failureCount: 0, invalidTokens: [] };
     }
 
-    const userIds = entries.map((e) => e.userId);
+    // Filter to only premium users (notifications are paywalled)
+    const allUserIds = entries.map((e) => e.userId);
+    const userIds = await this.filterPremiumUsers(allUserIds);
+
+    if (userIds.length === 0) {
+      console.log('[FCM] No premium users on waitlist to notify');
+      return { successCount: 0, failureCount: 0, invalidTokens: [] };
+    }
 
     const payload: PushNotificationPayload = {
       title: 'Spot Available!',
@@ -218,6 +250,7 @@ class PushNotificationService {
 
   /**
    * Send capacity alert notification to users who favorited an activity
+   * Note: Only premium users receive these notifications (paywalled)
    */
   async sendCapacityAlertNotification(
     activityId: string,
@@ -237,7 +270,14 @@ class PushNotificationService {
       return { successCount: 0, failureCount: 0, invalidTokens: [] };
     }
 
-    const userIds = favorites.map((f) => f.userId);
+    // Filter to only premium users (notifications are paywalled)
+    const allUserIds = favorites.map((f) => f.userId);
+    const userIds = await this.filterPremiumUsers(allUserIds);
+
+    if (userIds.length === 0) {
+      console.log('[FCM] No premium users to notify for capacity alert');
+      return { successCount: 0, failureCount: 0, invalidTokens: [] };
+    }
 
     const payload: PushNotificationPayload = {
       title: 'Low Spots Alert!',
@@ -259,6 +299,7 @@ class PushNotificationService {
 
   /**
    * Send price drop notification to users who favorited an activity
+   * Note: Only premium users receive these notifications (paywalled)
    */
   async sendPriceDropNotification(
     activityId: string,
@@ -279,7 +320,14 @@ class PushNotificationService {
       return { successCount: 0, failureCount: 0, invalidTokens: [] };
     }
 
-    const userIds = favorites.map((f) => f.userId);
+    // Filter to only premium users (notifications are paywalled)
+    const allUserIds = favorites.map((f) => f.userId);
+    const userIds = await this.filterPremiumUsers(allUserIds);
+
+    if (userIds.length === 0) {
+      console.log('[FCM] No premium users to notify for price drop');
+      return { successCount: 0, failureCount: 0, invalidTokens: [] };
+    }
     const savings = Math.round((oldPrice - newPrice) * 100) / 100;
 
     const payload: PushNotificationPayload = {

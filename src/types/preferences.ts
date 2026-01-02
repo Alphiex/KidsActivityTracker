@@ -148,6 +148,22 @@ export interface UserPreferences {
   maxBudgetFriendlyAmount: number;
   useMapPreferencesFilter: boolean; // Whether map screen applies user preferences by default
 
+  // Global active filters - applied across all screens (map, search results, recommendations, etc.)
+  activeFilters?: {
+    search?: string;
+    activityTypes?: string[];
+    ageMin?: number;
+    ageMax?: number;
+    costMin?: number;
+    costMax?: number;
+    locations?: string[];
+    daysOfWeek?: string[];
+    startDateAfter?: string;
+    startDateBefore?: string;
+    hideClosedActivities?: boolean;
+    hideFullActivities?: boolean;
+  };
+
   // Date range filter preferences
   dateFilter: 'any' | 'range'; // 'any' = no date filtering, 'range' = use date range
   dateRange?: {

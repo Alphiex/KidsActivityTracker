@@ -13,7 +13,7 @@ import {
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityService from '../services/activityService';
@@ -341,6 +341,16 @@ const MapSearchScreen = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadActivities(); }, []);
 
+  // Reload activities when screen comes into focus (to pick up any new global filters)
+  useFocusEffect(
+    useCallback(() => {
+      if (locationLoaded && !searchFilters) {
+        loadActivities();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locationLoaded, searchFilters])
+  );
+
   // Process activities and set state
   const processAndSetActivities = (activities: Activity[]) => {
     if (__DEV__) {
@@ -472,7 +482,14 @@ const MapSearchScreen = () => {
         hasCoordinates: true, // Only get activities with lat/lng
       };
 
-      // Apply user preference filters if enabled
+      // Apply global active filters first (from search screen)
+      const activeFilters = preferencesService.getActiveFilters();
+      if (activeFilters && Object.keys(activeFilters).length > 0) {
+        Object.assign(filters, activeFilters);
+        if (__DEV__) console.log('[MapSearch] Applying global active filters:', activeFilters);
+      }
+
+      // Apply user preference filters if enabled (on top of global filters)
       if (usePreferencesFilter) {
         const prefFilters = buildPreferenceFilters();
         Object.assign(filters, prefFilters);

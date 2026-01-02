@@ -324,7 +324,7 @@ const SearchResultsScreen = () => {
               onPress={() => handleActivityPress(item)}
               isFavorite={favoriteIds.has(item.id)}
               onFavoritePress={() => toggleFavorite(item)}
-              imageHeight={112}
+              imageHeight={180}
             />
           )}
           showsVerticalScrollIndicator={false}

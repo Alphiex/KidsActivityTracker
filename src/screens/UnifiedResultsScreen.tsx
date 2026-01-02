@@ -19,19 +19,27 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityCard from '../components/ActivityCard';
 import { Activity } from '../types';
 import ActivityService from '../services/activityService';
+import PreferencesService from '../services/preferencesService';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
 import FavoritesService from '../services/favoritesService';
 import { useAppSelector } from '../store';
 import TopTabNavigation from '../components/TopTabNavigation';
 
-// Header images
-const HeaderImages = {
+// Header images with fallback
+const HeaderImages: Record<string, any> = {
   search: require('../assets/images/search-header.png'),
   recommended: require('../assets/images/recommended-header.png'),
   favorites: require('../assets/images/favorites-header.png'),
   new: require('../assets/images/new-header.png'),
   browse: require('../assets/images/browse-header.png'),
+  budget: require('../assets/images/browse-header.png'),
+  activityType: require('../assets/images/browse-header.png'),
+  ageGroup: require('../assets/images/browse-header.png'),
+  ai: require('../assets/images/recommended-header.png'),
 };
+
+// Default fallback image
+const DefaultHeaderImage = require('../assets/images/browse-header.png');
 
 const { width, height } = Dimensions.get('window');
 
@@ -82,7 +90,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
     if (type === 'favorites') {
       return {
         title: 'Your Favourites',
-        image: HeaderImages.favorites,
+        image: HeaderImages.favorites || DefaultHeaderImage,
         isFavorites: true,
       };
     }
@@ -90,37 +98,37 @@ const UnifiedResultsScreenTest: React.FC = () => {
     if (type === 'activityType') {
       return {
         title: customTitle || subtype || activityType || 'Activities',
-        image: HeaderImages.browse,
+        image: HeaderImages.activityType || DefaultHeaderImage,
       };
     }
 
     if (type === 'ageGroup') {
       return {
         title: customTitle || ageGroupName || 'Age Group',
-        image: HeaderImages.browse,
+        image: HeaderImages.ageGroup || DefaultHeaderImage,
       };
     }
 
     const configMap: Record<string, { title: string; image: any }> = {
       budget: {
         title: 'Budget Friendly',
-        image: HeaderImages.browse,
+        image: HeaderImages.budget || DefaultHeaderImage,
       },
       new: {
         title: 'New This Week',
-        image: HeaderImages.new,
+        image: HeaderImages.new || DefaultHeaderImage,
       },
       recommended: {
         title: 'Recommended for You',
-        image: HeaderImages.recommended,
+        image: HeaderImages.recommended || DefaultHeaderImage,
       },
       ai: {
         title: customTitle || 'AI Recommendations',
-        image: HeaderImages.recommended,
+        image: HeaderImages.ai || DefaultHeaderImage,
       },
     };
 
-    return configMap[type] || configMap.budget;
+    return configMap[type] || { title: 'Activities', image: DefaultHeaderImage };
   };
 
   const config = getConfig();
@@ -133,6 +141,11 @@ const UnifiedResultsScreenTest: React.FC = () => {
       } else {
         setLoadingMore(true);
       }
+
+      // Get global preferences for filtering
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
+      const activeFilters = preferencesService.getActiveFilters();
 
       if (type === 'ai' && activityIds && activityIds.length > 0) {
         // Load AI-recommended activities by IDs
@@ -193,17 +206,28 @@ const UnifiedResultsScreenTest: React.FC = () => {
           hideFullActivities: true,
         };
 
+        // Apply global active filters (from search screen)
+        if (activeFilters && Object.keys(activeFilters).length > 0) {
+          Object.assign(baseParams, activeFilters);
+        }
+
+        // Apply type-specific filters
         if (type === 'budget') {
-          baseParams.maxCost = 20;
+          // Budget friendly - uses fixed max cost, don't apply price filters
+          baseParams.maxCost = preferences.maxBudgetFriendlyAmount || 20;
         } else if (type === 'new') {
           baseParams.sortBy = 'createdAt';
           baseParams.sortOrder = 'desc';
+          // New this week - calculate date for one week ago
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          baseParams.createdAfter = oneWeekAgo.toISOString();
         } else if (type === 'activityType') {
           if (activityType) {
-            baseParams.activityType = activityType;
+            baseParams.categories = activityType;
           }
           if (subtype) {
-            baseParams.subtype = subtype;
+            baseParams.activitySubtype = subtype;
           }
         } else if (type === 'ageGroup') {
           if (ageMin !== undefined) {
@@ -212,7 +236,26 @@ const UnifiedResultsScreenTest: React.FC = () => {
           if (ageMax !== undefined) {
             baseParams.ageMax = ageMax;
           }
+        } else if (type === 'recommended') {
+          // Apply user preferences for recommended
+          if (!baseParams.activityTypes && preferences.preferredActivityTypes?.length > 0) {
+            baseParams.activityTypes = preferences.preferredActivityTypes;
+          }
+          if (baseParams.ageMin === undefined && preferences.ageRanges?.length > 0) {
+            const ageRange = preferences.ageRanges[0];
+            if (ageRange.min > 0 || ageRange.max < 18) {
+              baseParams.ageMin = ageRange.min;
+              baseParams.ageMax = ageRange.max;
+            }
+          }
         }
+
+        // Apply location preferences (for all types except map)
+        if (!baseParams.locations && preferences.locations?.length > 0) {
+          baseParams.locations = preferences.locations;
+        }
+
+        console.log(`[UnifiedResults] Loading ${type} with filters:`, baseParams);
 
         const activityService = ActivityService.getInstance();
         const response = await activityService.searchActivitiesPaginated(baseParams);
@@ -235,6 +278,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
         }
       }
     } catch (error) {
+      console.error('[UnifiedResults] Error loading activities:', error);
       if (!isLoadMore) {
         setActivities([]);
         setTotalCount(0);
@@ -326,7 +370,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
-        imageHeight={112}
+        imageHeight={180}
       />
     );
   };

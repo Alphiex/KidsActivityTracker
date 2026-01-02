@@ -125,6 +125,26 @@ export class SubscriptionService {
   }
 
   /**
+   * Check if user has premium/paid subscription (not free plan)
+   */
+  async isPremiumUser(userId: string): Promise<boolean> {
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId },
+      include: { plan: true }
+    });
+
+    if (!subscription || !subscription.plan) {
+      return false;
+    }
+
+    // Check if subscription is active/trialing AND plan is not free
+    const isActiveSubscription = subscription.status === 'active' || subscription.status === 'trialing';
+    const isPaidPlan = subscription.plan.code !== 'free';
+
+    return isActiveSubscription && isPaidPlan;
+  }
+
+  /**
    * Get just the limits for a user (faster query for limit checks)
    */
   async getUserLimits(userId: string): Promise<PlanLimits> {

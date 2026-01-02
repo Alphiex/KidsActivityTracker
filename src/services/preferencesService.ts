@@ -374,6 +374,44 @@ class PreferencesService {
     this.preferences!.hasCompletedOnboarding = true;
     this.savePreferences();
   }
+
+  // Active filters management - global filters that apply across all screens
+  getActiveFilters() {
+    return this.preferences?.activeFilters || {};
+  }
+
+  setActiveFilters(filters: UserPreferences['activeFilters']) {
+    console.log('🔍 [PreferencesService] Setting active filters:', filters);
+    this.preferences!.activeFilters = filters;
+    this.savePreferences();
+  }
+
+  clearActiveFilters() {
+    console.log('🔍 [PreferencesService] Clearing active filters');
+    this.preferences!.activeFilters = undefined;
+    this.savePreferences();
+  }
+
+  hasActiveFilters(): boolean {
+    const filters = this.preferences?.activeFilters;
+    if (!filters) return false;
+
+    // Check if any filter is actually set
+    return !!(
+      filters.search ||
+      (filters.activityTypes && filters.activityTypes.length > 0) ||
+      filters.ageMin !== undefined ||
+      filters.ageMax !== undefined ||
+      filters.costMin !== undefined ||
+      filters.costMax !== undefined ||
+      (filters.locations && filters.locations.length > 0) ||
+      (filters.daysOfWeek && filters.daysOfWeek.length > 0) ||
+      filters.startDateAfter ||
+      filters.startDateBefore ||
+      filters.hideClosedActivities ||
+      filters.hideFullActivities
+    );
+  }
 }
 
 // Export getter function to avoid eager initialization on Android (JSI issue)
@@ -396,6 +434,11 @@ export const preferencesService = {
   shouldNotifyForActivity: (activity: any) => PreferencesService.getInstance().shouldNotifyForActivity(activity),
   resetPreferences: () => PreferencesService.getInstance().resetPreferences(),
   completeOnboarding: () => PreferencesService.getInstance().completeOnboarding(),
+  // Active filters methods
+  getActiveFilters: () => PreferencesService.getInstance().getActiveFilters(),
+  setActiveFilters: (filters: UserPreferences['activeFilters']) => PreferencesService.getInstance().setActiveFilters(filters),
+  clearActiveFilters: () => PreferencesService.getInstance().clearActiveFilters(),
+  hasActiveFilters: () => PreferencesService.getInstance().hasActiveFilters(),
 };
 
 export default PreferencesService;

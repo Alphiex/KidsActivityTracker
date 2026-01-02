@@ -32,6 +32,8 @@ import TrialCountdownBanner from '../components/TrialCountdownBanner';
 import ScreenBackground from '../components/ScreenBackground';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
+import { useAppSelector } from '../store';
+import AddToCalendarModal from '../components/AddToCalendarModal';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
@@ -48,6 +50,7 @@ const DashboardScreenModern = () => {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [waitlistAvailableCount, setWaitlistAvailableCount] = useState(0);
+  const [calendarModalActivity, setCalendarModalActivity] = useState<Activity | null>(null);
   const [scrollY] = useState(new Animated.Value(0));
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
@@ -75,6 +78,9 @@ const DashboardScreenModern = () => {
     waitlistLimit,
     syncWaitlistCount,
   } = useWaitlistSubscription();
+
+  // Get all activity-children mappings for calendar indicator
+  const activityChildrenMap = useAppSelector(state => state.childActivities?.activityChildren || {});
 
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -229,13 +235,20 @@ const DashboardScreenModern = () => {
         hideFullActivities: true
       };
 
-      // Apply activity type preferences
-      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
+      // Apply global active filters first (from search screen)
+      const activeFilters = preferencesService.getActiveFilters();
+      if (activeFilters && Object.keys(activeFilters).length > 0) {
+        Object.assign(filterParams, activeFilters);
+        console.log('[Dashboard] Applying global active filters:', activeFilters);
+      }
+
+      // Apply activity type preferences (if not already set by global filters)
+      if (!filterParams.activityTypes && preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
         filterParams.activityTypes = preferences.preferredActivityTypes;
       }
 
-      // Apply age range preferences (only if changed from defaults)
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
+      // Apply age range preferences (only if changed from defaults and not already set)
+      if (filterParams.ageMin === undefined && filterParams.ageMax === undefined && preferences.ageRanges && preferences.ageRanges.length > 0) {
         const ageRange = preferences.ageRanges[0];
         if (ageRange.min > 0 || ageRange.max < 18) {
           filterParams.ageMin = ageRange.min;
@@ -243,19 +256,19 @@ const DashboardScreenModern = () => {
         }
       }
 
-      // Apply price range preferences (only if not unlimited - 10000+ means unlimited)
-      if (preferences.priceRange && preferences.priceRange.max < 10000) {
+      // Apply price range preferences (only if not unlimited - 10000+ means unlimited and not already set)
+      if (filterParams.costMin === undefined && filterParams.costMax === undefined && preferences.priceRange && preferences.priceRange.max < 10000) {
         filterParams.costMin = preferences.priceRange.min;
         filterParams.costMax = preferences.priceRange.max;
       }
 
-      // Apply location preferences
-      if (preferences.locations && preferences.locations.length > 0) {
+      // Apply location preferences (if not already set)
+      if (!filterParams.locations && preferences.locations && preferences.locations.length > 0) {
         filterParams.locations = preferences.locations;
       }
 
-      // Apply days of week preferences (only if not all 7 days selected)
-      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
+      // Apply days of week preferences (only if not all 7 days selected and not already set)
+      if (!filterParams.daysOfWeek && preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
         filterParams.daysOfWeek = preferences.daysOfWeek;
       }
 
@@ -329,6 +342,13 @@ const DashboardScreenModern = () => {
         hideFullActivities: true
       };
 
+      // Apply global active filters first (from search screen)
+      const activeFilters = preferencesService.getActiveFilters();
+      if (activeFilters && Object.keys(activeFilters).length > 0) {
+        Object.assign(filterParams, activeFilters);
+        filterParams.maxCost = maxBudgetAmount; // Preserve budget limit
+      }
+
       // Apply activity type preferences
       if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
         filterParams.activityTypes = preferences.preferredActivityTypes;
@@ -385,6 +405,12 @@ const DashboardScreenModern = () => {
         sortOrder: 'desc',
         hideFullActivities: true
       };
+
+      // Apply global active filters first (from search screen)
+      const activeFilters = preferencesService.getActiveFilters();
+      if (activeFilters && Object.keys(activeFilters).length > 0) {
+        Object.assign(filterParams, activeFilters);
+      }
 
       // Apply activity type preferences
       if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
@@ -563,6 +589,7 @@ const DashboardScreenModern = () => {
     const imageKey = getActivityImageKey(activityTypeName, subcategory, activity.name);
     const imageSource = getActivityImageByKey(imageKey, activityTypeName);
     const isFavorite = favoriteIds.has(activity.id);
+    const isOnCalendar = (activityChildrenMap[activity.id] || []).length > 0;
 
     // Format date range display
     let dateRangeText = null;
@@ -782,8 +809,18 @@ const DashboardScreenModern = () => {
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
               <Icon name="share-variant" size={16} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Icon name="calendar-plus" size={16} color="#FFF" />
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                setCalendarModalActivity(activity);
+              }}
+            >
+              <Icon
+                name={isOnCalendar ? "calendar-check" : "calendar-plus"}
+                size={16}
+                color={isOnCalendar ? "#4ECDC4" : "#FFF"}
+              />
             </TouchableOpacity>
           </View>
 
@@ -805,6 +842,14 @@ const DashboardScreenModern = () => {
             <View style={styles.featuredBadge}>
               <Icon name="star" size={10} color="#FFF" />
               <Text style={styles.featuredBadgeText}>FEATURED</Text>
+            </View>
+          )}
+
+          {/* On Calendar badge */}
+          {isOnCalendar && (
+            <View style={styles.calendarBadge}>
+              <Icon name="calendar-check" size={10} color="#FFF" />
+              <Text style={styles.calendarBadgeText}>ON CALENDAR</Text>
             </View>
           )}
         </View>
@@ -1179,6 +1224,15 @@ const DashboardScreenModern = () => {
         currentCount={subscriptionWaitlistCount}
         limit={waitlistLimit}
       />
+
+      {/* Add to Calendar Modal */}
+      {calendarModalActivity && (
+        <AddToCalendarModal
+          visible={!!calendarModalActivity}
+          activity={calendarModalActivity}
+          onClose={() => setCalendarModalActivity(null)}
+        />
+      )}
           </>
         )}
       </SafeAreaView>
@@ -1612,6 +1666,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8638B',
   },
   featuredBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+    marginLeft: 4,
+    letterSpacing: 0.5,
+  },
+  calendarBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#4ECDC4',
+  },
+  calendarBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FFF',
