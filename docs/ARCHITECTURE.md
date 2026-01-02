@@ -586,6 +586,44 @@ Database Updated (117,700+ activities)
 - **Cold Start**: Optimized container images
 - **CDN**: Static assets cached at edge
 
+## GCP Resource Management
+
+### Container Registry (GCR)
+| Image | Purpose | Retention |
+|-------|---------|-----------|
+| `kids-activity-api` | Backend API | Keep latest + 5 untagged |
+| `kids-activity-scraper` | Scraper jobs | Keep latest + 3 untagged |
+| `website` | Partner portal | Keep latest + 3 untagged |
+
+### Cloud Storage
+| Bucket | Purpose | Lifecycle |
+|--------|---------|-----------|
+| `kids-activity-tracker-2024_cloudbuild` | Build artifacts | Auto-delete after 7 days |
+| `run-sources-*` | Cloud Run sources | GCP-managed |
+
+### Cloud Run Services
+| Service | Min Instances | Max Instances | Memory |
+|---------|---------------|---------------|--------|
+| `kids-activity-api` | 0 | 10 | 2GB |
+| `kids-activity-website` | 0 | 3 | 1GB |
+
+### Cloud Run Jobs
+| Job | Schedule | Memory | Timeout |
+|-----|----------|--------|---------|
+| `kids-activity-scraper` | Tier-based (3x/daily, daily, weekly) | 2GB | 1 hour |
+
+### Cloud SQL
+| Instance | Tier | Storage | Backups |
+|----------|------|---------|---------|
+| PostgreSQL 15 | db-g1-small | 20GB SSD | Daily automated |
+
+### Cost Optimization Practices
+1. **Container cleanup**: Automated removal of untagged images
+2. **Build artifact lifecycle**: 7-day retention policy
+3. **Revision management**: Cloud Run manages old revisions
+4. **Min instances = 0**: Scale to zero when not in use
+5. **Scheduled scraping**: Run during off-peak hours
+
 ## Key Metrics Targets
 
 | Metric | Target |
@@ -633,5 +671,5 @@ Database Updated (117,700+ activities)
 
 ---
 
-**Document Version**: 5.2
+**Document Version**: 5.3
 **Last Updated**: January 2026

@@ -1,11 +1,13 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import childrenService from '../../services/childrenService';
+import childPreferencesService, { ChildPreferences } from '../../services/childPreferencesService';
 import { RootState } from '../index';
 
 export interface Child {
   id: string;
   name: string;
   dateOfBirth: string;
+  gender?: 'male' | 'female' | null; // 'male', 'female', or null for prefer not to say
   interests?: string[];
   avatar?: string;
   allergies?: string[];
@@ -24,17 +26,39 @@ export interface Child {
   updatedAt: string;
 }
 
+/**
+ * Child with preferences attached
+ */
+export interface ChildWithPreferences extends Child {
+  preferences?: ChildPreferences;
+}
+
+/**
+ * Filter mode for multi-child selection
+ * - 'or': Show activities suitable for ANY selected child (default, free)
+ * - 'and': Show activities suitable for ALL selected children together (premium)
+ */
+export type ChildFilterMode = 'or' | 'and';
+
 interface ChildrenState {
-  children: Child[];
-  selectedChild: Child | null;
+  children: ChildWithPreferences[];
+  selectedChild: ChildWithPreferences | null;
+  // Multi-child selection for filtering
+  selectedChildIds: string[];  // IDs of children selected for filtering
+  filterMode: ChildFilterMode; // 'or' (any child) or 'and' (all together)
+  // Loading states
   loading: boolean;
+  preferencesLoading: boolean;
   error: string | null;
 }
 
 const initialState: ChildrenState = {
   children: [],
   selectedChild: null,
+  selectedChildIds: [], // Will be initialized to all children when loaded
+  filterMode: 'or',     // Default: show activities for ANY selected child
   loading: false,
+  preferencesLoading: false,
   error: null,
 };
 
@@ -79,6 +103,42 @@ export const fetchChildActivities = createAsyncThunk(
   }
 );
 
+// Fetch preferences for a single child
+export const fetchChildPreferences = createAsyncThunk(
+  'children/fetchChildPreferences',
+  async (childId: string) => {
+    const preferences = await childPreferencesService.getChildPreferences(childId);
+    return { childId, preferences };
+  }
+);
+
+// Update preferences for a child
+export const updateChildPreferences = createAsyncThunk(
+  'children/updateChildPreferences',
+  async ({ childId, updates }: { childId: string; updates: Partial<ChildPreferences> }) => {
+    const preferences = await childPreferencesService.updateChildPreferences(childId, updates);
+    return { childId, preferences };
+  }
+);
+
+// Copy preferences from one child to another
+export const copyChildPreferences = createAsyncThunk(
+  'children/copyChildPreferences',
+  async ({ sourceChildId, targetChildId }: { sourceChildId: string; targetChildId: string }) => {
+    const preferences = await childPreferencesService.copyPreferences(sourceChildId, targetChildId);
+    return { childId: targetChildId, preferences };
+  }
+);
+
+// Initialize preferences for a child from user's preferences (migration)
+export const initializeChildPreferences = createAsyncThunk(
+  'children/initializeChildPreferences',
+  async (childId: string) => {
+    const preferences = await childPreferencesService.initializeFromUserPreferences(childId);
+    return { childId, preferences };
+  }
+);
+
 const childrenSlice = createSlice({
   name: 'children',
   initialState,
@@ -92,6 +152,28 @@ const childrenSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    // Multi-child selection reducers
+    setSelectedChildIds: (state, action: PayloadAction<string[]>) => {
+      state.selectedChildIds = action.payload;
+    },
+    toggleChildSelection: (state, action: PayloadAction<string>) => {
+      const childId = action.payload;
+      const index = state.selectedChildIds.indexOf(childId);
+      if (index === -1) {
+        state.selectedChildIds.push(childId);
+      } else {
+        // Don't allow deselecting all children
+        if (state.selectedChildIds.length > 1) {
+          state.selectedChildIds.splice(index, 1);
+        }
+      }
+    },
+    selectAllChildren: (state) => {
+      state.selectedChildIds = state.children.map(c => c.id);
+    },
+    setFilterMode: (state, action: PayloadAction<ChildFilterMode>) => {
+      state.filterMode = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -103,6 +185,10 @@ const childrenSlice = createSlice({
       .addCase(fetchChildren.fulfilled, (state, action) => {
         state.loading = false;
         state.children = action.payload;
+        // Initialize selectedChildIds to all children if empty
+        if (state.selectedChildIds.length === 0 && action.payload.length > 0) {
+          state.selectedChildIds = action.payload.map((c: ChildWithPreferences) => c.id);
+        }
       })
       .addCase(fetchChildren.rejected, (state, action) => {
         state.loading = false;
@@ -117,6 +203,8 @@ const childrenSlice = createSlice({
         state.loading = false;
         if (action.payload) {
           state.children.push(action.payload);
+          // Add new child to selected children
+          state.selectedChildIds.push(action.payload.id);
         }
       })
       .addCase(addChild.rejected, (state, action) => {
@@ -150,6 +238,8 @@ const childrenSlice = createSlice({
       .addCase(deleteChild.fulfilled, (state, action) => {
         state.loading = false;
         state.children = state.children.filter(child => child.id !== action.payload);
+        // Remove from selectedChildIds
+        state.selectedChildIds = state.selectedChildIds.filter(id => id !== action.payload);
         if (state.selectedChild?.id === action.payload) {
           state.selectedChild = null;
         }
@@ -157,15 +247,120 @@ const childrenSlice = createSlice({
       .addCase(deleteChild.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to delete child';
+      })
+      // Fetch child preferences
+      .addCase(fetchChildPreferences.pending, (state) => {
+        state.preferencesLoading = true;
+      })
+      .addCase(fetchChildPreferences.fulfilled, (state, action) => {
+        state.preferencesLoading = false;
+        const { childId, preferences } = action.payload;
+        const childIndex = state.children.findIndex(c => c.id === childId);
+        if (childIndex !== -1) {
+          state.children[childIndex].preferences = preferences;
+        }
+        if (state.selectedChild?.id === childId) {
+          state.selectedChild.preferences = preferences;
+        }
+      })
+      .addCase(fetchChildPreferences.rejected, (state, action) => {
+        state.preferencesLoading = false;
+        state.error = action.error.message || 'Failed to fetch child preferences';
+      })
+      // Update child preferences
+      .addCase(updateChildPreferences.pending, (state) => {
+        state.preferencesLoading = true;
+      })
+      .addCase(updateChildPreferences.fulfilled, (state, action) => {
+        state.preferencesLoading = false;
+        const { childId, preferences } = action.payload;
+        const childIndex = state.children.findIndex(c => c.id === childId);
+        if (childIndex !== -1) {
+          state.children[childIndex].preferences = preferences;
+        }
+        if (state.selectedChild?.id === childId) {
+          state.selectedChild.preferences = preferences;
+        }
+      })
+      .addCase(updateChildPreferences.rejected, (state, action) => {
+        state.preferencesLoading = false;
+        state.error = action.error.message || 'Failed to update child preferences';
+      })
+      // Copy child preferences
+      .addCase(copyChildPreferences.pending, (state) => {
+        state.preferencesLoading = true;
+      })
+      .addCase(copyChildPreferences.fulfilled, (state, action) => {
+        state.preferencesLoading = false;
+        const { childId, preferences } = action.payload;
+        const childIndex = state.children.findIndex(c => c.id === childId);
+        if (childIndex !== -1) {
+          state.children[childIndex].preferences = preferences;
+        }
+        if (state.selectedChild?.id === childId) {
+          state.selectedChild.preferences = preferences;
+        }
+      })
+      .addCase(copyChildPreferences.rejected, (state, action) => {
+        state.preferencesLoading = false;
+        state.error = action.error.message || 'Failed to copy child preferences';
+      })
+      // Initialize child preferences
+      .addCase(initializeChildPreferences.pending, (state) => {
+        state.preferencesLoading = true;
+      })
+      .addCase(initializeChildPreferences.fulfilled, (state, action) => {
+        state.preferencesLoading = false;
+        const { childId, preferences } = action.payload;
+        const childIndex = state.children.findIndex(c => c.id === childId);
+        if (childIndex !== -1) {
+          state.children[childIndex].preferences = preferences;
+        }
+        if (state.selectedChild?.id === childId) {
+          state.selectedChild.preferences = preferences;
+        }
+      })
+      .addCase(initializeChildPreferences.rejected, (state, action) => {
+        state.preferencesLoading = false;
+        state.error = action.error.message || 'Failed to initialize child preferences';
       });
   },
 });
 
-export const { selectChild, clearSelectedChild, clearError } = childrenSlice.actions;
+export const {
+  selectChild,
+  clearSelectedChild,
+  clearError,
+  setSelectedChildIds,
+  toggleChildSelection,
+  selectAllChildren: selectAllChildrenAction,
+  setFilterMode,
+} = childrenSlice.actions;
 
+// Basic selectors
 export const selectAllChildren = (state: RootState) => state.children.children;
 export const selectSelectedChild = (state: RootState) => state.children.selectedChild;
 export const selectChildrenLoading = (state: RootState) => state.children.loading;
 export const selectChildrenError = (state: RootState) => state.children.error;
+
+// Multi-child selection selectors
+export const selectSelectedChildIds = (state: RootState) => state.children.selectedChildIds;
+export const selectFilterMode = (state: RootState) => state.children.filterMode;
+export const selectPreferencesLoading = (state: RootState) => state.children.preferencesLoading;
+
+// Derived selectors
+export const selectSelectedChildren = (state: RootState): ChildWithPreferences[] => {
+  const { children, selectedChildIds } = state.children;
+  return children.filter(c => selectedChildIds.includes(c.id));
+};
+
+export const selectChildById = (childId: string) => (state: RootState): ChildWithPreferences | undefined => {
+  return state.children.children.find(c => c.id === childId);
+};
+
+export const selectChildPreferences = (childId: string) => (state: RootState): ChildPreferences | undefined => {
+  const child = state.children.children.find(c => c.id === childId);
+  return child?.preferences;
+};
 
 export default childrenSlice.reducer;

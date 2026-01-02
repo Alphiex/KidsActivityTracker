@@ -82,6 +82,12 @@ npm run typecheck   # Check for TypeScript errors
 - Days of week shown in pink badges on activity cards
 - Format: "9:30 am - 12:00 pm"
 
+### Activity Gender Filtering
+- Activities have a `gender` field: `'male'`, `'female'`, or `null` (all genders)
+- Scrapers auto-detect gender from activity names (e.g., "Boys Basketball" → male, "Girls Softball" → female)
+- Filter logic: Shows activities matching child's gender OR activities with null gender
+- Gender is a TOP PRIORITY filter in AI recommendations
+
 ## API Configuration
 - API endpoint: `https://kids-activity-api-4ev6yi22va-uc.a.run.app`
 - Database: PostgreSQL on Google Cloud SQL

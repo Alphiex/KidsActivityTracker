@@ -39,6 +39,21 @@ Higher tiers receive:
 - More prominent dashboard positioning
 - Better visibility when multiple sponsors match user criteria
 
+### Monthly Impression Limits
+
+Each tier has monthly impression limits for top-of-search-results placements:
+
+| Tier | Monthly Limit | Weighting |
+|------|---------------|-----------|
+| **Gold** | Unlimited | 3x (highest priority) |
+| **Silver** | 25,000 | 2x |
+| **Bronze** | 5,000 | 1x |
+
+- Impressions are counted when activities appear at the top of search results
+- The sponsor section on explore page does NOT count against limits
+- When limit is reached, the activity stops appearing at top of results until next month
+- Weighted selection ensures all tiers have fair exposure (gold has 3x weight vs bronze)
+
 ## Payment System (Stripe)
 
 Partner payments are processed through Stripe, providing:
@@ -170,6 +185,40 @@ Featured data is stored directly on the Activity model with the following fields
 | `featuredStartDate` | DateTime | When featuring begins |
 | `featuredEndDate` | DateTime | When featuring expires |
 
+### Sponsored Impression Tracking
+
+Impressions are tracked in the `SponsoredImpression` table:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `activityId` | UUID | FK to Activity |
+| `impressionType` | String | 'top_result' or 'sponsor_section' |
+| `position` | Int | Position in results (1, 2, or 3) |
+| `userId` | String | User ID (if authenticated) |
+| `sessionId` | String | Session ID for anonymous tracking |
+| `searchQuery` | String | Search query used |
+| `filters` | JSON | Applied filters |
+| `deviceType` | String | ios, android, web |
+| `createdAt` | DateTime | When impression occurred |
+
+### Monthly Stats Aggregation
+
+Pre-aggregated monthly stats in `SponsoredMonthlyStats` table:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `activityId` | UUID | FK to Activity |
+| `year` | Int | Year (e.g., 2026) |
+| `month` | Int | Month (1-12) |
+| `topResultCount` | Int | Impressions at top of search results |
+| `sponsorSectionCount` | Int | Impressions in sponsor section |
+| `totalImpressions` | Int | Total impressions |
+| `uniqueUsers` | Int | Unique users who saw the activity |
+
+**Unique constraint**: `(activityId, year, month)` ensures one record per activity per month.
+
 ### Partner Account Model
 
 | Field | Type | Description |
@@ -207,6 +256,23 @@ Featured data is stored directly on the Activity model with the following fields
 | `/api/partner/analytics` | GET | Overall performance metrics |
 | `/api/partner/analytics/activities` | GET | Per-activity analytics |
 | `/api/partner/analytics/activity/:id` | GET | Single activity details |
+
+### Vendor Portal Analytics Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/vendor/:vendorId/analytics/sponsored` | GET | Sponsored activity analytics summary |
+| `/api/vendor/:vendorId/analytics/sponsored/:activityId` | GET | Detailed analytics for single activity |
+| `/api/vendor/:vendorId/analytics/overview` | GET | Overall vendor analytics overview |
+
+### Sponsored Activity Endpoints (Public/Auth)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/sponsored/section` | GET | Get activities for sponsor section (explore page) |
+| `/api/v1/sponsored/tier-limits` | GET | Get tier limits and descriptions |
+| `/api/v1/sponsored/analytics/:activityId` | GET | Get activity analytics (requires auth) |
+| `/api/v1/sponsored/provider/:providerId/analytics` | GET | Get provider analytics (requires auth) |
 
 ### Subscription Management Endpoints
 
@@ -474,29 +540,61 @@ The partner endpoint respects all user preference filters:
 
 This ensures featured content remains relevant to users.
 
-## Tier Randomization Algorithm
+## Weighted Selection Algorithm
 
-Within each tier, activities are randomly shuffled for fair exposure:
+Sponsored activities are selected using a weighted random algorithm that:
+
+1. **Respects Monthly Limits**: Activities that have exceeded their monthly limit are excluded
+2. **Weighted Selection**: Higher tiers have higher probability but all tiers have a chance
+3. **Tier Sorting**: Selected activities are sorted by tier priority for display
 
 ```typescript
-private randomizeWithinTiers(activities, limit) {
-  const tiers = { gold: [], silver: [], bronze: [] };
+// Tier configuration
+const TIER_CONFIG = {
+  gold: { monthlyLimit: null, weight: 3, priority: 0 },   // Unlimited, 3x weight
+  silver: { monthlyLimit: 25000, weight: 2, priority: 1 }, // 25k limit, 2x weight
+  bronze: { monthlyLimit: 5000, weight: 1, priority: 2 }   // 5k limit, 1x weight
+};
 
-  // Group by tier
-  activities.forEach(activity => {
-    const tier = activity.featuredTier?.toLowerCase() || 'bronze';
-    tiers[tier].push(activity);
-  });
+// Weighted random selection
+function weightedRandomSelection(activities, maxResults) {
+  const selected = [];
+  const remaining = [...activities];
 
-  // Shuffle within each tier (Fisher-Yates)
-  Object.keys(tiers).forEach(tier => {
-    tiers[tier] = this.shuffleArray(tiers[tier]);
-  });
+  for (let i = 0; i < maxResults && remaining.length > 0; i++) {
+    // Calculate total weight
+    const totalWeight = remaining.reduce((sum, a) => sum + a.weight, 0);
 
-  // Combine in priority order
-  return [...tiers.gold, ...tiers.silver, ...tiers.bronze].slice(0, limit);
+    // Random selection based on weight
+    let random = Math.random() * totalWeight;
+    let selectedIndex = 0;
+
+    for (let j = 0; j < remaining.length; j++) {
+      random -= remaining[j].weight;
+      if (random <= 0) {
+        selectedIndex = j;
+        break;
+      }
+    }
+
+    // Move selected activity from remaining to selected
+    selected.push(remaining[selectedIndex]);
+    remaining.splice(selectedIndex, 1);
+  }
+
+  // Sort by tier priority for display
+  return selected.sort((a, b) => a.priority - b.priority);
 }
 ```
+
+### Selection Process
+
+1. Find all featured activities matching user filters
+2. Check each activity's monthly impression count against tier limit
+3. Exclude activities that have exceeded their limit
+4. Apply weighted random selection (max 3 for regular searches)
+5. Sort selected activities by tier priority (gold first)
+6. Record impressions for the selected activities
 
 ## Business Rules
 
@@ -537,6 +635,13 @@ FRONTEND_URL=https://your-website.com
 - [x] **Stripe Customer Portal integration**
 - [x] **Subscription lifecycle webhook handling**
 - [x] **Scheduled cleanup for expired subscriptions**
+- [x] **Sponsored impression tracking system**
+- [x] **Monthly impression limits by tier**
+- [x] **Weighted random selection algorithm**
+- [x] **Top 3 sponsored activities per API call**
+- [x] **Sponsor section endpoint (no limit)**
+- [x] **Vendor portal analytics dashboard**
+- [x] **Monthly stats aggregation**
 
 ## Related Documentation
 

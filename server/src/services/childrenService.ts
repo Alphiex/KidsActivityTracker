@@ -876,6 +876,223 @@ export class ChildrenService {
 
     return true;
   }
+
+  // ============= Child Preferences Management =============
+
+  /**
+   * Get child preferences (creates default if not exists)
+   */
+  async getChildPreferences(childId: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    // Get existing preferences or create default
+    let preferences = await prisma.childPreferences.findUnique({
+      where: { childId }
+    });
+
+    if (!preferences) {
+      // Create default preferences for this child
+      preferences = await prisma.childPreferences.create({
+        data: { childId }
+      });
+    }
+
+    return preferences;
+  }
+
+  /**
+   * Update child preferences
+   */
+  async updateChildPreferences(childId: string, userId: string, data: any) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    // Upsert preferences (create if not exists, update if exists)
+    return await prisma.childPreferences.upsert({
+      where: { childId },
+      create: {
+        childId,
+        ...data
+      },
+      update: data
+    });
+  }
+
+  /**
+   * Copy preferences from one child to another
+   */
+  async copyChildPreferences(sourceChildId: string, targetChildId: string, userId: string) {
+    // Verify both children belong to user
+    const children = await prisma.child.findMany({
+      where: {
+        id: { in: [sourceChildId, targetChildId] },
+        userId
+      }
+    });
+
+    if (children.length !== 2) {
+      throw new Error('Source or target child not found');
+    }
+
+    // Get source preferences
+    const sourcePrefs = await prisma.childPreferences.findUnique({
+      where: { childId: sourceChildId }
+    });
+
+    if (!sourcePrefs) {
+      throw new Error('Source child has no preferences to copy');
+    }
+
+    // Copy to target (excluding id, childId, createdAt, updatedAt)
+    const { id, childId, createdAt, updatedAt, ...prefsData } = sourcePrefs;
+
+    return await prisma.childPreferences.upsert({
+      where: { childId: targetChildId },
+      create: {
+        childId: targetChildId,
+        ...prefsData
+      },
+      update: prefsData
+    });
+  }
+
+  /**
+   * Initialize child preferences from user's current preferences
+   * Used during migration from user-level to child-level preferences
+   */
+  async initializeChildPreferencesFromUser(childId: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    // Check if preferences already exist
+    const existingPrefs = await prisma.childPreferences.findUnique({
+      where: { childId }
+    });
+
+    if (existingPrefs) {
+      return existingPrefs; // Don't overwrite existing preferences
+    }
+
+    // Get user's preferences from their profile
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true }
+    });
+
+    const userPrefs = (user?.preferences as any) || {};
+
+    // Map user preferences to child preferences format
+    const childPrefsData: any = {
+      childId,
+    };
+
+    // Location preferences
+    if (userPrefs.locationSource) childPrefsData.locationSource = userPrefs.locationSource;
+    if (userPrefs.savedAddress) childPrefsData.savedAddress = userPrefs.savedAddress;
+    if (userPrefs.distanceRadiusKm) childPrefsData.distanceRadiusKm = userPrefs.distanceRadiusKm;
+    if (userPrefs.distanceFilterEnabled !== undefined) childPrefsData.distanceFilterEnabled = userPrefs.distanceFilterEnabled;
+
+    // Activity type preferences
+    if (userPrefs.preferredActivityTypes) childPrefsData.preferredActivityTypes = userPrefs.preferredActivityTypes;
+    if (userPrefs.preferredSubtypes) childPrefsData.preferredSubtypes = userPrefs.preferredSubtypes;
+    if (userPrefs.excludedCategories) childPrefsData.excludedCategories = userPrefs.excludedCategories;
+
+    // Schedule preferences
+    if (userPrefs.daysOfWeek) childPrefsData.daysOfWeek = userPrefs.daysOfWeek;
+    if (userPrefs.timePreferences) childPrefsData.timePreferences = userPrefs.timePreferences;
+
+    // Budget preferences
+    if (userPrefs.priceRange?.min !== undefined) childPrefsData.priceRangeMin = userPrefs.priceRange.min;
+    if (userPrefs.priceRange?.max !== undefined) childPrefsData.priceRangeMax = userPrefs.priceRange.max;
+    if (userPrefs.maxBudgetFriendlyAmount) childPrefsData.maxBudgetFriendlyAmount = userPrefs.maxBudgetFriendlyAmount;
+
+    // Environment preference
+    if (userPrefs.environmentFilter) childPrefsData.environmentFilter = userPrefs.environmentFilter;
+
+    return await prisma.childPreferences.create({
+      data: childPrefsData
+    });
+  }
+
+  /**
+   * Initialize preferences for all children of a user
+   * Used during bulk migration
+   */
+  async initializeAllChildrenPreferences(userId: string) {
+    // Get all children for user
+    const children = await prisma.child.findMany({
+      where: { userId, isActive: true },
+      select: { id: true }
+    });
+
+    let initialized = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const child of children) {
+      try {
+        // Check if preferences already exist
+        const existing = await prisma.childPreferences.findUnique({
+          where: { childId: child.id }
+        });
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        await this.initializeChildPreferencesFromUser(child.id, userId);
+        initialized++;
+      } catch (error: any) {
+        errors.push(`Child ${child.id}: ${error.message}`);
+      }
+    }
+
+    return {
+      total: children.length,
+      initialized,
+      skipped,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  }
+
+  /**
+   * Get children with their preferences
+   */
+  async getChildrenWithPreferences(userId: string): Promise<any[]> {
+    const children = await prisma.child.findMany({
+      where: { userId, isActive: true },
+      include: {
+        preferences: true
+      },
+      orderBy: { dateOfBirth: 'asc' }
+    });
+
+    return children.map(child => ({
+      ...child,
+      age: calculateAge(child.dateOfBirth),
+      ageInMonths: calculateAge(child.dateOfBirth, true)
+    }));
+  }
 }
 
 export const childrenService = new ChildrenService();

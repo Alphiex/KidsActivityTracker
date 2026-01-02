@@ -3,6 +3,12 @@
  *
  * A conversational AI agent for helping parents find activities for their children.
  * Uses OpenAI function calling with custom tools.
+ *
+ * Enhanced with:
+ * - Query understanding for intent classification and entity extraction
+ * - Clarification engine for smart questioning
+ * - Conversation overrides for explicit user preferences
+ * - Temporal expression resolution
  */
 
 import { ChatOpenAI } from '@langchain/openai';
@@ -19,8 +25,38 @@ import {
 import { RunnableSequence } from '@langchain/core/runnables';
 import { activityTools } from '../tools/activityTools';
 import { getChatAgentModel } from '../models/chatModels';
+import { analyzeQuery, QueryUnderstanding, quickExtract } from '../utils/queryUnderstanding';
+import { determineClarification, ClarificationDecision, generateFollowUpSuggestions } from '../utils/clarificationEngine';
+import { extractOverrides, mergeOverrides, summarizeOverrides } from '../utils/conversationOverrides';
+import { ConversationOverrides } from '../utils/activityScorer';
+import { resolveTemporalExpression } from '../utils/temporalResolver';
 
 // Types for family context
+export interface ChildPreferencesData {
+  location?: {
+    formattedAddress?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  activityTypes?: string[];
+  daysOfWeek?: string[];
+  timePreferences?: {
+    morning: boolean;
+    afternoon: boolean;
+    evening: boolean;
+  };
+  budget?: {
+    min: number;
+    max: number;
+  };
+  distanceRadiusKm?: number;
+  environmentFilter?: 'all' | 'indoor' | 'outdoor';
+}
+
 export interface EnhancedChildProfile {
   child_id: string;
   name: string;
@@ -28,6 +64,8 @@ export interface EnhancedChildProfile {
   interests?: string[];
   favorites?: { activityName: string; category: string }[];
   calendarActivities?: { name: string; category: string; status: string }[];
+  // Child-specific activity preferences (per-child settings)
+  preferences?: ChildPreferencesData;
   computedPreferences?: {
     preferredCategories?: string[];
     preferredDays?: string[];
@@ -42,6 +80,8 @@ export interface EnhancedFamilyContext {
     lat?: number;
     lng?: number;
   };
+  // Filter mode for multi-child selection: 'or' (any child) or 'and' (all together)
+  filterMode?: 'or' | 'and';
 }
 
 export interface ChatResponse {
@@ -78,6 +118,9 @@ interface ConversationState {
   userId: string;
   lastContext?: EnhancedFamilyContext;
   parameters: ConversationParameters; // Accumulated parameters from conversation
+  conversationOverrides: ConversationOverrides; // Explicit user preferences from conversation
+  lastQueryUnderstanding?: QueryUnderstanding; // Last analyzed query
+  pendingClarification?: ClarificationDecision; // Pending clarification question
 }
 
 const AGENT_SYSTEM_PROMPT = `You are a friendly AI assistant for KidsActivityTracker, helping parents find activities for their children.
@@ -88,15 +131,20 @@ FAMILY CONTEXT:
 CONVERSATION PARAMETERS (accumulated from this conversation):
 {conversation_params}
 
+CONVERSATION OVERRIDES (explicit user preferences detected in conversation):
+{conversation_overrides}
+
 YOUR CAPABILITIES:
-1. Search for activities using the search_activities tool
+1. Search for activities using the search_activities or enhanced_search tool
 2. Get child profile information using get_child_context
 3. Get detailed activity information using get_activity_details
 4. Compare activities using compare_activities
+5. Use enhanced_search for complex queries with personalized scoring
 
 SEARCH RULES (CRITICAL - FOLLOW THESE EXACTLY):
 1. ALWAYS include latitude and longitude when searching - use values from FAMILY CONTEXT or CONVERSATION PARAMETERS
 2. For age filtering, use this priority order:
+   - If age is in CONVERSATION OVERRIDES (ageOverride), use that first
    - If age is in current message, use that age
    - If no age in current message but CONVERSATION PARAMETERS has extractedAge, use that
    - If no age anywhere but FAMILY CONTEXT has children, use the first child's age
@@ -105,11 +153,19 @@ SEARCH RULES (CRITICAL - FOLLOW THESE EXACTLY):
    - This includes: searchTerm, minAge, maxAge, city, coordinates
 4. Prefer using searchTerm over category for specific activities (skating, swimming, soccer, etc.)
 5. When city is mentioned, include it in the search along with coordinates
+6. If CONVERSATION OVERRIDES has explicitRequirements, prioritize those in your search
 
 CONTEXT PRIORITY (highest to lowest):
-1. Current message explicit values (user says "for my 5 year old" now)
-2. CONVERSATION PARAMETERS (values from earlier in this conversation)
-3. FAMILY CONTEXT (default from user's profile/database)
+1. CONVERSATION OVERRIDES (explicit preferences detected from user's words)
+2. Current message explicit values (user says "for my 5 year old" now)
+3. CONVERSATION PARAMETERS (values from earlier in this conversation)
+4. FAMILY CONTEXT (default from user's profile/database)
+
+OVERRIDE HANDLING:
+- If user says "don't mind driving" or "willing to travel": Expand distance search to 150km
+- If user says "budget isn't an issue": Ignore price filters
+- If user says "something new/different": Prioritize categories they haven't tried
+- If user mentions specific days: Filter to only those days
 
 GENERAL RULES:
 1. ONLY discuss kids activities, classes, camps, and related topics
@@ -117,6 +173,7 @@ GENERAL RULES:
 3. Personalize recommendations based on child preferences and history
 4. When asked about a specific child, get their context first
 5. Be helpful, friendly, and concise
+6. If the query is complex or results are poor, use enhanced_search for better matching
 
 CRITICAL RESPONSE FORMAT:
 - DO NOT list or describe individual activities in your text response - the app will display them as clickable cards automatically
@@ -194,6 +251,42 @@ function formatConversationParams(params?: ConversationParameters): string {
 }
 
 /**
+ * Format conversation overrides for the system prompt
+ */
+function formatConversationOverrides(overrides?: ConversationOverrides): string {
+  if (!overrides) return 'No overrides detected.';
+
+  const parts: string[] = [];
+
+  if (overrides.locationOverride?.city) {
+    parts.push(`City preference: ${overrides.locationOverride.city}`);
+  }
+  if (overrides.locationOverride?.maxDistanceKm) {
+    parts.push(`Max distance: ${overrides.locationOverride.maxDistanceKm}km (user indicated willing to travel)`);
+  }
+  if (overrides.ageOverride !== undefined) {
+    parts.push(`Age override: ${overrides.ageOverride} years`);
+  }
+  if (overrides.daysOverride?.length) {
+    parts.push(`Day preference: ${overrides.daysOverride.join(', ')}`);
+  }
+  if (overrides.ignoreBudget) {
+    parts.push('Budget: User indicated budget is not a concern');
+  }
+  if (overrides.preferNewCategories) {
+    parts.push('Variety: User wants to try something new/different');
+  }
+  if (overrides.skillLevelRequired) {
+    parts.push(`Skill level: ${overrides.skillLevelRequired}`);
+  }
+  if (overrides.explicitRequirements?.length) {
+    parts.push(`Explicit requirements: ${overrides.explicitRequirements.join(', ')}`);
+  }
+
+  return parts.length > 0 ? parts.join('\n') : 'No overrides detected.';
+}
+
+/**
  * Generate follow-up prompts based on the conversation
  */
 function generateFollowUpPrompts(
@@ -266,6 +359,7 @@ export class ActivityChatService {
         userId,
         lastContext: familyContext,
         parameters: extractedParams || {}, // Initialize with extracted params
+        conversationOverrides: { explicitRequirements: [] }, // Initialize overrides
       };
       this.conversations.set(conversationId, conversation);
     } else {
@@ -281,6 +375,64 @@ export class ActivityChatService {
         if (extractedParams.extractedActivityType) {
           conversation.parameters.extractedActivityType = extractedParams.extractedActivityType;
         }
+      }
+    }
+
+    // Extract conversation overrides from this message
+    const messageOverrides = extractOverrides(message, conversation.conversationOverrides);
+    conversation.conversationOverrides = mergeOverrides(
+      conversation.conversationOverrides,
+      messageOverrides
+    );
+
+    console.log(`[ActivityChatService] Conversation overrides: ${summarizeOverrides(conversation.conversationOverrides)}`);
+
+    // Quick entity extraction for logging
+    const quickEntities = quickExtract(message);
+    if (quickEntities.age) {
+      conversation.parameters.extractedAge = quickEntities.age;
+    }
+    if (quickEntities.city) {
+      conversation.parameters.extractedCity = quickEntities.city;
+    }
+    if (quickEntities.activityType) {
+      conversation.parameters.extractedActivityType = quickEntities.activityType;
+    }
+
+    // Check if we need clarification (only for first message or unclear queries)
+    if (conversation.turnsUsed === 0 && quickEntities.temporal) {
+      const temporalResolution = resolveTemporalExpression(quickEntities.temporal);
+      if (temporalResolution.needsClarification) {
+        // Store pending clarification and ask user
+        conversation.pendingClarification = {
+          shouldAsk: true,
+          question: {
+            question: temporalResolution.clarificationQuestion || 'When would you like to find activities?',
+            suggestedAnswers: temporalResolution.suggestedDates?.map(d => d.label) || [
+              'This weekend',
+              'Next week',
+              'Custom dates',
+            ],
+            allowFreeform: true,
+            priority: 'required',
+            context: `temporal_expression:${quickEntities.temporal}`,
+          },
+          canProceedWithDefaults: false,
+        };
+
+        // Add human message for context
+        conversation.messages.push(new HumanMessage(message));
+        conversation.turnsUsed++;
+
+        return {
+          conversationId: conversationId!,
+          text: temporalResolution.clarificationQuestion || `I'd be happy to help you plan activities! When exactly is ${quickEntities.temporal}? Different schools have different dates.`,
+          activities: [],
+          followUpPrompts: temporalResolution.suggestedDates?.map(d => d.label) || ['This weekend', 'Next week', 'Custom dates'],
+          turnsRemaining: this.maxTurns - conversation.turnsUsed,
+          shouldStartNew: false,
+          toolsUsed: [],
+        };
       }
     }
 
@@ -320,7 +472,8 @@ export class ActivityChatService {
     // Build messages array with system prompt
     const systemPrompt = AGENT_SYSTEM_PROMPT
       .replace('{family_context}', formatFamilyContext(conversation.lastContext))
-      .replace('{conversation_params}', formatConversationParams(conversation.parameters));
+      .replace('{conversation_params}', formatConversationParams(conversation.parameters))
+      .replace('{conversation_overrides}', formatConversationOverrides(conversation.conversationOverrides));
 
     // Add human message
     conversation.messages.push(new HumanMessage(message));
@@ -428,7 +581,26 @@ export class ActivityChatService {
     const activities = foundActivities.length > 0
       ? foundActivities
       : extractActivitiesFromResponse(responseText);
-    const followUpPrompts = generateFollowUpPrompts(responseText, conversation.lastContext);
+
+    // Generate enhanced follow-up suggestions based on results
+    const followUpPrompts = conversation.lastQueryUnderstanding
+      ? generateFollowUpSuggestions(
+          activities.length,
+          conversation.lastQueryUnderstanding,
+          {
+            children: conversation.lastContext?.children?.map(c => ({
+              id: c.child_id,
+              name: c.name,
+              age: c.age,
+            })),
+            location: conversation.lastContext?.location ? {
+              city: conversation.lastContext.location.city,
+              latitude: conversation.lastContext.location.lat,
+              longitude: conversation.lastContext.location.lng,
+            } : undefined,
+          }
+        )
+      : generateFollowUpPrompts(responseText, conversation.lastContext);
 
     return {
       conversationId,

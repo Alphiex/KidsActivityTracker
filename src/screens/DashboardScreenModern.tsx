@@ -30,8 +30,10 @@ import UpgradePromptModal from '../components/UpgradePromptModal';
 import LinearGradient from 'react-native-linear-gradient';
 import TrialCountdownBanner from '../components/TrialCountdownBanner';
 import ScreenBackground from '../components/ScreenBackground';
+import ChildFilterSelector from '../components/ChildFilterSelector';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode } from '../store/slices/childrenSlice';
 import { useAppSelector } from '../store';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 
@@ -86,6 +88,18 @@ const DashboardScreenModern = () => {
   // Get all activity-children mappings for calendar indicator
   const activityChildrenMap = useAppSelector(state => state.childActivities?.activityChildren || {});
 
+  // Child filter state
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Handler for child selection changes - will reload data when child filter changes
+  const handleChildFilterChange = useCallback((_newSelectedIds: string[], _newMode: ChildFilterMode) => {
+    // Note: The actual filtering will be implemented in getChildBasedFilterParams()
+    // For now, we just trigger a visual refresh
+    console.log('[Dashboard] Child filter changed');
+  }, []);
+
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -95,6 +109,14 @@ const DashboardScreenModern = () => {
     }
     return shuffled;
   };
+
+  // Track component mount state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Load dashboard data on mount and when screen comes into focus
   useFocusEffect(
@@ -125,6 +147,7 @@ const DashboardScreenModern = () => {
           console.error('[Dashboard] Error loading data:', error);
         } finally {
           if (isMountedRef.current) {
+            setLoading(false);
             setReloading(false);
           }
           isLoadingRef.current = false;
@@ -135,20 +158,10 @@ const DashboardScreenModern = () => {
       loadFavorites();
       loadWaitlistCount();
 
-      return () => {
-        // Mark as unmounted to prevent state updates
-        isMountedRef.current = false;
-      };
+      // Note: Don't set isMountedRef to false here - useFocusEffect cleanup
+      // runs on blur, not unmount. The useEffect above handles unmount.
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
-
-  // Reset mounted ref when component mounts
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   // Shimmer animation for loading placeholders
   useEffect(() => {
@@ -1080,6 +1093,15 @@ const DashboardScreenModern = () => {
           isTrialing={isTrialing}
           daysRemaining={trialDaysRemaining ?? 0}
         />
+
+        {/* Child Filter Selector - shown when user has multiple children */}
+        {children.length > 1 && (
+          <ChildFilterSelector
+            compact
+            showModeToggle={true}
+            onSelectionChange={handleChildFilterChange}
+          />
+        )}
 
         {/* Featured Partners / Sponsor Section - only shown when sponsors exist */}
         {sponsoredActivities.length > 0 && (

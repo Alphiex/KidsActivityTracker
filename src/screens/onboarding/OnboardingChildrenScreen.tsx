@@ -31,15 +31,21 @@ const OnboardingChildrenScreen: React.FC = () => {
   }, [dispatch]);
 
   const handleAddChild = () => {
-    navigation.navigate('OnboardingAddChild');
+    navigation.navigate('ChildSetupWizard', { isOnboarding: true });
+  };
+
+  const handleEditChild = (childId: string) => {
+    navigation.navigate('ChildSetupWizard', { childId, isOnboarding: true });
   };
 
   const handleNext = () => {
-    navigation.navigate('OnboardingLocation');
+    // Proceed to subscription - preferences are already set in wizard
+    navigation.navigate('OnboardingSubscription');
   };
 
   const handleSkip = () => {
-    navigation.navigate('OnboardingLocation');
+    // Skip children setup entirely
+    navigation.navigate('OnboardingSubscription');
   };
 
   const handleBack = () => {
@@ -104,7 +110,12 @@ const OnboardingChildrenScreen: React.FC = () => {
         ) : (
           <View style={styles.childrenList}>
             {children.map((child) => (
-              <View key={child.id} style={styles.childCard}>
+              <TouchableOpacity
+                key={child.id}
+                style={styles.childCard}
+                onPress={() => handleEditChild(child.id)}
+                activeOpacity={0.7}
+              >
                 <ChildAvatar name={child.name} size={56} />
                 <View style={styles.childInfo}>
                   <Text style={styles.childName}>{child.name}</Text>
@@ -114,10 +125,8 @@ const OnboardingChildrenScreen: React.FC = () => {
                     </Text>
                   )}
                 </View>
-                <View style={styles.checkmark}>
-                  <Icon name="check" size={16} color="#FFFFFF" />
-                </View>
-              </View>
+                <Icon name="pencil" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
             ))}
           </View>
         )}

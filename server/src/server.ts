@@ -35,6 +35,7 @@ import adminMonitoringRoutes from './routes/adminMonitoring';
 import adminNotificationsRoutes from './routes/adminNotifications';
 import vendorRoutes from './routes/vendor';
 import pushTokensRoutes from './routes/pushTokens';
+import sponsoredRoutes from './routes/sponsored';
 import aiRoutes from './ai/routes';
 
 // Import AI module
@@ -220,6 +221,9 @@ app.use('/api/v1/sponsors', partnersRoutes);
 
 // Analytics tracking routes (v1 API)
 app.use('/api/v1/analytics', analyticsRoutes);
+
+// Sponsored activities routes (impression tracking, analytics)
+app.use('/api/v1/sponsored', sponsoredRoutes);
 
 // AI routes (v1 API) - auth handled per-route inside
 app.use('/api/v1/ai', aiRoutes);

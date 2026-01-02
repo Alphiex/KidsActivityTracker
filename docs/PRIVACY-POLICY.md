@@ -4,13 +4,15 @@
 
 **Effective Date:** December 29, 2025
 
-**Last Updated:** December 29, 2025
+**Last Updated:** January 2, 2026
 
 ---
 
 ## Introduction
 
 Kids Activity Tracker ("we," "our," or "us") is committed to protecting your privacy and the privacy of your children. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
+
+**IMPORTANT: This app is designed for adult users only (17+).** While the app helps parents find activities for their children, the app itself is intended to be used by adults (parents, guardians, and caregivers), not by children directly. This is required to comply with COPPA (Children's Online Privacy Protection Act) and to enable personalized advertising features.
 
 Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.
 
@@ -59,6 +61,14 @@ We automatically collect:
 - Unique device identifiers
 - Crash logs and performance data
 
+### Advertising Information
+To display personalized advertisements, we collect:
+- Advertising identifier (IDFA on iOS, GAID on Android)
+- Ad interaction data (impressions, clicks)
+- General location for ad targeting (not precise location)
+
+**Your Choices:** On iOS, you will be prompted via App Tracking Transparency to allow or deny tracking for personalized ads. On Android, you can opt out via device settings. If you opt out, you will still see ads, but they will not be personalized to you.
+
 ---
 
 ## How We Use Your Information
@@ -86,28 +96,79 @@ We use the information we collect to:
    - Alert you to registration openings
    - Provide customer support
 
+5. **Display Advertisements**
+   - Show personalized ads based on your interests (if you opt in)
+   - Show contextual ads based on app content (if you opt out of tracking)
+   - Measure ad performance and effectiveness
+
+---
+
+## Advertising
+
+Kids Activity Tracker displays advertisements to support the free version of our app. Here's what you need to know:
+
+### Types of Ads
+- **Personalized Ads:** If you allow tracking, ads will be tailored to your interests based on your activity across apps and websites.
+- **Contextual Ads:** If you decline tracking, you'll see generic ads that are not based on your personal data.
+
+### Your Control Over Ads
+- **iOS:** When you first open the app, you'll see an App Tracking Transparency prompt. You can change this setting anytime in Settings > Privacy > Tracking.
+- **Android:** Go to Settings > Google > Ads to opt out of personalized advertising.
+
+### What We Don't Do
+- We never share child profile data with advertisers
+- We never use child information for ad targeting
+- We never sell your personal data to advertisers
+
+### Ad-Free Experience
+Premium subscribers enjoy an ad-free experience. Upgrade to Premium to remove all advertisements.
+
 ---
 
 ## Third-Party Services
 
 We use the following third-party services:
 
-### RevenueCat
+### Advertising Partners
+
+#### Google AdMob
+- **Purpose:** Display personalized advertisements
+- **Data Shared:** Advertising identifier, general location, ad interaction data
+- **Privacy Policy:** [Google Ads Privacy Policy](https://policies.google.com/privacy)
+- **Opt-Out:** You can opt out of personalized ads via App Tracking Transparency (iOS) or Ads Settings (Android)
+
+### Payment & Subscriptions
+
+#### RevenueCat
 - **Purpose:** Subscription and payment processing
 - **Data Shared:** Purchase transactions, subscription status
 - **Privacy Policy:** [RevenueCat Privacy Policy](https://www.revenuecat.com/privacy)
 
-### Google Cloud Platform
+### Infrastructure & Analytics
+
+#### Google Cloud Platform
 - **Purpose:** Data hosting and storage
 - **Data Shared:** All app data is stored on Google Cloud servers
 - **Privacy Policy:** [Google Privacy Policy](https://policies.google.com/privacy)
 
-### Apple (for iOS users)
+#### Firebase (Google)
+- **Purpose:** Analytics, crash reporting, push notifications
+- **Data Shared:** App usage analytics, crash reports, device information
+- **Privacy Policy:** [Firebase Privacy Policy](https://firebase.google.com/support/privacy)
+
+### Platform Providers
+
+#### Apple (for iOS users)
 - **Purpose:** App distribution, notifications, analytics
 - **Data Shared:** App usage analytics, crash reports
 - **Privacy Policy:** [Apple Privacy Policy](https://www.apple.com/legal/privacy/)
 
-We do not sell your personal information to third parties.
+#### Google (for Android users)
+- **Purpose:** App distribution, notifications
+- **Data Shared:** App usage analytics, crash reports
+- **Privacy Policy:** [Google Privacy Policy](https://policies.google.com/privacy)
+
+We do not sell your personal information to third parties. Advertising data is shared only with our advertising partners to deliver relevant ads.
 
 ---
 
@@ -162,17 +223,28 @@ You can view and update your information in the app's Profile and Settings secti
 
 ---
 
-## Children's Privacy
+## Children's Privacy & Age Restrictions
 
-Kids Activity Tracker is designed for parents to find activities for their children. We do not knowingly collect information directly from children under 13.
+**This app is rated 17+ and is intended for adult users only.**
 
-Child profile information is:
-- Provided by parents/guardians only
-- Used solely for activity filtering and recommendations
-- Never shared with third parties for marketing
-- Deletable at any time by the parent
+Kids Activity Tracker is designed for adult users (parents, guardians, and caregivers) to find activities for their children. The app is NOT intended to be used by children directly.
 
-If you believe we have collected information from a child under 13 without parental consent, please contact us immediately.
+### Why We Require Adult Users
+- To comply with COPPA (Children's Online Privacy Protection Act)
+- To enable personalized advertising features
+- To ensure proper consent for data collection
+- To maintain advertising partner compliance
+
+### Child Profile Information
+When parents create profiles for their children within the app:
+- Information is provided by parents/guardians only
+- Data is used solely for activity filtering and recommendations
+- Child data is never shared with advertising partners
+- Child data is never used for ad targeting
+- All child data is deletable at any time by the parent
+
+### No Direct Collection from Children
+We do not knowingly collect information directly from children under 13. If you believe a child has accessed this app directly or we have inadvertently collected information from a child, please contact us immediately at privacy@kidsactivitytracker.app.
 
 ---
 

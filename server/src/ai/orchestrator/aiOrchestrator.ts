@@ -5,12 +5,13 @@ import { AICacheService } from '../cache/cacheService';
 import { getModelByTier } from '../models/chatModels';
 import { selectModel } from './modelRouter';
 import { compressActivities } from '../utils/contextCompressor';
-import { buildFamilyContext, buildContextFromFilters } from '../utils/contextBuilder';
+import { buildFamilyContext, buildContextFromFilters, buildScoringContext, buildScoringContextFromFilters } from '../utils/contextBuilder';
 import { validateAndSanitize } from '../utils/responseValidator';
 import { CostTrackerCallback } from '../callbacks/costTracker';
-import { 
-  AIRecommendationRequest, 
-  AIResponseWithMeta, 
+import { scoreAndRankActivities, ScoringContext } from '../utils/activityScorer';
+import {
+  AIRecommendationRequest,
+  AIResponseWithMeta,
   FamilyContext,
   CompressedActivity,
   BudgetCheck
@@ -18,8 +19,8 @@ import {
 import { AIResponse } from '../schemas/recommendation.schema';
 
 // LangGraph imports
-import { 
-  executeAIGraph, 
+import {
+  executeAIGraph,
   AIGraphStateType,
   AIRequestType,
   ActivityExplanation,
@@ -269,6 +270,7 @@ export class AIOrchestrator {
 
   /**
    * Generate heuristic recommendations without LLM
+   * Now uses the enhanced tiered scoring system for better results
    */
   private async getHeuristicRecommendations(
     request: AIRecommendationRequest,
@@ -281,51 +283,114 @@ export class AIOrchestrator {
       // Build family context if not provided
       const context = familyContext || await this.buildFamilyContextForRequest(request);
       const mergedFilters = this.mergePreferencesIntoFilters(request.filters, context);
-      
+
       const result = await this.activityService.searchActivities({
         ...mergedFilters,
-        limit: 30,
+        limit: 100, // Fetch more candidates for better scoring
         hideClosedOrFull: true
       });
       activities = result.activities || [];
     }
 
-    // Score and rank activities
-    const scored = activities.map((activity, index) => ({
-      activity,
-      score: this.calculateHeuristicScore(activity, request)
-    }));
+    // Build scoring context
+    let scoringContext: ScoringContext;
+    if (request.user_id) {
+      try {
+        scoringContext = await buildScoringContext(request.user_id);
+      } catch (error) {
+        console.warn('[AI Orchestrator] Failed to build scoring context, using filters:', error);
+        scoringContext = buildScoringContextFromFilters(request.filters);
+      }
+    } else {
+      scoringContext = buildScoringContextFromFilters(request.filters);
+    }
 
-    // Sort by score
-    scored.sort((a, b) => b.score - a.score);
+    // Use new tiered scoring system
+    const scoredActivities = scoreAndRankActivities(
+      activities,
+      scoringContext,
+      'recommendations',
+      {
+        limit: 15,
+        ensureDiversity: true,
+      }
+    );
 
-    // Take top 15 for recommendations
-    const topScored = scored.slice(0, 15);
-
-    // Build recommendations
-    const recommendations = topScored.map((item, index) => ({
+    // Build recommendations from scored results
+    const recommendations = scoredActivities.map((item, index) => ({
       activity_id: item.activity.id,
       rank: index + 1,
-      is_sponsored: item.activity.isFeatured || false,
-      why: this.generateHeuristicReasons(item.activity, request),
+      is_sponsored: (item.activity as any).isFeatured || false,
+      why: this.generateEnhancedReasons(item),
       fit_score: Math.round(item.score),
-      warnings: []
+      warnings: item.distance && item.distance > 30 ? ['This activity is a bit far from your location'] : []
     }));
 
     // Build activities map
     const activitiesMap: Record<string, any> = {};
-    for (const item of topScored) {
+    for (const item of scoredActivities) {
       activitiesMap[item.activity.id] = item.activity;
     }
 
     return {
       recommendations,
       activities: activitiesMap,
-      assumptions: ['Using quick match (heuristic) due to simple query or system constraints'],
+      assumptions: ['Using enhanced matching based on your profile and preferences'],
       questions: [],
       source: 'heuristic',
       latency_ms: Date.now() - startTime
     };
+  }
+
+  /**
+   * Generate reasons based on score breakdown
+   */
+  private generateEnhancedReasons(scoredItem: {
+    activity: any;
+    score: number;
+    distance?: number;
+    scoreBreakdown: any;
+  }): string[] {
+    const reasons: string[] = [];
+    const breakdown = scoredItem.scoreBreakdown;
+    const activity = scoredItem.activity;
+
+    // Top scoring factors
+    if (breakdown.activityTypeMatch > 0) {
+      reasons.push('Matches your preferred activity types');
+    }
+    if (breakdown.dayOfWeekMatch > 0) {
+      reasons.push('Available on your preferred days');
+    }
+    if (breakdown.budgetMatch > 0) {
+      reasons.push('Within your budget');
+    }
+    if (breakdown.interestMatch > 0) {
+      reasons.push('Matches your child\'s interests');
+    }
+    if (breakdown.favoriteTypeBonus > 0) {
+      reasons.push('Similar to activities you\'ve favorited');
+    }
+    if (breakdown.providerBonus > 0) {
+      reasons.push('From a provider you trust');
+    }
+
+    // Add age suitability
+    if (activity.ageMin !== null && activity.ageMax !== null) {
+      reasons.push(`Suitable for ages ${activity.ageMin}-${activity.ageMax}`);
+    }
+
+    // Add distance if available and close
+    if (scoredItem.distance !== undefined && scoredItem.distance < 10) {
+      reasons.push('Close to your location');
+    }
+
+    // Add availability
+    if (activity.spotsAvailable && activity.spotsAvailable > 5) {
+      reasons.push('Good availability');
+    }
+
+    return reasons.slice(0, 3); // Max 3 reasons
   }
 
   /**
@@ -368,75 +433,6 @@ export class AIOrchestrator {
     }
 
     return merged;
-  }
-
-  /**
-   * Calculate a simple score for heuristic ranking
-   */
-  private calculateHeuristicScore(activity: any, request: AIRecommendationRequest): number {
-    let score = 50;
-    
-    const targetAge = request.filters.ageMin || request.filters.ageMax;
-    if (targetAge) {
-      const ageMin = activity.ageMin ?? 0;
-      const ageMax = activity.ageMax ?? 18;
-      if (targetAge >= ageMin && targetAge <= ageMax) {
-        score += 20;
-      }
-    }
-    
-    if (request.filters.costMax && activity.cost !== null) {
-      if (activity.cost <= request.filters.costMax) {
-        score += 10;
-      }
-      if (activity.cost === 0) {
-        score += 5;
-      }
-    }
-    
-    if (activity.spotsAvailable && activity.spotsAvailable > 5) {
-      score += 10;
-    }
-    
-    if (activity.isFeatured) {
-      score += 5;
-    }
-    
-    if (activity.updatedAt) {
-      const daysSinceUpdate = (Date.now() - new Date(activity.updatedAt).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceUpdate < 7) {
-        score += 5;
-      }
-    }
-    
-    return Math.min(100, score);
-  }
-
-  /**
-   * Generate simple reasons for heuristic recommendations
-   */
-  private generateHeuristicReasons(activity: any, request: AIRecommendationRequest): string[] {
-    const reasons: string[] = [];
-    
-    if (activity.ageMin !== null && activity.ageMax !== null) {
-      reasons.push(`Suitable for ages ${activity.ageMin}-${activity.ageMax}`);
-    }
-    
-    if (activity.cost === 0) {
-      reasons.push('Free activity');
-    } else if (activity.cost && request.filters.costMax && activity.cost <= request.filters.costMax) {
-      reasons.push('Within your budget');
-    }
-    
-    if (activity.spotsAvailable && activity.spotsAvailable > 0) {
-      reasons.push(`${activity.spotsAvailable} spots available`);
-    }
-    
-    if (activity.activityType?.name) {
-      reasons.push(`Category: ${activity.activityType.name}`);
-    }
-    
-    return reasons.slice(0, 3);
   }
 
   /**

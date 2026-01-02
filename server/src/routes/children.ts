@@ -698,4 +698,133 @@ router.delete('/:childId/skills/:skillCategory', verifyToken, async (req: Reques
   }
 });
 
+// ============= Child Preferences Management =============
+
+// Get child preferences
+router.get('/:childId/preferences', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const preferences = await childrenService.getChildPreferences(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      preferences
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update child preferences
+router.put('/:childId/preferences', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const updateData: any = {};
+
+    // Location preferences
+    if (req.body.locationSource !== undefined) updateData.locationSource = req.body.locationSource;
+    if (req.body.savedAddress !== undefined) updateData.savedAddress = req.body.savedAddress;
+    if (req.body.distanceRadiusKm !== undefined) updateData.distanceRadiusKm = req.body.distanceRadiusKm;
+    if (req.body.distanceFilterEnabled !== undefined) updateData.distanceFilterEnabled = req.body.distanceFilterEnabled;
+
+    // Activity type preferences
+    if (req.body.preferredActivityTypes !== undefined) updateData.preferredActivityTypes = req.body.preferredActivityTypes;
+    if (req.body.preferredSubtypes !== undefined) updateData.preferredSubtypes = req.body.preferredSubtypes;
+    if (req.body.excludedCategories !== undefined) updateData.excludedCategories = req.body.excludedCategories;
+
+    // Schedule preferences
+    if (req.body.daysOfWeek !== undefined) updateData.daysOfWeek = req.body.daysOfWeek;
+    if (req.body.timePreferences !== undefined) updateData.timePreferences = req.body.timePreferences;
+
+    // Budget preferences
+    if (req.body.priceRangeMin !== undefined) updateData.priceRangeMin = req.body.priceRangeMin;
+    if (req.body.priceRangeMax !== undefined) updateData.priceRangeMax = req.body.priceRangeMax;
+    if (req.body.maxBudgetFriendlyAmount !== undefined) updateData.maxBudgetFriendlyAmount = req.body.maxBudgetFriendlyAmount;
+
+    // Environment preference
+    if (req.body.environmentFilter !== undefined) updateData.environmentFilter = req.body.environmentFilter;
+
+    const preferences = await childrenService.updateChildPreferences(
+      req.params.childId,
+      req.user!.id,
+      updateData
+    );
+
+    res.json({
+      success: true,
+      preferences
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Copy preferences from one child to another
+router.post('/:childId/preferences/copy/:sourceChildId', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const preferences = await childrenService.copyChildPreferences(
+      req.params.sourceChildId,
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      preferences,
+      message: 'Preferences copied successfully'
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Initialize preferences for a child from user's current preferences (migration helper)
+router.post('/:childId/preferences/initialize', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const preferences = await childrenService.initializeChildPreferencesFromUser(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      preferences,
+      message: 'Preferences initialized from user settings'
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Bulk initialize preferences for all children (migration helper)
+router.post('/preferences/initialize-all', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const result = await childrenService.initializeAllChildrenPreferences(req.user!.id);
+
+    res.json({
+      success: true,
+      ...result,
+      message: `Initialized preferences for ${result.initialized} children`
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

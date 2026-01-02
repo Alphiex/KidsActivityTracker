@@ -100,8 +100,8 @@ const OnboardingScreenModern: React.FC = () => {
   };
 
   const handleComplete = () => {
-    // Navigate to activity types selection
-    navigation.navigate('OnboardingActivityTypes');
+    // Navigate to children setup (child-centric flow)
+    navigation.navigate('OnboardingChildren');
   };
 
   const handleScroll = Animated.event(

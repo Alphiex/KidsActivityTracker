@@ -1,6 +1,7 @@
 import { FamilyContext, ChildProfile, FamilyPreferences } from '../types/ai.types';
 import { EnhancedChildProfile, EnhancedFamilyContext } from '../agents/activityAssistantAgent';
 import { PrismaClient } from '../../../generated/prisma';
+import { ScoringContext, ChildProfile as ScorerChildProfile, UserPreferences } from './activityScorer';
 
 // Singleton prisma for enhanced context builder
 let _prismaEnhanced: PrismaClient | null = null;
@@ -177,15 +178,20 @@ export function buildContextFromFilters(filters: any): FamilyContext {
 /**
  * Build enhanced family context with favorites, calendar activities, and computed preferences
  * Used by the chat agent for personalized recommendations
+ * @param userId User ID
+ * @param selectedChildIds Optional array of specific child IDs to include
+ * @param mode How to select children: 'specific' (only selectedChildIds), 'all' (all children), 'auto' (selectedChildIds if provided, else all)
+ * @param filterMode For multi-child selection: 'or' (activities for ANY child) or 'and' (activities ALL children can do together)
  */
 export async function buildEnhancedFamilyContext(
   userId: string,
   selectedChildIds?: string[],
-  mode: 'specific' | 'all' | 'auto' = 'all'
+  mode: 'specific' | 'all' | 'auto' = 'all',
+  filterMode: 'or' | 'and' = 'or'
 ): Promise<EnhancedFamilyContext> {
   const prisma = getPrismaEnhanced();
 
-  // Get user with preferences (location stored in preferences JSON)
+  // Get user with preferences (location stored in preferences JSON) - kept for fallback
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -193,7 +199,7 @@ export async function buildEnhancedFamilyContext(
     },
   });
 
-  // Get children with their activities
+  // Get children with their activities AND child-specific preferences
   const children = await prisma.child.findMany({
     where: {
       userId,
@@ -213,6 +219,8 @@ export async function buildEnhancedFamilyContext(
       skillProgress: {
         select: { skillCategory: true, currentLevel: true },
       },
+      // Include child-specific preferences
+      preferences: true,
     },
   });
 
@@ -231,6 +239,7 @@ export async function buildEnhancedFamilyContext(
   // Build enhanced profiles for each child
   const enhancedChildren: EnhancedChildProfile[] = children.map(child => {
     const age = calculateAgeEnhanced(child.dateOfBirth);
+    const childPrefs = child.preferences;
 
     // Filter favorites by age match
     const childFavorites = favorites.filter(f => {
@@ -239,7 +248,7 @@ export async function buildEnhancedFamilyContext(
       return age >= minAge && age <= maxAge;
     });
 
-    // Compute category preferences
+    // Compute category preferences from behavior + explicit preferences
     const categoryCount: Record<string, number> = {};
     [...childFavorites.map(f => f.activity), ...child.childActivities.map(ca => ca.activity)]
       .forEach(a => {
@@ -248,10 +257,15 @@ export async function buildEnhancedFamilyContext(
         }
       });
 
-    const preferredCategories = Object.entries(categoryCount)
+    const computedCategories = Object.entries(categoryCount)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([cat]) => cat);
+
+    // Combine explicit preferences with computed ones (explicit takes priority)
+    const preferredCategories = childPrefs?.preferredActivityTypes?.length
+      ? childPrefs.preferredActivityTypes
+      : computedCategories;
 
     return {
       child_id: child.id,
@@ -267,29 +281,56 @@ export async function buildEnhancedFamilyContext(
         category: ca.activity.category,
         status: ca.status,
       })),
+      // Include child-specific preferences
+      preferences: childPrefs ? {
+        location: childPrefs.savedAddress as any,
+        activityTypes: childPrefs.preferredActivityTypes || [],
+        daysOfWeek: childPrefs.daysOfWeek || [],
+        timePreferences: childPrefs.timePreferences as any,
+        budget: {
+          min: childPrefs.priceRangeMin || 0,
+          max: childPrefs.priceRangeMax || 999999,
+        },
+        distanceRadiusKm: childPrefs.distanceRadiusKm || 25,
+        environmentFilter: childPrefs.environmentFilter as 'all' | 'indoor' | 'outdoor',
+      } : undefined,
       computedPreferences: {
         preferredCategories,
-        preferredDays: [], // Could compute from calendar if schedule data available
+        preferredDays: childPrefs?.daysOfWeek || [],
       },
     };
   });
 
-  // Parse location from user preferences JSON
-  const prefs = typeof user?.preferences === 'string'
+  // Get location from first selected child's preferences, or fallback to user preferences
+  const firstChildWithLocation = enhancedChildren.find(c => c.preferences?.location?.latitude);
+  const userPrefs = typeof user?.preferences === 'string'
     ? JSON.parse(user.preferences)
     : user?.preferences || {};
 
-  // Extract location from preferences
-  const locationCity = prefs.locations?.[0] || prefs.preferredLocation || prefs.city;
+  // Determine location: child preferences first, then user preferences fallback
+  let location;
+  if (firstChildWithLocation?.preferences?.location) {
+    const childLoc = firstChildWithLocation.preferences.location;
+    location = {
+      city: childLoc.city || userPrefs.locations?.[0],
+      province: childLoc.state || userPrefs.province,
+      lat: childLoc.latitude,
+      lng: childLoc.longitude,
+    };
+  } else {
+    const locationCity = userPrefs.locations?.[0] || userPrefs.preferredLocation || userPrefs.city;
+    location = locationCity ? {
+      city: locationCity,
+      province: userPrefs.province || undefined,
+      lat: userPrefs.latitude || undefined,
+      lng: userPrefs.longitude || undefined,
+    } : undefined;
+  }
 
   return {
     children: enhancedChildren,
-    location: locationCity ? {
-      city: locationCity,
-      province: prefs.province || undefined,
-      lat: prefs.latitude || undefined,
-      lng: prefs.longitude || undefined,
-    } : undefined,
+    location,
+    filterMode, // Include filter mode for OR/AND logic
   };
 }
 
@@ -309,4 +350,336 @@ function calculateAgeEnhanced(dateOfBirth: Date | string | null): number {
   }
 
   return Math.max(0, Math.min(18, age));
+}
+
+/**
+ * Merge child preferences based on filter mode
+ * OR mode: Union of preferences (activities suitable for ANY child)
+ * AND mode: Intersection (activities ALL children can do together)
+ */
+function mergeChildPreferences(
+  children: any[],
+  filterMode: 'or' | 'and'
+): {
+  activityTypes?: string[];
+  daysOfWeek?: string[];
+  priceRange?: { min?: number; max?: number };
+  timePreferences?: { morning: boolean; afternoon: boolean; evening: boolean };
+  distanceRadiusKm?: number;
+  environmentFilter?: 'all' | 'indoor' | 'outdoor';
+} {
+  const childrenWithPrefs = children.filter(c => c.preferences);
+
+  if (childrenWithPrefs.length === 0) {
+    return {};
+  }
+
+  if (filterMode === 'or') {
+    // OR mode: Union - show activities for ANY selected child
+    const activityTypes = new Set<string>();
+    const daysOfWeek = new Set<string>();
+    let priceMin = Infinity;
+    let priceMax = 0;
+    let maxDistance = 0;
+    const timePreferences = { morning: false, afternoon: false, evening: false };
+
+    for (const child of childrenWithPrefs) {
+      const prefs = child.preferences;
+
+      // Union of activity types
+      (prefs.preferredActivityTypes || []).forEach((t: string) => activityTypes.add(t));
+
+      // Union of days
+      (prefs.daysOfWeek || []).forEach((d: string) => daysOfWeek.add(d));
+
+      // Widest price range
+      priceMin = Math.min(priceMin, prefs.priceRangeMin || 0);
+      priceMax = Math.max(priceMax, prefs.priceRangeMax || 999999);
+
+      // Maximum distance
+      maxDistance = Math.max(maxDistance, prefs.distanceRadiusKm || 25);
+
+      // Any time is true
+      const tp = prefs.timePreferences as any;
+      if (tp?.morning) timePreferences.morning = true;
+      if (tp?.afternoon) timePreferences.afternoon = true;
+      if (tp?.evening) timePreferences.evening = true;
+    }
+
+    return {
+      activityTypes: activityTypes.size > 0 ? Array.from(activityTypes) : undefined,
+      daysOfWeek: daysOfWeek.size > 0 ? Array.from(daysOfWeek) : undefined,
+      priceRange: { min: priceMin === Infinity ? 0 : priceMin, max: priceMax },
+      timePreferences,
+      distanceRadiusKm: maxDistance || undefined,
+      environmentFilter: 'all', // In OR mode, show all environments
+    };
+  } else {
+    // AND mode: Intersection - show activities ALL children can do together
+    let activityTypes = childrenWithPrefs[0]?.preferences?.preferredActivityTypes || [];
+    let daysOfWeek = childrenWithPrefs[0]?.preferences?.daysOfWeek || [];
+    let priceMin = 0;
+    let priceMax = 999999;
+    let minDistance = Infinity;
+    const timePreferences = { morning: true, afternoon: true, evening: true };
+
+    for (const child of childrenWithPrefs) {
+      const prefs = child.preferences;
+
+      // Intersection of activity types
+      if (prefs.preferredActivityTypes?.length) {
+        const childTypes = new Set(prefs.preferredActivityTypes);
+        activityTypes = activityTypes.filter((t: string) => childTypes.has(t));
+      }
+
+      // Intersection of days
+      if (prefs.daysOfWeek?.length) {
+        const childDays = new Set(prefs.daysOfWeek);
+        daysOfWeek = daysOfWeek.filter((d: string) => childDays.has(d));
+      }
+
+      // Tightest price range
+      priceMin = Math.max(priceMin, prefs.priceRangeMin || 0);
+      priceMax = Math.min(priceMax, prefs.priceRangeMax || 999999);
+
+      // Minimum distance (must be reachable by all)
+      minDistance = Math.min(minDistance, prefs.distanceRadiusKm || 25);
+
+      // All times must be true
+      const tp = prefs.timePreferences as any;
+      if (!tp?.morning) timePreferences.morning = false;
+      if (!tp?.afternoon) timePreferences.afternoon = false;
+      if (!tp?.evening) timePreferences.evening = false;
+    }
+
+    return {
+      activityTypes: activityTypes.length > 0 ? activityTypes : undefined,
+      daysOfWeek: daysOfWeek.length > 0 ? daysOfWeek : undefined,
+      priceRange: { min: priceMin, max: priceMax },
+      timePreferences,
+      distanceRadiusKm: minDistance === Infinity ? undefined : minDistance,
+      environmentFilter: 'all', // Could compute intersection if needed
+    };
+  }
+}
+
+/**
+ * Build scoring context for the tiered scoring system
+ * Combines user profile, preferences, behavioral data, and computed signals
+ * Now uses child-level preferences instead of user-level preferences
+ */
+export async function buildScoringContext(
+  userId: string,
+  options?: {
+    selectedChildIds?: string[];
+    includeRecentActivity?: boolean;
+    includeFavorites?: boolean;
+    filterMode?: 'or' | 'and';
+  }
+): Promise<ScoringContext> {
+  const prisma = getPrismaEnhanced();
+  const { selectedChildIds, includeRecentActivity = true, includeFavorites = true, filterMode = 'or' } = options || {};
+
+  // Fetch user with preferences (fallback only)
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      preferences: true,
+    },
+  });
+
+  // Parse user preferences (fallback)
+  const userPrefs = typeof user?.preferences === 'string'
+    ? JSON.parse(user.preferences)
+    : user?.preferences || {};
+
+  // Fetch children with their preferences
+  const children = await prisma.child.findMany({
+    where: {
+      userId,
+      isActive: true,
+      ...(selectedChildIds?.length ? { id: { in: selectedChildIds } } : {}),
+    },
+    include: {
+      childActivities: includeRecentActivity ? {
+        select: {
+          activityId: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      } : false,
+      skillProgress: {
+        select: { skillCategory: true, currentLevel: true },
+      },
+      // Include child-specific preferences
+      preferences: true,
+    },
+  });
+
+  // Fetch favorites if requested
+  let favorites: any[] = [];
+  let favoriteProviders: string[] = [];
+  let favoriteActivityTypes: string[] = [];
+
+  if (includeFavorites) {
+    favorites = await prisma.favorite.findMany({
+      where: { userId },
+      include: {
+        activity: {
+          select: {
+            id: true,
+            category: true,
+            providerId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Extract favorite providers
+    favoriteProviders = [
+      ...new Set(favorites.map(f => f.activity.providerId).filter(Boolean)),
+    ] as string[];
+
+    // Extract favorite activity types
+    const typeCounts: Record<string, number> = {};
+    for (const fav of favorites) {
+      const category = fav.activity.category;
+      if (category) {
+        typeCounts[category] = (typeCounts[category] || 0) + 1;
+      }
+    }
+    favoriteActivityTypes = Object.entries(typeCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([cat]) => cat);
+  }
+
+  // Build child profiles for scorer
+  const childProfiles: ScorerChildProfile[] = children.map(child => {
+    const age = calculateAgeEnhanced(child.dateOfBirth);
+
+    // Build skill progress map
+    const skillProgress: Record<string, 'beginner' | 'intermediate' | 'advanced'> = {};
+    if (child.skillProgress) {
+      for (const sp of child.skillProgress) {
+        const level = sp.currentLevel?.toLowerCase();
+        if (level === 'beginner' || level === 'intermediate' || level === 'advanced') {
+          skillProgress[sp.skillCategory] = level;
+        }
+      }
+    }
+
+    return {
+      id: child.id,
+      name: child.name,
+      age,
+      interests: child.interests || [],
+      skillProgress,
+    };
+  });
+
+  // Extract recent activity IDs for diversity scoring
+  const recentActivities: string[] = [];
+  if (includeRecentActivity) {
+    for (const child of children) {
+      if (child.childActivities) {
+        for (const ca of child.childActivities) {
+          if (!recentActivities.includes(ca.activityId)) {
+            recentActivities.push(ca.activityId);
+          }
+        }
+      }
+    }
+  }
+
+  // Build merged preferences from children's preferences
+  // In OR mode: union of preferences (show activities for ANY child)
+  // In AND mode: intersection (show activities ALL children can do together)
+  const mergedPreferences = mergeChildPreferences(children, filterMode);
+
+  // Build user preferences from merged child preferences, with user prefs as fallback
+  const preferences: UserPreferences = {
+    preferredActivityTypes: mergedPreferences.activityTypes?.length
+      ? mergedPreferences.activityTypes
+      : userPrefs.preferredActivityTypes || userPrefs.activityTypes,
+    daysOfWeek: mergedPreferences.daysOfWeek?.length && mergedPreferences.daysOfWeek.length < 7
+      ? mergedPreferences.daysOfWeek
+      : userPrefs.daysOfWeek || userPrefs.preferredDays,
+    priceRange: mergedPreferences.priceRange || userPrefs.priceRange || (userPrefs.maxPrice ? { max: userPrefs.maxPrice } : undefined),
+    timePreferences: mergedPreferences.timePreferences || userPrefs.timePreferences,
+    environmentPreference: mergedPreferences.environmentFilter !== 'all'
+      ? mergedPreferences.environmentFilter
+      : userPrefs.environmentPreference,
+    distanceRadiusKm: mergedPreferences.distanceRadiusKm || userPrefs.maxDistance || userPrefs.distanceRadiusKm || 50,
+  };
+
+  // Extract location from first child's preferences, or fall back to user preferences
+  const firstChildWithLocation = children.find(c => c.preferences?.savedAddress);
+  const childLoc = firstChildWithLocation?.preferences?.savedAddress as any;
+
+  const latitude = childLoc?.latitude || userPrefs.latitude || 49.2827; // Default to Vancouver
+  const longitude = childLoc?.longitude || userPrefs.longitude || -123.1207;
+  const city = childLoc?.city || userPrefs.locations?.[0] || userPrefs.preferredLocation || userPrefs.city;
+
+  return {
+    userLocation: {
+      latitude,
+      longitude,
+      city,
+    },
+    children: childProfiles,
+    preferences,
+    recentActivities: recentActivities.length > 0 ? recentActivities : undefined,
+    favoriteProviders: favoriteProviders.length > 0 ? favoriteProviders : undefined,
+    favoriteActivityTypes: favoriteActivityTypes.length > 0 ? favoriteActivityTypes : undefined,
+    filterMode, // Include for downstream scoring
+  };
+}
+
+/**
+ * Build scoring context from filters (for non-authenticated requests)
+ */
+export function buildScoringContextFromFilters(filters: {
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  ageMin?: number;
+  ageMax?: number;
+  activityTypes?: string[];
+  daysOfWeek?: string[];
+  maxPrice?: number;
+  maxDistance?: number;
+}): ScoringContext {
+  const children: ScorerChildProfile[] = [];
+
+  // Create synthetic child if age provided
+  if (filters.ageMin !== undefined || filters.ageMax !== undefined) {
+    const ageMin = filters.ageMin ?? 0;
+    const ageMax = filters.ageMax ?? 18;
+    const avgAge = Math.round((ageMin + ageMax) / 2);
+
+    children.push({
+      id: 'filter-child',
+      name: 'Child',
+      age: avgAge,
+      interests: [],
+    });
+  }
+
+  return {
+    userLocation: {
+      latitude: filters.latitude || 49.2827,
+      longitude: filters.longitude || -123.1207,
+      city: filters.city,
+    },
+    children,
+    preferences: {
+      preferredActivityTypes: filters.activityTypes,
+      daysOfWeek: filters.daysOfWeek,
+      priceRange: filters.maxPrice ? { max: filters.maxPrice } : undefined,
+      distanceRadiusKm: filters.maxDistance || 50,
+    },
+  };
 }

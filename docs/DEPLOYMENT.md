@@ -302,6 +302,68 @@ gcloud run services update kids-activity-api \
 | Efficient queries | Database indexes |
 | Request caching | Future: Redis layer |
 
+## Cloud Resource Cleanup
+
+### Container Image Cleanup
+
+```bash
+# List images in GCR
+gcloud container images list
+
+# Delete old untagged images (keep last 5)
+gcloud container images list-tags gcr.io/kids-activity-tracker-2024/kids-activity-api \
+  --filter='-tags:*' \
+  --format='get(digest)' \
+  --sort-by=~timestamp | tail -n +6 | while read digest; do
+    gcloud container images delete "gcr.io/kids-activity-tracker-2024/kids-activity-api@${digest}" \
+      --force-delete-tags --quiet
+done
+
+# Delete entire legacy image repository
+gcloud container images delete gcr.io/kids-activity-tracker-2024/REPO_NAME --force-delete-tags --quiet
+```
+
+### Cloud Storage Lifecycle Policy
+
+The Cloud Build bucket has a 7-day lifecycle policy for automatic cleanup:
+
+```bash
+# Create lifecycle policy file
+cat > /tmp/lifecycle.json << 'EOF'
+{
+  "lifecycle": {
+    "rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]
+  }
+}
+EOF
+
+# Apply to bucket
+gcloud storage buckets update gs://kids-activity-tracker-2024_cloudbuild \
+  --lifecycle-file=/tmp/lifecycle.json
+```
+
+### Manual Storage Cleanup
+
+```bash
+# Check bucket size
+gcloud storage du gs://kids-activity-tracker-2024_cloudbuild --summarize
+
+# Delete old build sources
+gcloud storage rm "gs://kids-activity-tracker-2024_cloudbuild/source/**" --recursive --quiet
+```
+
+### Cloud Run Revision Cleanup
+
+Cloud Run manages revisions automatically. Old inactive revisions are garbage collected. To check:
+
+```bash
+# List all revisions
+gcloud run revisions list --service=kids-activity-api --region=us-central1
+
+# View active revision
+gcloud run services describe kids-activity-api --region=us-central1 --format='value(status.traffic)'
+```
+
 ## Troubleshooting Deployments
 
 ### Build Failures
@@ -334,5 +396,5 @@ gcloud run services logs read kids-activity-api \
 
 ---
 
-**Document Version**: 4.1
+**Document Version**: 4.2
 **Last Updated**: January 2026

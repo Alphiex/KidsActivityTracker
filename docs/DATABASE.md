@@ -97,6 +97,7 @@ Primary activity records from recreation providers.
 | dayOfWeek | String[] | Days activity runs |
 | ageMin | Int? | Minimum age |
 | ageMax | Int? | Maximum age |
+| gender | String? | Target gender: 'male', 'female', or null (all) |
 | cost | Decimal? | Price |
 | spotsAvailable | Int? | Remaining spots |
 | totalSpots | Int? | Total capacity |
@@ -460,6 +461,48 @@ User assignments to test variants.
 | identifierType | String | user_id/device_id |
 | variant | String | Assigned variant |
 | assignedAt | DateTime | Assignment time |
+
+#### SponsoredImpression
+Tracks individual impressions for sponsored activities at top of search results.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| activityId | UUID | FK to Activity |
+| impressionType | String | 'top_result' or 'sponsor_section' |
+| position | Int? | Position in results (1, 2, or 3) |
+| userId | String? | User ID (if authenticated) |
+| sessionId | String? | Session ID for anonymous tracking |
+| searchQuery | String? | Search query used |
+| filters | JSON? | Applied filters |
+| deviceType | String? | ios, android, web |
+| createdAt | DateTime | When impression occurred |
+
+**Indexes**:
+- `(activityId, createdAt)` - Activity history
+- `(activityId, impressionType, createdAt)` - Type-specific queries
+- `(createdAt)` - Time-based queries
+
+#### SponsoredMonthlyStats
+Pre-aggregated monthly statistics for sponsored activities.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| activityId | UUID | FK to Activity |
+| year | Int | Year (e.g., 2026) |
+| month | Int | Month (1-12) |
+| topResultCount | Int | Impressions at top of search results |
+| sponsorSectionCount | Int | Impressions in sponsor section |
+| totalImpressions | Int | Total impressions |
+| uniqueUsers | Int | Unique users who saw the activity |
+| createdAt | DateTime | Record creation |
+| updatedAt | DateTime | Last update |
+
+**Unique constraint**: `(activityId, year, month)`
+**Indexes**:
+- `(activityId)` - Activity lookups
+- `(year, month)` - Time-based queries
 
 ### Notification Domain (4 tables)
 

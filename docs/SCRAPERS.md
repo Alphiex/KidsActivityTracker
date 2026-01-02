@@ -311,10 +311,23 @@ Each provider is configured with rate limits:
 ### Normalization
 - Parse dates to ISO format
 - Extract age ranges (min/max)
+- **Extract gender from activity name** (see Gender Detection below)
 - Standardize time formats (HH:mm)
 - Calculate dayOfWeek from schedule
 - Extract location from address
 - Geocode addresses (lat/lng)
+
+### Gender Detection
+The DataNormalizer automatically detects gender-specific activities from names:
+
+| Pattern | Result | Examples |
+|---------|--------|----------|
+| `boys`, `boy's`, `male`, `men's` | `'male'` | "Boys Basketball", "Men's Hockey" |
+| `girls`, `girl's`, `female`, `women's`, `ladies` | `'female'` | "Girls Softball", "Ladies Fitness" |
+| `co-ed`, `mixed`, `all genders` | `null` | "Co-ed Soccer", "Mixed Martial Arts" |
+| No gender keywords | `null` | "Swimming Lessons", "Piano Class" |
+
+Activities with `gender: null` are available to all children.
 
 ### Output (to database)
 ```javascript
@@ -331,6 +344,7 @@ Each provider is configured with rate limits:
   dayOfWeek: ["Monday", "Wednesday"],
   ageMin: 5,
   ageMax: 10,
+  gender: null,  // 'male', 'female', or null (all)
   cost: 75.00,
   spotsAvailable: 3,
   totalSpots: 15,

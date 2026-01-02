@@ -76,7 +76,12 @@ export class EnhancedActivityService {
       sortOrder = 'asc',
       includeInactive = false,
       includePastActivities = false,
-      randomSeed
+      randomSeed,
+      // Sponsored activity options
+      sponsoredMode = 'top', // Default: show 3 sponsored at top
+      userId,
+      sessionId,
+      deviceType
     } = params;
 
     // DEBUG LOGGING
@@ -665,14 +670,68 @@ export class EnhancedActivityService {
       } : null
     });
 
+    // Handle sponsored activities (only on first page, only for 'top' mode)
+    let sponsoredActivities: Activity[] = [];
+    let finalActivities = activities;
+
+    if (sponsoredMode === 'top' && offset === 0) {
+      try {
+        // Get up to 3 sponsored activities matching the same filters
+        const sponsoredResult = await sponsoredActivityService.selectSponsoredActivities(
+          finalWhere,
+          3, // Max 3 sponsored at top
+          true // Exclude from regular sponsor section
+        );
+
+        sponsoredActivities = sponsoredResult.sponsoredActivities;
+
+        if (sponsoredActivities.length > 0) {
+          // Get IDs of sponsored activities to exclude from regular results
+          const sponsoredIds = new Set(sponsoredActivities.map(a => a.id));
+
+          // Filter out sponsored activities from regular results to avoid duplicates
+          const regularActivities = activities.filter(a => !sponsoredIds.has(a.id));
+
+          // Combine: sponsored first, then regular
+          // Adjust to maintain the requested limit
+          const totalToShow = Math.min(limit, sponsoredActivities.length + regularActivities.length);
+          const regularToShow = totalToShow - sponsoredActivities.length;
+          finalActivities = [...sponsoredActivities, ...regularActivities.slice(0, regularToShow)];
+
+          console.log(`🎯 [ActivityService] Added ${sponsoredActivities.length} sponsored activities at top`);
+
+          // Record impressions asynchronously (don't wait)
+          sponsoredActivityService.recordImpressions(
+            sponsoredActivities.map(a => a.id),
+            'top_result',
+            {
+              userId,
+              sessionId,
+              searchQuery: search,
+              filters: { category, activityType, ageMin, ageMax, location },
+              deviceType
+            }
+          ).catch(err => console.error('[ActivityService] Failed to record impressions:', err));
+        }
+      } catch (error) {
+        console.error('[ActivityService] Error getting sponsored activities:', error);
+        // Continue with regular activities if sponsored fails
+      }
+    }
+
     return {
-      activities,
+      activities: finalActivities,
       pagination: {
         total,
         limit,
         offset,
         pages: Math.ceil(total / limit)
-      }
+      },
+      // Include metadata about sponsored activities
+      sponsored: sponsoredMode === 'top' && offset === 0 ? {
+        count: sponsoredActivities.length,
+        ids: sponsoredActivities.map(a => a.id)
+      } : undefined
     };
   }
 

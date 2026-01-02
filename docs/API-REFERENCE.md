@@ -197,6 +197,7 @@ Search activities with filters.
 | `activitySubtype` | string | Filter by subtype code |
 | `ageMin` | number | Minimum age |
 | `ageMax` | number | Maximum age |
+| `gender` | string | Filter by gender: 'male' or 'female' (shows matching + null) |
 | `costMin` | number | Minimum cost |
 | `costMax` | number | Maximum cost |
 | `dateStart` | string | Activities starting after (ISO date) |
@@ -240,6 +241,7 @@ Activities with geocoded locations will be sorted by distance when distance filt
       "dayOfWeek": ["Monday", "Wednesday"],
       "ageMin": 5,
       "ageMax": 8,
+      "gender": null,
       "cost": 75.00,
       "spotsAvailable": 3,
       "totalSpots": 15,
@@ -287,6 +289,7 @@ Get featured activities matching user filters. Returns activities ordered by tie
 |-----------|------|-------------|
 | `ageMin` | number | Minimum age filter |
 | `ageMax` | number | Maximum age filter |
+| `gender` | string | Gender filter: 'male' or 'female' (TOP PRIORITY) |
 | `costMin` | number | Minimum cost filter |
 | `costMax` | number | Maximum cost filter |
 | `activityType` | string | Activity type code or UUID |
@@ -998,6 +1001,186 @@ Get user's AI quota status. **Requires authentication**.
 |------|-------|---------|-------------------|
 | Free | 3 | 30 | 1 |
 | Pro ($5.99) | 30 | 500 | 5 |
+
+---
+
+## Sponsored Activity Endpoints
+
+Endpoints for sponsored/featured activity tracking and analytics.
+
+### GET /api/v1/sponsored/section
+
+Get sponsored activities for the sponsor section on explore page (no monthly limit applies).
+
+**Query Parameters**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | number | Max results (default: 6) |
+| `ageMin` | number | Minimum age filter |
+| `ageMax` | number | Maximum age filter |
+| `location` | string | Location filter |
+| `activityType` | string | Activity type filter |
+| `sessionId` | string | Session ID for impression tracking |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "activities": [...],
+  "total": 6
+}
+```
+
+### GET /api/v1/sponsored/tier-limits
+
+Get the impression limits for each tier.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "gold": {
+      "monthlyLimit": null,
+      "description": "Unlimited impressions"
+    },
+    "silver": {
+      "monthlyLimit": 25000,
+      "description": "Up to 25,000 impressions per month"
+    },
+    "bronze": {
+      "monthlyLimit": 5000,
+      "description": "Up to 5,000 impressions per month"
+    }
+  }
+}
+```
+
+### GET /api/v1/sponsored/analytics/:activityId
+
+Get analytics for a specific sponsored activity (requires authentication).
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "activity": {
+      "id": "uuid",
+      "name": "Activity Name",
+      "tier": "gold",
+      "featuredStartDate": "2026-01-01",
+      "featuredEndDate": "2026-12-31"
+    },
+    "currentMonth": {
+      "year": 2026,
+      "month": 1,
+      "impressions": 1234,
+      "topResultCount": 1000,
+      "sponsorSectionCount": 234,
+      "monthlyLimit": null,
+      "remainingQuota": null,
+      "usagePercent": null
+    },
+    "history": [...],
+    "tierConfig": {
+      "tier": "gold",
+      "monthlyLimit": null,
+      "weight": 3
+    }
+  }
+}
+```
+
+### GET /api/v1/sponsored/provider/:providerId/analytics
+
+Get analytics for all sponsored activities of a provider (requires authentication).
+
+---
+
+## Vendor Portal Endpoints
+
+Endpoints for third-party vendor self-service portal.
+
+### GET /api/vendor/:vendorId/analytics/sponsored
+
+Get sponsored activity analytics for the vendor's activities.
+
+**Query Parameters**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `months` | number | Number of months of history (default: 6) |
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "vendorId": "uuid",
+    "currentMonth": { "year": 2026, "month": 1 },
+    "summary": {
+      "totalFeaturedActivities": 5,
+      "totalImpressionsThisMonth": 15000,
+      "byTier": {
+        "gold": { "count": 1, "impressions": 5000, "limit": null },
+        "silver": { "count": 2, "impressions": 8000, "limit": 25000 },
+        "bronze": { "count": 2, "impressions": 2000, "limit": 5000 }
+      }
+    },
+    "activities": [
+      {
+        "activityId": "uuid",
+        "activityName": "Kids Swimming",
+        "tier": "gold",
+        "currentMonth": {
+          "impressions": 5000,
+          "topResultCount": 4000,
+          "sponsorSectionCount": 1000,
+          "monthlyLimit": null,
+          "remainingQuota": null,
+          "usagePercent": null
+        }
+      }
+    ],
+    "tierLimits": {...}
+  }
+}
+```
+
+### GET /api/vendor/:vendorId/analytics/sponsored/:activityId
+
+Get detailed analytics for a specific sponsored activity owned by the vendor.
+
+### GET /api/vendor/:vendorId/analytics/overview
+
+Get overall analytics overview for the vendor.
+
+**Response** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "activities": {
+      "total": 50,
+      "active": 45,
+      "featured": 5
+    },
+    "impressions": {
+      "currentMonth": 15000,
+      "lastMonth": 12000,
+      "changePercent": 25,
+      "breakdown": {
+        "topResult": 12000,
+        "sponsorSection": 3000
+      }
+    },
+    "period": {
+      "currentMonth": { "year": 2026, "month": 1 },
+      "lastMonth": { "year": 2025, "month": 12 }
+    }
+  }
+}
+```
 
 ---
 

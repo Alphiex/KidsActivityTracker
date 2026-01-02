@@ -58,7 +58,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       offset = '0',
       sortBy = 'availability', // Default: availability-first random ordering
       sortOrder = 'asc',
-      randomSeed // Seed for consistent random ordering across pagination
+      randomSeed, // Seed for consistent random ordering across pagination
+      // Sponsored activity options
+      sponsoredMode = 'top', // 'top' (default), 'section', or 'none'
+      sessionId // For impression tracking
     } = req.query;
 
     console.log('[Routes] Activities API Request:', {
@@ -136,7 +139,14 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       offset: parseInt(offset as string),
       sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability',
       sortOrder: sortOrder as 'asc' | 'desc',
-      randomSeed: randomSeed as string
+      randomSeed: randomSeed as string,
+      // Sponsored activity options
+      sponsoredMode: sponsoredMode as 'top' | 'section' | 'none',
+      userId: (req as any).userId, // From auth middleware if authenticated
+      sessionId: sessionId as string,
+      deviceType: req.headers['x-device-type'] as string ||
+                  (req.headers['user-agent']?.includes('iPhone') || req.headers['user-agent']?.includes('iPad') ? 'ios' :
+                   req.headers['user-agent']?.includes('Android') ? 'android' : 'web')
     };
 
     console.log('🚨 [API Route] Global filter params being passed:', {
@@ -165,7 +175,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       activities: result.activities,
       total: result.pagination.total,
       hasMore: result.pagination.offset + result.pagination.limit < result.pagination.total,
-      pagination: result.pagination
+      pagination: result.pagination,
+      // Include sponsored metadata if available
+      sponsored: result.sponsored
     });
   } catch (error: any) {
     console.error('Activity search error:', error);

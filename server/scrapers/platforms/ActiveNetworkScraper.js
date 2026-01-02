@@ -2411,6 +2411,49 @@ class ActiveNetworkScraper extends BaseScraper {
                   data.longitude = parseFloat(lngMatch[1]);
                 }
 
+
+
+                // AUTO-FIX: Extract registration status
+                if (!data.registrationStatus) {
+                  const statusSelectors = [".activity-status--full",".activity-status",".activity-enrollment .activity-status","[class*='activity-status']",".spots span","label:has(.bmf-user) span"];
+                  for (const sel of statusSelectors) {
+                    try {
+                      const el = document.querySelector(sel);
+                      if (el) {
+                        const text = el.textContent?.trim()?.toLowerCase();
+                        if (text?.includes('waitlist') || text?.includes('wait list')) {
+                          data.registrationStatus = 'Waitlist';
+                        } else if (text?.includes('full') || text?.includes('sold out')) {
+                          data.registrationStatus = 'Full';
+                        } else if (text?.includes('closed') || text?.includes('cancelled')) {
+                          data.registrationStatus = 'Closed';
+                        } else if (text?.includes('open') || text?.includes('available') || text?.includes('register')) {
+                          data.registrationStatus = 'Open';
+                        }
+                        if (data.registrationStatus) break;
+                      }
+                    } catch (e) {}
+                  }
+                }
+
+
+                // AUTO-FIX: Extract session count
+                if (!data.sessionCount) {
+                  const sessionSelectors = [".detail__other-info__label:has(+ .detail__other-info__value)",".listbox-item .detail__other-info__label",".more-info .detail__other-info__value",".listbox-item[role='listitem'] .detail__other-info__value",".bm-course-days .column.first-column",".bm-course-days .table .column:first-child"];
+                  for (const sel of sessionSelectors) {
+                    try {
+                      const el = document.querySelector(sel);
+                      if (el) {
+                        const text = el.textContent?.trim();
+                        const match = text?.match(/(\d+)/);
+                        if (match) {
+                          data.sessionCount = parseInt(match[1], 10);
+                          break;
+                        }
+                      }
+                    } catch (e) {}
+                  }
+                }
                 return data;
               });
 

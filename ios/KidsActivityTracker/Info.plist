@@ -91,6 +91,8 @@
 	<string>We need access to create reminders for your kids' activities.</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>We send notifications to remind you about upcoming activities.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier will be used to deliver personalized ads to you. You can change this preference at any time in Settings.</string>
 	<key>RCTNewArchEnabled</key>
 	<false/>
 	<key>UIAppFonts</key>

@@ -15,7 +15,7 @@ This document contains all the text content needed for the App Store submission.
 | **Build** | 2 |
 | **Primary Category** | Lifestyle |
 | **Secondary Category** | Education |
-| **Age Rating** | 4+ |
+| **Age Rating** | 17+ |
 | **Copyright** | 2025 Kids Activity Tracker |
 
 ---
@@ -325,6 +325,13 @@ That's just $3.33/month! Cancel anytime. Subscription automatically renews unles
 
 ## Age Rating Questionnaire Answers
 
+**IMPORTANT: Target Audience Clarification**
+
+This app is designed for **ADULT USERS ONLY** (parents, guardians, and caregivers). While the app helps adults find activities for children, the app itself is intended to be operated by adults, not children. This classification is required to:
+- Display third-party personalized advertisements
+- Comply with COPPA (Children's Online Privacy Protection Act)
+- Ensure proper data collection consent from adult users
+
 | Question | Answer |
 |----------|--------|
 | Cartoon or Fantasy Violence | None |
@@ -339,7 +346,7 @@ That's just $3.33/month! Cancel anytime. Subscription automatically renews unles
 | Unrestricted Web Access | No |
 | Gambling and Contests | None |
 
-**Result:** 4+ Age Rating
+**Result:** 17+ Age Rating (Adults Only - required for personalized advertising)
 
 ---
 
@@ -357,20 +364,29 @@ That's just $3.33/month! Cancel anytime. Subscription automatically renews unles
 | Location (Coarse) | Yes | Yes | No |
 | User Content (Photos) | Yes | No | No |
 | Identifiers (User ID) | Yes | Yes | No |
+| Identifiers (Device ID) | Yes | No | Yes |
+| Identifiers (Advertising ID) | Yes | No | Yes |
 | Purchases | Yes | Yes | No |
 | Usage Data (Product Interaction) | Yes | Yes | No |
+| Usage Data (Advertising Data) | Yes | No | Yes |
 | Diagnostics (Crash Data) | Yes | No | No |
 
 ### Data Use Purposes
 - App Functionality
 - Product Personalization
 - Analytics (first-party only)
+- Third-Party Advertising
 
 ### Data Linked to User
-All collected data except photos and crash logs are linked to user accounts.
+All collected data except photos, crash logs, and advertising identifiers are linked to user accounts.
 
 ### Data Used for Tracking
-We do not use any data for tracking users across apps or websites.
+The following data types are used for tracking to deliver personalized advertisements:
+- Device ID (for ad attribution)
+- Advertising ID (IDFA/GAID for personalized ads)
+- Advertising Data (ad interactions and impressions)
+
+Users can opt out of personalized advertising through App Tracking Transparency (iOS) or device settings (Android).
 
 ---
 
@@ -390,12 +406,15 @@ We do not use any data for tracking users across apps or websites.
 4. **Smart address autocomplete** - Start typing and get instant location suggestions with distance filtering
 5. **Real-time availability** - Never miss registration deadlines
 
-### Target Audience
+### Target Audience (Adults Only - 17+)
+**This app is designed exclusively for adult users:**
 - Parents of children ages 0-18
 - Grandparents and caregivers
 - Separated/divorced parents coordinating schedules
 - New families looking for activities
 - Busy families managing multiple children
+
+**Note:** While the app helps find activities for children, the app itself is operated by adults only. Children should not use this app directly. This is required for COPPA compliance and to enable personalized advertising.
 
 ---
 

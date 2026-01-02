@@ -10,6 +10,16 @@ import { API_CONFIG } from '../config/api';
 import { PaginatedResponse, ActivitySearchParams } from '../types/api';
 import * as SecureStore from '../utils/secureStorage';
 import { locationService } from './locationService';
+import { MergedChildFilters } from './childPreferencesService';
+
+/**
+ * Child-based filter parameters that can be passed to search methods
+ */
+export interface ChildBasedFilterParams {
+  selectedChildIds?: string[];
+  filterMode?: 'or' | 'and';
+  mergedFilters?: MergedChildFilters;
+}
 
 /**
  * Sort activities with featured activities at the top, ordered by tier (gold > silver > bronze)
@@ -116,6 +126,66 @@ class ActivityService {
       console.warn('[ActivityService] Error getting distance params:', error);
     }
     return {};
+  }
+
+  /**
+   * Apply child-based filters to API parameters
+   * When mergedFilters are provided, they override user-level preferences
+   */
+  private applyChildFilters(params: any, childFilters?: ChildBasedFilterParams): any {
+    if (!childFilters?.mergedFilters) {
+      return params;
+    }
+
+    const merged = childFilters.mergedFilters;
+    const updatedParams = { ...params };
+
+    console.log('👶 [ActivityService] Applying child-based filters:', {
+      filterMode: childFilters.filterMode,
+      ageRange: `${merged.ageMin}-${merged.ageMax}`,
+      activityTypes: merged.activityTypes?.length || 0,
+      distanceKm: merged.distanceRadiusKm
+    });
+
+    // Age range from merged child preferences
+    if (merged.ageMin !== undefined) {
+      updatedParams.ageMin = merged.ageMin;
+    }
+    if (merged.ageMax !== undefined) {
+      updatedParams.ageMax = merged.ageMax;
+    }
+
+    // Activity types from merged preferences (union in OR mode, intersection in AND mode)
+    if (merged.activityTypes && merged.activityTypes.length > 0) {
+      updatedParams.categories = merged.activityTypes.join(',');
+    }
+
+    // Price range from merged preferences
+    if (merged.priceRangeMin !== undefined) {
+      updatedParams.costMin = merged.priceRangeMin;
+    }
+    if (merged.priceRangeMax !== undefined && merged.priceRangeMax < 999999) {
+      updatedParams.costMax = merged.priceRangeMax;
+    }
+
+    // Days of week from merged preferences
+    if (merged.daysOfWeek && merged.daysOfWeek.length > 0 && merged.daysOfWeek.length < 7) {
+      updatedParams.dayOfWeek = merged.daysOfWeek;
+    }
+
+    // Location from merged preferences (uses first child's location in both modes)
+    if (merged.latitude && merged.longitude && merged.distanceRadiusKm) {
+      updatedParams.userLat = merged.latitude;
+      updatedParams.userLon = merged.longitude;
+      updatedParams.radiusKm = merged.distanceRadiusKm;
+    }
+
+    // Environment filter
+    if (merged.environmentFilter && merged.environmentFilter !== 'all') {
+      updatedParams.environment = merged.environmentFilter;
+    }
+
+    return updatedParams;
   }
 
   private constructor() {
@@ -265,8 +335,10 @@ class ActivityService {
 
   /**
    * Search activities with filters
+   * @param filters Filter criteria
+   * @param childFilters Optional child-based filters for multi-child selection
    */
-  async searchActivities(filters: Filter = {}): Promise<Activity[]> {
+  async searchActivities(filters: Filter = {}, childFilters?: ChildBasedFilterParams): Promise<Activity[]> {
     try {
       // Check network connectivity first
       const isConnected = await this.checkConnectivity();
@@ -278,10 +350,16 @@ class ActivityService {
       // Get global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
 
-      // Get distance filter params (async)
-      const distanceParams = await this.getDistanceParams();
+      // Get distance filter params (async) - only if not provided by child filters
+      let distanceParams: { userLat?: number; userLon?: number; radiusKm?: number } = {};
+      if (!childFilters?.mergedFilters?.latitude) {
+        distanceParams = await this.getDistanceParams();
+      }
 
-      const params: any = { ...globalFilters, ...distanceParams };
+      let params: any = { ...globalFilters, ...distanceParams };
+
+      // Apply child-based filters (these override user-level preferences)
+      params = this.applyChildFilters(params, childFilters);
 
       // Convert filter to API params - match backend parameter names
       if (filters.ageRange) {
@@ -444,8 +522,13 @@ class ActivityService {
 
   /**
    * Search activities with pagination support
+   * @param params Search parameters
+   * @param childFilters Optional child-based filters for multi-child selection
    */
-  async searchActivitiesPaginated(params: ActivitySearchParams): Promise<PaginatedResponse<Activity>> {
+  async searchActivitiesPaginated(
+    params: ActivitySearchParams,
+    childFilters?: ChildBasedFilterParams
+  ): Promise<PaginatedResponse<Activity>> {
     try {
       const isConnected = await this.checkConnectivity();
       if (!isConnected) {
@@ -462,15 +545,22 @@ class ActivityService {
       // Merge with global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
 
-      // Get distance filter params (async)
-      const distanceParams = await this.getDistanceParams();
+      // Get distance filter params (async) - only if not provided by child filters
+      let distanceParams: { userLat?: number; userLon?: number; radiusKm?: number } = {};
+      if (!childFilters?.mergedFilters?.latitude) {
+        distanceParams = await this.getDistanceParams();
+      }
 
       console.log('📤 [searchActivitiesPaginated] Input params:', params);
       console.log('📤 [searchActivitiesPaginated] Global filters:', globalFilters);
       console.log('📤 [searchActivitiesPaginated] Distance params:', distanceParams);
+      console.log('📤 [searchActivitiesPaginated] Child filters:', childFilters ? 'provided' : 'none');
 
       // Convert parameters to match backend API - merge with global filters and distance
-      const apiParams = { ...params, ...globalFilters, ...distanceParams };
+      let apiParams = { ...params, ...globalFilters, ...distanceParams };
+
+      // Apply child-based filters (these override user-level preferences)
+      apiParams = this.applyChildFilters(apiParams, childFilters);
 
       console.log('📤 [searchActivitiesPaginated] Final API params:', apiParams);
       

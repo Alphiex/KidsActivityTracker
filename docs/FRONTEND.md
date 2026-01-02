@@ -165,6 +165,7 @@ Calendar view features:
 Advanced filtering:
 - Activity type selection
 - Age range sliders
+- **Gender filter** (All / Boys / Girls) - filters gender-specific activities
 - Cost range
 - Date range picker
 - Days of week selection
@@ -232,7 +233,7 @@ interface AuthState {
 ```typescript
 interface ActivitiesState {
   items: Activity[];
-  filters: ActivityFilters;
+  filters: ActivityFilters;  // Includes gender?: 'male' | 'female'
   pagination: Pagination;
   isLoading: boolean;
 }
@@ -270,7 +271,7 @@ const storage = new MMKV({
 
 ```typescript
 interface ActivityCardProps {
-  activity: Activity;
+  activity: Activity;  // Includes gender: 'male' | 'female' | null
   onPress: () => void;
   onFavorite?: () => void;
   showDays?: boolean;
@@ -580,5 +581,8 @@ npm run lint -- --fix
 
 ---
 
-**Document Version**: 4.2
+**Document Version**: 4.3
 **Last Updated**: January 2026
+
+### Changelog
+- v4.3: Added gender filter documentation (All/Boys/Girls filter in FiltersScreen)
