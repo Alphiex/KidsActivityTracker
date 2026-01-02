@@ -895,7 +895,9 @@ const MapSearchScreen = () => {
           />
         ) : !loading && clusters.length === 0 ? (
           <View style={styles.emptyListState}>
-            <Icon name="map-marker-question" size={40} color="#CCC" />
+            <View style={styles.emptyIconCircle}>
+              <Icon name="map-marker-question" size={32} color="#E8638B" />
+            </View>
             <Text style={styles.emptyListTitle}>No activities found</Text>
             <Text style={styles.emptyListSubtitle}>
               Try zooming out or changing your filters
@@ -903,7 +905,9 @@ const MapSearchScreen = () => {
           </View>
         ) : !loading && visibleActivities.length === 0 ? (
           <View style={styles.emptyListState}>
-            <Icon name="gesture-swipe" size={40} color="#CCC" />
+            <View style={styles.emptyIconCircle}>
+              <Icon name="gesture-swipe" size={32} color="#E8638B" />
+            </View>
             <Text style={styles.emptyListTitle}>Pan or zoom the map</Text>
             <Text style={styles.emptyListSubtitle}>
               Activities will appear as they come into view
@@ -1240,15 +1244,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     backgroundColor: 'transparent',
   },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF5F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyListTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#222',
     marginTop: 12,
   },
   emptyListSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#717171',
     textAlign: 'center',
     marginTop: 4,
   },

@@ -9,21 +9,24 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
+import ScreenBackground from '../components/ScreenBackground';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
-import ScreenBackground from '../components/ScreenBackground';
+import EmptyState from '../components/EmptyState';
 
 type NavigationProp = StackNavigationProp<any>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Header illustration - child exploring different activity types
+// Header image
 const ActivityTypesHeaderImage = require('../assets/images/browse-activity-types-header.png');
 
 interface ActivityType {
@@ -33,39 +36,10 @@ interface ActivityType {
   activityCount: number;
 }
 
-const ModernColors = {
-  primary: '#E8638B',
-  text: '#222222',
-  textLight: '#717171',
-  background: '#FFFFFF',
-  border: '#EEEEEE',
-};
-
-// Extracted ListHeader to avoid nested component warning
-const ListHeader: React.FC<{ count: number }> = ({ count }) => (
-  <View style={styles.listHeaderContainer}>
-    {/* Hero Image Section */}
-    <View style={styles.heroSection}>
-      <Image
-        source={ActivityTypesHeaderImage}
-        style={styles.heroImage}
-        resizeMode="contain"
-      />
-    </View>
-
-    {/* Title Section */}
-    <View style={styles.titleSection}>
-      <Text style={styles.mainTitle}>Explore Activities</Text>
-      <Text style={styles.subtitle}>
-        {count} activity types to discover
-      </Text>
-    </View>
-  </View>
-);
-
 const AllActivityTypesScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
+  const [totalActivities, setTotalActivities] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,11 +48,14 @@ const AllActivityTypesScreen: React.FC = () => {
     try {
       setError(null);
       const activityService = ActivityService.getInstance();
-      // Load without filters to show all activity types
       const activityTypesData = await activityService.getActivityTypesWithCounts(false);
 
       // Sort by count descending
       const sortedTypes = activityTypesData.sort((a, b) => b.activityCount - a.activityCount);
+
+      // Calculate total activities
+      const total = sortedTypes.reduce((sum, type) => sum + type.activityCount, 0);
+      setTotalActivities(total);
 
       setActivityTypes(sortedTypes);
     } catch (err: any) {
@@ -119,7 +96,7 @@ const AllActivityTypesScreen: React.FC = () => {
         onPress={() => navigateToActivityType(item)}
         activeOpacity={0.7}
       >
-        <View style={styles.imageContainer}>
+        <View style={styles.cardImageContainer}>
           <Image source={imageSource} style={styles.typeImage} />
         </View>
         <View style={styles.typeContent}>
@@ -132,162 +109,186 @@ const AllActivityTypesScreen: React.FC = () => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ScreenBackground>
-          {/* Sticky Header */}
-          <View style={styles.stickyHeader}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="arrow-left" size={24} color={ModernColors.text} />
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <ImageBackground
+        source={ActivityTypesHeaderImage}
+        style={styles.heroSection}
+        imageStyle={styles.heroImageStyle}
+      >
+        <LinearGradient
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
+          style={styles.heroGradient}
+        >
+          {/* Back Button */}
+          <SafeAreaView edges={['top']} style={styles.heroTopRow}>
+            <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
+              <View style={styles.backButtonInner}>
+                <Icon name="arrow-left" size={22} color="#333" />
+              </View>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Browse by Activity Type</Text>
-            <View style={styles.headerSpacer} />
+          </SafeAreaView>
+
+          {/* Title */}
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>Activity Types</Text>
           </View>
 
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={ModernColors.primary} />
-            <Text style={styles.loadingText}>Loading activity types...</Text>
+          {/* Count Badge */}
+          <View style={styles.countBadgeRow}>
+            <View style={styles.countBadge}>
+              <Text style={styles.countNumber}>{totalActivities.toLocaleString()}</Text>
+              <Text style={styles.countLabel}>activities</Text>
+            </View>
           </View>
-        </ScreenBackground>
-      </SafeAreaView>
+        </LinearGradient>
+      </ImageBackground>
+    </View>
+  );
+
+  if (isLoading) {
+    return (
+      <ScreenBackground>
+        {renderHeader()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#E8638B" />
+          <Text style={styles.loadingText}>Loading activity types...</Text>
+        </View>
+      </ScreenBackground>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ScreenBackground>
-          {/* Sticky Header */}
-          <View style={styles.stickyHeader}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="arrow-left" size={24} color={ModernColors.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Browse by Activity Type</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-
-          <View style={styles.errorContainer}>
-            <Icon name="alert-circle" size={60} color={ModernColors.primary} />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={loadActivityTypes}>
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        </ScreenBackground>
-      </SafeAreaView>
+      <ScreenBackground>
+        {renderHeader()}
+        <View style={styles.errorContainer}>
+          <EmptyState
+            icon="alert-circle"
+            title="Something went wrong"
+            subtitle={error}
+          />
+          <TouchableOpacity style={styles.retryButton} onPress={loadActivityTypes}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenBackground>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenBackground>
-        {/* Sticky Header */}
-        <View style={styles.stickyHeader}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-left" size={24} color={ModernColors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Browse by Activity Type</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        {/* Activity Types Grid */}
-        <FlatList
-          data={activityTypes}
-          renderItem={renderActivityType}
-          keyExtractor={(item) => item.code}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[ModernColors.primary]}
-              tintColor={ModernColors.primary}
-            />
-          }
-          ListHeaderComponent={<ListHeader count={activityTypes.length} />}
-          showsVerticalScrollIndicator={false}
-        />
-      </ScreenBackground>
-    </SafeAreaView>
+    <ScreenBackground>
+      {renderHeader()}
+      <FlatList
+        data={activityTypes}
+        renderItem={renderActivityType}
+        keyExtractor={(item) => item.code}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#E8638B']}
+            tintColor="#E8638B"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <EmptyState
+            icon="shape-outline"
+            title="No activity types"
+            subtitle="Check back later for new activities"
+          />
+        }
+      />
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  headerContainer: {
+    marginBottom: 16,
+  },
+  heroSection: {
+    height: SCREEN_HEIGHT * 0.26,
+    width: '100%',
+  },
+  heroImageStyle: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    resizeMode: 'cover',
+    top: 30,
+  },
+  heroGradient: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  stickyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
+    paddingBottom: 20,
+    justifyContent: 'space-between',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  backButtonHero: {},
+  backButtonInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  headerTitle: {
+  heroContent: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: ModernColors.text,
-    textAlign: 'center',
-    marginHorizontal: 12,
+    justifyContent: 'flex-end',
   },
-  headerSpacer: {
-    width: 40,
-  },
-  listHeaderContainer: {
-    paddingBottom: 16,
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-  },
-  heroImage: {
-    width: SCREEN_WIDTH * 0.6,
-    height: SCREEN_WIDTH * 0.5,
-  },
-  titleSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  mainTitle: {
+  heroTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: ModernColors.text,
-    marginBottom: 8,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  subtitle: {
-    fontSize: 15,
-    color: ModernColors.textLight,
-    lineHeight: 22,
+  countBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  countNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#E8638B',
+  },
+  countLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#717171',
   },
   listContent: {
     paddingBottom: 20,
@@ -308,9 +309,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  imageContainer: {
+  cardImageContainer: {
     width: '100%',
-    height: 120,
+    height: 100,
     backgroundColor: '#F8F8F8',
   },
   typeImage: {
@@ -322,14 +323,14 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   typeName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: ModernColors.text,
+    color: '#222222',
     marginBottom: 4,
   },
   typeCount: {
-    fontSize: 13,
-    color: ModernColors.textLight,
+    fontSize: 12,
+    color: '#717171',
   },
   loadingContainer: {
     flex: 1,
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: ModernColors.textLight,
+    color: '#717171',
     marginTop: 12,
   },
   errorContainer: {
@@ -347,18 +348,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  errorText: {
-    fontSize: 16,
-    color: ModernColors.text,
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-  },
   retryButton: {
-    backgroundColor: ModernColors.primary,
+    backgroundColor: '#E8638B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
+    marginTop: 16,
   },
   retryButtonText: {
     color: '#FFFFFF',

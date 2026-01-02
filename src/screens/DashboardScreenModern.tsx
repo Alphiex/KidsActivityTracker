@@ -1113,8 +1113,10 @@ const DashboardScreenModern = () => {
             ) : newActivities.length > 0 ? (
               newActivities.map(renderActivityCard)
             ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No new activities</Text>
+              <View style={styles.emptyStateCard}>
+                <Icon name="calendar-star" size={32} color="#E8638B" style={styles.emptyStateIcon} />
+                <Text style={styles.emptyStateText}>No new activities</Text>
+                <Text style={styles.emptyStateSubtext}>Check back soon!</Text>
               </View>
             )}
           </ScrollView>
@@ -1140,8 +1142,10 @@ const DashboardScreenModern = () => {
             ) : budgetFriendlyActivities.length > 0 ? (
               budgetFriendlyActivities.map(renderActivityCard)
             ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No budget friendly activities</Text>
+              <View style={styles.emptyStateCard}>
+                <Icon name="wallet-outline" size={32} color="#E8638B" style={styles.emptyStateIcon} />
+                <Text style={styles.emptyStateText}>No budget activities</Text>
+                <Text style={styles.emptyStateSubtext}>Try adjusting filters</Text>
               </View>
             )}
           </ScrollView>
@@ -1612,12 +1616,42 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     marginLeft: 20,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#FFF5F8',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyText: {
+    fontSize: 12,
+    color: '#717171',
+  },
+  emptyStateCard: {
+    width: 200,
+    height: 160,
+    marginLeft: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFE5EC',
+    shadowColor: '#E8638B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  emptyStateIcon: {
+    marginBottom: 8,
+    opacity: 0.8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#222222',
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
     fontSize: 12,
     color: '#717171',
   },

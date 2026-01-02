@@ -15,6 +15,7 @@ import {
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import ScreenBackground from '../components/ScreenBackground';
+import EmptyState from '../components/EmptyState';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityCard from '../components/ActivityCard';
 import { Activity } from '../types';
@@ -520,10 +521,11 @@ const UnifiedResultsScreenTest: React.FC = () => {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="magnify-off" size={80} color={ModernColors.border} />
-              <Text style={styles.emptyTitle}>No activities found</Text>
-            </View>
+            <EmptyState
+              icon="magnify"
+              title="No activities found"
+              subtitle="Try adjusting your search or filters"
+            />
           }
         />
       </ScreenBackground>

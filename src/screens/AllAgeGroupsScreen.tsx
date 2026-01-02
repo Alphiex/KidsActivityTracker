@@ -7,18 +7,20 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenBackground from '../components/ScreenBackground';
 
 type NavigationProp = StackNavigationProp<any>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Header illustration - children of different ages
+// Header image
 const AgeGroupsHeaderImage = require('../assets/images/browse-age-groups-header.png');
 
 interface AgeGroup {
@@ -33,107 +35,77 @@ interface AgeGroup {
   color: string;
 }
 
-const ModernColors = {
-  primary: '#E8638B',
-  text: '#222222',
-  textLight: '#717171',
-  background: '#FFFFFF',
-  border: '#EEEEEE',
-};
-
-// Extracted ListHeader to avoid nested component warning
-const ListHeader: React.FC = () => (
-  <View style={styles.listHeaderContainer}>
-    {/* Hero Image Section */}
-    <View style={styles.heroSection}>
-      <Image
-        source={AgeGroupsHeaderImage}
-        style={styles.heroImage}
-        resizeMode="contain"
-      />
-    </View>
-
-    {/* Title Section */}
-    <View style={styles.titleSection}>
-      <Text style={styles.mainTitle}>Find by Age</Text>
-      <Text style={styles.subtitle}>
-        Discover the perfect activities for your child's age and stage
-      </Text>
-    </View>
-  </View>
-);
+const ageGroups: AgeGroup[] = [
+  {
+    id: 1,
+    name: '0-2 years',
+    range: '0-2',
+    ageMin: 0,
+    ageMax: 2,
+    description: 'Infant & Toddler programs',
+    image: require('../assets/images/activities/early_development/toddler_play.jpg'),
+    icon: 'baby-face-outline',
+    color: '#FFB5C5',
+  },
+  {
+    id: 2,
+    name: '3-5 years',
+    range: '3-5',
+    ageMin: 3,
+    ageMax: 5,
+    description: 'Preschool activities',
+    image: require('../assets/images/activities/early_development/preschool.jpg'),
+    icon: 'human-child',
+    color: '#B5D8FF',
+  },
+  {
+    id: 3,
+    name: '6-8 years',
+    range: '6-8',
+    ageMin: 6,
+    ageMax: 8,
+    description: 'Early elementary programs',
+    image: require('../assets/images/activities/early_development/kids_activities.jpg'),
+    icon: 'account-school-outline',
+    color: '#C5FFB5',
+  },
+  {
+    id: 4,
+    name: '9-12 years',
+    range: '9-12',
+    ageMin: 9,
+    ageMax: 12,
+    description: 'Pre-teen activities',
+    image: require('../assets/images/activities/other/youth_activities.jpg'),
+    icon: 'account-group-outline',
+    color: '#FFE5B5',
+  },
+  {
+    id: 5,
+    name: '13+ years',
+    range: '13+',
+    ageMin: 13,
+    ageMax: 18,
+    description: 'Teen programs',
+    image: require('../assets/images/activities/life_skills/leadership.jpg'),
+    icon: 'account-star-outline',
+    color: '#E5B5FF',
+  },
+  {
+    id: 6,
+    name: 'All Ages',
+    range: 'all',
+    ageMin: 0,
+    ageMax: 18,
+    description: 'Family-friendly activities',
+    image: require('../assets/images/activities/other/family_fun.jpg'),
+    icon: 'home-heart',
+    color: '#B5FFE5',
+  },
+];
 
 const AllAgeGroupsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-
-  const ageGroups: AgeGroup[] = [
-    {
-      id: 1,
-      name: '0-2 years',
-      range: '0-2',
-      ageMin: 0,
-      ageMax: 2,
-      description: 'Infant & Toddler programs',
-      image: require('../assets/images/activities/early_development/toddler_play.jpg'),
-      icon: 'baby-face-outline',
-      color: '#FFB5C5',
-    },
-    {
-      id: 2,
-      name: '3-5 years',
-      range: '3-5',
-      ageMin: 3,
-      ageMax: 5,
-      description: 'Preschool activities',
-      image: require('../assets/images/activities/early_development/preschool.jpg'),
-      icon: 'human-child',
-      color: '#B5D8FF',
-    },
-    {
-      id: 3,
-      name: '6-8 years',
-      range: '6-8',
-      ageMin: 6,
-      ageMax: 8,
-      description: 'Early elementary programs',
-      image: require('../assets/images/activities/early_development/kids_activities.jpg'),
-      icon: 'account-school-outline',
-      color: '#C5FFB5',
-    },
-    {
-      id: 4,
-      name: '9-12 years',
-      range: '9-12',
-      ageMin: 9,
-      ageMax: 12,
-      description: 'Pre-teen activities',
-      image: require('../assets/images/activities/other/youth_activities.jpg'),
-      icon: 'account-group-outline',
-      color: '#FFE5B5',
-    },
-    {
-      id: 5,
-      name: '13+ years',
-      range: '13+',
-      ageMin: 13,
-      ageMax: 18,
-      description: 'Teen programs',
-      image: require('../assets/images/activities/life_skills/leadership.jpg'),
-      icon: 'account-star-outline',
-      color: '#E5B5FF',
-    },
-    {
-      id: 6,
-      name: 'All Ages',
-      range: 'all',
-      ageMin: 0,
-      ageMax: 18,
-      description: 'Family-friendly activities',
-      image: require('../assets/images/activities/other/family_fun.jpg'),
-      icon: 'home-heart',
-      color: '#B5FFE5',
-    },
-  ];
 
   const navigateToAgeGroup = (group: AgeGroup) => {
     navigation.navigate('UnifiedResults', {
@@ -153,11 +125,8 @@ const AllAgeGroupsScreen: React.FC = () => {
         onPress={() => navigateToAgeGroup(item)}
         activeOpacity={0.7}
       >
-        <View style={styles.imageContainer}>
+        <View style={styles.cardImageContainer}>
           <Image source={item.image} style={styles.groupImage} />
-          <View style={[styles.iconBadge, { backgroundColor: item.color }]}>
-            <Icon name={item.icon} size={20} color={ModernColors.text} />
-          </View>
         </View>
         <View style={styles.groupContent}>
           <Text style={styles.groupName}>{item.name}</Text>
@@ -167,101 +136,141 @@ const AllAgeGroupsScreen: React.FC = () => {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScreenBackground>
-        {/* Sticky Header */}
-        <View style={styles.stickyHeader}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-left" size={24} color={ModernColors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Browse by Age Group</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <ImageBackground
+        source={AgeGroupsHeaderImage}
+        style={styles.heroSection}
+        imageStyle={styles.heroImageStyle}
+      >
+        <LinearGradient
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
+          style={styles.heroGradient}
+        >
+          {/* Back Button */}
+          <SafeAreaView edges={['top']} style={styles.heroTopRow}>
+            <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
+              <View style={styles.backButtonInner}>
+                <Icon name="arrow-left" size={22} color="#333" />
+              </View>
+            </TouchableOpacity>
+          </SafeAreaView>
 
-        {/* Age Groups List */}
-        <FlatList
-          data={ageGroups}
-          renderItem={renderAgeGroup}
-          keyExtractor={(item) => item.id.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={<ListHeader />}
-          showsVerticalScrollIndicator={false}
-        />
-      </ScreenBackground>
-    </SafeAreaView>
+          {/* Title */}
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>Age Groups</Text>
+          </View>
+
+          {/* Count Badge */}
+          <View style={styles.countBadgeRow}>
+            <View style={styles.countBadge}>
+              <Text style={styles.countNumber}>{ageGroups.length}</Text>
+              <Text style={styles.countLabel}>groups</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
+    </View>
+  );
+
+  return (
+    <ScreenBackground>
+      {renderHeader()}
+      <FlatList
+        data={ageGroups}
+        renderItem={renderAgeGroup}
+        keyExtractor={(item) => item.id.toString()}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  headerContainer: {
+    marginBottom: 16,
+  },
+  heroSection: {
+    height: SCREEN_HEIGHT * 0.26,
+    width: '100%',
+  },
+  heroImageStyle: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    resizeMode: 'cover',
+    top: 30,
+  },
+  heroGradient: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  stickyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
+    paddingBottom: 20,
+    justifyContent: 'space-between',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  backButtonHero: {},
+  backButtonInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  headerTitle: {
+  heroContent: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: ModernColors.text,
-    textAlign: 'center',
-    marginHorizontal: 12,
+    justifyContent: 'flex-end',
   },
-  headerSpacer: {
-    width: 40,
-  },
-  listHeaderContainer: {
-    paddingBottom: 16,
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-  },
-  heroImage: {
-    width: SCREEN_WIDTH * 0.6,
-    height: SCREEN_WIDTH * 0.5,
-  },
-  titleSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  mainTitle: {
+  heroTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: ModernColors.text,
-    marginBottom: 8,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  subtitle: {
-    fontSize: 15,
-    color: ModernColors.textLight,
-    lineHeight: 22,
+  countBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  countNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#E8638B',
+  },
+  countLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#717171',
   },
   listContent: {
     paddingBottom: 20,
@@ -282,44 +291,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  imageContainer: {
+  cardImageContainer: {
     width: '100%',
-    height: 120,
+    height: 100,
     backgroundColor: '#F8F8F8',
-    position: 'relative',
   },
   groupImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  iconBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
   groupContent: {
     padding: 12,
   },
   groupName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: ModernColors.text,
+    color: '#222222',
     marginBottom: 4,
   },
   groupDescription: {
-    fontSize: 13,
-    color: ModernColors.textLight,
+    fontSize: 12,
+    color: '#717171',
   },
 });
 

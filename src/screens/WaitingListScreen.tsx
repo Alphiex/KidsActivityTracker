@@ -120,7 +120,7 @@ const WaitingListScreen: React.FC = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Icon name="bell-outline" size={64} color={ModernColors.textSecondary} />
+        <Icon name="bell-outline" size={48} color="#E8638B" />
       </View>
       <Text style={styles.emptyTitle}>No Activities on Waiting List</Text>
       <Text style={styles.emptySubtitle}>
@@ -510,10 +510,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: ModernSpacing.xl * 2,
   },
   emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: ModernColors.surface,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFF5F8',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: ModernSpacing.xl,

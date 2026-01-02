@@ -38,6 +38,7 @@ import { ModernColors } from '../theme/modernTheme';
 import { ChildActivity } from '../services/childrenService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import EmptyState from '../components/EmptyState';
 import ViewShot from 'react-native-view-shot';
 import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -1259,10 +1260,12 @@ const CalendarScreenModernFixed = () => {
 
     if (activities.length === 0) {
       return (
-        <View style={styles.emptyActivitiesContainer}>
-          <Icon name="calendar-blank" size={48} color={ModernColors.textMuted} />
-          <Text style={styles.emptyActivitiesText}>No activities scheduled for this day</Text>
-        </View>
+        <EmptyState
+          icon="calendar-blank"
+          title="No activities scheduled"
+          subtitle="Tap an activity to add it to your calendar"
+          compact
+        />
       );
     }
 
