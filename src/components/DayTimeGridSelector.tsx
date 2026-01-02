@@ -255,7 +255,7 @@ const DayTimeGridSelector: React.FC<DayTimeGridSelectorProps> = ({
           disabled={disabled}
           activeOpacity={0.7}
         >
-          <Text style={[styles.quickSelectText, { color: ModernColors.textLight }]}>Clear All</Text>
+          <Text style={[styles.quickSelectText, { color: ModernColors.textSecondary }]}>Clear All</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   gridHeaderTime: {
-    color: ModernColors.textLight,
+    color: ModernColors.textSecondary,
     textAlign: 'center',
     marginTop: 2,
   },

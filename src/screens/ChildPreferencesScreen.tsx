@@ -19,7 +19,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
   selectAllChildren,
-  selectChildPreferences,
   updateChildPreferences,
   copyChildPreferences,
   fetchChildPreferences,
@@ -68,8 +67,7 @@ const ChildPreferencesScreen: React.FC = () => {
 
   const children = useAppSelector(selectAllChildren);
   const subscription = useAppSelector(selectSubscription);
-  const isPremium = subscription?.currentPlan?.code === 'premium' ||
-                    subscription?.currentPlan?.code === 'family';
+  const isPremium = subscription?.currentPlan?.code === 'premium';
 
   // Selected child for editing
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -128,7 +126,13 @@ const ChildPreferencesScreen: React.FC = () => {
       try {
         await dispatch(fetchChildPreferences(selectedChildId)).unwrap();
       } catch (error) {
-        console.log('[ChildPreferences] No existing preferences, will use defaults');
+        console.log('[ChildPreferences] No existing preferences, initializing from user preferences');
+        // Initialize preferences from user's global preferences
+        try {
+          await dispatch(initializeChildPreferences(selectedChildId)).unwrap();
+        } catch (initError) {
+          console.log('[ChildPreferences] Could not initialize, using defaults');
+        }
       }
     };
     loadChildPrefs();

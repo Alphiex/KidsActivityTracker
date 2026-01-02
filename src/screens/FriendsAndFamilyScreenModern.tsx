@@ -28,6 +28,8 @@ import { locationService } from '../services/locationService';
 import ScreenBackground from '../components/ScreenBackground';
 import TopTabNavigation from '../components/TopTabNavigation';
 import { friendsFamilyHeaderImage } from '../assets/images';
+import { ChildAvatar, AvatarPicker, ColorPicker } from '../components/children';
+import { getNextAvailableAvatarId, getNextAvailableColorId } from '../theme/childColors';
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,6 +62,8 @@ interface Child {
   gender?: 'male' | 'female' | null;
   location?: string;
   avatarUrl?: string;
+  avatarId?: number;
+  colorId?: number;
   activityCount?: number;
   upcomingActivities?: number;
 }
@@ -191,7 +195,12 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
         activeOpacity={0.7}
       >
         <View style={styles.childAvatar}>
-          <Icon name="account-child" size={40} color={ModernColors.primary} />
+          <ChildAvatar
+            name={child.name}
+            avatarId={child.avatarId}
+            colorId={child.colorId}
+            size={50}
+          />
         </View>
 
         <View style={styles.childInfo}>
@@ -429,6 +438,8 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
+  const [avatarId, setAvatarId] = useState(1);
+  const [colorId, setColorId] = useState(1);
   const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [selectedSavedAddress, setSelectedSavedAddress] = useState<SavedAddress | null>(null);
@@ -498,43 +509,63 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
   }, [visible, child]);
 
   useEffect(() => {
-    if (child) {
-      setName(child.name || '');
-      setGender(child.gender || null);
-      if (child.dateOfBirth) {
-        // Parse date as local date, not UTC
-        // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
-        const datePart = child.dateOfBirth.split('T')[0];
-        setDateOfBirth(datePart);  // Store just the YYYY-MM-DD part
-        const parts = datePart.split('-');
-        setSelectedDate(new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+    const initializeForm = async () => {
+      if (child) {
+        setName(child.name || '');
+        setGender(child.gender || null);
+        setAvatarId(child.avatarId || 1);
+        setColorId(child.colorId || 1);
+        if (child.dateOfBirth) {
+          // Parse date as local date, not UTC
+          // Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS.SSSZ" formats
+          const datePart = child.dateOfBirth.split('T')[0];
+          setDateOfBirth(datePart);  // Store just the YYYY-MM-DD part
+          const parts = datePart.split('-');
+          setSelectedDate(new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+        } else {
+          setDateOfBirth('');
+        }
+        // If child has location, try to create an EnhancedAddress from it
+        if (child.location) {
+          setSelectedAddress({
+            formattedAddress: child.location,
+            latitude: 0,
+            longitude: 0,
+            city: child.location,
+            updatedAt: new Date().toISOString(),
+          });
+          setSelectedSavedAddress(null); // Show current address, not a saved one
+          setIsEditingAddress(false); // Not editing, just displaying
+        } else {
+          setSelectedAddress(null);
+          setIsEditingAddress(true); // No address, show input
+          // Will auto-select first saved address in the loadSavedAddresses effect
+        }
       } else {
+        // New child - get unique avatar/color
+        try {
+          const allChildren = await childrenService.getMyChildren();
+          const usedAvatarIds = allChildren.map((c: Child) => c.avatarId).filter((id): id is number => !!id);
+          const usedColorIds = allChildren.map((c: Child) => c.colorId).filter((id): id is number => !!id);
+          setAvatarId(getNextAvailableAvatarId(usedAvatarIds));
+          setColorId(getNextAvailableColorId(usedColorIds));
+        } catch (err) {
+          console.error('Error getting children for avatar/color defaults:', err);
+          setAvatarId(1);
+          setColorId(1);
+        }
+        setName('');
+        setGender(null);
         setDateOfBirth('');
-      }
-      // If child has location, try to create an EnhancedAddress from it
-      if (child.location) {
-        setSelectedAddress({
-          formattedAddress: child.location,
-          latitude: 0,
-          longitude: 0,
-          city: child.location,
-          updatedAt: new Date().toISOString(),
-        });
-        setSelectedSavedAddress(null); // Show current address, not a saved one
-        setIsEditingAddress(false); // Not editing, just displaying
-      } else {
         setSelectedAddress(null);
-        setIsEditingAddress(true); // No address, show input
-        // Will auto-select first saved address in the loadSavedAddresses effect
+        setSelectedSavedAddress(null);
+        setIsEditingAddress(true); // New child, show address input
+        setSelectedDate(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
       }
-    } else {
-      setName('');
-      setGender(null);
-      setDateOfBirth('');
-      setSelectedAddress(null);
-      setSelectedSavedAddress(null);
-      setIsEditingAddress(true); // New child, show address input
-      setSelectedDate(new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()));
+    };
+
+    if (visible) {
+      initializeForm();
     }
   }, [child, visible]);
 
@@ -592,6 +623,8 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       // Always provide a dateOfBirth in ISO 8601 format
       dateOfBirth: dateOfBirth ? `${dateOfBirth}T00:00:00.000Z` : formattedDate,
       gender: gender, // Optional - can be 'male', 'female', or null
+      avatarId,
+      colorId,
     };
 
     // Add location data if available
@@ -765,6 +798,29 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Avatar Preview */}
+            <View style={styles.avatarPreviewSection}>
+              <ChildAvatar
+                name={name || 'Child'}
+                avatarId={avatarId}
+                colorId={colorId}
+                size={80}
+              />
+            </View>
+
+            {/* Avatar Selection */}
+            <AvatarPicker
+              selectedId={avatarId}
+              colorId={colorId}
+              onSelect={setAvatarId}
+            />
+
+            {/* Color Selection */}
+            <ColorPicker
+              selectedId={colorId}
+              onSelect={setColorId}
+            />
 
             <View style={[styles.inputGroup, { zIndex: 100 }]}>
               <Text style={styles.inputLabel}>Location (Optional)</Text>
@@ -1082,6 +1138,10 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20,
     zIndex: 1,
+  },
+  avatarPreviewSection: {
+    alignItems: 'center',
+    marginVertical: 16,
   },
   inputLabel: {
     fontSize: 16,

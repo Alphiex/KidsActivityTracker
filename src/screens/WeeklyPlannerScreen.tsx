@@ -23,8 +23,19 @@ import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
 import aiService from '../services/aiService';
 import ActivityService from '../services/activityService';
+import ChildrenService, { ChildActivity } from '../services/childrenService';
 import { WeeklySchedule, ScheduleEntry } from '../types/ai';
 import { Activity } from '../types';
+
+/** View mode for results display */
+type ViewMode = 'weekly' | 'monthly';
+
+/** Existing calendar activity with source marker */
+interface ExistingActivity {
+  childActivity: ChildActivity;
+  activity: Activity | null;
+  isExisting: true;
+}
 import { ModernColors, ModernShadows, ModernBorderRadius } from '../theme/modernTheme';
 import { useAppSelector } from '../store';
 import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
@@ -256,8 +267,14 @@ const WeeklyPlannerScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
   const [currentViewWeek, setCurrentViewWeek] = useState(0); // Week index for viewing results
+  const [viewMode, setViewMode] = useState<ViewMode>('weekly'); // Weekly or monthly view
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [entryApprovals, setEntryApprovals] = useState<Record<string, ApprovalState>>({});
+
+  // Existing calendar activities (user's pre-scheduled activities)
+  const [existingActivities, setExistingActivities] = useState<ExistingActivity[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const childrenService = ChildrenService.getInstance();
 
   // Activity details cache (loaded from API when schedule is generated)
   const [activityDetails, setActivityDetails] = useState<Record<string, Activity>>({});
@@ -298,6 +315,56 @@ const WeeklyPlannerScreen = () => {
     }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch existing calendar activities when date range changes
+  useEffect(() => {
+    const fetchExistingActivities = async () => {
+      if (children.length === 0) return;
+
+      setLoadingExisting(true);
+      try {
+        const childIds = children.map(c => c.id);
+        const scheduledActivities = await childrenService.getScheduledActivities(
+          startDate,
+          endDate,
+          childIds
+        );
+
+        // Convert to ExistingActivity format and fetch activity details
+        const existing: ExistingActivity[] = [];
+        for (const ca of scheduledActivities) {
+          let activity: Activity | null = null;
+          if (ca.activityId && !activityDetails[ca.activityId]) {
+            try {
+              activity = await activityService.getActivityDetails(ca.activityId);
+              if (activity) {
+                setActivityDetails(prev => ({ ...prev, [ca.activityId]: activity! }));
+              }
+            } catch {
+              // Activity details not available
+            }
+          } else if (ca.activityId) {
+            activity = activityDetails[ca.activityId] || null;
+          }
+
+          existing.push({
+            childActivity: ca,
+            activity: activity || ca.activity || null,
+            isExisting: true,
+          });
+        }
+
+        setExistingActivities(existing);
+      } catch (error) {
+        console.error('Error fetching existing activities:', error);
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+
+    fetchExistingActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, children]);
 
   // Get unique child IDs from schedule
   const childIdsInSchedule = useMemo(() => {

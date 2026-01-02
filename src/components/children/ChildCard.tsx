@@ -25,8 +25,7 @@ const ChildCard: React.FC<ChildCardProps> = ({ child, onPress, style }) => {
     <TouchableOpacity style={[styles.container, style]} onPress={onPress}>
       <View style={styles.content}>
         <ChildAvatar
-          name={child.name}
-          avatarUrl={child.avatar}
+          child={child}
           size={60}
         />
         <View style={styles.info}>
