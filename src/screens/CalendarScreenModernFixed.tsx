@@ -35,6 +35,7 @@ import { fetchChildren } from '../store/slices/childrenSlice';
 import childrenService from '../services/childrenService';
 import activityService from '../services/activityService';
 import { ModernColors } from '../theme/modernTheme';
+import { getChildColor } from '../theme/childColors';
 import { ChildActivity } from '../services/childrenService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
@@ -239,12 +240,12 @@ const CalendarScreenModernFixed = () => {
       console.log('[CalendarScreen] myChildren:', myChildren.map(c => ({ id: c.id, name: c.name })));
       console.log('[CalendarScreen] enhancedActivities childIds:', enhancedActivities.map(a => a.childId));
 
-      const processedChildren = myChildren.map((child, index) => {
+      const processedChildren = myChildren.map((child) => {
         const childActivities = enhancedActivities.filter(a => a.childId === child.id);
         console.log(`[CalendarScreen] Child ${child.name} (${child.id}) has ${childActivities.length} activities`);
         return {
           ...child,
-          color: CHILD_COLORS[index % CHILD_COLORS.length],
+          color: getChildColor(child.colorId).hex,
           isVisible: true,
           activities: childActivities,
         };

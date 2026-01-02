@@ -113,40 +113,6 @@ const BudgetPreferencesScreen = () => {
           </View>
         </View>
 
-        <View style={[styles.presetContainer, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.presetTitle, { color: colors.text }]}>
-            Quick Presets
-          </Text>
-          <View style={styles.presetButtons}>
-            <TouchableOpacity
-              style={[styles.presetButton, { borderColor: colors.border }]}
-              onPress={() => { setMinPrice(0); setMaxPrice(50); }}
-            >
-              <Text style={[styles.presetText, { color: colors.text }]}>Budget</Text>
-              <Text style={[styles.presetSubtext, { color: colors.textSecondary }]}>
-                $0 - $50
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.presetButton, { borderColor: colors.border }]}
-              onPress={() => { setMinPrice(50); setMaxPrice(150); }}
-            >
-              <Text style={[styles.presetText, { color: colors.text }]}>Moderate</Text>
-              <Text style={[styles.presetSubtext, { color: colors.textSecondary }]}>
-                $50 - $150
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.presetButton, { borderColor: colors.border }]}
-              onPress={() => { setMinPrice(150); setMaxPrice(500); }}
-            >
-              <Text style={[styles.presetText, { color: colors.text }]}>Premium</Text>
-              <Text style={[styles.presetSubtext, { color: colors.textSecondary }]}>
-                $150+
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
     </SafeAreaView>
   );

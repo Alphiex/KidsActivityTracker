@@ -9,6 +9,14 @@ export interface GlobalActivityFilters {
   userLat?: number;
   userLon?: number;
   radiusKm?: number;
+  // Time slot filtering
+  timeSlots?: {
+    morning?: boolean;   // 06:00-11:59
+    afternoon?: boolean; // 12:00-16:59
+    evening?: boolean;   // 17:00-20:59
+  };
+  // Day of week filtering
+  daysOfWeek?: string[];
 }
 
 /**
@@ -98,6 +106,74 @@ export function buildActivityWhereClause(
     }
   }
 
+  // Time slot filtering
+  // Activities have startTime field in format like "9:30 am", "2:00 pm", etc.
+  // We filter based on hour ranges:
+  // - Morning: 6:00-11:59 (6am-12pm)
+  // - Afternoon: 12:00-16:59 (12pm-5pm)
+  // - Evening: 17:00-20:59 (5pm-9pm)
+  if (filters.timeSlots) {
+    const { morning, afternoon, evening } = filters.timeSlots;
+
+    // If all slots are true or all are false, no filtering needed
+    const enabledSlots = [morning, afternoon, evening].filter(Boolean);
+    if (enabledSlots.length > 0 && enabledSlots.length < 3) {
+      // Build time range filter using raw SQL for hour extraction
+      // This works with time strings like "9:30 am" by comparing string patterns
+      const timeConditions: Prisma.ActivityWhereInput[] = [];
+
+      if (morning) {
+        // Morning: 6am-12pm (startTime contains "6:", "7:", ..., "11:" with "am" OR "12:00" etc)
+        timeConditions.push({
+          OR: [
+            { startTime: { contains: ' am' } }, // Any AM time
+            { startTime: { startsWith: '12:' } } // 12:xx (noon hour)
+          ]
+        });
+      }
+
+      if (afternoon) {
+        // Afternoon: 12pm-5pm
+        timeConditions.push({
+          OR: [
+            { startTime: { startsWith: '12:' } },
+            { startTime: { startsWith: '1:' } },
+            { startTime: { startsWith: '2:' } },
+            { startTime: { startsWith: '3:' } },
+            { startTime: { startsWith: '4:' } },
+          ]
+        });
+      }
+
+      if (evening) {
+        // Evening: 5pm-9pm
+        timeConditions.push({
+          OR: [
+            { startTime: { startsWith: '5:' } },
+            { startTime: { startsWith: '6:' } },
+            { startTime: { startsWith: '7:' } },
+            { startTime: { startsWith: '8:' } },
+          ]
+        });
+      }
+
+      if (timeConditions.length > 0) {
+        andConditions.push({ OR: timeConditions });
+      }
+    }
+  }
+
+  // Day of week filtering
+  // Activities have daysOfWeek as an array field
+  if (filters.daysOfWeek && filters.daysOfWeek.length > 0 && filters.daysOfWeek.length < 7) {
+    // Filter for activities that run on any of the selected days
+    andConditions.push({
+      daysOfWeek: {
+        hasSome: filters.daysOfWeek
+      }
+    });
+  }
+
   // Distance filtering - apply bounding box pre-filter
   if (filters.userLat != null && filters.userLon != null && filters.radiusKm != null) {
     const boundingBox = getBoundingBox(filters.userLat, filters.userLon, filters.radiusKm);
@@ -151,6 +227,26 @@ export function extractGlobalFilters(query: any): GlobalActivityFilters {
   const userLon = query.userLon ? parseFloat(query.userLon) : undefined;
   const radiusKm = query.radiusKm ? parseFloat(query.radiusKm) : undefined;
 
+  // Parse time slots
+  let timeSlots: GlobalActivityFilters['timeSlots'] | undefined;
+  if (query.timeMorning !== undefined || query.timeAfternoon !== undefined || query.timeEvening !== undefined) {
+    timeSlots = {
+      morning: query.timeMorning === 'true' || query.timeMorning === true,
+      afternoon: query.timeAfternoon === 'true' || query.timeAfternoon === true,
+      evening: query.timeEvening === 'true' || query.timeEvening === true,
+    };
+  }
+
+  // Parse days of week
+  let daysOfWeek: string[] | undefined;
+  if (query.daysOfWeek) {
+    if (Array.isArray(query.daysOfWeek)) {
+      daysOfWeek = query.daysOfWeek;
+    } else if (typeof query.daysOfWeek === 'string') {
+      daysOfWeek = query.daysOfWeek.split(',').map((d: string) => d.trim());
+    }
+  }
+
   const filters: GlobalActivityFilters = {
     hideClosedActivities: query.hideClosedActivities === 'true' || query.hideClosedActivities === true,
     hideFullActivities: query.hideFullActivities === 'true' || query.hideFullActivities === true,
@@ -160,7 +256,11 @@ export function extractGlobalFilters(query: any): GlobalActivityFilters {
         userLon != null && !isNaN(userLon) &&
         radiusKm != null && !isNaN(radiusKm) && radiusKm > 0
       ? { userLat, userLon, radiusKm }
-      : {})
+      : {}),
+    // Include time slots if any are specified
+    ...(timeSlots ? { timeSlots } : {}),
+    // Include days of week if specified
+    ...(daysOfWeek && daysOfWeek.length > 0 ? { daysOfWeek } : {}),
   };
 
   console.log('🔧 [extractGlobalFilters] Input query:', query);

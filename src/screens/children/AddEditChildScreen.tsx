@@ -25,7 +25,11 @@ import {
   selectAllChildren,
   selectChildrenLoading,
 } from '../../store/slices/childrenSlice';
-import { ChildAvatar } from '../../components/children';
+import { ChildAvatar, AvatarPicker, ColorPicker } from '../../components/children';
+import {
+  getNextAvailableAvatarId,
+  getNextAvailableColorId,
+} from '../../theme/childColors';
 import childrenService from '../../services/childrenService';
 import useSmartPaywallTrigger from '../../hooks/useSmartPaywallTrigger';
 
@@ -107,6 +111,23 @@ const AddEditChildScreen: React.FC = () => {
   const [medicalInfo, setMedicalInfo] = useState(existingChild?.medicalInfo || '');
   const [avatarUri, setAvatarUri] = useState(existingChild?.avatar || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Get used avatars and colors from siblings for new children
+  const usedAvatarIds = children
+    .filter(c => c.id !== existingChild?.id)
+    .map(c => c.avatarId)
+    .filter((id): id is number => !!id);
+  const usedColorIds = children
+    .filter(c => c.id !== existingChild?.id)
+    .map(c => c.colorId)
+    .filter((id): id is number => !!id);
+
+  const [avatarId, setAvatarId] = useState(
+    existingChild?.avatarId ?? getNextAvailableAvatarId(usedAvatarIds)
+  );
+  const [colorId, setColorId] = useState(
+    existingChild?.colorId ?? getNextAvailableColorId(usedColorIds)
+  );
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -225,6 +246,8 @@ const AddEditChildScreen: React.FC = () => {
       allergies: allergies ? allergies.split(',').map(a => a.trim()) : undefined,
       medicalInfo: medicalInfo.trim() || undefined,
       avatar: avatarUri || undefined,
+      avatarId,
+      colorId,
     };
 
     console.log('Child data to save:', childData);
@@ -303,18 +326,27 @@ const AddEditChildScreen: React.FC = () => {
           <View style={styles.form}>
             {/* Avatar Section */}
             <View style={styles.avatarSection}>
-              <TouchableOpacity onPress={handlePickImage} style={styles.avatarButton}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-                ) : (
-                  <ChildAvatar name={name || 'Child'} size={100} />
-                )}
-                <View style={styles.avatarOverlay}>
-                  <Icon name="camera-alt" size={24} color="#fff" />
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.avatarText}>Tap to add photo</Text>
+              <ChildAvatar
+                name={name || 'Child'}
+                avatarId={avatarId}
+                colorId={colorId}
+                avatarUrl={avatarUri || undefined}
+                size={100}
+              />
             </View>
+
+            {/* Avatar Selection */}
+            <AvatarPicker
+              selectedId={avatarId}
+              colorId={colorId}
+              onSelect={setAvatarId}
+            />
+
+            {/* Color Selection */}
+            <ColorPicker
+              selectedId={colorId}
+              onSelect={setColorId}
+            />
 
             {/* Name Input */}
             <View style={styles.inputGroup}>

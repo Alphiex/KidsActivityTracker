@@ -183,25 +183,6 @@ const SchedulePreferencesScreen = () => {
 
           {daySelectionMode === 'specific' && (
             <>
-              <View style={styles.quickButtons}>
-                <TouchableOpacity
-                  style={[styles.quickButton, { borderColor: colors.primary }]}
-                  onPress={selectWeekdays}
-                >
-                  <Text style={[styles.quickButtonText, { color: colors.primary }]}>
-                    Weekdays
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.quickButton, { borderColor: colors.primary }]}
-                  onPress={selectWeekends}
-                >
-                  <Text style={[styles.quickButtonText, { color: colors.primary }]}>
-                    Weekends
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
               <View style={styles.daysGrid}>
                 {DAYS_OF_WEEK.map(day => {
                   const isSelected = selectedDays.includes(day);

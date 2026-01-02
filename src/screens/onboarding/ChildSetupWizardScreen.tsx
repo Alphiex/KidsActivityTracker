@@ -24,6 +24,10 @@ import {
   selectChildrenLoading,
 } from '../../store/slices/childrenSlice';
 import {
+  getNextAvailableAvatarId,
+  getNextAvailableColorId,
+} from '../../theme/childColors';
+import {
   ChildProfileStep,
   ChildLocationStep,
   ChildActivitiesStep,
@@ -68,6 +72,10 @@ const ChildSetupWizardScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>('profile');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Get used avatars and colors from siblings for new children
+  const usedAvatarIds = children.map(c => c.avatarId).filter((id): id is number => !!id);
+  const usedColorIds = children.map(c => c.colorId).filter((id): id is number => !!id);
+
   // Form data
   const [profileData, setProfileData] = useState<ChildProfileData>(() => {
     if (editingChild) {
@@ -75,12 +83,16 @@ const ChildSetupWizardScreen: React.FC = () => {
         name: editingChild.name,
         birthDate: new Date(editingChild.dateOfBirth),
         gender: (editingChild.gender as Gender) ?? null,
+        avatarId: editingChild.avatarId ?? 1,
+        colorId: editingChild.colorId ?? 1,
       };
     }
     return {
       name: '',
       birthDate: new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate()),
       gender: null,
+      avatarId: getNextAvailableAvatarId(usedAvatarIds),
+      colorId: getNextAvailableColorId(usedColorIds),
     };
   });
 
@@ -195,6 +207,8 @@ const ChildSetupWizardScreen: React.FC = () => {
             name: profileData.name.trim(),
             dateOfBirth,
             gender: profileData.gender,
+            avatarId: profileData.avatarId,
+            colorId: profileData.colorId,
           },
         })).unwrap();
         childId = editingChild.id;
@@ -204,6 +218,8 @@ const ChildSetupWizardScreen: React.FC = () => {
           name: profileData.name.trim(),
           dateOfBirth,
           gender: profileData.gender,
+          avatarId: profileData.avatarId,
+          colorId: profileData.colorId,
         })).unwrap();
         if (!childResult) {
           throw new Error('Failed to create child');

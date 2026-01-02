@@ -56,6 +56,7 @@ import WeeklyPlannerScreen from '../screens/WeeklyPlannerScreen';
 import WaitingListScreen from '../screens/WaitingListScreen';
 import MapSearchScreen from '../screens/MapSearchScreen';
 import InvitationAcceptScreen from '../screens/InvitationAcceptScreen';
+import ChildPreferencesScreen from '../screens/ChildPreferencesScreen';
 
 // Import Preference Screens
 import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
@@ -105,6 +106,7 @@ const HomeStack = () => (
     <Stack.Screen name="WaitingList" component={WaitingListScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+    <Stack.Screen name="ChildPreferences" component={ChildPreferencesScreen} />
   </Stack.Navigator>
 );
 
@@ -280,10 +282,10 @@ const MainTabs = () => {
       name="FiltersTab"
       component={HomeStack}
       options={{
-        tabBarLabel: 'Preferences',
+        tabBarLabel: 'Child Preferences',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon
-            name="tune-variant"
+            name="account-cog"
             color={color}
             size={26}
           />
@@ -293,8 +295,8 @@ const MainTabs = () => {
         tabPress: (e) => {
           // Prevent default behavior
           e.preventDefault();
-          // Navigate to Filters screen within HomeStack
-          navigation.navigate('FiltersTab', { screen: 'Filters' });
+          // Navigate to ChildPreferences screen within HomeStack
+          navigation.navigate('FiltersTab', { screen: 'ChildPreferences' });
         },
       })}
     />

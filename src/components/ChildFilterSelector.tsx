@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAppSelector, useAppDispatch } from '../store';
@@ -15,12 +14,13 @@ import {
   selectFilterMode,
   setSelectedChildIds,
   toggleChildSelection,
-  selectAllChildren as selectAllChildrenAction,
   setFilterMode,
   ChildWithPreferences,
   ChildFilterMode,
 } from '../store/slices/childrenSlice';
 import { selectSubscription } from '../store/slices/subscriptionSlice';
+import { ChildAvatar } from './children';
+import { getChildColor } from '../theme/childColors';
 
 interface ChildFilterSelectorProps {
   /**
@@ -121,20 +121,12 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
     onSelectionChange?.(selectedChildIds, newMode);
   }, [dispatch, filterMode, isPremium, selectedChildIds, onSelectionChange]);
 
-  // Get initials for child avatar
-  const getInitials = useCallback((name: string): string => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  }, []);
-
   // Render child chip
   const renderChildChip = useCallback((child: ChildWithPreferences) => {
     const isSelected = selectedChildIds.includes(child.id);
     const age = calculateAge(child.dateOfBirth);
+    const childColor = getChildColor(child.colorId);
+    const avatarSize = compact ? 28 : 36;
 
     return (
       <TouchableOpacity
@@ -142,27 +134,24 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
         style={[
           styles.childChip,
           compact && styles.childChipCompact,
-          isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+          isSelected && { backgroundColor: childColor.hex + '20', borderColor: childColor.hex },
           !isSelected && { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
         onPress={() => handleToggleChild(child.id)}
         activeOpacity={0.7}
       >
-        {child.avatar ? (
-          <Image source={{ uri: child.avatar }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: isSelected ? colors.background : colors.primaryLight }]}>
-            <Text style={[styles.avatarText, { color: isSelected ? colors.primary : colors.background }]}>
-              {getInitials(child.name)}
-            </Text>
-          </View>
-        )}
+        <ChildAvatar
+          child={child}
+          size={avatarSize}
+          showBorder={isSelected}
+          borderWidth={2}
+        />
         {!compact && (
           <View style={styles.childInfo}>
             <Text
               style={[
                 styles.childName,
-                { color: isSelected ? colors.background : colors.text },
+                { color: isSelected ? childColor.hex : colors.text },
               ]}
               numberOfLines={1}
             >
@@ -171,7 +160,7 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
             <Text
               style={[
                 styles.childAge,
-                { color: isSelected ? colors.background : colors.textSecondary },
+                { color: colors.textSecondary },
               ]}
             >
               {age} yrs
@@ -182,16 +171,21 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
           <Text
             style={[
               styles.childNameCompact,
-              { color: isSelected ? colors.background : colors.text },
+              { color: isSelected ? childColor.hex : colors.text },
             ]}
             numberOfLines={1}
           >
             {child.name.split(' ')[0]}
           </Text>
         )}
+        {isSelected && (
+          <View style={[styles.checkBadge, { backgroundColor: childColor.hex }]}>
+            <Icon name="check" size={10} color="#fff" />
+          </View>
+        )}
       </TouchableOpacity>
     );
-  }, [selectedChildIds, compact, colors, calculateAge, handleToggleChild, getInitials]);
+  }, [selectedChildIds, compact, colors, calculateAge, handleToggleChild]);
 
   // Don't render if only one child
   if (children.length <= 1) {
@@ -333,21 +327,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 4,
   },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
-  avatarPlaceholder: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  checkBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 11,
-    fontWeight: '600',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   childInfo: {
     marginRight: 4,
