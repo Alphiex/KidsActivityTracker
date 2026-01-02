@@ -25,6 +25,8 @@ import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
 import { useTheme } from '../contexts/ThemeContext';
 import { safeToISOString } from '../utils/safeAccessors';
+import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 const SearchHeaderImage = require('../assets/images/search-header.png');
 
@@ -52,6 +54,14 @@ const SearchResultsScreen = () => {
   
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
+
+  // Subscription-aware waitlist
+  const {
+    canAddToWaitlist,
+    onWaitlistLimitReached,
+    showUpgradeModal: showWaitlistUpgradeModal,
+    hideUpgradeModal: hideWaitlistUpgradeModal,
+  } = useWaitlistSubscription();
 
   useEffect(() => {
     loadInitialResults();
@@ -325,6 +335,8 @@ const SearchResultsScreen = () => {
               isFavorite={favoriteIds.has(item.id)}
               onFavoritePress={() => toggleFavorite(item)}
               imageHeight={90}
+              canAddToWaitlist={canAddToWaitlist}
+              onWaitlistLimitReached={onWaitlistLimitReached}
             />
           )}
           showsVerticalScrollIndicator={false}
@@ -346,6 +358,13 @@ const SearchResultsScreen = () => {
           initialNumToRender={10}
         />
         )}
+
+        {/* Upgrade Modal for notifications (premium feature) */}
+        <UpgradePromptModal
+          visible={showWaitlistUpgradeModal}
+          feature="notifications"
+          onClose={hideWaitlistUpgradeModal}
+        />
       </SafeAreaView>
     </ScreenBackground>
   );

@@ -402,11 +402,10 @@ export const selectSharesRemaining = (state: { subscription?: SubscriptionState 
 };
 
 export const selectCanAddToWaitlist = (state: { subscription?: SubscriptionState }): boolean => {
-  const limits = state.subscription?.limits || DEFAULT_FREE_LIMITS;
-  const usage = state.subscription?.usage;
-  // Unlimited for premium (represented as a high number or -1)
-  if (limits.maxWaitlistItems === -1 || limits.maxWaitlistItems >= 1000) return true;
-  return !usage || (usage.waitlistCount || 0) < limits.maxWaitlistItems;
+  // Notifications/waitlist is a premium-only feature
+  const isPremium = state.subscription?.currentPlan?.code === 'premium';
+  const isTrialing = state.subscription?.isTrialing ?? false;
+  return isPremium || isTrialing;
 };
 
 export const selectWaitlistRemaining = (state: { subscription?: SubscriptionState }): number => {

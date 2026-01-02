@@ -24,6 +24,8 @@ import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, Mode
 import FavoritesService from '../services/favoritesService';
 import { useAppSelector } from '../store';
 import TopTabNavigation from '../components/TopTabNavigation';
+import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 // Header images with fallback
 const HeaderImages: Record<string, any> = {
@@ -85,6 +87,14 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const ITEMS_PER_PAGE = 50;
 
   const user = useAppSelector((state) => state.auth?.user);
+
+  // Subscription-aware waitlist
+  const {
+    canAddToWaitlist,
+    onWaitlistLimitReached,
+    showUpgradeModal: showWaitlistUpgradeModal,
+    hideUpgradeModal: hideWaitlistUpgradeModal,
+  } = useWaitlistSubscription();
 
   const getConfig = () => {
     if (type === 'favorites') {
@@ -371,6 +381,8 @@ const UnifiedResultsScreenTest: React.FC = () => {
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
         imageHeight={90}
+        canAddToWaitlist={canAddToWaitlist}
+        onWaitlistLimitReached={onWaitlistLimitReached}
       />
     );
   };
@@ -515,6 +527,13 @@ const UnifiedResultsScreenTest: React.FC = () => {
           }
         />
       </ScreenBackground>
+
+      {/* Upgrade Modal for notifications (premium feature) */}
+      <UpgradePromptModal
+        visible={showWaitlistUpgradeModal}
+        feature="notifications"
+        onClose={hideWaitlistUpgradeModal}
+      />
     </SafeAreaView>
   );
 };

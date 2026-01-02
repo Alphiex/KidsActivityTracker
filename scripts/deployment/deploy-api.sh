@@ -15,13 +15,10 @@ REGION="us-central1"
 # Ensure we're in the right project
 gcloud config set project $PROJECT_ID
 
-# Build and push the Docker image
-echo "📦 Building Docker image for AMD64 architecture..."
+# Build using Cloud Build (no local Docker required)
+echo "📦 Building with Cloud Build..."
 cd server
-docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/$SERVICE_NAME:latest .
-
-echo "☁️ Pushing to Google Container Registry..."
-docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
+gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVICE_NAME:latest --project $PROJECT_ID
 
 echo "🚀 Deploying to Cloud Run..."
 gcloud run deploy $SERVICE_NAME \

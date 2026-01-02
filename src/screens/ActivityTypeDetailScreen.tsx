@@ -19,6 +19,8 @@ import ActivityCard from '../components/ActivityCard';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import { Activity } from '../types';
+import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
+import UpgradePromptModal from '../components/UpgradePromptModal';
 
 interface Subtype {
   code: string;
@@ -50,8 +52,16 @@ const ActivityTypeDetailScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [consecutiveEmptyResponses, setConsecutiveEmptyResponses] = useState(0);
   const MAX_EMPTY_RESPONSES = 3;
-  
+
   const ITEMS_PER_PAGE = 50;
+
+  // Subscription-aware waitlist
+  const {
+    canAddToWaitlist,
+    onWaitlistLimitReached,
+    showUpgradeModal: showWaitlistUpgradeModal,
+    hideUpgradeModal: hideWaitlistUpgradeModal,
+  } = useWaitlistSubscription();
 
   useEffect(() => {
     loadTypeDetails();
@@ -322,6 +332,8 @@ const ActivityTypeDetailScreen = () => {
         };
         navigation.navigate('ActivityDetail' as never, { activity: serializedActivity } as never);
       }}
+      canAddToWaitlist={canAddToWaitlist}
+      onWaitlistLimitReached={onWaitlistLimitReached}
     />
   );
 
@@ -473,6 +485,13 @@ const ActivityTypeDetailScreen = () => {
             </View>
           }
         />
+
+        {/* Upgrade Modal for notifications (premium feature) */}
+        <UpgradePromptModal
+          visible={showWaitlistUpgradeModal}
+          feature="notifications"
+          onClose={hideWaitlistUpgradeModal}
+        />
       </SafeAreaView>
     );
   }
@@ -531,6 +550,13 @@ const ActivityTypeDetailScreen = () => {
             </View>
           ) : null
         }
+      />
+
+      {/* Upgrade Modal for notifications (premium feature) */}
+      <UpgradePromptModal
+        visible={showWaitlistUpgradeModal}
+        feature="notifications"
+        onClose={hideWaitlistUpgradeModal}
       />
     </SafeAreaView>
   );

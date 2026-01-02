@@ -48,6 +48,7 @@ const DashboardScreenModern = () => {
   const [activityTypes, setActivityTypes] = useState<any[]>([]);
   const [ageGroups, setAgeGroups] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [waitlistIds, setWaitlistIds] = useState<Set<string>>(new Set());
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [waitlistAvailableCount, setWaitlistAvailableCount] = useState(0);
   const [calendarModalActivity, setCalendarModalActivity] = useState<Activity | null>(null);
@@ -149,6 +150,7 @@ const DashboardScreenModern = () => {
       await waitlistService.getWaitlist(true); // Force refresh
       setWaitlistCount(waitlistService.getWaitlistCount());
       setWaitlistAvailableCount(waitlistService.getAvailableCount());
+      setWaitlistIds(waitlistService.getWaitlistIds());
     } catch (error) {
       console.error('Error loading waitlist count:', error);
     }
@@ -589,6 +591,7 @@ const DashboardScreenModern = () => {
     const imageKey = getActivityImageKey(activityTypeName, subcategory, activity.name);
     const imageSource = getActivityImageByKey(imageKey, activityTypeName);
     const isFavorite = favoriteIds.has(activity.id);
+    const isOnWaitlist = waitlistIds.has(activity.id);
     const isOnCalendar = (activityChildrenMap[activity.id] || []).length > 0;
 
     // Format date range display
@@ -790,20 +793,41 @@ const DashboardScreenModern = () => {
               style={styles.actionButton}
               onPress={async (e) => {
                 e.stopPropagation();
-                const isOnWaitlist = waitlistService.isOnWaitlist(activity.id);
                 if (!isOnWaitlist && !canAddToWaitlist) {
                   onWaitlistLimitReached();
                   return;
                 }
-                await waitlistService.toggleWaitlist(activity);
+                // Optimistic update for immediate UI feedback
+                if (isOnWaitlist) {
+                  setWaitlistIds(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(activity.id);
+                    return newSet;
+                  });
+                } else {
+                  setWaitlistIds(prev => new Set([...prev, activity.id]));
+                }
+                const result = await waitlistService.toggleWaitlist(activity);
+                // Revert if failed
+                if (!result.success) {
+                  if (isOnWaitlist) {
+                    setWaitlistIds(prev => new Set([...prev, activity.id]));
+                  } else {
+                    setWaitlistIds(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(activity.id);
+                      return newSet;
+                    });
+                  }
+                }
                 syncWaitlistCount();
                 loadWaitlistCount();
               }}
             >
               <Icon
-                name={waitlistService.isOnWaitlist(activity.id) ? "bell-ring" : "bell-outline"}
+                name={isOnWaitlist ? "bell-ring" : "bell-outline"}
                 size={16}
-                color={waitlistService.isOnWaitlist(activity.id) ? "#FFB800" : "#FFF"}
+                color={isOnWaitlist ? "#FFB800" : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
@@ -1216,13 +1240,11 @@ const DashboardScreenModern = () => {
         limit={favoritesLimit}
       />
 
-      {/* Upgrade Modal for waitlist limit */}
+      {/* Upgrade Modal for notifications (premium feature) */}
       <UpgradePromptModal
         visible={showWaitlistUpgradeModal}
-        feature="waitlist"
+        feature="notifications"
         onClose={hideWaitlistUpgradeModal}
-        currentCount={subscriptionWaitlistCount}
-        limit={waitlistLimit}
       />
 
       {/* Add to Calendar Modal */}

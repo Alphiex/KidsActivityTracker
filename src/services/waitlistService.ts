@@ -228,6 +228,13 @@ class WaitlistService {
   }
 
   /**
+   * Get all waitlist activity IDs (for UI state sync)
+   */
+  getWaitlistIds(): Set<string> {
+    return new Set(this.waitlistIds);
+  }
+
+  /**
    * Get count of activities with spots now available
    */
   getAvailableCount(): number {

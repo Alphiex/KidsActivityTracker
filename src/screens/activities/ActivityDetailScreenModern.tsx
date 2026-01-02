@@ -931,13 +931,11 @@ const ActivityDetailScreenModern = () => {
         />
       )}
 
-      {/* Upgrade Modal for waitlist limit */}
+      {/* Upgrade Modal for notifications (premium feature) */}
       <UpgradePromptModal
         visible={showWaitlistUpgradeModal}
-        feature="waitlist"
+        feature="notifications"
         onClose={hideWaitlistUpgradeModal}
-        currentCount={waitlistCount}
-        limit={waitlistLimit}
       />
     </SafeAreaView>
   );

@@ -7,17 +7,24 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
   Image,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../services/activityService';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
+import ScreenBackground from '../components/ScreenBackground';
 
 type NavigationProp = StackNavigationProp<any>;
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Header illustration - child exploring different activity types
+const ActivityTypesHeaderImage = require('../assets/images/browse-activity-types-header.png');
 
 interface ActivityType {
   id?: string;
@@ -25,6 +32,36 @@ interface ActivityType {
   name: string;
   activityCount: number;
 }
+
+const ModernColors = {
+  primary: '#E8638B',
+  text: '#222222',
+  textLight: '#717171',
+  background: '#FFFFFF',
+  border: '#EEEEEE',
+};
+
+// Extracted ListHeader to avoid nested component warning
+const ListHeader: React.FC<{ count: number }> = ({ count }) => (
+  <View style={styles.listHeaderContainer}>
+    {/* Hero Image Section */}
+    <View style={styles.heroSection}>
+      <Image
+        source={ActivityTypesHeaderImage}
+        style={styles.heroImage}
+        resizeMode="contain"
+      />
+    </View>
+
+    {/* Title Section */}
+    <View style={styles.titleSection}>
+      <Text style={styles.mainTitle}>Explore Activities</Text>
+      <Text style={styles.subtitle}>
+        {count} activity types to discover
+      </Text>
+    </View>
+  </View>
+);
 
 const AllActivityTypesScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -72,7 +109,7 @@ const AllActivityTypesScreen: React.FC = () => {
     });
   };
 
-  const renderActivityType = ({ item, index }: { item: ActivityType; index: number }) => {
+  const renderActivityType = ({ item }: { item: ActivityType }) => {
     const imageKey = getActivityImageKey(item.name, item.code);
     const imageSource = getActivityImageByKey(imageKey, item.name);
 
@@ -88,7 +125,7 @@ const AllActivityTypesScreen: React.FC = () => {
         <View style={styles.typeContent}>
           <Text style={styles.typeName} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.typeCount}>
-            {item.activityCount} {item.activityCount === 1 ? 'activity' : 'activities'}
+            {item.activityCount.toLocaleString()} {item.activityCount === 1 ? 'activity' : 'activities'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -97,63 +134,92 @@ const AllActivityTypesScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E8638B" />
-        <Text style={styles.loadingText}>Loading activity types...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScreenBackground>
+          {/* Sticky Header */}
+          <View style={styles.stickyHeader}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-left" size={24} color={ModernColors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Browse by Activity Type</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={ModernColors.primary} />
+            <Text style={styles.loadingText}>Loading activity types...</Text>
+          </View>
+        </ScreenBackground>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Icon name="alert-circle" size={60} color="#E8638B" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadActivityTypes}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScreenBackground>
+          {/* Sticky Header */}
+          <View style={styles.stickyHeader}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-left" size={24} color={ModernColors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Browse by Activity Type</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <View style={styles.errorContainer}>
+            <Icon name="alert-circle" size={60} color={ModernColors.primary} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadActivityTypes}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </ScreenBackground>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-left" size={24} color="#222222" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>All Activity Types</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenBackground>
+        {/* Sticky Header */}
+        <View style={styles.stickyHeader}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-left" size={24} color={ModernColors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Browse by Activity Type</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      {/* Activity Types Grid */}
-      <FlatList
-        data={activityTypes}
-        renderItem={renderActivityType}
-        keyExtractor={(item) => item.code}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#E8638B']}
-            tintColor="#E8638B"
-          />
-        }
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
-            <Text style={styles.subtitle}>
-              {activityTypes.length} types available
-            </Text>
-          </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+        {/* Activity Types Grid */}
+        <FlatList
+          data={activityTypes}
+          renderItem={renderActivityType}
+          keyExtractor={(item) => item.code}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[ModernColors.primary]}
+              tintColor={ModernColors.primary}
+            />
+          }
+          ListHeaderComponent={<ListHeader count={activityTypes.length} />}
+          showsVerticalScrollIndicator={false}
+        />
+      </ScreenBackground>
     </SafeAreaView>
   );
 };
@@ -163,32 +229,65 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  header: {
+  stickyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: ModernColors.border,
   },
   backButton: {
-    padding: 4,
-    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#222222',
     flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: ModernColors.text,
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
-  listHeader: {
+  headerSpacer: {
+    width: 40,
+  },
+  listHeaderContainer: {
+    paddingBottom: 16,
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: 20,
     paddingHorizontal: 20,
-    paddingTop: 16,
+  },
+  heroImage: {
+    width: SCREEN_WIDTH * 0.6,
+    height: SCREEN_WIDTH * 0.5,
+  },
+  titleSection: {
+    paddingHorizontal: 20,
     paddingBottom: 8,
   },
+  mainTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: ModernColors.text,
+    marginBottom: 8,
+  },
   subtitle: {
-    fontSize: 14,
-    color: '#717171',
+    fontSize: 15,
+    color: ModernColors.textLight,
+    lineHeight: 22,
   },
   listContent: {
     paddingBottom: 20,
@@ -201,18 +300,18 @@ const styles = StyleSheet.create({
     width: '48%',
     marginBottom: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
   imageContainer: {
     width: '100%',
-    height: 140,
-    backgroundColor: '#F0F0F0',
+    height: 120,
+    backgroundColor: '#F8F8F8',
   },
   typeImage: {
     width: '100%',
@@ -223,24 +322,23 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   typeName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#222222',
+    color: ModernColors.text,
     marginBottom: 4,
   },
   typeCount: {
     fontSize: 13,
-    color: '#717171',
+    color: ModernColors.textLight,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     fontSize: 16,
-    color: '#717171',
+    color: ModernColors.textLight,
     marginTop: 12,
   },
   errorContainer: {
@@ -248,17 +346,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#FFFFFF',
   },
   errorText: {
     fontSize: 16,
-    color: '#222222',
+    color: ModernColors.text,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#E8638B',
+    backgroundColor: ModernColors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
