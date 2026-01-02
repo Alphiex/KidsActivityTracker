@@ -61,6 +61,12 @@ server/scrapers/
 │   ├── ClaudeVisionExtractor.js    # Claude Vision API
 │   ├── DataComparator.js           # Compare scraped vs visible
 │   ├── ReportGenerator.js          # HTML report output
+│   ├── AutoFixPipeline.js          # AI-powered auto-fix orchestrator
+│   ├── DiscrepancyAnalyzer.js      # Analyzes validation discrepancies
+│   ├── SelectorDiscoveryAgent.js   # Uses Claude to find CSS selectors
+│   ├── HTMLCapture.js              # Captures sample HTML pages
+│   ├── FixValidator.js             # Tests fixes before applying
+│   ├── PlatformAnalyzer.js         # Routes fixes to correct scrapers
 │   └── prompts/                    # Vision extraction prompts
 ├── utils/
 │   ├── stableIdGenerator.js        # External ID generation (IMPORTANT)
@@ -76,7 +82,8 @@ server/scrapers/
 │   ├── runAllScrapers.js           # Run all providers
 │   ├── runByTier.js                # Run by schedule tier
 │   ├── runSingleScraper.js         # Run single provider
-│   └── runValidation.js            # Run validation check
+│   ├── runValidation.js            # Run validation check
+│   └── runAutoFix.js               # Run AI auto-fix pipeline
 └── scraperJob.js                   # Cloud Run entry point
 ```
 
@@ -153,6 +160,178 @@ Reports are generated at `server/scrapers/validation/reports/`:
 | Extra Field | Info | Scraped field not visible on page |
 | Date Mismatch | Error | Start/end date incorrect |
 | Price Mismatch | Error | Cost differs from visible |
+
+## AI-Powered Auto-Fix Pipeline
+
+The Auto-Fix Pipeline uses Claude AI to automatically detect and fix scraper extraction issues. It analyzes validation discrepancies, discovers new CSS selectors, validates fixes, and applies patches to scraper code autonomously.
+
+### How It Works
+
+```
+1. Analyze Discrepancies
+   ├── Parse validation reports
+   ├── Identify patterns (missing fields, wrong values)
+   └── Prioritize by severity and frequency
+
+2. Route Fixes
+   ├── Determine if fix applies to platform or provider
+   ├── Platform fix: >50% of providers affected
+   └── Provider fix: Specific to one provider
+
+3. Capture HTML Samples
+   ├── Navigate to activity pages
+   ├── Capture raw HTML (not screenshots)
+   └── Collect 3-5 samples per field
+
+4. Discover Selectors (Claude AI)
+   ├── Send HTML samples to Claude
+   ├── Ask for CSS selectors that extract the field
+   └── Get confidence score and alternatives
+
+5. Validate Fixes
+   ├── Test selectors against sample pages
+   ├── Compare extracted values to expected
+   └── Require ≥70% accuracy to proceed
+
+6. Apply Patches
+   ├── Insert extraction code into scraper
+   ├── Place inside page.evaluate() block
+   └── Create backup before patching
+```
+
+### Running the Auto-Fix Pipeline
+
+```bash
+# Analyze only (no changes)
+node server/scrapers/scripts/runAutoFix.js --analyze
+
+# Dry run - preview what would be fixed
+node server/scrapers/scripts/runAutoFix.js --max=5 --verbose
+
+# Apply fixes
+node server/scrapers/scripts/runAutoFix.js --max=5 --verbose --apply
+
+# Fix specific field only
+node server/scrapers/scripts/runAutoFix.js --field=registrationStatus --apply
+```
+
+### Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `--analyze` | Only analyze discrepancies, no fixes |
+| `--max=N` | Limit to N fields to fix |
+| `--field=name` | Fix specific field only |
+| `--verbose` | Show detailed output |
+| `--apply` | Actually apply fixes (default is dry run) |
+| `--skip-validation` | Skip fix validation (not recommended) |
+
+### Pipeline Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| AutoFixPipeline | `AutoFixPipeline.js` | Main orchestrator |
+| DiscrepancyAnalyzer | `DiscrepancyAnalyzer.js` | Parses validation reports |
+| PlatformAnalyzer | `PlatformAnalyzer.js` | Routes fixes to correct scraper |
+| HTMLCapture | `HTMLCapture.js` | Captures sample HTML pages |
+| SelectorDiscoveryAgent | `SelectorDiscoveryAgent.js` | Uses Claude to find selectors |
+| FixValidator | `FixValidator.js` | Tests selectors before applying |
+| ScraperPatcher | `ScraperPatcher.js` | Applies code patches |
+
+### Supported Fields
+
+The pipeline can auto-fix extraction for these fields:
+
+| Field | Description |
+|-------|-------------|
+| `registrationStatus` | Open, Full, Waitlist, Closed |
+| `sessionCount` | Number of sessions |
+| `spotsAvailable` | Available spots |
+| `instructor` | Instructor/staff name |
+| `ageMin` / `ageMax` | Age requirements |
+| `cost` | Activity price |
+
+### Fix Validation
+
+Before applying any fix, the pipeline validates it:
+
+1. **Selector Testing**: Run selector against 5 sample pages
+2. **Value Extraction**: Extract field value from each page
+3. **Accuracy Check**: Compare to expected values from validation
+4. **Threshold**: Require ≥70% accuracy to apply
+
+### Patch Format
+
+Auto-fixes are inserted inside `page.evaluate()` blocks using DOM API:
+
+```javascript
+// AUTO-FIX: Extract registration status
+if (!data.registrationStatus) {
+  const statusSelectors = [".activity-status", ".spots span"];
+  for (const sel of statusSelectors) {
+    try {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent?.trim()?.toLowerCase();
+        if (text?.includes('waitlist')) data.registrationStatus = 'Waitlist';
+        else if (text?.includes('full')) data.registrationStatus = 'Full';
+        // ... more conditions
+        if (data.registrationStatus) break;
+      }
+    } catch (e) {}
+  }
+}
+```
+
+### Output & Results
+
+Results are saved to `server/scrapers/validation/autofix-results/`:
+
+```json
+{
+  "timestamp": "2026-01-02T19:00:00.000Z",
+  "mode": "LIVE",
+  "duration": 285000,
+  "patternsAnalyzed": 74,
+  "selectorsDiscovered": 3,
+  "fixesValidated": 2,
+  "fixesApplied": 4,
+  "apiCost": "$0.47",
+  "fixes": [
+    {
+      "field": "registrationStatus",
+      "selector": ".activity-status",
+      "confidence": 95,
+      "validationAccuracy": 100,
+      "affectedProviders": 40
+    }
+  ]
+}
+```
+
+### Duplicate Detection
+
+The pipeline automatically skips fields that have already been patched:
+
+- Looks for `// AUTO-FIX: Extract {field}` comments
+- Checks for existing selector arrays (e.g., `statusSelectors`)
+- Reports "⊘ Skipped (already patched)" in output
+
+### Backup & Rollback
+
+Before any patch is applied:
+
+1. Backup created at `validation/backups/{Scraper}.js.{timestamp}.backup`
+2. Original file preserved with timestamp
+3. To rollback: `cp backups/ScraperName.js.{timestamp}.backup platforms/ScraperName.js`
+
+### API Cost
+
+The pipeline uses Claude API for selector discovery:
+
+- ~$0.10-0.20 per field analyzed
+- ~$0.40-0.60 for typical 3-field run
+- Cost logged in results JSON
 
 ## Scraping Lifecycle
 
@@ -535,10 +714,11 @@ DEBUG=scraper:* node scrapers/scripts/runSingleScraper.js --provider=vancouver
 
 ---
 
-**Document Version**: 6.0
-**Last Updated**: December 2025
+**Document Version**: 7.0
+**Last Updated**: January 2026
 
 ### Changelog
+- v7.0: Added AI-Powered Auto-Fix Pipeline documentation
 - v6.0: Added Claude Vision validation system documentation
 - v5.0: Added External ID Generation section with guidelines for stable IDs
 - v4.0: Initial comprehensive documentation

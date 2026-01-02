@@ -169,6 +169,28 @@ node scripts/database/seed-database.js    # Seed database
 node scripts/database/check-database.js   # Verify database
 ```
 
+### Scraper Auto-Fix (AI-Powered)
+```bash
+# Analyze discrepancies only
+node server/scrapers/scripts/runAutoFix.js --analyze
+
+# Dry run - preview fixes without applying
+node server/scrapers/scripts/runAutoFix.js --max=5 --verbose
+
+# Apply fixes to scrapers
+node server/scrapers/scripts/runAutoFix.js --max=5 --verbose --apply
+
+# Run validation to generate discrepancy reports
+node server/scrapers/scripts/runValidation.js --provider=vancouver --sample=5
+```
+
+The auto-fix pipeline uses Claude AI to:
+1. Analyze validation discrepancies
+2. Discover CSS selectors for missing fields
+3. Validate fixes (≥70% accuracy required)
+4. Apply patches to scraper code
+See `docs/SCRAPERS.md` for full documentation.
+
 ## Development Workflow
 
 ### iOS Development
