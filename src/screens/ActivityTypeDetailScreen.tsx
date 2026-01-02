@@ -331,6 +331,14 @@ const ActivityTypeDetailScreen = () => {
     return [];
   };
 
+  // Navigate to filters screen with activity type hidden (already filtering by type)
+  const handleFilterPress = () => {
+    (navigation as any).navigate('Filters', {
+      hiddenSections: ['aiMatch', 'activityTypes'],
+      screenTitle: `${typeName} Filters`,
+    });
+  };
+
   const renderHeader = () => {
     const activeFilters = getActiveFilters();
 
@@ -420,7 +428,13 @@ const ActivityTypeDetailScreen = () => {
           >
             <Icon name="arrow-left" size={24} color="#222222" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{typeName}</Text>
+          <Text style={[styles.headerTitle, { flex: 1 }]}>{typeName}</Text>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={handleFilterPress}
+          >
+            <Icon name="tune" size={22} color="#E8638B" />
+          </TouchableOpacity>
         </View>
 
         {/* Subtypes Grid */}
@@ -474,9 +488,15 @@ const ActivityTypeDetailScreen = () => {
         >
           <Icon name="arrow-left" size={24} color="#222222" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={[styles.headerTitle, { flex: 1 }]} numberOfLines={1}>
           {selectedSubtype || `All ${typeName}`}
         </Text>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={handleFilterPress}
+        >
+          <Icon name="tune" size={22} color="#E8638B" />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -532,6 +552,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
     marginRight: 12,
+  },
+  filterButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   headerTitle: {
     fontSize: 20,

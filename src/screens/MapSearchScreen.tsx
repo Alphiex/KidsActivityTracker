@@ -184,19 +184,14 @@ const MapSearchScreen = () => {
     preferencesService.updatePreferences({ useMapPreferencesFilter: newValue });
   }, [usePreferencesFilter, preferencesService]);
 
-  // Navigate to search screen for map-based search
+  // Navigate to filters screen for map-based filtering
+  // Hide distance and location sections since the map handles location visually
   const handleOpenSearch = useCallback(() => {
-    // Pass current map bounds to search screen
-    (navigation as any).navigate('SearchMain', {
-      returnToMap: true,
-      mapBounds: {
-        latitude: region.latitude,
-        longitude: region.longitude,
-        latitudeDelta: region.latitudeDelta,
-        longitudeDelta: region.longitudeDelta,
-      },
+    (navigation as any).navigate('Filters', {
+      hiddenSections: ['aiMatch', 'distance', 'locations'],
+      screenTitle: 'Map Filters',
     });
-  }, [navigation, region]);
+  }, [navigation]);
 
   // Determine initial region based on priority: GPS > preferences > Canada
   useEffect(() => {

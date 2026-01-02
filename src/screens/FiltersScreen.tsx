@@ -12,7 +12,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -72,9 +72,22 @@ interface AgeGroup {
   maxAge: number;
 }
 
+// Route params for controlling which filter sections to show
+type FiltersRouteParams = {
+  Filters: {
+    hiddenSections?: string[];  // Section IDs to hide: 'locations', 'distance', 'budget', 'aiMatch', etc.
+    screenTitle?: string;       // Custom title for the screen
+    returnScreen?: string;      // Screen to return to after applying filters
+  };
+};
+
 const FiltersScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<FiltersRouteParams, 'Filters'>>();
   const { colors, isDark } = useTheme();
+
+  // Get hidden sections from route params (default: hide AI Match on all screens)
+  const hiddenSections = route.params?.hiddenSections || ['aiMatch'];
 
   // Subscription state for advanced filters
   const {
@@ -1754,7 +1767,9 @@ const FiltersScreen = () => {
         scrollEventThrottle={16}
       >
         <View style={styles.sectionsContainer}>
-          {sections.map(renderExpandableSection)}
+          {sections
+            .filter(section => !hiddenSections.includes(section.id))
+            .map(renderExpandableSection)}
         </View>
         
         <View style={styles.bottomPadding} />

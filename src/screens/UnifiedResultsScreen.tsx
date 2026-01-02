@@ -370,9 +370,37 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
-        imageHeight={180}
+        imageHeight={90}
       />
     );
+  };
+
+  // Get hidden filter sections based on screen type
+  const getHiddenFilterSections = (): string[] => {
+    // AI Match is always hidden on all filter screens
+    const baseHidden = ['aiMatch'];
+
+    switch (type) {
+      case 'budget':
+        // Budget screen: hide cost/budget filter since it's already applied
+        return [...baseHidden, 'budget'];
+      case 'activityType':
+        // Activity type screen: hide activity types filter since it's already applied
+        return [...baseHidden, 'activityTypes'];
+      case 'ageGroup':
+        // Age group screen: hide age filter since it's already applied
+        return [...baseHidden, 'age'];
+      default:
+        // For recommended, new, ai screens: show all except AI Match
+        return baseHidden;
+    }
+  };
+
+  const handleFilterPress = () => {
+    navigation.navigate('Filters' as never, {
+      hiddenSections: getHiddenFilterSections(),
+      screenTitle: config?.title || 'Filters',
+    } as never);
   };
 
   const renderHeader = () => {
@@ -399,7 +427,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
                     <Icon name="arrow-left" size={22} color="#333" />
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.filterButtonHero} onPress={() => navigation.navigate('SearchMain')}>
+                <TouchableOpacity style={styles.filterButtonHero} onPress={handleFilterPress}>
                   <View style={styles.backButtonInner}>
                     <Icon name="tune" size={22} color="#E8638B" />
                   </View>
