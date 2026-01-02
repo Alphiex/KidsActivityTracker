@@ -3,12 +3,21 @@
  *
  * These tools allow the AI agent to search activities, get child context,
  * retrieve activity details, and compare activities.
+ *
+ * Enhanced with tiered scoring system and semantic search capabilities.
  */
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { PrismaClient } from '../../../generated/prisma';
 import { calculateAge } from '../../utils/dateUtils';
+import {
+  ScoringContext,
+  ConversationOverrides,
+  scoreAndRankActivities,
+} from '../utils/activityScorer';
+import { hybridSearch, HybridSearchOptions } from '../utils/semanticSearch';
+import { extractOverrides } from '../utils/conversationOverrides';
 
 // Singleton prisma instance
 let _prisma: PrismaClient | null = null;
@@ -86,12 +95,13 @@ export const searchActivitiesTool = new DynamicStructuredTool({
     longitude: z.number().optional().describe('User\'s longitude for distance-based filtering and sorting'),
     minAge: z.number().optional().describe('REQUIRED when user mentions age - Child\'s age for filtering activities'),
     maxAge: z.number().optional().describe('REQUIRED when user mentions age - usually same as minAge for a single child'),
+    gender: z.enum(['male', 'female']).optional().describe('TOP PRIORITY FILTER: Child\'s gender - filters out gender-specific activities that don\'t match (e.g., filters out "Girls Softball" for a boy)'),
     category: z.string().optional().describe('Database category - rarely needed, searchTerm is preferred'),
     maxPrice: z.number().optional().describe('Maximum price in dollars'),
     daysOfWeek: z.array(z.string()).optional().describe('Preferred days (e.g., ["Saturday", "Sunday"])'),
     limit: z.number().optional().default(10).describe('Number of results to return (max 20)'),
   }),
-  func: async ({ category, minAge, maxAge, city, maxPrice, daysOfWeek, searchTerm, limit, latitude, longitude }) => {
+  func: async ({ category, minAge, maxAge, gender, city, maxPrice, daysOfWeek, searchTerm, limit, latitude, longitude }) => {
     const prisma = getPrisma();
 
     try {
@@ -130,6 +140,22 @@ export const searchActivitiesTool = new DynamicStructuredTool({
             ],
           },
         ];
+      }
+
+      // Gender filtering - TOP PRIORITY filter
+      // Shows activities that are either for the specified gender OR for all genders (null)
+      // Activities with null gender are available to everyone
+      if (gender === 'male' || gender === 'female') {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { gender: gender },    // Activity specifically for this gender
+              { gender: null },      // Activity for all genders (no restriction)
+            ],
+          },
+        ];
+        console.log(`[searchActivities] Gender filter applied: ${gender}`);
       }
 
       if (city) {
@@ -593,10 +619,242 @@ function formatSchedule(schedule: any): string {
 }
 
 /**
+ * Tool: Enhanced Search with Scoring
+ * Uses the tiered scoring system for better results
+ */
+export const enhancedSearchTool = new DynamicStructuredTool({
+  name: 'enhanced_search',
+  description: 'Advanced search with semantic understanding and personalized scoring. Use this for complex queries or when basic search returns poor results. Automatically applies user preferences and conversation context.',
+  schema: z.object({
+    query: z.string().describe('Natural language search query (e.g., "swimming lessons for beginners", "weekend art classes")'),
+    userContext: z.object({
+      userId: z.string().optional(),
+      latitude: z.number().optional(),
+      longitude: z.number().optional(),
+      city: z.string().optional(),
+      children: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        age: z.number(),
+        interests: z.array(z.string()).optional(),
+      })).optional(),
+      preferredActivityTypes: z.array(z.string()).optional(),
+      daysOfWeek: z.array(z.string()).optional(),
+      maxPrice: z.number().optional(),
+      maxDistanceKm: z.number().optional(),
+    }).optional().describe('User context for personalization'),
+    conversationContext: z.string().optional().describe('Recent conversation history for extracting overrides'),
+    useSemanticSearch: z.boolean().optional().default(false).describe('Use semantic embeddings for better matching (slower but more accurate)'),
+    limit: z.number().optional().default(15).describe('Number of results to return'),
+  }),
+  func: async ({ query, userContext, conversationContext, useSemanticSearch, limit }) => {
+    const prisma = getPrisma();
+
+    try {
+      // Extract conversation overrides if context provided
+      const overrides: ConversationOverrides = conversationContext
+        ? extractOverrides(conversationContext)
+        : { explicitRequirements: [] };
+
+      // Also extract from query itself
+      const queryOverrides = extractOverrides(query);
+      overrides.explicitRequirements = [
+        ...new Set([...overrides.explicitRequirements, ...queryOverrides.explicitRequirements]),
+      ];
+      if (queryOverrides.ageOverride) overrides.ageOverride = queryOverrides.ageOverride;
+      if (queryOverrides.locationOverride) overrides.locationOverride = queryOverrides.locationOverride;
+      if (queryOverrides.daysOverride) overrides.daysOverride = queryOverrides.daysOverride;
+
+      // Build scoring context
+      const scoringContext: ScoringContext = {
+        userLocation: {
+          latitude: userContext?.latitude || 49.2827, // Default to Vancouver
+          longitude: userContext?.longitude || -123.1207,
+          city: userContext?.city || overrides.locationOverride?.city,
+        },
+        children: userContext?.children?.map(c => ({
+          id: c.id,
+          name: c.name,
+          age: c.age,
+          interests: c.interests,
+        })) || [],
+        preferences: {
+          preferredActivityTypes: userContext?.preferredActivityTypes,
+          daysOfWeek: userContext?.daysOfWeek,
+          priceRange: userContext?.maxPrice ? { max: userContext.maxPrice } : undefined,
+          distanceRadiusKm: userContext?.maxDistanceKm || overrides.locationOverride?.maxDistanceKm || 50,
+        },
+      };
+
+      let results: any[];
+
+      if (useSemanticSearch) {
+        // Use hybrid search with semantic embeddings
+        const searchOptions: HybridSearchOptions = {
+          query,
+          context: scoringContext,
+          mode: 'chat',
+          overrides,
+          limit: limit || 15,
+          semanticWeight: 0.3,
+          structuredWeight: 0.7,
+        };
+
+        const semanticResults = await hybridSearch(searchOptions);
+        results = semanticResults.map(r => ({
+          ...formatActivityResult(r.activity),
+          score: Math.round(r.combinedScore),
+          semanticScore: Math.round(r.semanticScore),
+          structuredScore: Math.round(r.structuredScore),
+          distance: r.distance,
+        }));
+      } else {
+        // Use structured search with scoring
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Build where clause for initial candidate retrieval
+        const where: any = {
+          isActive: true,
+          registrationStatus: {
+            in: ['Open', 'Waitlist', 'Available', 'Register', 'Enroll'],
+          },
+          OR: [
+            { dateEnd: null },
+            { dateEnd: { gte: today } },
+          ],
+        };
+
+        // Text search on query
+        if (query) {
+          const searchTerms = expandSearchTerms(query.split(' ')[0]); // Primary term
+          const searchConditions: any[] = [];
+          for (const term of searchTerms) {
+            searchConditions.push(
+              { name: { contains: term, mode: 'insensitive' } },
+              { description: { contains: term, mode: 'insensitive' } },
+              { category: { contains: term, mode: 'insensitive' } }
+            );
+          }
+          if (searchConditions.length > 0) {
+            where.AND = [{ OR: searchConditions }];
+          }
+        }
+
+        // Fetch candidates
+        const candidates = await prisma.activity.findMany({
+          where,
+          include: {
+            location: true,
+            provider: { select: { id: true, name: true } },
+          },
+          take: Math.min((limit || 15) * 10, 500),
+        });
+
+        // Score and rank
+        const scored = scoreAndRankActivities(
+          candidates,
+          scoringContext,
+          'chat',
+          {
+            overrides,
+            limit: limit || 15,
+            ensureDiversity: true,
+          }
+        );
+
+        results = scored.map(s => ({
+          ...formatActivityResult(s.activity),
+          score: Math.round(s.score),
+          distance: s.distance,
+          scoreBreakdown: {
+            explicitMatch: s.scoreBreakdown.explicitRequirementBonus,
+            typeMatch: s.scoreBreakdown.activityTypeMatch,
+            dayMatch: s.scoreBreakdown.dayOfWeekMatch,
+            budgetMatch: s.scoreBreakdown.budgetMatch,
+            interestMatch: s.scoreBreakdown.interestMatch,
+          },
+        }));
+      }
+
+      if (results.length === 0) {
+        return JSON.stringify({
+          message: 'No activities found matching your criteria.',
+          suggestions: [
+            'Try broadening your search terms',
+            'Expand your distance radius',
+            'Check for different days of the week',
+          ],
+          searchContext: {
+            query,
+            overridesApplied: Object.keys(overrides).filter(k => (overrides as any)[k] !== undefined && k !== 'explicitRequirements'),
+            explicitRequirements: overrides.explicitRequirements,
+          },
+        });
+      }
+
+      return JSON.stringify({
+        count: results.length,
+        activities: results,
+        searchContext: {
+          query,
+          overridesApplied: Object.keys(overrides).filter(k => (overrides as any)[k] !== undefined && k !== 'explicitRequirements'),
+          explicitRequirements: overrides.explicitRequirements,
+          usedSemanticSearch: useSemanticSearch,
+        },
+      });
+    } catch (error: any) {
+      console.error('[enhancedSearch] Error:', error);
+      return JSON.stringify({ error: 'Failed to search activities', details: error.message });
+    }
+  },
+});
+
+/**
+ * Format activity for response (helper function)
+ */
+function formatActivityResult(activity: any): any {
+  // Smart location extraction
+  let locationDisplay = 'Various locations';
+  let locationName = null;
+
+  if (activity.location) {
+    locationName = activity.location.name || null;
+    if (activity.location.address && activity.location.city) {
+      locationDisplay = `${activity.location.address}, ${activity.location.city}`;
+    } else if (activity.location.name && activity.location.city) {
+      locationDisplay = `${activity.location.name}, ${activity.location.city}`;
+    } else if (activity.location.city) {
+      locationDisplay = activity.location.city;
+    } else if (activity.location.name) {
+      locationDisplay = activity.location.name;
+    }
+  }
+
+  return {
+    id: activity.id,
+    name: activity.name,
+    category: activity.category,
+    price: activity.cost ?? 0,
+    ageRange: activity.ageMin || activity.ageMax ? `${activity.ageMin ?? 0}-${activity.ageMax ?? 18} years` : 'All ages',
+    location: locationDisplay,
+    locationName: locationName || activity.location?.name,
+    locationCity: activity.location?.city,
+    provider: activity.provider?.name,
+    schedule: formatSchedule(activity),
+    status: activity.registrationStatus ?? 'Unknown',
+    spotsAvailable: activity.spotsAvailable,
+    startDate: activity.dateStart ? activity.dateStart.toISOString().split('T')[0] : null,
+    endDate: activity.dateEnd ? activity.dateEnd.toISOString().split('T')[0] : null,
+  };
+}
+
+/**
  * All activity tools exported for the agent
  */
 export const activityTools = [
   searchActivitiesTool,
+  enhancedSearchTool,
   getChildContextTool,
   getActivityDetailsTool,
   compareActivitiesTool,

@@ -52,6 +52,7 @@ export interface ActivitySearchFilters {
   activityType?: string;
   ageMin?: number;
   ageMax?: number;
+  gender?: string; // 'male' or 'female' - TOP PRIORITY filter
   costMin?: number;
   costMax?: number;
   dayOfWeek?: string[];

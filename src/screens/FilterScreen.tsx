@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   Switch,
-  Alert,
 } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
@@ -29,6 +28,7 @@ export default function FilterScreen({ navigation, route }: Props) {
   const currentFilter = route.params?.currentFilter || {};
   
   const [ageRange, setAgeRange] = useState(currentFilter.ageRange || { min: 0, max: 18 });
+  const [selectedGender, setSelectedGender] = useState<string | null>(currentFilter.gender || null);
   const [maxCost, setMaxCost] = useState(currentFilter.maxCost || 500);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     currentFilter.activityTypes || []
@@ -66,16 +66,18 @@ export default function FilterScreen({ navigation, route }: Props) {
   const handleApplyFilters = () => {
     const filter: Filter = {
       ageRange,
+      gender: selectedGender || undefined,
       maxCost: showFreeOnly ? 0 : maxCost,
       activityTypes: selectedCategories.length > 0 ? selectedCategories : undefined,
       locations: selectedLocations.length > 0 ? selectedLocations : undefined,
     };
-    
+
     navigation.navigate('Home', { filter });
   };
 
   const handleResetFilters = () => {
     setAgeRange({ min: 0, max: 18 });
+    setSelectedGender(null);
     setMaxCost(500);
     setSelectedCategories([]);
     setSelectedLocations([]);
@@ -152,6 +154,49 @@ export default function FilterScreen({ navigation, route }: Props) {
             minimumTrackTintColor="#007AFF"
             maximumTrackTintColor="#d1d5db"
           />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Gender</Text>
+        <Text style={styles.genderHint}>Filter activities by gender (e.g., Girls Softball, Boys Basketball)</Text>
+        <View style={styles.genderButtons}>
+          <TouchableOpacity
+            style={[
+              styles.genderButton,
+              selectedGender === null && styles.genderButtonActive,
+            ]}
+            onPress={() => setSelectedGender(null)}
+          >
+            <Icon name="people-outline" size={20} color={selectedGender === null ? 'white' : '#666'} />
+            <Text style={[styles.genderButtonText, selectedGender === null && styles.genderButtonTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.genderButton,
+              selectedGender === 'male' && styles.genderButtonActive,
+            ]}
+            onPress={() => setSelectedGender('male')}
+          >
+            <Icon name="male-outline" size={20} color={selectedGender === 'male' ? 'white' : '#007AFF'} />
+            <Text style={[styles.genderButtonText, selectedGender === 'male' && styles.genderButtonTextActive]}>
+              Boys
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.genderButton,
+              selectedGender === 'female' && styles.genderButtonActive,
+            ]}
+            onPress={() => setSelectedGender('female')}
+          >
+            <Icon name="female-outline" size={20} color={selectedGender === 'female' ? 'white' : '#FF69B4'} />
+            <Text style={[styles.genderButtonText, selectedGender === 'female' && styles.genderButtonTextActive]}>
+              Girls
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -289,6 +334,39 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   ageGroupButtonTextActive: {
+    color: 'white',
+  },
+  genderHint: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 12,
+  },
+  genderButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  genderButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    gap: 6,
+  },
+  genderButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  genderButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#666',
+  },
+  genderButtonTextActive: {
     color: 'white',
   },
   sliderContainer: {

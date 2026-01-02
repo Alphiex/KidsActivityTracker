@@ -16,6 +16,7 @@ export interface Activity {
     min: number;
     max: number;
   };
+  gender?: string | null; // 'male', 'female', or null for all genders
   dateRange?: {
     start: Date;
     end: Date;
@@ -197,6 +198,7 @@ export interface Filter {
     min: number;
     max: number;
   };
+  gender?: string; // 'male' or 'female' - filters out gender-specific activities that don't match
   dateRange?: {
     start: Date;
     end: Date;

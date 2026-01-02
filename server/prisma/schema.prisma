@@ -27,6 +27,7 @@ model Activity {
   registrationEndTime    String?
   ageMin                 Int?
   ageMax                 Int?
+  gender                 String?                // 'male', 'female', or null for all genders
   cost                   Float                  @default(0)
   costIncludesTax        Boolean                @default(true)
   taxAmount              Float?
@@ -95,6 +96,15 @@ model Activity {
   snapshots              ActivitySnapshot[]
   waitlistEntries        WaitlistEntry[]
 
+  // AI semantic search fields
+  searchText             String?                // Pre-computed search text for embeddings
+  embeddingUpdatedAt     DateTime?              // When embedding was last computed
+  embeddings             ActivityEmbedding[]    // Semantic embeddings for this activity
+
+  // Sponsored activity tracking
+  sponsoredImpressions   SponsoredImpression[]
+  sponsoredMonthlyStats  SponsoredMonthlyStats[]
+
   @@unique([providerId, externalId])
   @@index([vendorId])
   @@index([vendorId, externalId])
@@ -117,6 +127,24 @@ model Activity {
   @@index([isActive, cost])
   @@index([isActive, dateStart, dateEnd])
   @@index([isActive, activityTypeId, ageMin, ageMax])
+  @@index([isActive, gender])
+}
+
+// Activity embeddings for semantic search
+model ActivityEmbedding {
+  id         String   @id @default(uuid())
+  activityId String
+  model      String   @default("text-embedding-3-small") // OpenAI model name
+  embedding  Bytes?   // Binary representation of embedding vector
+  textHash   String   // Hash of source text to detect when re-embedding needed
+  dimensions Int      @default(1536) // Vector dimensions
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, model])
+  @@index([activityId])
+  @@index([textHash])
 }
 
 model ActivityHistory {
@@ -241,8 +269,8 @@ model Child {
   avatarUrl       String?
   interests       String[]
   notes           String?
-  location        String?                // City or formatted address
-  locationDetails Json?                  // Full address details (lat, lng, city, state, etc.)
+  location        String?                // City or formatted address (DEPRECATED - use preferences)
+  locationDetails Json?                  // Full address details (DEPRECATED - use preferences)
   isActive        Boolean                @default(true)
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @default(now()) @updatedAt
@@ -250,6 +278,7 @@ model Child {
   user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   childActivities ChildActivity[]
   skillProgress   ChildSkillProgress[]
+  preferences     ChildPreferences?      // Child-specific activity preferences
 
   @@index([userId])
 }
@@ -269,10 +298,46 @@ model ChildSkillProgress {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   child               Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
-  
+
   @@unique([childId, skillCategory])
   @@index([childId])
   @@index([skillCategory])
+}
+
+// Child-specific activity preferences (location, activity types, schedule, budget)
+// Each child has their own preferences for personalized activity discovery
+model ChildPreferences {
+  id                     String    @id @default(uuid())
+  childId                String    @unique
+  child                  Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  // Location preferences
+  locationSource         String    @default("gps")  // 'gps' | 'saved_address'
+  savedAddress           Json?     // EnhancedAddress format: { formattedAddress, latitude, longitude, city, state, postalCode, country, placeId }
+  distanceRadiusKm       Int       @default(25)     // 5, 10, 25, 50, 100 km
+  distanceFilterEnabled  Boolean   @default(false)
+
+  // Activity type preferences
+  preferredActivityTypes String[]  @default([])     // Activity type codes (e.g., "swimming-aquatics", "sports")
+  preferredSubtypes      String[]  @default([])     // Activity subtype codes
+  excludedCategories     String[]  @default([])     // Categories to exclude from results
+
+  // Schedule preferences
+  daysOfWeek             String[]  @default(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+  timePreferences        Json      @default("{\"morning\": true, \"afternoon\": true, \"evening\": true}")
+
+  // Budget preferences
+  priceRangeMin          Float     @default(0)
+  priceRangeMax          Float     @default(999999)
+  maxBudgetFriendlyAmount Float    @default(20)     // Threshold for "budget-friendly" activities
+
+  // Environment preference
+  environmentFilter      String    @default("all")  // 'all' | 'indoor' | 'outdoor'
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([childId])
 }
 
 model ChildActivity {
@@ -1471,4 +1536,54 @@ model ValidationResult {
   @@index([activityId])
   @@index([status])
   @@index([providerId])
+}
+
+// Sponsored activity impression tracking
+model SponsoredImpression {
+  id              String   @id @default(uuid())
+  activityId      String
+  activity        Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  impressionType  String   // 'top_result' = appeared in top 3, 'sponsor_section' = explore page section
+  position        Int?     // Position in results (1, 2, or 3 for top results)
+
+  // Context of the impression
+  userId          String?  // User who saw it (if authenticated)
+  searchQuery     String?  // What the user searched for
+  filters         Json?    // Applied filters (age, location, activity type, etc.)
+
+  // Device/session info
+  sessionId       String?  // Anonymous session tracking
+  deviceType      String?  // 'ios', 'android', 'web'
+
+  createdAt       DateTime @default(now())
+
+  @@index([activityId, createdAt])
+  @@index([activityId, impressionType, createdAt])
+  @@index([createdAt])
+}
+
+// Monthly aggregated stats for faster analytics queries
+model SponsoredMonthlyStats {
+  id                  String   @id @default(uuid())
+  activityId          String
+  activity            Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  year                Int
+  month               Int      // 1-12
+
+  // Impression counts by type
+  topResultCount      Int      @default(0)  // Times shown in top 3 results
+  sponsorSectionCount Int      @default(0)  // Times shown in sponsor section
+  totalImpressions    Int      @default(0)  // Total impressions
+
+  // Unique user counts (approximate, based on userId or sessionId)
+  uniqueUsers         Int      @default(0)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([activityId, year, month])
+  @@index([activityId])
+  @@index([year, month])
 }

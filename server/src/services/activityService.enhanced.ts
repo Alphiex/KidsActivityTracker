@@ -2,6 +2,7 @@ import { PrismaClient, Activity, Prisma } from '../../generated/prisma';
 import { prisma as sharedPrisma } from '../lib/prisma';
 const { convertToActivityTypes } = require('../constants/activityTypes');
 import { buildActivityWhereClause, GlobalActivityFilters } from '../utils/activityFilters';
+import { sponsoredActivityService } from './sponsoredActivityService';
 
 interface SearchParams {
   search?: string;
@@ -11,6 +12,7 @@ interface SearchParams {
   activitySubtype?: string; // Filter by activity subtype ID or code
   ageMin?: number;
   ageMax?: number;
+  gender?: string; // 'male' or 'female' - filters activities; null/undefined = show all
   costMin?: number;
   costMax?: number;
   startDate?: Date;
@@ -31,6 +33,11 @@ interface SearchParams {
   includeInactive?: boolean; // Only for admin use
   includePastActivities?: boolean; // Only for admin use - include activities with end dates in the past
   randomSeed?: string; // Seed for consistent random ordering across pagination
+  // Sponsored activity options
+  sponsoredMode?: 'top' | 'section' | 'none'; // 'top' = 3 at top of results, 'section' = sponsor section only, 'none' = no sponsored
+  userId?: string; // For impression tracking
+  sessionId?: string; // For impression tracking
+  deviceType?: string; // For impression tracking
 }
 
 export class EnhancedActivityService {
@@ -49,6 +56,7 @@ export class EnhancedActivityService {
       activitySubtype,
       ageMin,
       ageMax,
+      gender,
       costMin,
       costMax,
       startDate,
@@ -309,6 +317,23 @@ export class EnhancedActivityService {
       }
     }
 
+    // Gender filter - TOP PRIORITY for matching child to activities
+    // Logic: If child has gender specified, only show activities that:
+    // 1. Are explicitly for that gender (gender = 'male' or 'female')
+    // 2. OR are for all genders (gender = null)
+    // Activities with null gender are available to everyone
+    if (gender && (gender === 'male' || gender === 'female')) {
+      const genderFilter: Prisma.ActivityWhereInput = {
+        OR: [
+          { gender: gender },      // Activity specifically for this gender
+          { gender: null }         // Activity for all genders (no restriction)
+        ]
+      };
+      where.AND = where.AND || [];
+      (where.AND as Prisma.ActivityWhereInput[]).push(genderFilter);
+      console.log(`👤 [ActivityService] Gender filter applied: ${gender} (includes null/unspecified)`);
+    }
+
     // Cost range filter
     if (costMin !== undefined || costMax !== undefined) {
       const costFilter: any = {};
@@ -507,6 +532,16 @@ export class EnhancedActivityService {
         return hash;
       };
 
+      // Get featured tier priority (lower = better, featured comes first)
+      const getFeaturedPriority = (activity: any): number => {
+        if (!activity.isFeatured) return 99; // Not featured - lowest priority
+        const tier = activity.featuredTier?.toLowerCase();
+        if (tier === 'gold') return 0;
+        if (tier === 'silver') return 1;
+        if (tier === 'bronze') return 2;
+        return 3; // Featured but unknown tier
+      };
+
       // Get availability priority (lower = better)
       const getAvailabilityPriority = (activity: any): number => {
         const status = activity.registrationStatus;
@@ -524,22 +559,33 @@ export class EnhancedActivityService {
         select: {
           id: true,
           registrationStatus: true,
-          spotsAvailable: true
+          spotsAvailable: true,
+          isFeatured: true,
+          featuredTier: true
         }
       });
 
       total = allMatching.length;
 
-      // Sort by availability priority, then by seeded random
+      // Sort by: 1) Featured tier (gold > silver > bronze > non-featured)
+      //          2) Availability priority
+      //          3) Seeded random for consistency
       const sorted = allMatching.sort((a, b) => {
+        // First: Featured activities always come first
+        const featuredA = getFeaturedPriority(a);
+        const featuredB = getFeaturedPriority(b);
+        if (featuredA !== featuredB) {
+          return featuredA - featuredB;
+        }
+
+        // Second: Sort by availability within same featured tier
         const priorityA = getAvailabilityPriority(a);
         const priorityB = getAvailabilityPriority(b);
-
         if (priorityA !== priorityB) {
           return priorityA - priorityB;
         }
 
-        // Same priority - use seeded random
+        // Third: Use seeded random for consistent pagination
         const hashA = hashCode(a.id + seed);
         const hashB = hashCode(b.id + seed);
         return hashA - hashB;
@@ -577,6 +623,7 @@ export class EnhancedActivityService {
       console.log(`🎲 [ActivityService] Availability-first random sort applied (seed: ${seed})`);
     } else {
       // Standard Prisma ordering for other sort modes
+      // Always prioritize featured activities first (gold > silver > bronze), then apply requested sort
       [activities, total] = await Promise.all([
         this.prisma.activity.findMany({
           where: finalWhere,
@@ -593,7 +640,11 @@ export class EnhancedActivityService {
               select: { favorites: true }
             }
           },
-          orderBy: { [sortBy]: sortOrder },
+          orderBy: [
+            { isFeatured: 'desc' },  // Featured activities first
+            { featuredTier: 'asc' }, // Gold < Silver < Bronze alphabetically works for tier ordering
+            { [sortBy]: sortOrder }  // Then apply requested sort
+          ],
           take: limit,
           skip: offset
         }),

@@ -3,6 +3,29 @@
  * Enhanced for 100% field coverage on: location, time, cost, age, dates, days of week, activity, description
  */
 class DataNormalizer {
+  // Gender keywords for detection in activity names
+  static GENDER_PATTERNS = {
+    male: [
+      /\bboys?\b/i,           // "Boys", "Boy's", "Boy"
+      /\bboy['']s\b/i,        // "Boy's" with apostrophe
+      /\bmale\b/i,            // "Male"
+      /\bmen['']?s?\b/i,      // "Men", "Men's", "Mens"
+      /\bguys?\b/i            // "Guy", "Guys"
+    ],
+    female: [
+      /\bgirls?\b/i,          // "Girls", "Girl's", "Girl"
+      /\bgirl['']s\b/i,       // "Girl's" with apostrophe
+      /\bfemale\b/i,          // "Female"
+      /\bwomen['']?s?\b/i,    // "Women", "Women's", "Womens"
+      /\bladies\b/i           // "Ladies"
+    ],
+    coed: [
+      /\bco[-\s]?ed\b/i,      // "Co-ed", "Coed", "Co ed"
+      /\bmixed\b/i,           // "Mixed"
+      /\ball\s+genders?\b/i   // "All genders"
+    ]
+  };
+
   // Category to age range mappings for fallback derivation
   static CATEGORY_AGE_MAPPINGS = {
     // Early Years categories
@@ -87,6 +110,7 @@ class DataNormalizer {
       // Demographics - will be set below with priority logic
       ageMin: null,
       ageMax: null,
+      gender: null, // 'male', 'female', or null for all genders
       isAdultActivity: false,
       
       // Location
@@ -176,6 +200,9 @@ class DataNormalizer {
         normalized.ageMax = derivedAge.max;
       }
     }
+
+    // Extract gender from activity name (e.g., "Boys Basketball", "Girls Softball")
+    normalized.gender = this.extractGenderFromName(normalized.name);
 
     // Extract times from schedule/rawText if not provided
     if (!normalized.startTime || !normalized.endTime) {
@@ -673,6 +700,41 @@ class DataNormalizer {
       }
     }
 
+    return null;
+  }
+
+  /**
+   * Extract gender from activity name
+   * @param {String} activityName - The activity name
+   * @returns {String|null} - 'male', 'female', or null for all genders
+   */
+  static extractGenderFromName(activityName) {
+    if (!activityName) return null;
+
+    const name = activityName;
+
+    // Check for co-ed first (explicit mixed gender)
+    for (const pattern of this.GENDER_PATTERNS.coed) {
+      if (pattern.test(name)) {
+        return null; // Explicitly co-ed means all genders
+      }
+    }
+
+    // Check for male patterns
+    for (const pattern of this.GENDER_PATTERNS.male) {
+      if (pattern.test(name)) {
+        return 'male';
+      }
+    }
+
+    // Check for female patterns
+    for (const pattern of this.GENDER_PATTERNS.female) {
+      if (pattern.test(name)) {
+        return 'female';
+      }
+    }
+
+    // No gender indicator found - available for all genders
     return null;
   }
 
