@@ -33,7 +33,7 @@ import ChildActivityStatus from '../../components/activities/ChildActivityStatus
 import AssignActivityToChildModal from '../../components/activities/AssignActivityToChildModal';
 import { formatActivityPrice, cleanActivityName } from '../../utils/formatters';
 import { geocodeAddressWithCache, getFullAddress } from '../../utils/geocoding';
-import { shareActivityViaEmail } from '../../utils/sharing';
+import { shareActivity, shareActivityViaEmail } from '../../utils/sharing';
 import { getActivityImageByKey, aiRobotImage } from '../../assets/images';
 import { getActivityImageKey } from '../../utils/activityHelpers';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../../theme/modernTheme';
@@ -566,18 +566,18 @@ const ActivityDetailScreenModern = () => {
 
             {/* Secondary Action Buttons Row */}
             <View style={styles.secondaryButtonsRow}>
-              {/* Share Button with icon overlay */}
+              {/* Share Button - General sharing via social, messaging, etc. */}
               <View style={styles.miniButtonWrapper}>
                 <View style={styles.miniIconOverlayLeft}>
-                  <Icon name="email-outline" size={18} color="#E8638B" />
+                  <Icon name="share-variant" size={18} color="#E8638B" />
                 </View>
                 <TouchableOpacity
                   style={styles.miniButton}
-                  onPress={() => shareActivityViaEmail({ activity })}
+                  onPress={() => shareActivity({ activity })}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.miniButtonTitle}>Share</Text>
-                  <Text style={styles.miniButtonSubtitle}>via Email</Text>
+                  <Text style={styles.miniButtonSubtitle}>Social & More</Text>
                 </TouchableOpacity>
               </View>
 

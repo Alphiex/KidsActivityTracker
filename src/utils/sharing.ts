@@ -1,6 +1,7 @@
-import { Linking, Alert } from 'react-native';
+import { Linking, Alert, Share } from 'react-native';
 import { Activity } from '../types';
 import { Child } from '../store/slices/childrenSlice';
+import { formatActivityPrice } from './formatters';
 
 interface ShareActivityOptions {
   activity: Activity;
@@ -271,4 +272,138 @@ export const formatActivityForSharing = (activity: Activity, child?: Child): str
   }
 
   return text;
+};
+
+/**
+ * Share activity via native Share API (social media, messaging apps, etc.)
+ */
+export const shareActivity = async ({
+  activity,
+  child,
+}: ShareActivityOptions): Promise<void> => {
+  try {
+    const activityName = activity?.name || 'Activity';
+
+    // Get location name
+    const locationName = typeof activity.location === 'string'
+      ? activity.location
+      : activity.location?.name || activity.locationName || '';
+
+    // Build comprehensive activity details
+    const details: string[] = [];
+
+    // Activity name (header)
+    details.push(`🎯 ${activityName}`);
+
+    // Organization
+    if (activity.organization) {
+      details.push(`by ${activity.organization}`);
+    }
+    details.push('');
+
+    // Location
+    if (locationName) {
+      details.push(`📍 ${locationName}`);
+    }
+
+    // Price
+    const price = formatActivityPrice(activity.cost);
+    if (price) {
+      details.push(`💰 ${price}`);
+    }
+
+    // Age range
+    if (activity.ageRange) {
+      const ageMin = activity.ageRange.min ?? 0;
+      const ageMax = activity.ageRange.max ?? 18;
+      if (ageMin === 0 && ageMax >= 18) {
+        details.push('👶 All ages welcome');
+      } else {
+        details.push(`👶 Ages ${ageMin}-${ageMax}`);
+      }
+    }
+
+    // Days of week
+    if (activity.daysOfWeek && activity.daysOfWeek.length > 0) {
+      const daysText = activity.daysOfWeek.length === 7
+        ? 'Every day'
+        : activity.daysOfWeek.map(d => d.substring(0, 3)).join(', ');
+      details.push(`📅 ${daysText}`);
+    }
+
+    // Time
+    if (activity.startTime) {
+      const formatTime = (time: string) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+      };
+
+      const timeStr = activity.endTime
+        ? `${formatTime(activity.startTime)} - ${formatTime(activity.endTime)}`
+        : formatTime(activity.startTime);
+      details.push(`🕐 ${timeStr}`);
+    }
+
+    // Date range
+    if (activity.startDate) {
+      const startDate = new Date(activity.startDate);
+      const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (activity.endDate) {
+        const endDate = new Date(activity.endDate);
+        const endStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        details.push(`📆 ${startStr} - ${endStr}`);
+      } else {
+        details.push(`📆 Starting ${startStr}`);
+      }
+    }
+
+    // Spots available
+    if (activity.capacity && activity.enrolled !== undefined) {
+      const spotsLeft = activity.capacity - activity.enrolled;
+      if (spotsLeft > 0) {
+        details.push(`✅ ${spotsLeft} spots available`);
+      } else {
+        details.push('⚠️ Currently full');
+      }
+    } else if (activity.spotsAvailable !== undefined) {
+      if (activity.spotsAvailable > 0) {
+        details.push(`✅ ${activity.spotsAvailable} spots available`);
+      } else {
+        details.push('⚠️ Currently full');
+      }
+    }
+
+    // Registration URL
+    const registrationUrl = activity.directRegistrationUrl || activity.registrationUrl;
+    if (registrationUrl) {
+      details.push('');
+      details.push(`🔗 Register: ${registrationUrl}`);
+    }
+
+    // Child info if sharing for a specific child
+    if (child?.name) {
+      details.push('');
+      details.push(`👧 For: ${child.name}`);
+    }
+
+    details.push('');
+    details.push('Found on Kids Activity Tracker 📱');
+    details.push('https://apps.apple.com/app/kids-activity-tracker');
+
+    const message = details.join('\n');
+
+    await Share.share({
+      message,
+      title: `Check out: ${activityName}`,
+    });
+  } catch (error) {
+    console.error('Error sharing activity:', error);
+    Alert.alert(
+      'Share Failed',
+      'Unable to share this activity. Please try again.',
+      [{ text: 'OK' }]
+    );
+  }
 };
