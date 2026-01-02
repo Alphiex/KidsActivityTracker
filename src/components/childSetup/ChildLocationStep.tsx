@@ -20,11 +20,19 @@ export interface ChildLocationData {
   distanceRadiusKm: number;
 }
 
+export interface SiblingWithLocation {
+  id: string;
+  name: string;
+  location?: string;
+  savedAddress?: EnhancedAddress | null;
+}
+
 interface ChildLocationStepProps {
   childName: string;
   data: ChildLocationData;
   onChange: (data: ChildLocationData) => void;
   onScrollToAddress?: () => void;
+  siblings?: SiblingWithLocation[];
 }
 
 const DISTANCE_OPTIONS = [
@@ -40,9 +48,13 @@ const ChildLocationStep: React.FC<ChildLocationStepProps> = ({
   data,
   onChange,
   onScrollToAddress,
+  siblings = [],
 }) => {
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [gpsEnabled, setGpsEnabled] = useState(data.locationSource === 'gps');
+
+  // Filter siblings that have a location
+  const siblingsWithLocation = siblings.filter(s => s.location || s.savedAddress);
 
   const handleSelectGps = async () => {
     setIsGpsLoading(true);
@@ -96,6 +108,22 @@ const ChildLocationStep: React.FC<ChildLocationStepProps> = ({
     });
   };
 
+  const handleCopySiblingLocation = (sibling: SiblingWithLocation) => {
+    const address: EnhancedAddress = sibling.savedAddress || {
+      formattedAddress: sibling.location || '',
+      city: sibling.location || '',
+      latitude: 0,
+      longitude: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    onChange({
+      ...data,
+      locationSource: 'saved_address',
+      savedAddress: address,
+    });
+    setGpsEnabled(false);
+  };
+
   const isGpsSelected = data.locationSource === 'gps';
   const isAddressSelected = data.locationSource === 'saved_address';
 
@@ -106,6 +134,26 @@ const ChildLocationStep: React.FC<ChildLocationStepProps> = ({
           We'll show activities near this location for {childName}
         </Text>
       </View>
+
+      {/* Copy from sibling option */}
+      {siblingsWithLocation.length > 0 && (
+        <View style={styles.siblingSection}>
+          <Text style={styles.siblingLabel}>Copy from another child:</Text>
+          <View style={styles.siblingOptions}>
+            {siblingsWithLocation.map((sibling) => (
+              <TouchableOpacity
+                key={sibling.id}
+                style={styles.siblingChip}
+                onPress={() => handleCopySiblingLocation(sibling)}
+                activeOpacity={0.7}
+              >
+                <Icon name="account-child" size={18} color="#E8638B" />
+                <Text style={styles.siblingChipText}>{sibling.name}'s location</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* GPS Option */}
       <TouchableOpacity
@@ -371,6 +419,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
+  },
+  siblingSection: {
+    marginBottom: 16,
+  },
+  siblingLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 10,
+  },
+  siblingOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  siblingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 6,
+  },
+  siblingChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#E8638B',
   },
 });
 

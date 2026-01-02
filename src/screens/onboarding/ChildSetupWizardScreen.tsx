@@ -31,6 +31,7 @@ import {
   ChildLocationData,
   ChildActivitiesData,
   Gender,
+  SiblingWithLocation,
 } from '../../components/childSetup';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { EnhancedAddress } from '../../types/preferences';
@@ -113,13 +114,24 @@ const ChildSetupWizardScreen: React.FC = () => {
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === STEPS.length - 1;
 
-  // Siblings for copy feature
+  // Siblings for copy feature (activities)
   const siblings = children
     .filter(c => c.id !== editingChildId)
     .map(c => ({
       id: c.id,
       name: c.name,
       preferredActivityTypes: c.preferences?.preferredActivityTypes ?? [],
+    }));
+
+  // Siblings for location copy feature
+  const siblingsWithLocation: SiblingWithLocation[] = children
+    .filter(c => c.id !== editingChildId)
+    .filter(c => c.location || c.preferences?.savedAddress)
+    .map(c => ({
+      id: c.id,
+      name: c.name,
+      location: c.location,
+      savedAddress: c.preferences?.savedAddress as EnhancedAddress | null | undefined,
     }));
 
   const handleBack = () => {
@@ -310,6 +322,7 @@ const ChildSetupWizardScreen: React.FC = () => {
                 data={locationData}
                 onChange={setLocationData}
                 onScrollToAddress={handleScrollToAddress}
+                siblings={siblingsWithLocation}
               />
             )}
 

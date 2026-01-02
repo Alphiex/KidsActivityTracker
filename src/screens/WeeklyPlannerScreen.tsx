@@ -1490,7 +1490,6 @@ const WeeklyPlannerScreen = () => {
     if (!schedule) return null;
 
     const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
-    const totalCount = Object.keys(entryApprovals).length;
     const pendingCount = Object.values(entryApprovals).filter(s => s === 'pending').length;
 
     return (
