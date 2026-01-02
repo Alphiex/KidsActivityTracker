@@ -9,7 +9,9 @@ export interface Child {
   dateOfBirth: string;
   gender?: 'male' | 'female' | null; // 'male', 'female', or null for prefer not to say
   interests?: string[];
-  avatar?: string;
+  avatar?: string;           // Legacy: URL to custom avatar image
+  avatarId?: number;         // 1-10, references bundled animal avatar
+  colorId?: number;          // 1-10, references pastel color for child
   allergies?: string[];
   medicalInfo?: string;
   location?: string;

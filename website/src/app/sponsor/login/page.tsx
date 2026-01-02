@@ -32,7 +32,16 @@ export default function SponsorLoginPage() {
       localStorage.setItem('sponsor_token', data.token);
       router.push('/sponsor');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      // Provide user-friendly error messages
+      if (err.message?.includes('fetch') || err.message?.includes('network') || err.name === 'TypeError') {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else if (err.message?.includes('401') || err.message?.includes('credentials') || err.message?.includes('Invalid')) {
+        setError('Invalid email or password. Please check your credentials and try again.');
+      } else if (err.message?.includes('404')) {
+        setError('Account not found. Please check your email address or register for a new account.');
+      } else {
+        setError(err.message || 'Something went wrong. Please try again later.');
+      }
     } finally {
       setIsLoading(false);
     }

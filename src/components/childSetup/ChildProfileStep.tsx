@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChildAvatar } from '../children';
+import { ChildAvatar, AvatarPicker, ColorPicker } from '../children';
 
 export type Gender = 'male' | 'female' | null;
 
@@ -17,6 +17,8 @@ export interface ChildProfileData {
   name: string;
   birthDate: Date;
   gender: Gender;
+  avatarId: number;
+  colorId: number;
 }
 
 interface ChildProfileStepProps {
@@ -53,6 +55,14 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
     onChange({ ...data, gender });
   };
 
+  const handleAvatarSelect = (avatarId: number) => {
+    onChange({ ...data, avatarId });
+  };
+
+  const handleColorSelect = (colorId: number) => {
+    onChange({ ...data, colorId });
+  };
+
   const formatDate = (date: Date): string => {
     if (!date || isNaN(date.getTime())) {
       return 'Select date';
@@ -69,7 +79,12 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
       {/* Avatar Preview */}
       {showAvatar && (
         <View style={styles.avatarSection}>
-          <ChildAvatar name={data.name || 'Child'} size={100} />
+          <ChildAvatar
+            name={data.name || 'Child'}
+            avatarId={data.avatarId}
+            colorId={data.colorId}
+            size={100}
+          />
         </View>
       )}
 
@@ -153,6 +168,19 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
           })}
         </View>
       </View>
+
+      {/* Avatar Selection */}
+      <AvatarPicker
+        selectedId={data.avatarId}
+        colorId={data.colorId}
+        onSelect={handleAvatarSelect}
+      />
+
+      {/* Color Selection */}
+      <ColorPicker
+        selectedId={data.colorId}
+        onSelect={handleColorSelect}
+      />
     </View>
   );
 };

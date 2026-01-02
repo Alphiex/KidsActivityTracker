@@ -11,6 +11,18 @@ export interface TimePreferences {
 }
 
 /**
+ * Day-specific time slots for granular scheduling
+ * Each day can have different time slot preferences
+ */
+export interface DayTimeSlots {
+  [day: string]: {
+    morning: boolean;
+    afternoon: boolean;
+    evening: boolean;
+  };
+}
+
+/**
  * Child-specific activity preferences
  * Each child can have their own location, activity types, schedule, and budget preferences
  */
@@ -32,6 +44,7 @@ export interface ChildPreferences {
   // Schedule preferences
   daysOfWeek: string[];
   timePreferences: TimePreferences;
+  dayTimeSlots?: DayTimeSlots; // Granular day+time selection
 
   // Budget preferences
   priceRangeMin: number;
@@ -55,6 +68,7 @@ export interface MergedChildFilters {
   excludedCategories: string[];
   daysOfWeek: string[];
   timePreferences: TimePreferences;
+  dayTimeSlots?: DayTimeSlots; // Granular day+time selection
   priceRangeMin: number;
   priceRangeMax: number;
   distanceRadiusKm: number;

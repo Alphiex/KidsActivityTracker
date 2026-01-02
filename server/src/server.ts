@@ -108,6 +108,8 @@ app.use(helmet({
 }));
 
 // Configure CORS - allow mobile apps (no origin header) and approved web origins
+// IMPORTANT: When deploying a new website instance, add its URL here!
+// Get the URL after deployment with: gcloud run services describe SERVICE_NAME --region REGION --format="value(status.url)"
 const ALLOWED_WEB_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
