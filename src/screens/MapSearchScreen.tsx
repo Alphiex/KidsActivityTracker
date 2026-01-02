@@ -127,12 +127,14 @@ const MapSearchScreen = () => {
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Preference-based filtering (default ON - filters by user's saved preferences)
-  const [usePreferencesFilter, setUsePreferencesFilter] = useState(true);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
   // Get user preferences for filtering
   const preferences = preferencesService.getPreferences();
+
+  // Preference-based filtering - load from persisted preferences
+  const [usePreferencesFilter, setUsePreferencesFilter] = useState(
+    preferences.useMapPreferencesFilter ?? true
+  );
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Handle search filters from navigation params
   useEffect(() => {
@@ -176,8 +178,11 @@ const MapSearchScreen = () => {
         return;
       }
     }
-    setUsePreferencesFilter(!usePreferencesFilter);
-  }, [usePreferencesFilter]);
+    const newValue = !usePreferencesFilter;
+    setUsePreferencesFilter(newValue);
+    // Persist the setting across screens
+    preferencesService.updatePreferences({ useMapPreferencesFilter: newValue });
+  }, [usePreferencesFilter, preferencesService]);
 
   // Navigate to search screen for map-based search
   const handleOpenSearch = useCallback(() => {

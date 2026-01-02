@@ -349,6 +349,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   };
 
   return (
+    <>
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.cardBackground }, containerStyle]}
       onPress={() => {
@@ -465,13 +466,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         </View>
       </View>
 
-      {/* Add to Calendar Modal */}
-      <AddToCalendarModal
-        visible={showCalendarModal}
-        activity={activity}
-        onClose={() => setShowCalendarModal(false)}
-      />
-      
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
@@ -702,6 +696,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         )}
       </View>
     </TouchableOpacity>
+
+    {/* Add to Calendar Modal - outside TouchableOpacity for proper event handling */}
+    <AddToCalendarModal
+      visible={showCalendarModal}
+      activity={activity}
+      onClose={() => setShowCalendarModal(false)}
+    />
+    </>
   );
 };
 
