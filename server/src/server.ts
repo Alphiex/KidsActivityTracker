@@ -118,6 +118,7 @@ const ALLOWED_WEB_ORIGINS = [
   'https://www.kidsactivitytracker.ca',
   // Cloud Run URLs (update after deployment)
   'https://website-205843686007.us-central1.run.app',
+  'https://kids-activity-website-205843686007.us-central1.run.app',
 ];
 
 app.use(cors({
