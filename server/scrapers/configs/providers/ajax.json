@@ -36,12 +36,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
+    "frequency": "every-3-days",
     "times": [
-      "07:00",
-      "19:00"
+      "01:59"
     ],
-    "timezone": "America/Toronto"
+    "timezone": "America/Toronto",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Toronto"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 126666,

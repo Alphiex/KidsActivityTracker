@@ -25,16 +25,66 @@
       "/COSA/public/category/browse/SUMCAMP2?dosearch=true"
     ],
     "kidsCategories": [
-      {"code": "A", "name": "Aquatics Programs", "ageMin": 0, "ageMax": 18},
-      {"code": "R", "name": "Recreation Programs", "ageMin": 0, "ageMax": 18},
-      {"code": "ACP", "name": "Performing Arts Programs", "ageMin": 0, "ageMax": 18},
-      {"code": "CAMP", "name": "Camps", "ageMin": 4, "ageMax": 17},
-      {"code": "RU", "name": "Preschool 0-6yr", "ageMin": 0, "ageMax": 6},
-      {"code": "RC", "name": "Children's 6-12yr", "ageMin": 6, "ageMax": 12},
-      {"code": "RYA", "name": "Youth 13-17yr", "ageMin": 13, "ageMax": 17},
-      {"code": "RS", "name": "Learn to Skate & Hockey", "ageMin": 3, "ageMax": 18},
-      {"code": "RDC2", "name": "School Break Camps", "ageMin": 4, "ageMax": 14},
-      {"code": "SUMCAMP2", "name": "Recreation Summer Camps", "ageMin": 4, "ageMax": 14}
+      {
+        "code": "A",
+        "name": "Aquatics Programs",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "R",
+        "name": "Recreation Programs",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "ACP",
+        "name": "Performing Arts Programs",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "CAMP",
+        "name": "Camps",
+        "ageMin": 4,
+        "ageMax": 17
+      },
+      {
+        "code": "RU",
+        "name": "Preschool 0-6yr",
+        "ageMin": 0,
+        "ageMax": 6
+      },
+      {
+        "code": "RC",
+        "name": "Children's 6-12yr",
+        "ageMin": 6,
+        "ageMax": 12
+      },
+      {
+        "code": "RYA",
+        "name": "Youth 13-17yr",
+        "ageMin": 13,
+        "ageMax": 17
+      },
+      {
+        "code": "RS",
+        "name": "Learn to Skate & Hockey",
+        "ageMin": 3,
+        "ageMax": 18
+      },
+      {
+        "code": "RDC2",
+        "name": "School Break Camps",
+        "ageMin": 4,
+        "ageMax": 14
+      },
+      {
+        "code": "SUMCAMP2",
+        "name": "Recreation Summer Camps",
+        "ageMin": 4,
+        "ageMax": 14
+      }
     ],
     "dynamicDiscovery": true,
     "maxDepth": 3,
@@ -65,9 +115,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
-    "times": ["07:00", "19:00"],
-    "timezone": "America/Edmonton"
+    "frequency": "every-3-days",
+    "times": [
+      "02:50"
+    ],
+    "timezone": "America/Edmonton",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Edmonton"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 68236,

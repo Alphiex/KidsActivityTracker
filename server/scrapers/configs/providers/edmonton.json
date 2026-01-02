@@ -9,7 +9,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "category-browse",
-    "entryPoints": ["/public/category/courses"],
+    "entryPoints": [
+      "/public/category/courses"
+    ],
     "ageFilter": {
       "enabled": true,
       "minAge": 0,
@@ -27,9 +29,22 @@
   },
   "schedule": {
     "tier": "critical",
-    "frequency": "3x-daily",
-    "times": ["07:00", "13:00", "19:00"],
-    "timezone": "America/Edmonton"
+    "frequency": "every-3-days",
+    "times": [
+      "15:27"
+    ],
+    "timezone": "America/Edmonton",
+    "_production": {
+      "tier": "critical",
+      "frequency": "3x-daily",
+      "times": [
+        "07:00",
+        "13:00",
+        "19:00"
+      ],
+      "timezone": "America/Edmonton"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 1010899,

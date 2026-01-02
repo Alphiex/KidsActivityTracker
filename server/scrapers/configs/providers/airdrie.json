@@ -10,7 +10,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "widget",
-    "entryPoints": ["/23595/Clients/BookMe4?widgetId=e8069c09-bfdd-4be7-a467-22dd3565d355"],
+    "entryPoints": [
+      "/23595/Clients/BookMe4?widgetId=e8069c09-bfdd-4be7-a467-22dd3565d355"
+    ],
     "widgetId": "e8069c09-bfdd-4be7-a467-22dd3565d355",
     "ageFilter": {
       "enabled": true,
@@ -28,9 +30,20 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "daily",
-    "times": ["06:00"],
-    "timezone": "America/Edmonton"
+    "frequency": "every-3-days",
+    "times": [
+      "20:13"
+    ],
+    "timezone": "America/Edmonton",
+    "_production": {
+      "tier": "standard",
+      "frequency": "daily",
+      "times": [
+        "06:00"
+      ],
+      "timezone": "America/Edmonton"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 75000,

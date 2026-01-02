@@ -9,7 +9,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "search",
-    "entryPoints": ["/activity/search"],
+    "entryPoints": [
+      "/activity/search"
+    ],
     "searchParams": {
       "onlineSiteId": 0,
       "activity_select_param": 2,
@@ -31,9 +33,22 @@
   },
   "schedule": {
     "tier": "critical",
-    "frequency": "3x-daily",
-    "times": ["07:00", "13:00", "19:00"],
-    "timezone": "America/Regina"
+    "frequency": "every-3-days",
+    "times": [
+      "04:59"
+    ],
+    "timezone": "America/Regina",
+    "_production": {
+      "tier": "critical",
+      "frequency": "3x-daily",
+      "times": [
+        "07:00",
+        "13:00",
+        "19:00"
+      ],
+      "timezone": "America/Regina"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 226404,

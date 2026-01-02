@@ -36,12 +36,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
+    "frequency": "every-3-days",
     "times": [
-      "07:00",
-      "19:00"
+      "20:11"
     ],
-    "timezone": "America/St_Johns"
+    "timezone": "America/St_Johns",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/St_Johns"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 110525,

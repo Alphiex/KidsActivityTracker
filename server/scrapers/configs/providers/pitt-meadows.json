@@ -43,11 +43,20 @@
   },
   "schedule": {
     "tier": "low",
-    "frequency": "1x-daily",
+    "frequency": "every-3-days",
     "times": [
-      "07:15"
+      "12:50"
     ],
-    "timezone": "America/Vancouver"
+    "timezone": "America/Vancouver",
+    "_production": {
+      "tier": "low",
+      "frequency": "1x-daily",
+      "times": [
+        "07:15"
+      ],
+      "timezone": "America/Vancouver"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 19146,

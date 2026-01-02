@@ -11,10 +11,15 @@
   "disabledReason": "Cloud firewall blocks scraper requests - site returns 0 results from Cloud Run",
   "scraperConfig": {
     "type": "spa-browse",
-    "entryPoints": ["https://cultureloisirs.gatineau.ca/IC3.Production/#/U2010"],
+    "entryPoints": [
+      "https://cultureloisirs.gatineau.ca/IC3.Production/#/U2010"
+    ],
     "siteCode": "U2010",
     "language": "fr",
-    "supportedLanguages": ["fr", "en"],
+    "supportedLanguages": [
+      "fr",
+      "en"
+    ],
     "ageFilter": {
       "enabled": true,
       "minAge": 0,
@@ -32,9 +37,20 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "daily",
-    "times": ["06:00"],
-    "timezone": "America/Montreal"
+    "frequency": "every-3-days",
+    "times": [
+      "06:59"
+    ],
+    "timezone": "America/Montreal",
+    "_production": {
+      "tier": "standard",
+      "frequency": "daily",
+      "times": [
+        "06:00"
+      ],
+      "timezone": "America/Montreal"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 291000,

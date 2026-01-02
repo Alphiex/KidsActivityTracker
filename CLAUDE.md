@@ -117,7 +117,28 @@ This updates `node_modules/react-native-config/ios/ReactNativeConfig/GeneratedDo
 - **79 active providers** with **3,980 locations**
 - **Province breakdown**: BC (33 cities), ON (33 cities), AB (5), QC (5), SK (2), MB (1), NL (1), NS (1)
 - **Scraper platforms**: PerfectMind, ActiveNetwork, Amilia, IC3, and others
-- **Scraping schedule**: Critical cities 3x daily, standard daily, low-priority weekly
+- **Scraping schedule**: Currently set to every 3 days (development mode)
+  - Production: Critical cities 3x daily, standard daily, low-priority weekly
+
+## Scraper Scheduling
+
+### Development Mode (Current)
+All 84 scrapers are set to run randomly every 3 days to reduce load during development.
+
+```bash
+# Switch to development schedule (every 3 days, random times)
+node server/scripts/update-schedule-dev.js
+
+# Restore production schedule
+node server/scripts/restore-schedule-prod.js
+```
+
+### Schedule Configuration
+Each provider config (`server/scrapers/configs/providers/*.json`) has a `schedule` object:
+- `frequency`: "every-3-days" (dev) or "3x-daily", "2x-daily", "daily", "weekly" (prod)
+- `times`: Array of times to run (e.g., ["06:00", "12:00", "18:00"])
+- `tier`: "critical", "high", "standard", or "low"
+- `_production`: Backup of production schedule when in dev mode
 
 ## Scripts Reference
 

@@ -35,27 +35,132 @@
       "/registration/public/category/browse/PPWDWinter"
     ],
     "kidsCategories": [
-      {"code": "ARTWINTER6UNER", "name": "Art (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
-      {"code": "EARLYCAMPS25", "name": "Camps", "ageMin": 0, "ageMax": 12},
-      {"code": "C6UWinterCooking", "name": "Cooking (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
-      {"code": "C6UWinterDance", "name": "Dance (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
-      {"code": "PlayschoolProgramsW2026", "name": "Playschool and Child Care", "ageMin": 0, "ageMax": 6},
-      {"code": "C6UWinterSports", "name": "Sports (Kids 6 + Under)", "ageMin": 0, "ageMax": 6},
-      {"code": "C6upWinterArtScience", "name": "Art & Science (Kids 6+)", "ageMin": 6, "ageMax": 12},
-      {"code": "Babysitting6Up", "name": "Babysitting", "ageMin": 10, "ageMax": 16},
-      {"code": "Cookingw2022", "name": "Cooking (Kids 6+)", "ageMin": 6, "ageMax": 12},
-      {"code": "MARTIALARTSWINTER2022", "name": "Martial Arts", "ageMin": 6, "ageMax": 18},
-      {"code": "C6UpWinterMusic", "name": "Music (Kids 6+)", "ageMin": 6, "ageMax": 12},
-      {"code": "C6UpWinterSports", "name": "Sports (Kids 6+)", "ageMin": 6, "ageMax": 12},
-      {"code": "C6UpSpringBreakCamps", "name": "Spring Break Camps", "ageMin": 6, "ageMax": 12},
-      {"code": "SouthKelownaWinter", "name": "South Kelowna Programs", "ageMin": 0, "ageMax": 18},
-      {"code": "COOKINGTEENSWINTER", "name": "Cooking (Teens)", "ageMin": 13, "ageMax": 18},
-      {"code": "DANCETEENSWINTER", "name": "Dance (Teens)", "ageMin": 13, "ageMax": 18},
-      {"code": "SPORTSTEENSWINTER", "name": "Sports (Teens)", "ageMin": 13, "ageMax": 18},
-      {"code": "AquaRedCrossWinter", "name": "Red Cross Swim Lessons", "ageMin": 0, "ageMax": 18},
-      {"code": "WINTERSWIMPARENTTOT", "name": "Parent & Tot Swimming", "ageMin": 0, "ageMax": 4},
-      {"code": "AquaPreschoolWinter", "name": "Preschool Swimming", "ageMin": 3, "ageMax": 6},
-      {"code": "PPWDWinter", "name": "Adaptive Programs", "ageMin": 0, "ageMax": 18}
+      {
+        "code": "ARTWINTER6UNER",
+        "name": "Art (Kids 6 + Under)",
+        "ageMin": 0,
+        "ageMax": 6
+      },
+      {
+        "code": "EARLYCAMPS25",
+        "name": "Camps",
+        "ageMin": 0,
+        "ageMax": 12
+      },
+      {
+        "code": "C6UWinterCooking",
+        "name": "Cooking (Kids 6 + Under)",
+        "ageMin": 0,
+        "ageMax": 6
+      },
+      {
+        "code": "C6UWinterDance",
+        "name": "Dance (Kids 6 + Under)",
+        "ageMin": 0,
+        "ageMax": 6
+      },
+      {
+        "code": "PlayschoolProgramsW2026",
+        "name": "Playschool and Child Care",
+        "ageMin": 0,
+        "ageMax": 6
+      },
+      {
+        "code": "C6UWinterSports",
+        "name": "Sports (Kids 6 + Under)",
+        "ageMin": 0,
+        "ageMax": 6
+      },
+      {
+        "code": "C6upWinterArtScience",
+        "name": "Art & Science (Kids 6+)",
+        "ageMin": 6,
+        "ageMax": 12
+      },
+      {
+        "code": "Babysitting6Up",
+        "name": "Babysitting",
+        "ageMin": 10,
+        "ageMax": 16
+      },
+      {
+        "code": "Cookingw2022",
+        "name": "Cooking (Kids 6+)",
+        "ageMin": 6,
+        "ageMax": 12
+      },
+      {
+        "code": "MARTIALARTSWINTER2022",
+        "name": "Martial Arts",
+        "ageMin": 6,
+        "ageMax": 18
+      },
+      {
+        "code": "C6UpWinterMusic",
+        "name": "Music (Kids 6+)",
+        "ageMin": 6,
+        "ageMax": 12
+      },
+      {
+        "code": "C6UpWinterSports",
+        "name": "Sports (Kids 6+)",
+        "ageMin": 6,
+        "ageMax": 12
+      },
+      {
+        "code": "C6UpSpringBreakCamps",
+        "name": "Spring Break Camps",
+        "ageMin": 6,
+        "ageMax": 12
+      },
+      {
+        "code": "SouthKelownaWinter",
+        "name": "South Kelowna Programs",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "COOKINGTEENSWINTER",
+        "name": "Cooking (Teens)",
+        "ageMin": 13,
+        "ageMax": 18
+      },
+      {
+        "code": "DANCETEENSWINTER",
+        "name": "Dance (Teens)",
+        "ageMin": 13,
+        "ageMax": 18
+      },
+      {
+        "code": "SPORTSTEENSWINTER",
+        "name": "Sports (Teens)",
+        "ageMin": 13,
+        "ageMax": 18
+      },
+      {
+        "code": "AquaRedCrossWinter",
+        "name": "Red Cross Swim Lessons",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "WINTERSWIMPARENTTOT",
+        "name": "Parent & Tot Swimming",
+        "ageMin": 0,
+        "ageMax": 4
+      },
+      {
+        "code": "AquaPreschoolWinter",
+        "name": "Preschool Swimming",
+        "ageMin": 3,
+        "ageMax": 6
+      },
+      {
+        "code": "PPWDWinter",
+        "name": "Adaptive Programs",
+        "ageMin": 0,
+        "ageMax": 18
+      }
     ],
     "dynamicDiscovery": true,
     "maxDepth": 4,
@@ -86,12 +191,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
+    "frequency": "every-3-days",
     "times": [
-      "07:00",
-      "19:00"
+      "06:47"
     ],
-    "timezone": "America/Vancouver"
+    "timezone": "America/Vancouver",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Vancouver"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 144576,

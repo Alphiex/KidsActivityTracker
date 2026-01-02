@@ -33,32 +33,188 @@
       "/RECEX/public/category/browse/AQ1FSPCNDPTRL"
     ],
     "kidsCategories": [
-      {"code": "SSPPARENTTOT", "name": "Parent & Tot - Stan Siwik", "ageMin": 0, "ageMax": 3, "location": "Stan Siwik Pool"},
-      {"code": "SSPPRESCHOOL", "name": "Preschool - Stan Siwik", "ageMin": 3, "ageMax": 5, "location": "Stan Siwik Pool"},
-      {"code": "SSPSWIMKIDS1-4", "name": "Swimmer 1-4 - Stan Siwik", "ageMin": 6, "ageMax": 15, "location": "Stan Siwik Pool"},
-      {"code": "SSPSWIMKIDS5-10", "name": "Swimmer 5-10 - Stan Siwik", "ageMin": 6, "ageMax": 15, "location": "Stan Siwik Pool"},
-      {"code": "AQ1SSPCNDSWMPTRL", "name": "Canadian Swim Patrol - Stan Siwik", "ageMin": 12, "ageMax": 15, "location": "Stan Siwik Pool"},
-      {"code": "SSPADVANCED", "name": "Advanced - Stan Siwik", "ageMin": 10, "ageMax": 18, "location": "Stan Siwik Pool"},
-      {"code": "JLC", "name": "Junior Lifeguard Club", "ageMin": 8, "ageMax": 15, "location": "Various"},
-      {"code": "NSPPARENTTOT", "name": "Parent & Tot - Nicholas Sheran", "ageMin": 0, "ageMax": 3, "location": "Nicholas Sheran Pool"},
-      {"code": "NSPPRESCHOOL", "name": "Preschool - Nicholas Sheran", "ageMin": 3, "ageMax": 5, "location": "Nicholas Sheran Pool"},
-      {"code": "NSPSWIMKIDS1-4", "name": "Swimmer 1-4 - Nicholas Sheran", "ageMin": 6, "ageMax": 15, "location": "Nicholas Sheran Pool"},
-      {"code": "NSPSWIMKIDS5-10", "name": "Swimmer 5-10 - Nicholas Sheran", "ageMin": 6, "ageMax": 15, "location": "Nicholas Sheran Pool"},
-      {"code": "HOPPARENTTOT", "name": "Parent & Tot - Henderson", "ageMin": 0, "ageMax": 3, "location": "Henderson Pool"},
-      {"code": "HOPPRESCHOOL", "name": "Preschool - Henderson", "ageMin": 3, "ageMax": 5, "location": "Henderson Pool"},
-      {"code": "HOPSWIMKIDS1-4", "name": "Swimmer 1-4 - Henderson", "ageMin": 6, "ageMax": 15, "location": "Henderson Pool"},
-      {"code": "HOPSWIMKIDS5-10", "name": "Swimmer 5-10 - Henderson", "ageMin": 6, "ageMax": 15, "location": "Henderson Pool"},
-      {"code": "HOPCNDPTRLLSSNS", "name": "Canadian Swim Patrol - Henderson", "ageMin": 12, "ageMax": 15, "location": "Henderson Pool"},
-      {"code": "AQ1SWMR56", "name": "Swimmer 5-6 - Fritz Sick", "ageMin": 6, "ageMax": 15, "location": "Fritz Sick Pool"},
-      {"code": "AQ1FSPCNDPTRL", "name": "Canadian Swim Patrol - Fritz Sick", "ageMin": 12, "ageMax": 15, "location": "Fritz Sick Pool"},
-      {"code": "FSPPARENTTOT", "name": "Parent & Tot - Fritz Sick", "ageMin": 0, "ageMax": 3, "location": "Fritz Sick Pool"},
-      {"code": "FSPPRESCHOOL", "name": "Preschool - Fritz Sick", "ageMin": 3, "ageMax": 5, "location": "Fritz Sick Pool"},
-      {"code": "FSPSWIMKIDS1-4", "name": "Swimmer 1-4 - Fritz Sick", "ageMin": 6, "ageMax": 15, "location": "Fritz Sick Pool"},
-      {"code": "FSPSWIMKIDS5-10", "name": "Swimmer 5-10 - Fritz Sick", "ageMin": 6, "ageMax": 15, "location": "Fritz Sick Pool"},
-      {"code": "FSPPRIVATE", "name": "Private Lessons - Fritz Sick", "ageMin": 0, "ageMax": 18, "location": "Fritz Sick Pool"},
-      {"code": "SSPPRIVATE", "name": "Private Lessons - Stan Siwik", "ageMin": 0, "ageMax": 18, "location": "Stan Siwik Pool"},
-      {"code": "NSPPRIVATE", "name": "Private Lessons - Nicholas Sheran", "ageMin": 0, "ageMax": 18, "location": "Nicholas Sheran Pool"},
-      {"code": "HOPPRIVATE", "name": "Private Lessons - Henderson", "ageMin": 0, "ageMax": 18, "location": "Henderson Pool"}
+      {
+        "code": "SSPPARENTTOT",
+        "name": "Parent & Tot - Stan Siwik",
+        "ageMin": 0,
+        "ageMax": 3,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "SSPPRESCHOOL",
+        "name": "Preschool - Stan Siwik",
+        "ageMin": 3,
+        "ageMax": 5,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "SSPSWIMKIDS1-4",
+        "name": "Swimmer 1-4 - Stan Siwik",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "SSPSWIMKIDS5-10",
+        "name": "Swimmer 5-10 - Stan Siwik",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "AQ1SSPCNDSWMPTRL",
+        "name": "Canadian Swim Patrol - Stan Siwik",
+        "ageMin": 12,
+        "ageMax": 15,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "SSPADVANCED",
+        "name": "Advanced - Stan Siwik",
+        "ageMin": 10,
+        "ageMax": 18,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "JLC",
+        "name": "Junior Lifeguard Club",
+        "ageMin": 8,
+        "ageMax": 15,
+        "location": "Various"
+      },
+      {
+        "code": "NSPPARENTTOT",
+        "name": "Parent & Tot - Nicholas Sheran",
+        "ageMin": 0,
+        "ageMax": 3,
+        "location": "Nicholas Sheran Pool"
+      },
+      {
+        "code": "NSPPRESCHOOL",
+        "name": "Preschool - Nicholas Sheran",
+        "ageMin": 3,
+        "ageMax": 5,
+        "location": "Nicholas Sheran Pool"
+      },
+      {
+        "code": "NSPSWIMKIDS1-4",
+        "name": "Swimmer 1-4 - Nicholas Sheran",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Nicholas Sheran Pool"
+      },
+      {
+        "code": "NSPSWIMKIDS5-10",
+        "name": "Swimmer 5-10 - Nicholas Sheran",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Nicholas Sheran Pool"
+      },
+      {
+        "code": "HOPPARENTTOT",
+        "name": "Parent & Tot - Henderson",
+        "ageMin": 0,
+        "ageMax": 3,
+        "location": "Henderson Pool"
+      },
+      {
+        "code": "HOPPRESCHOOL",
+        "name": "Preschool - Henderson",
+        "ageMin": 3,
+        "ageMax": 5,
+        "location": "Henderson Pool"
+      },
+      {
+        "code": "HOPSWIMKIDS1-4",
+        "name": "Swimmer 1-4 - Henderson",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Henderson Pool"
+      },
+      {
+        "code": "HOPSWIMKIDS5-10",
+        "name": "Swimmer 5-10 - Henderson",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Henderson Pool"
+      },
+      {
+        "code": "HOPCNDPTRLLSSNS",
+        "name": "Canadian Swim Patrol - Henderson",
+        "ageMin": 12,
+        "ageMax": 15,
+        "location": "Henderson Pool"
+      },
+      {
+        "code": "AQ1SWMR56",
+        "name": "Swimmer 5-6 - Fritz Sick",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "AQ1FSPCNDPTRL",
+        "name": "Canadian Swim Patrol - Fritz Sick",
+        "ageMin": 12,
+        "ageMax": 15,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "FSPPARENTTOT",
+        "name": "Parent & Tot - Fritz Sick",
+        "ageMin": 0,
+        "ageMax": 3,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "FSPPRESCHOOL",
+        "name": "Preschool - Fritz Sick",
+        "ageMin": 3,
+        "ageMax": 5,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "FSPSWIMKIDS1-4",
+        "name": "Swimmer 1-4 - Fritz Sick",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "FSPSWIMKIDS5-10",
+        "name": "Swimmer 5-10 - Fritz Sick",
+        "ageMin": 6,
+        "ageMax": 15,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "FSPPRIVATE",
+        "name": "Private Lessons - Fritz Sick",
+        "ageMin": 0,
+        "ageMax": 18,
+        "location": "Fritz Sick Pool"
+      },
+      {
+        "code": "SSPPRIVATE",
+        "name": "Private Lessons - Stan Siwik",
+        "ageMin": 0,
+        "ageMax": 18,
+        "location": "Stan Siwik Pool"
+      },
+      {
+        "code": "NSPPRIVATE",
+        "name": "Private Lessons - Nicholas Sheran",
+        "ageMin": 0,
+        "ageMax": 18,
+        "location": "Nicholas Sheran Pool"
+      },
+      {
+        "code": "HOPPRIVATE",
+        "name": "Private Lessons - Henderson",
+        "ageMin": 0,
+        "ageMax": 18,
+        "location": "Henderson Pool"
+      }
     ],
     "dynamicDiscovery": true,
     "maxDepth": 3,
@@ -87,17 +243,45 @@
       "scheduleTable": "table"
     },
     "locations": [
-      {"code": "SSP", "name": "Stan Siwik Pool", "address": "1901 15 Ave N, Lethbridge, AB"},
-      {"code": "NSP", "name": "Nicholas Sheran Pool", "address": "401 Laval Blvd W, Lethbridge, AB"},
-      {"code": "FSP", "name": "Fritz Sick Pool", "address": "420 11 St S, Lethbridge, AB"},
-      {"code": "HOP", "name": "Henderson Pool", "address": "2710 Parkside Dr S, Lethbridge, AB"}
+      {
+        "code": "SSP",
+        "name": "Stan Siwik Pool",
+        "address": "1901 15 Ave N, Lethbridge, AB"
+      },
+      {
+        "code": "NSP",
+        "name": "Nicholas Sheran Pool",
+        "address": "401 Laval Blvd W, Lethbridge, AB"
+      },
+      {
+        "code": "FSP",
+        "name": "Fritz Sick Pool",
+        "address": "420 11 St S, Lethbridge, AB"
+      },
+      {
+        "code": "HOP",
+        "name": "Henderson Pool",
+        "address": "2710 Parkside Dr S, Lethbridge, AB"
+      }
     ]
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
-    "times": ["07:00", "19:00"],
-    "timezone": "America/Edmonton"
+    "frequency": "every-3-days",
+    "times": [
+      "09:02"
+    ],
+    "timezone": "America/Edmonton",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Edmonton"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 101482,

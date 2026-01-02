@@ -10,7 +10,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "programs",
-    "entryPoints": ["/shop/programs"],
+    "entryPoints": [
+      "/shop/programs"
+    ],
     "language": "fr",
     "ageFilter": {
       "enabled": true,
@@ -28,9 +30,21 @@
   },
   "schedule": {
     "tier": "critical",
-    "frequency": "2x-daily",
-    "times": ["06:00", "18:00"],
-    "timezone": "America/Montreal"
+    "frequency": "every-3-days",
+    "times": [
+      "15:28"
+    ],
+    "timezone": "America/Montreal",
+    "_production": {
+      "tier": "critical",
+      "frequency": "2x-daily",
+      "times": [
+        "06:00",
+        "18:00"
+      ],
+      "timezone": "America/Montreal"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 549459,

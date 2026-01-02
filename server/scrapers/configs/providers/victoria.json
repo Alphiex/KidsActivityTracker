@@ -9,7 +9,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "widget",
-    "entryPoints": ["/23404/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"],
+    "entryPoints": [
+      "/23404/Clients/BookMe4?widgetId=15f6af07-39c5-473e-b053-96653f77a406"
+    ],
     "widgetId": "15f6af07-39c5-473e-b053-96653f77a406",
     "ageFilter": {
       "enabled": true,
@@ -27,9 +29,22 @@
   },
   "schedule": {
     "tier": "critical",
-    "frequency": "3x-daily",
-    "times": ["06:00", "12:00", "18:00"],
-    "timezone": "America/Vancouver"
+    "frequency": "every-3-days",
+    "times": [
+      "08:36"
+    ],
+    "timezone": "America/Vancouver",
+    "_production": {
+      "tier": "critical",
+      "frequency": "3x-daily",
+      "times": [
+        "06:00",
+        "12:00",
+        "18:00"
+      ],
+      "timezone": "America/Vancouver"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 91867,

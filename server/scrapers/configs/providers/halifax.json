@@ -39,9 +39,22 @@
   },
   "schedule": {
     "tier": "critical",
-    "frequency": "3x-daily",
-    "times": ["07:00", "13:00", "19:00"],
-    "timezone": "America/Halifax"
+    "frequency": "every-3-days",
+    "times": [
+      "22:16"
+    ],
+    "timezone": "America/Halifax",
+    "_production": {
+      "tier": "critical",
+      "frequency": "3x-daily",
+      "times": [
+        "07:00",
+        "13:00",
+        "19:00"
+      ],
+      "timezone": "America/Halifax"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 439819,

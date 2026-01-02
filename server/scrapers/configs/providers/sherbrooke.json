@@ -10,7 +10,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "spa-browse",
-    "entryPoints": ["/activities/session"],
+    "entryPoints": [
+      "/activities/session"
+    ],
     "organizationSlug": "Centre-Multi-Loisirs-Sherbrooke",
     "language": "fr",
     "ageFilter": {
@@ -29,9 +31,20 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "daily",
-    "times": ["06:00"],
-    "timezone": "America/Montreal"
+    "frequency": "every-3-days",
+    "times": [
+      "06:01"
+    ],
+    "timezone": "America/Montreal",
+    "_production": {
+      "tier": "standard",
+      "frequency": "daily",
+      "times": [
+        "06:00"
+      ],
+      "timezone": "America/Montreal"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 168000,

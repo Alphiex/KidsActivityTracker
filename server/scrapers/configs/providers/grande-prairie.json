@@ -54,9 +54,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
-    "times": ["07:00", "19:00"],
-    "timezone": "America/Edmonton"
+    "frequency": "every-3-days",
+    "times": [
+      "21:52"
+    ],
+    "timezone": "America/Edmonton",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Edmonton"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 64523,

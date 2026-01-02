@@ -27,12 +27,42 @@
       "Preschool, Child, Youth"
     ],
     "kidsCategories": [
-      {"code": "SWIM", "name": "Swimming", "ageMin": 0, "ageMax": 18},
-      {"code": "CAMP", "name": "Camp", "ageMin": 4, "ageMax": 14},
-      {"code": "FAMILYPARENTED", "name": "Family & Parented", "ageMin": 0, "ageMax": 5},
-      {"code": "PRESCHOOL", "name": "Preschool, Child, Youth", "ageMin": 0, "ageMax": 18},
-      {"code": "CHILD", "name": "Child", "ageMin": 5, "ageMax": 12},
-      {"code": "YOUTH", "name": "Youth", "ageMin": 10, "ageMax": 18}
+      {
+        "code": "SWIM",
+        "name": "Swimming",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "CAMP",
+        "name": "Camp",
+        "ageMin": 4,
+        "ageMax": 14
+      },
+      {
+        "code": "FAMILYPARENTED",
+        "name": "Family & Parented",
+        "ageMin": 0,
+        "ageMax": 5
+      },
+      {
+        "code": "PRESCHOOL",
+        "name": "Preschool, Child, Youth",
+        "ageMin": 0,
+        "ageMax": 18
+      },
+      {
+        "code": "CHILD",
+        "name": "Child",
+        "ageMin": 5,
+        "ageMax": 12
+      },
+      {
+        "code": "YOUTH",
+        "name": "Youth",
+        "ageMin": 10,
+        "ageMax": 18
+      }
     ],
     "rateLimits": {
       "requestsPerMinute": 20,
@@ -46,12 +76,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
+    "frequency": "every-3-days",
     "times": [
-      "07:00",
-      "19:00"
+      "14:03"
     ],
-    "timezone": "America/Toronto"
+    "timezone": "America/Toronto",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Toronto"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 175383,

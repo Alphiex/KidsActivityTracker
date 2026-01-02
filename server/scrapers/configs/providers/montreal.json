@@ -9,10 +9,15 @@
   "isActive": true,
   "scraperConfig": {
     "type": "spa-browse",
-    "entryPoints": ["https://loisirs.montreal.ca/IC3/"],
+    "entryPoints": [
+      "https://loisirs.montreal.ca/IC3/"
+    ],
     "siteCode": "U5200",
     "language": "fr",
-    "supportedLanguages": ["fr", "en"],
+    "supportedLanguages": [
+      "fr",
+      "en"
+    ],
     "ageFilter": {
       "enabled": true,
       "minAge": 0,
@@ -31,9 +36,22 @@
   },
   "schedule": {
     "tier": "critical",
-    "frequency": "3x-daily",
-    "times": ["06:00", "12:00", "18:00"],
-    "timezone": "America/Montreal"
+    "frequency": "every-3-days",
+    "times": [
+      "06:13"
+    ],
+    "timezone": "America/Montreal",
+    "_production": {
+      "tier": "critical",
+      "frequency": "3x-daily",
+      "times": [
+        "06:00",
+        "12:00",
+        "18:00"
+      ],
+      "timezone": "America/Montreal"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 1762949,

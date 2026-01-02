@@ -9,7 +9,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "looknbook",
-    "entryPoints": ["/RedDeer/public/category/courses"],
+    "entryPoints": [
+      "/RedDeer/public/category/courses"
+    ],
     "ageFilter": {
       "enabled": true,
       "minAge": 0,
@@ -26,9 +28,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
-    "times": ["08:00", "16:00"],
-    "timezone": "America/Edmonton"
+    "frequency": "every-3-days",
+    "times": [
+      "01:21"
+    ],
+    "timezone": "America/Edmonton",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "08:00",
+        "16:00"
+      ],
+      "timezone": "America/Edmonton"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 100844,

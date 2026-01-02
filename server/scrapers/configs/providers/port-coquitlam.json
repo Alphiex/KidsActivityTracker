@@ -10,7 +10,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "search",
-    "entryPoints": ["/activity/search"],
+    "entryPoints": [
+      "/activity/search"
+    ],
     "searchParams": {
       "onlineSiteId": 0,
       "activity_select_param": 2,
@@ -32,9 +34,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
-    "times": ["07:00", "19:00"],
-    "timezone": "America/Vancouver"
+    "frequency": "every-3-days",
+    "times": [
+      "10:52"
+    ],
+    "timezone": "America/Vancouver",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "07:00",
+        "19:00"
+      ],
+      "timezone": "America/Vancouver"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 61498,

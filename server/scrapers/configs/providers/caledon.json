@@ -9,7 +9,9 @@
   "isActive": true,
   "scraperConfig": {
     "type": "widget",
-    "entryPoints": ["/24154/Clients/BookMe4?widgetId=2eec81dc-9404-4568-9acd-0b371eef6faf"],
+    "entryPoints": [
+      "/24154/Clients/BookMe4?widgetId=2eec81dc-9404-4568-9acd-0b371eef6faf"
+    ],
     "widgetId": "2eec81dc-9404-4568-9acd-0b371eef6faf",
     "ageFilter": {
       "enabled": true,
@@ -27,9 +29,21 @@
   },
   "schedule": {
     "tier": "standard",
-    "frequency": "2x-daily",
-    "times": ["08:00", "16:00"],
-    "timezone": "America/Toronto"
+    "frequency": "every-3-days",
+    "times": [
+      "04:55"
+    ],
+    "timezone": "America/Toronto",
+    "_production": {
+      "tier": "standard",
+      "frequency": "2x-daily",
+      "times": [
+        "08:00",
+        "16:00"
+      ],
+      "timezone": "America/Toronto"
+    },
+    "randomized": true
   },
   "metadata": {
     "population": 76581,
