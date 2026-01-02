@@ -188,12 +188,21 @@ export interface ChildAvailabilitySlots {
 }
 
 /**
- * Constraints for weekly schedule planning
+ * Constraints for weekly/multi-week schedule planning
  */
 export interface PlannerConstraints {
+  /** End date for multi-week planning (ISO string, e.g., '2026-08-31') */
+  end_date?: string;
+  /** Maximum activities to schedule per child */
   max_activities_per_child?: number;
+  /** Avoid scheduling activities back-to-back */
   avoid_back_to_back?: boolean;
+  /** Maximum travel distance between activities in km */
   max_travel_between_activities_km?: number;
+  /** Try to schedule siblings in the same activities */
   schedule_siblings_together?: boolean;
+  /** Allow gaps between activities (better AI results, default: true) */
+  allow_gaps?: boolean;
+  /** Per-child availability time slots */
   child_availability?: ChildAvailabilitySlots[];
 }

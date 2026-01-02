@@ -6,8 +6,9 @@ const router = Router();
 
 /**
  * POST /api/v1/ai/plan-week
- * 
- * Generate an optimal weekly activity schedule for the family.
+ *
+ * Generate an optimal activity schedule for a date range.
+ * Supports single week or multi-week planning (e.g., summer, spring break).
  * Considers multiple children, time conflicts, travel distance, and activity balance.
  */
 router.post('/', verifyToken, async (req: Request, res: Response) => {
@@ -22,16 +23,18 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     }
 
     const {
-      week_start,
+      week_start,       // Start date (legacy name, kept for compatibility)
+      end_date,         // End date for multi-week planning
       max_activities_per_child,
       avoid_back_to_back,
       max_travel_between_activities_km,
       schedule_siblings_together,
+      allow_gaps,       // Allow gaps between activities (better AI results)
       child_availability
     } = req.body;
 
-    // Validate week_start
-    let weekStartDate: string;
+    // Validate start date
+    let startDate: string;
     if (week_start) {
       const parsed = new Date(week_start);
       if (isNaN(parsed.getTime())) {
@@ -40,18 +43,41 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
           error: 'week_start must be a valid date string'
         });
       }
-      weekStartDate = parsed.toISOString().split('T')[0];
+      startDate = parsed.toISOString().split('T')[0];
     } else {
       // Default to next Monday
       const today = new Date();
       const daysUntilMonday = (8 - today.getDay()) % 7 || 7;
       const nextMonday = new Date(today);
       nextMonday.setDate(today.getDate() + daysUntilMonday);
-      weekStartDate = nextMonday.toISOString().split('T')[0];
+      startDate = nextMonday.toISOString().split('T')[0];
+    }
+
+    // Validate end date (optional - defaults to 1 week from start)
+    let endDateStr: string | undefined;
+    if (end_date) {
+      const parsed = new Date(end_date);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'end_date must be a valid date string'
+        });
+      }
+      // Ensure end is after start
+      if (parsed < new Date(startDate)) {
+        return res.status(400).json({
+          success: false,
+          error: 'end_date must be after week_start'
+        });
+      }
+      endDateStr = parsed.toISOString().split('T')[0];
     }
 
     // Build constraints
-    const constraints: any = {};
+    const constraints: any = {
+      start_date: startDate,
+      end_date: endDateStr,
+    };
     if (typeof max_activities_per_child === 'number') {
       constraints.max_activities_per_child = Math.min(10, Math.max(1, max_activities_per_child));
     }
@@ -64,12 +90,15 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     if (typeof schedule_siblings_together === 'boolean') {
       constraints.schedule_siblings_together = schedule_siblings_together;
     }
+    if (typeof allow_gaps === 'boolean') {
+      constraints.allow_gaps = allow_gaps;
+    }
     if (Array.isArray(child_availability)) {
       constraints.child_availability = child_availability;
     }
 
     const orchestrator = getAIOrchestrator();
-    const schedule = await orchestrator.planWeek(weekStartDate, userId, constraints);
+    const schedule = await orchestrator.planWeek(startDate, userId, constraints);
 
     if (!schedule) {
       return res.status(500).json({
