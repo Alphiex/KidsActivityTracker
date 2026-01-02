@@ -70,7 +70,9 @@ src/
 │   ├── childrenService.ts         # Child management
 │   ├── preferencesService.ts      # User preferences
 │   ├── locationService.ts         # GPS & geocoding service
-│   └── calendarExportService.ts   # Calendar export
+│   ├── calendarExportService.ts   # Calendar export
+│   ├── waitlistService.ts         # Waitlist monitoring & purge
+│   └── favoritesService.ts        # Favorites management
 │
 ├── store/
 │   ├── slices/
@@ -120,8 +122,10 @@ App
     │   ├── City Browse
     │   └── Location Browse
     │
-    ├── Favorites Stack
-    │   └── Favorites List
+    ├── My Collection Stack
+    │   ├── Favourites Tab       # Saved activities
+    │   ├── Watching Tab         # Activities being monitored
+    │   └── Waiting List Tab     # Waitlist status activities
     │
     ├── Friends & Family Stack
     │   ├── Children List
@@ -193,6 +197,22 @@ Conversational AI assistant:
 - Suggested prompts for common queries
 - Follow-up suggestions after responses
 - Quota display (free vs pro tier)
+
+### FavoritesScreenModern.tsx (My Collection)
+Three-tab collection management:
+- **Favourites Tab**: Saved activities with heart icon toggle
+- **Watching Tab**: Activities being monitored for availability
+- **Waiting List Tab**: Waitlist status activities with "Clear Closed" purge button
+- Hero header with collection stats
+- Pull-to-refresh on all tabs
+
+### ActivityCard.tsx
+Activity display card features:
+- Activity image with price overlay
+- Action buttons (favorite, watch, share, calendar)
+- "Watch for Spots" button for Waitlist status activities
+- Registration status badges (Open, Waitlist, Closed)
+- Spots availability indicators
 
 ## State Management
 

@@ -114,6 +114,9 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  │        Favorites Service (MMKV + API sync)            │  │  │
 │  │  └───────────────────────────────────────────────────────┘  │  │
 │  │  ┌───────────────────────────────────────────────────────┐  │  │
+│  │  │    Waitlist Service (Watch for spots, purge closed)   │  │  │
+│  │  └───────────────────────────────────────────────────────┘  │  │
+│  │  ┌───────────────────────────────────────────────────────┐  │  │
 │  │  │    Push Notification Service (FCM + Notifee)          │  │  │
 │  │  └───────────────────────────────────────────────────────┘  │  │
 │  └────────┼──────────────────────────────────────────────────┘  │
@@ -190,8 +193,10 @@ App.tsx
 │       │   ├── FeaturedPartnersScreen
 │       │   ├── CityBrowse
 │       │   └── LocationBrowse
-│       ├── Favourites (FavoritesStack)
-│       │   └── FavoritesScreen
+│       ├── My Collection (FavoritesStack)
+│       │   ├── Favourites Tab
+│       │   ├── Watching Tab
+│       │   └── Waiting List Tab
 │       ├── Friends & Family (FriendsStack)
 │       │   ├── Children Management
 │       │   ├── ChildDetailScreen
