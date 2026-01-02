@@ -6,6 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors } from '../theme';
 import PreferencesService from '../services/preferencesService';
+import { shouldForceOnboarding } from '../config/development';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '../store';
 import { loadAuthState } from '../store/slices/authSlice';
@@ -18,7 +19,7 @@ import DashboardScreen from '../screens/DashboardScreenModern';
 import SearchScreen from '../screens/SearchScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
 import FiltersScreen from '../screens/FiltersScreen';
-import FavoritesRedirect from '../screens/FavoritesRedirect';
+import FavoritesScreenModern from '../screens/FavoritesScreenModern';
 import FriendsAndFamilyScreenModern from '../screens/FriendsAndFamilyScreenModern';
 import ChildDetailScreen from '../screens/ChildDetailScreen';
 import ShareChildScreen from '../screens/ShareChildScreen';
@@ -121,7 +122,7 @@ const SearchStack = () => (
 
 const FavoritesStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="FavoritesMain" component={FavoritesRedirect} />
+    <Stack.Screen name="FavoritesMain" component={FavoritesScreenModern} />
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
   </Stack.Navigator>
@@ -211,7 +212,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
 
         // Get icon based on route
         let iconName = 'tune-variant';
-        if (route.name === 'Favourites') iconName = shouldHighlight ? 'heart' : 'heart-outline';
+        if (route.name === 'Favourites') iconName = shouldHighlight ? 'folder-heart' : 'folder-heart-outline';
         else if (route.name === 'FriendsAndFamily') iconName = shouldHighlight ? 'account-group' : 'account-group-outline';
         else if (route.name === 'Profile') iconName = shouldHighlight ? 'account' : 'account-outline';
 
@@ -301,12 +302,12 @@ const MainTabs = () => {
       name="Favourites"
       component={FavoritesStack}
       options={{
-        tabBarLabel: 'Favourites',
+        tabBarLabel: 'My Collection',
         tabBarIcon: ({ color, size, focused }) => (
-          <Icon 
-            name={focused ? "heart" : "heart-outline"} 
-            color={color} 
-            size={26} 
+          <Icon
+            name={focused ? "folder-heart" : "folder-heart-outline"}
+            color={color}
+            size={26}
           />
         ),
       }}
@@ -397,7 +398,9 @@ const RootNavigator = () => {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       console.log('Auth changed, checking onboarding status:', preferences.hasCompletedOnboarding);
-      setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
+      // Force onboarding if dev flag is set
+      const completed = shouldForceOnboarding() ? false : (preferences.hasCompletedOnboarding || false);
+      setHasCompletedOnboarding(completed);
     }
   }, [isAuthenticated, authLoading, isLoading]);
 
@@ -430,7 +433,10 @@ const RootNavigator = () => {
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       console.log('Preferences loaded:', preferences);
-      setHasCompletedOnboarding(preferences.hasCompletedOnboarding || false);
+      // Force onboarding if dev flag is set
+      const completed = shouldForceOnboarding() ? false : (preferences.hasCompletedOnboarding || false);
+      console.log('Force onboarding:', shouldForceOnboarding(), 'hasCompletedOnboarding:', completed);
+      setHasCompletedOnboarding(completed);
     } catch (error) {
       console.error('Error initializing app:', error);
     } finally {

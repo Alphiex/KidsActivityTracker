@@ -46,6 +46,14 @@ const headerImages = [
   {
     name: 'browse-age-groups-header',
     prompt: `A cute flat illustration showing four children of different ages standing together happily: a toddler (about 2 years old), a young child (about 5 years old), an older child (about 9 years old), and a pre-teen (about 12 years old). Each child has a distinct height showing age progression from left to right. They are all smiling and waving. Simple cartoon style with soft pastel colored clothes (pink, light blue, mint green, coral). The children represent diverse backgrounds. Clean white background.${STYLE_SUFFIX}`
+  },
+  {
+    name: 'recommended-header',
+    prompt: `A cute flat illustration of two or three happy diverse children excitedly discovering activities. One child points upward with wonder while colorful activity icons float above them in a magical arrangement: a soccer ball, swimming goggles, a paintbrush, musical notes, and a star. The children have different hair colors and skin tones, wearing soft pastel colored clothes. A subtle rainbow gradient arc frames the scene. Magical sparkles and small hearts scattered around. NO TEXT OR WORDS in the image. Clean light pink/cream background.${STYLE_SUFFIX}`
+  },
+  {
+    name: 'new-header',
+    prompt: `A cute flat illustration of two or three diverse children gathered around a large magical gift box that's opening, with colorful activity icons popping out and floating upward: a soccer ball, art supplies, dance shoes, musical notes, and swimming goggles. The children look amazed and delighted with their hands raised in excitement. Sparkles, stars, and confetti surround the scene. Soft pastel colors (pink, mint green, light blue, coral). Light rays emanating from the box. NO TEXT OR WORDS in the image. Clean light background with subtle gradient.${STYLE_SUFFIX}`
   }
 ];
 
@@ -130,7 +138,29 @@ async function main() {
   console.log('='.repeat(50));
   console.log('');
 
-  for (const image of headerImages) {
+  // Check for specific image names from command line args
+  const requestedImages = process.argv.slice(2);
+
+  // Filter to only requested images if specified
+  let imagesToGenerate = headerImages;
+  if (requestedImages.length > 0) {
+    imagesToGenerate = headerImages.filter(img =>
+      requestedImages.some(req => img.name.includes(req))
+    );
+
+    if (imagesToGenerate.length === 0) {
+      console.log('No matching images found. Available images:');
+      headerImages.forEach(img => console.log(`  - ${img.name}`));
+      process.exit(1);
+    }
+
+    console.log(`Generating ${imagesToGenerate.length} selected image(s):\n`);
+  } else {
+    console.log('Generating all images. To generate specific images, pass names as arguments:');
+    console.log('  node generate-header-images.js recommended new\n');
+  }
+
+  for (const image of imagesToGenerate) {
     const imagePath = path.join(IMAGES_PATH, `${image.name}.png`);
 
     try {

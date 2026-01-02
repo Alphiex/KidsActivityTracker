@@ -33,14 +33,17 @@ export const DEV_CONFIG = {
     }
   ],
   
-  // Auto-login in development
-  AUTO_LOGIN: __DEV__ ? true : false,
+  // Auto-login in development (set to false to test signup flow)
+  AUTO_LOGIN: false,
   
   // Show development tools
   SHOW_DEV_TOOLS: __DEV__ ? true : false,
   
-  // Skip onboarding in dev mode
-  SKIP_ONBOARDING: __DEV__ ? true : false,
+  // Skip onboarding in dev mode (set to false to test onboarding flow)
+  SKIP_ONBOARDING: false,
+
+  // Force onboarding flow even if user has completed it before (for testing)
+  FORCE_ONBOARDING: true,
   
   // Use local API in dev mode
   USE_LOCAL_API: false,
@@ -70,4 +73,8 @@ export const shouldAutoLogin = () => {
 
 export const shouldSkipOnboarding = () => {
   return __DEV__ && DEV_CONFIG.SKIP_ONBOARDING;
+};
+
+export const shouldForceOnboarding = () => {
+  return __DEV__ && DEV_CONFIG.FORCE_ONBOARDING;
 };

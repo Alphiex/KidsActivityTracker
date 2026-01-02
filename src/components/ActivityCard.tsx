@@ -766,6 +766,35 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             compact={true}
           />
         )}
+
+        {/* Prominent Watch for Spots button for Waitlist status activities */}
+        {activity.registrationStatus === 'Waitlist' && (
+          <TouchableOpacity
+            style={[
+              styles.watchSpotsButton,
+              isOnWaitlist && styles.watchSpotsButtonActive,
+            ]}
+            onPress={handleWaitlistToggle}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name={isOnWaitlist ? 'bell-ring' : 'bell-plus'}
+              size={18}
+              color={isOnWaitlist ? '#22C55E' : '#F59E0B'}
+            />
+            <Text
+              style={[
+                styles.watchSpotsButtonText,
+                isOnWaitlist && styles.watchSpotsButtonTextActive,
+              ]}
+            >
+              {isOnWaitlist ? 'Watching for Spots' : 'Watch for Spots'}
+            </Text>
+            {isOnWaitlist && (
+              <Icon name="check" size={16} color="#22C55E" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
 

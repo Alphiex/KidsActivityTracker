@@ -538,6 +538,50 @@ const ActivityDetailScreenModern = () => {
               </View>
             </View>
 
+            {/* Watch for Spots Button - only shown for Waitlist status activities */}
+            {activity.registrationStatus === 'Waitlist' && (
+              <View style={styles.watchSpotsButtonWrapper}>
+                <TouchableOpacity
+                  style={[
+                    styles.watchSpotsButton,
+                    isOnWaitlist && styles.watchSpotsButtonActive,
+                  ]}
+                  onPress={handleToggleWaitlist}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={isOnWaitlist ? ['#22C55E', '#16A34A'] : ['#F59E0B', '#D97706']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.watchSpotsButtonGradient}
+                  >
+                    <View style={styles.watchSpotsIconContainer}>
+                      <Icon
+                        name={isOnWaitlist ? 'bell-ring' : 'bell-plus'}
+                        size={28}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                    <View style={styles.watchSpotsButtonContent}>
+                      <Text style={styles.watchSpotsButtonTitle}>
+                        {isOnWaitlist ? 'Watching for Spots' : 'Watch for Spots'}
+                      </Text>
+                      <Text style={styles.watchSpotsButtonSubtitle}>
+                        {isOnWaitlist
+                          ? "We'll notify you when spots open"
+                          : 'Get notified when spots open up'}
+                      </Text>
+                    </View>
+                    {isOnWaitlist ? (
+                      <Icon name="check-circle" size={22} color="#FFFFFF" />
+                    ) : (
+                      <Icon name="chevron-right" size={22} color="#FFFFFF" />
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Calendar Button with overlapping icon on left */}
             <View style={styles.calendarButtonWrapper}>
               {/* Overlapping calendar icon on left */}
@@ -1146,6 +1190,52 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 8,
+  },
+  // Watch for Spots button styles (for Waitlist activities)
+  watchSpotsButtonWrapper: {
+    marginBottom: ModernSpacing.lg,
+  },
+  watchSpotsButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  watchSpotsButtonActive: {
+    shadowColor: '#22C55E',
+  },
+  watchSpotsButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    minHeight: 72,
+  },
+  watchSpotsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  watchSpotsButtonContent: {
+    flex: 1,
+  },
+  watchSpotsButtonTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  watchSpotsButtonSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    fontWeight: '500',
   },
   // Mini buttons row (Share & Notify)
   secondaryButtonsRow: {

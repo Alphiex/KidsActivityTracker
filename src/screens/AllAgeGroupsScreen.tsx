@@ -6,8 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  Dimensions,
-  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,11 +15,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenBackground from '../components/ScreenBackground';
 
 type NavigationProp = StackNavigationProp<any>;
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Header image
-const AgeGroupsHeaderImage = require('../assets/images/browse-age-groups-header.png');
 
 interface AgeGroup {
   id: number;
@@ -138,38 +131,27 @@ const AllAgeGroupsScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <ImageBackground
-        source={AgeGroupsHeaderImage}
-        style={styles.heroSection}
-        imageStyle={styles.heroImageStyle}
+      <LinearGradient
+        colors={['#E8638B', '#D53F8C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
       >
-        <LinearGradient
-          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.5)']}
-          style={styles.heroGradient}
-        >
-          {/* Back Button */}
-          <SafeAreaView edges={['top']} style={styles.heroTopRow}>
-            <TouchableOpacity style={styles.backButtonHero} onPress={() => navigation.goBack()}>
-              <View style={styles.backButtonInner}>
-                <Icon name="arrow-left" size={22} color="#333" />
-              </View>
-            </TouchableOpacity>
-          </SafeAreaView>
-
-          {/* Title */}
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>Age Groups</Text>
+        <SafeAreaView edges={['top']} style={styles.headerTopRow}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={22} color="#FFF" />
+          </TouchableOpacity>
+          <View style={styles.countBadge}>
+            <Text style={styles.countNumber}>{ageGroups.length}</Text>
+            <Text style={styles.countLabel}>groups</Text>
           </View>
-
-          {/* Count Badge */}
-          <View style={styles.countBadgeRow}>
-            <View style={styles.countBadge}>
-              <Text style={styles.countNumber}>{ageGroups.length}</Text>
-              <Text style={styles.countLabel}>groups</Text>
-            </View>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
+        </SafeAreaView>
+        <View style={styles.headerContent}>
+          <Icon name="account-group" size={40} color="#FFF" style={styles.headerIcon} />
+          <Text style={styles.headerTitle}>Age Groups</Text>
+          <Text style={styles.headerSubtitle}>Find activities by age</Text>
+        </View>
+      </LinearGradient>
     </View>
   );
 
@@ -193,84 +175,60 @@ const styles = StyleSheet.create({
   headerContainer: {
     marginBottom: 16,
   },
-  heroSection: {
-    height: SCREEN_HEIGHT * 0.26,
-    width: '100%',
-  },
-  heroImageStyle: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    resizeMode: 'cover',
-    top: 30,
-  },
-  heroGradient: {
-    flex: 1,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  headerGradient: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
-    justifyContent: 'space-between',
+    paddingBottom: 24,
   },
-  heroTopRow: {
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 8,
   },
-  backButtonHero: {},
-  backButtonInner: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  countBadgeRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
   },
   countBadge: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 4,
   },
   countNumber: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#E8638B',
+    color: '#FFF',
   },
   countLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
-    color: '#717171',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  headerIcon: {
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFF',
+    marginTop: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
   },
   listContent: {
     paddingBottom: 20,
