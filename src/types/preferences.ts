@@ -146,6 +146,7 @@ export interface UserPreferences {
   hideFullActivities: boolean;
   hideClosedOrFull: boolean; // Global filter to hide closed OR full activities
   maxBudgetFriendlyAmount: number;
+  useMapPreferencesFilter: boolean; // Whether map screen applies user preferences by default
 
   // Date range filter preferences
   dateFilter: 'any' | 'range'; // 'any' = no date filtering, 'range' = use date range

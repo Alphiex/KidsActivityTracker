@@ -708,8 +708,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    marginBottom: Theme.spacing.md,
+    borderRadius: 16,
+    marginBottom: Theme.spacing.sm,
     ...Theme.shadows.md,
     overflow: 'hidden',
     elevation: 4,
@@ -728,28 +728,28 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 100,
+    height: 60,
   },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: Theme.spacing.md,
+    padding: Theme.spacing.sm,
   },
   priceContainer: {
     alignItems: 'flex-start',
   },
   priceText: {
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: '800',
     color: Colors.white,
     textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   priceLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: Colors.white,
     opacity: 0.9,
   },
@@ -842,14 +842,15 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   content: {
-    padding: Theme.spacing.md,
+    padding: Theme.spacing.sm,
   },
   header: {
-    marginBottom: Theme.spacing.sm,
+    marginBottom: Theme.spacing.xs,
   },
   title: {
     ...Theme.typography.h5,
-    marginBottom: Theme.spacing.xs,
+    fontSize: 15,
+    marginBottom: 2,
   },
   infoRow: {
     flexDirection: 'row',
@@ -974,7 +975,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Theme.spacing.md,
+    marginTop: Theme.spacing.sm,
   },
   spotsContainer: {
     flex: 1,

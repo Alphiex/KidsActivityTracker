@@ -326,7 +326,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
         variant="default"
         isFavorite={isFavorite}
         onFavoritePress={() => toggleFavorite(item)}
-        imageHeight={150}
+        imageHeight={112}
       />
     );
   };
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     marginBottom: ModernSpacing.md,
   },
   heroSection: {
-    height: height * 0.18,
+    height: height * 0.22,
     width: '100%',
   },
   heroSectionShort: {

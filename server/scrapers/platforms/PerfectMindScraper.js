@@ -248,7 +248,8 @@ class PerfectMindScraper extends BaseScraper {
           pagesPerBrowser
         );
 
-        browserActivities.push(...results);
+        // Use concat instead of spread to avoid stack overflow with large arrays
+        browserActivities = browserActivities.concat(results);
 
         // Incremental save: save activities after processing this browser's queue
         if (this.currentProviderId && browserActivities.length > 0) {
@@ -271,7 +272,8 @@ class PerfectMindScraper extends BaseScraper {
       // Wait for all browsers to complete
       const allResults = await Promise.all(browserWorkers);
       for (const browserActivities of allResults) {
-        activities.push(...browserActivities);
+        // Use concat instead of spread to avoid stack overflow with large arrays
+        activities = activities.concat(browserActivities);
       }
     } finally {
       // Close all browsers in pool
@@ -310,7 +312,7 @@ class PerfectMindScraper extends BaseScraper {
         try {
           const linkActivities = await this.extractActivitiesFromLink(widgetUrl, link, browser);
           if (linkActivities.length > 0) {
-            activities.push(...linkActivities);
+            activities = activities.concat(linkActivities);
             this.logProgress(`  B${browserIndex + 1} ✅ ${link.text}: ${linkActivities.length} activities`);
           }
         } catch (error) {
@@ -609,7 +611,7 @@ class PerfectMindScraper extends BaseScraper {
             browser,
             depth + 1
           );
-          activities.push(...subActivities);
+          activities = activities.concat(subActivities);
         }
 
         return activities;
@@ -648,7 +650,7 @@ class PerfectMindScraper extends BaseScraper {
 
       // Extract activities
       const pageActivities = await this.extractActivitiesFromPage(page, linkInfo.section, linkInfo.text);
-      activities.push(...pageActivities);
+      activities = activities.concat(pageActivities);
 
       // Close the page when done (important for shared browser to free resources)
       await page.close();

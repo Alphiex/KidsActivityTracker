@@ -324,7 +324,7 @@ const SearchResultsScreen = () => {
               onPress={() => handleActivityPress(item)}
               isFavorite={favoriteIds.has(item.id)}
               onFavoritePress={() => toggleFavorite(item)}
-              imageHeight={150}
+              imageHeight={112}
             />
           )}
           showsVerticalScrollIndicator={false}
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   heroSection: {
-    height: height * 0.18,
+    height: height * 0.22,
     width: '100%',
   },
   heroImageStyle: {

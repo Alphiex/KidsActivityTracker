@@ -76,8 +76,8 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
 
   const handleAddChild = () => {
     onClose();
-    // Navigate to add child screen
-    navigation.navigate('AddChild');
+    // Navigate to Friends & Family screen with param to open add child modal
+    navigation.navigate('FriendsAndFamily' as never, { openAddChild: true } as never);
   };
 
   const handleToggleChild = async (child: Child) => {

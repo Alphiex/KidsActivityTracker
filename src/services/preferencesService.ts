@@ -84,6 +84,7 @@ class PreferencesService {
       hideFullActivities: false, // Individual filter (not used when hideClosedOrFull is set)
       hideClosedOrFull: false, // Default to showing all activities (since old activities might be closed)
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
+      useMapPreferencesFilter: true, // Default to applying user preferences on map
       dateFilter: 'any', // 'any' = no date filtering, 'range' = use date range
       dateRange: undefined, // { start: string, end?: string }
       dateMatchMode: 'partial', // 'partial' = overlap, 'full' = completely within range
@@ -124,6 +125,13 @@ class PreferencesService {
           parsed.distanceRadiusKm = 25;
           parsed.locationSource = 'gps';
           parsed.locationPermissionAsked = false;
+          needsSave = true;
+        }
+
+        // Migration for map preferences filter
+        if (parsed.useMapPreferencesFilter === undefined) {
+          console.log('🔄 [PreferencesService] Migrating: Adding useMapPreferencesFilter');
+          parsed.useMapPreferencesFilter = true; // Default to enabled
           needsSave = true;
         }
 
