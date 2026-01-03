@@ -127,7 +127,7 @@ const SearchScreen = () => {
   const [endTime, setEndTime] = useState(22);
   const [minCost, setMinCost] = useState(0);
   const [maxCost, setMaxCost] = useState(500);
-  const [isUnlimitedCost, setIsUnlimitedCost] = useState(false);
+  const [isUnlimitedCost, setIsUnlimitedCost] = useState(true);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [minAge, setMinAge] = useState(0);
   const [maxAge, setMaxAge] = useState(18);
@@ -388,7 +388,7 @@ const SearchScreen = () => {
     setEndTime(22);
     setMinCost(0);
     setMaxCost(500);
-    setIsUnlimitedCost(false);
+    setIsUnlimitedCost(true);
     setSelectedCities([]);
     setSearchedLocation(null);
     setMinAge(0);
