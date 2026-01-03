@@ -260,7 +260,7 @@ router.get('/bounds', optionalAuth, async (req: Request, res: Response) => {
       hideFullActivities: hideFullActivities === 'true',
       limit: parseInt(limit as string),
       offset: 0,
-      sortBy: 'distance' as const,
+      sortBy: 'availability' as const, // Use availability sort, not distance (which isn't a Prisma field)
       sortOrder: 'asc' as const,
     };
 

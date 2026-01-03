@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,11 @@ const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
+import childPreferencesService from '../services/childPreferencesService';
+import { useAppSelector } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -41,6 +44,52 @@ const ActivityListScreen = () => {
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
+
+  // Child filter state for consistent filtering
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children for filtering
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) {
+      return children; // If none selected, use all children
+    }
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  // Calculate child-based filters using the shared service
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) {
+      return undefined;
+    }
+
+    const childPreferences = selectedChildren
+      .filter(c => c.preferences)
+      .map(c => c.preferences!);
+
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+    const mergedFilters = childPreferencesService.getMergedFilters(
+      childPreferences,
+      childAges,
+      childGenders,
+      filterMode
+    );
+
+    return { filterMode, mergedFilters };
+  }, [selectedChildren, filterMode]);
 
   const loadActivities = async (reset = false) => {
     try {
@@ -107,7 +156,11 @@ const ActivityListScreen = () => {
       }
       
       console.log('ActivityListScreen: Final searchParams being sent to API:', searchParams);
-      const result = await activityService.searchActivitiesPaginated(searchParams);
+
+      // Get child-based filters for consistent filtering
+      const childFilters = getChildBasedFilters();
+
+      const result = await activityService.searchActivitiesPaginated(searchParams, childFilters);
       
       if (reset) {
         setActivities(result.items);

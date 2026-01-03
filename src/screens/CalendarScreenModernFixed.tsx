@@ -31,7 +31,11 @@ import {
 } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../store';
-import { fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildren, selectAllChildren } from '../store/slices/childrenSlice';
+import {
+  fetchChildActivities,
+  selectAllChildActivities,
+} from '../store/slices/childActivitiesSlice';
 import childrenService from '../services/childrenService';
 import activityService from '../services/activityService';
 import { ModernColors } from '../theme/modernTheme';
@@ -109,6 +113,9 @@ const CalendarScreenModernFixed = () => {
   const { children: myChildren } = useAppSelector((state) => state.children);
   const { user } = useAppSelector((state) => state.auth);
 
+  // Redux child activities (updated by ChildAssignmentSheet)
+  const reduxChildActivities = useAppSelector(selectAllChildActivities);
+
   // Subscription state for calendar export
   const {
     checkAndShowUpgrade,
@@ -166,6 +173,50 @@ const CalendarScreenModernFixed = () => {
     return unsubscribe;
   }, [navigation]);
 
+  // Update childrenWithActivities when Redux data changes
+  useEffect(() => {
+    if (!myChildren || myChildren.length === 0) return;
+
+    console.log('[CalendarScreen] Redux childActivities changed, updating childrenWithActivities');
+
+    const processedChildren = myChildren.map((child) => {
+      const childActivities = reduxChildActivities[child.id] || [];
+      console.log(`[CalendarScreen] Child ${child.name} (${child.id}) has ${childActivities.length} activities from Redux`);
+
+      // Map Redux ChildActivity to the format expected by the calendar
+      const mappedActivities = childActivities.map((ca: any) => ({
+        id: ca.id,
+        childId: ca.childId,
+        activityId: ca.activityId,
+        status: ca.status,
+        notes: ca.notes,
+        rating: ca.rating,
+        registeredAt: ca.registeredAt,
+        completedAt: ca.completedAt,
+        createdAt: ca.createdAt,
+        updatedAt: ca.updatedAt,
+        // Include the full activity details if available
+        activity: ca.activity || {
+          id: ca.activityId,
+          name: `Activity ${ca.activityId}`,
+          description: 'Activity details unavailable',
+          location: 'TBD',
+          category: 'General',
+        },
+      }));
+
+      return {
+        ...child,
+        color: getChildColor(child.colorId).hex,
+        isVisible: true,
+        activities: mappedActivities,
+      };
+    });
+
+    setChildrenWithActivities(processedChildren);
+    setLoading(false);
+  }, [reduxChildActivities, myChildren]);
+
   // Note: useEffect for updating marked dates is defined after generateMarkedDates function
 
   // Prevent re-renders when switching to agenda view
@@ -197,61 +248,19 @@ const CalendarScreenModernFixed = () => {
         // Continue with empty shared array if 404 or other error
       }
 
-      // Get date range for fetching scheduled activities (12 months ahead)
-      const startDate = startOfMonth(new Date());
-      const endDate = endOfMonth(addMonths(new Date(), 12));
-
-      // Fetch scheduled activities for all children with full activity details
-      let scheduledActivities: any[] = [];
+      // Fetch activities for each child via Redux
       if (myChildren && myChildren.length > 0) {
-        const childIds = myChildren.map(c => c.id);
-        try {
-          scheduledActivities = await childrenService.getScheduledActivities(
-            startDate,
-            endDate,
-            childIds
-          );
-          console.log('[CalendarScreen] Fetched scheduled activities:', scheduledActivities.length);
-          console.log('[CalendarScreen] First activity:', JSON.stringify(scheduledActivities[0], null, 2));
-        } catch (error) {
-          console.warn('Error fetching scheduled activities:', error);
+        console.log('[CalendarScreen] Fetching activities for', myChildren.length, 'children via Redux');
+        for (const child of myChildren) {
+          dispatch(fetchChildActivities(child.id));
         }
       }
 
-      // Activities now come with full details from the API, no need to fetch separately
-      const enhancedActivities = scheduledActivities.map(sa => ({
-        ...sa,
-        activity: sa.activity || {
-          id: sa.activityId,
-          name: `Activity ${sa.activityId}`,
-          description: 'Activity details unavailable',
-          location: 'TBD',
-          category: 'General',
-        },
-      }));
+      // Note: childrenWithActivities will be updated by the useEffect that watches reduxChildActivities
 
-      // If no activities, show helpful placeholder for first child
-      if (enhancedActivities.length === 0 && myChildren.length > 0) {
-        // Don't add demo activities - let the user see their real data
-        console.log('No scheduled activities found for children');
-      }
-
-      // Process children with activities
-      console.log('[CalendarScreen] myChildren:', myChildren.map(c => ({ id: c.id, name: c.name })));
-      console.log('[CalendarScreen] enhancedActivities childIds:', enhancedActivities.map(a => a.childId));
-
-      const processedChildren = myChildren.map((child) => {
-        const childActivities = enhancedActivities.filter(a => a.childId === child.id);
-        console.log(`[CalendarScreen] Child ${child.name} (${child.id}) has ${childActivities.length} activities`);
-        return {
-          ...child,
-          color: getChildColor(child.colorId).hex,
-          isVisible: true,
-          activities: childActivities,
-        };
-      });
-
-      setChildrenWithActivities(processedChildren);
+      // Get date range for fetching shared children activities (12 months ahead)
+      const startDate = startOfMonth(new Date());
+      const endDate = endOfMonth(addMonths(new Date(), 12));
 
       // Fetch shared children's activities from the dedicated API endpoint
       let sharedChildrenActivities: { childId: string; childName: string; activities: any[] }[] = [];
@@ -311,8 +320,7 @@ const CalendarScreenModernFixed = () => {
 
       setSharedChildren(processedShared);
 
-      // Generate marked dates for calendar
-      generateMarkedDates([...processedChildren, ...processedShared]);
+      // Note: generateMarkedDates is called by useEffect when childrenWithActivities changes
 
     } catch (error) {
       console.error('Error loading calendar data:', error);

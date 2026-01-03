@@ -123,23 +123,31 @@ const childActivitiesSlice = createSlice({
         state.error = null;
         // Optimistic update - add to activityChildren immediately
         const { childId, activityId } = action.meta.arg;
+        console.log('[childActivitiesSlice REDUCER] linkActivity.pending:', { childId, activityId });
         if (!state.activityChildren[activityId]) {
           state.activityChildren[activityId] = [];
         }
         if (!state.activityChildren[activityId].includes(childId)) {
           state.activityChildren[activityId].push(childId);
+          console.log('[childActivitiesSlice REDUCER] Added childId to activityChildren:', state.activityChildren[activityId]);
         }
       })
       .addCase(linkActivity.fulfilled, (state, action) => {
         state.loading = false;
         const childActivity = action.payload;
-        
+
+        // Defensive check - ensure we have required fields
+        if (!childActivity || !childActivity.childId || !childActivity.activityId) {
+          console.warn('[childActivitiesSlice] linkActivity.fulfilled received invalid payload:', childActivity);
+          return;
+        }
+
         // Update child activities
         if (!state.childActivities[childActivity.childId]) {
           state.childActivities[childActivity.childId] = [];
         }
         state.childActivities[childActivity.childId].push(childActivity);
-        
+
         // Update activity children
         if (!state.activityChildren[childActivity.activityId]) {
           state.activityChildren[childActivity.activityId] = [];
@@ -168,7 +176,13 @@ const childActivitiesSlice = createSlice({
       .addCase(updateActivityStatus.fulfilled, (state, action) => {
         state.loading = false;
         const updatedActivity = action.payload;
-        
+
+        // Defensive check - ensure we have required fields
+        if (!updatedActivity || !updatedActivity.childId || !updatedActivity.id) {
+          console.warn('[childActivitiesSlice] updateActivityStatus.fulfilled received invalid payload:', updatedActivity);
+          return;
+        }
+
         // Update in child activities
         const childActivities = state.childActivities[updatedActivity.childId];
         if (childActivities) {
@@ -234,10 +248,14 @@ const childActivitiesSlice = createSlice({
       .addCase(fetchChildActivities.fulfilled, (state, action) => {
         state.loading = false;
         const { childId, activities } = action.payload;
-        state.childActivities[childId] = activities;
-        
+
+        // Defensive check - ensure activities is an array
+        const safeActivities = Array.isArray(activities) ? activities : [];
+        state.childActivities[childId] = safeActivities;
+
         // Update activity children mapping
-        activities.forEach((activity: ChildActivity) => {
+        safeActivities.forEach((activity: ChildActivity) => {
+          if (!activity?.activityId) return;
           if (!state.activityChildren[activity.activityId]) {
             state.activityChildren[activity.activityId] = [];
           }
@@ -286,5 +304,8 @@ export const selectChildActivityStatus = (childId: string, activityId: string) =
 
 export const selectChildActivitiesLoading = (state: RootState) => state.childActivities?.loading ?? false;
 export const selectChildActivitiesError = (state: RootState) => state.childActivities?.error ?? null;
+
+// Selector to get all activities keyed by childId (for calendar)
+export const selectAllChildActivities = (state: RootState) => state.childActivities?.childActivities ?? {};
 
 export default childActivitiesSlice.reducer;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,12 @@ import TopTabNavigation from '../components/TopTabNavigation';
 const { height } = Dimensions.get('window');
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
+import childPreferencesService from '../services/childPreferencesService';
 import FavoritesService from '../services/favoritesService';
 import { Activity } from '../types';
+import { useAppSelector } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
 import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
 import { useTheme } from '../contexts/ThemeContext';
@@ -54,6 +57,58 @@ const SearchResultsScreen = () => {
   
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
+
+  // Child filter state for consistent filtering
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children for filtering
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) {
+      return children; // If none selected, use all children
+    }
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  // Calculate child-based filters using the shared service
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) {
+      return undefined;
+    }
+
+    // Get preferences for selected children
+    const childPreferences = selectedChildren
+      .filter(c => c.preferences)
+      .map(c => c.preferences!);
+
+    // Calculate ages from birth dates
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+    // Get merged filters using childPreferencesService
+    const mergedFilters = childPreferencesService.getMergedFilters(
+      childPreferences,
+      childAges,
+      childGenders,
+      filterMode
+    );
+
+    return {
+      filterMode,
+      mergedFilters,
+    };
+  }, [selectedChildren, filterMode]);
 
   // Subscription-aware waitlist
   const {
@@ -92,8 +147,11 @@ const SearchResultsScreen = () => {
       };
       
       console.log('🔍 [SearchResultsScreen] searchParams to API:', JSON.stringify(searchParams, null, 2));
-      
-      const results = await activityService.searchActivitiesPaginated(searchParams);
+
+      // Get child-based filters for consistent filtering
+      const childFilters = getChildBasedFilters();
+
+      const results = await activityService.searchActivitiesPaginated(searchParams, childFilters);
       
       if (results && results.items) {
         setActivities(results.items);
@@ -127,9 +185,12 @@ const SearchResultsScreen = () => {
         limit: 20,
         offset: (nextPage - 1) * 20,
       };
-      
-      const results = await activityService.searchActivitiesPaginated(searchParams);
-      
+
+      // Get child-based filters for consistent filtering
+      const childFilters = getChildBasedFilters();
+
+      const results = await activityService.searchActivitiesPaginated(searchParams, childFilters);
+
       if (results && results.items && results.items.length > 0) {
         setActivities(prev => [...prev, ...results.items]);
         setPage(nextPage);

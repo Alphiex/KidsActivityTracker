@@ -68,21 +68,6 @@ const CLUSTER_THRESHOLD = 0.001;
 // Minimum movement threshold before refetching (in degrees, ~5km)
 const REFETCH_THRESHOLD = 0.05;
 
-// Maximum radius to query from API (km) - prevents overly large queries
-const MAX_QUERY_RADIUS_KM = 100;
-
-/**
- * Calculate approximate radius in km from map viewport deltas
- * Using 111km per degree of latitude as approximation
- */
-function calculateRadiusFromViewport(latitudeDelta: number, longitudeDelta: number): number {
-  // Use the larger of the two deltas to ensure we cover the viewport
-  const maxDelta = Math.max(latitudeDelta, longitudeDelta);
-  // Convert degrees to km (111km per degree) and use half (radius, not diameter)
-  // Multiply by 1.5 to add some buffer beyond the visible area
-  const radiusKm = (maxDelta / 2) * 111 * 1.5;
-  return Math.min(radiusKm, MAX_QUERY_RADIUS_KM);
-}
 
 /**
  * Check if a region has moved significantly from another region
@@ -802,33 +787,64 @@ const MapSearchScreen = () => {
     try {
       setLoading(true);
 
-      // Combine search filters with map-specific requirements
-      const apiFilters: Record<string, unknown> = {
-        ...filters,
-        limit: 500, // Load more for map view
-        hasCoordinates: true, // Only get activities with lat/lng
-      };
+      // Use the region passed or the current region state
+      const targetRegion = forRegion || region;
 
-      // Add geographic filtering if region is provided
-      if (forRegion) {
-        const radiusKm = calculateRadiusFromViewport(forRegion.latitudeDelta, forRegion.longitudeDelta);
-        apiFilters.userLat = forRegion.latitude;
-        apiFilters.userLon = forRegion.longitude;
-        apiFilters.radiusKm = radiusKm;
+      // Calculate bounds from the region
+      const minLat = targetRegion.latitude - targetRegion.latitudeDelta / 2;
+      const maxLat = targetRegion.latitude + targetRegion.latitudeDelta / 2;
+      const minLng = targetRegion.longitude - targetRegion.longitudeDelta / 2;
+      const maxLng = targetRegion.longitude + targetRegion.longitudeDelta / 2;
 
-        if (__DEV__) {
-          console.log('[MapSearch] Loading filtered activities for region:', {
-            lat: forRegion.latitude,
-            lon: forRegion.longitude,
-            radiusKm,
-          });
-        }
+      if (__DEV__) {
+        console.log('[MapSearch] Loading filtered activities for bounds:', {
+          minLat, maxLat, minLng, maxLng,
+          filters,
+        });
       }
 
-      if (__DEV__) console.log('[MapSearch] Loading with search filters:', apiFilters);
+      // Build bounds query params with search filters
+      const boundsParams: {
+        minLat: number;
+        maxLat: number;
+        minLng: number;
+        maxLng: number;
+        limit: number;
+        ageMin?: number;
+        ageMax?: number;
+        costMin?: number;
+        costMax?: number;
+        activityType?: string;
+        dayOfWeek?: string[];
+        hideClosedOrFull?: boolean;
+        hideClosedActivities?: boolean;
+        hideFullActivities?: boolean;
+      } = {
+        minLat,
+        maxLat,
+        minLng,
+        maxLng,
+        limit: 500,
+      };
 
-      const activities = await activityService.searchActivities(apiFilters);
-      processAndSetActivities(activities);
+      // Apply search filters
+      if (filters.ageMin !== undefined) boundsParams.ageMin = filters.ageMin;
+      if (filters.ageMax !== undefined) boundsParams.ageMax = filters.ageMax;
+      if (filters.costMin !== undefined) boundsParams.costMin = filters.costMin;
+      if (filters.costMax !== undefined) boundsParams.costMax = filters.costMax;
+      if (filters.activityTypes && filters.activityTypes.length > 0) {
+        boundsParams.activityType = filters.activityTypes[0]; // Use first activity type
+      }
+      if (filters.daysOfWeek && filters.daysOfWeek.length > 0 && filters.daysOfWeek.length < 7) {
+        boundsParams.dayOfWeek = filters.daysOfWeek;
+      }
+      if (filters.hideClosedActivities) boundsParams.hideClosedActivities = true;
+      if (filters.hideFullActivities) boundsParams.hideFullActivities = true;
+
+      if (__DEV__) console.log('[MapSearch] Bounds query with filters:', boundsParams);
+
+      const result = await activityService.searchActivitiesByBounds(boundsParams);
+      processAndSetActivities(result.activities);
 
       if (forRegion) {
         lastFetchedRegion.current = forRegion;
@@ -844,50 +860,74 @@ const MapSearchScreen = () => {
     try {
       setLoading(true);
 
-      // Load activities with coordinates only for map view
-      const filters: Record<string, unknown> = {
-        limit: 500, // Load more for map view
-        hasCoordinates: true, // Only get activities with lat/lng
-      };
+      // Use the region passed or the current region state
+      const targetRegion = forRegion || region;
 
-      // If a specific region is provided, use it for geographic filtering
-      // This enables fetching activities based on the current map viewport
-      if (forRegion) {
-        const radiusKm = calculateRadiusFromViewport(forRegion.latitudeDelta, forRegion.longitudeDelta);
-        filters.userLat = forRegion.latitude;
-        filters.userLon = forRegion.longitude;
-        filters.radiusKm = radiusKm;
+      // Calculate bounds from the region
+      const minLat = targetRegion.latitude - targetRegion.latitudeDelta / 2;
+      const maxLat = targetRegion.latitude + targetRegion.latitudeDelta / 2;
+      const minLng = targetRegion.longitude - targetRegion.longitudeDelta / 2;
+      const maxLng = targetRegion.longitude + targetRegion.longitudeDelta / 2;
 
-        if (__DEV__) {
-          console.log('[MapSearch] Loading for region:', {
-            lat: forRegion.latitude,
-            lon: forRegion.longitude,
-            radiusKm,
-            viewport: `${forRegion.latitudeDelta.toFixed(3)} x ${forRegion.longitudeDelta.toFixed(3)}`,
-          });
-        }
+      if (__DEV__) {
+        console.log('[MapSearch] Loading activities for bounds:', {
+          minLat, maxLat, minLng, maxLng,
+          center: { lat: targetRegion.latitude, lon: targetRegion.longitude },
+        });
       }
 
       // Get child-based filters (age range, activity types, etc.)
       const childFilters = getChildBasedFilters();
+      const mergedFilters = childFilters?.mergedFilters;
 
-      // Apply global active filters (from FiltersScreen)
-      const activeFilters = preferencesService.getActiveFilters();
-      if (activeFilters && Object.keys(activeFilters).length > 0) {
-        Object.assign(filters, activeFilters);
-        if (__DEV__) console.log('[MapSearch] Applying global active filters:', activeFilters);
+      // Build bounds query params
+      const boundsParams: {
+        minLat: number;
+        maxLat: number;
+        minLng: number;
+        maxLng: number;
+        limit: number;
+        ageMin?: number;
+        ageMax?: number;
+        costMin?: number;
+        costMax?: number;
+        dayOfWeek?: string[];
+        hideClosedOrFull?: boolean;
+        hideClosedActivities?: boolean;
+        hideFullActivities?: boolean;
+      } = {
+        minLat,
+        maxLat,
+        minLng,
+        maxLng,
+        limit: 500,
+      };
+
+      // Apply child-based filters
+      if (mergedFilters) {
+        if (mergedFilters.ageMin !== undefined) boundsParams.ageMin = mergedFilters.ageMin;
+        if (mergedFilters.ageMax !== undefined) boundsParams.ageMax = mergedFilters.ageMax;
+        if (mergedFilters.priceRangeMin !== undefined) boundsParams.costMin = mergedFilters.priceRangeMin;
+        if (mergedFilters.priceRangeMax !== undefined && mergedFilters.priceRangeMax < 999999) {
+          boundsParams.costMax = mergedFilters.priceRangeMax;
+        }
+        if (mergedFilters.daysOfWeek && mergedFilters.daysOfWeek.length > 0 && mergedFilters.daysOfWeek.length < 7) {
+          boundsParams.dayOfWeek = mergedFilters.daysOfWeek;
+        }
       }
 
       // Apply hide closed/full settings from global preferences
       if (preferences.hideClosedOrFull) {
-        filters.hideClosedOrFull = true;
+        boundsParams.hideClosedOrFull = true;
       }
 
-      if (__DEV__) console.log('[MapSearch] Loading activities with filters:', filters);
+      if (__DEV__) console.log('[MapSearch] Bounds query params:', boundsParams);
 
-      // Pass both API filters and child-based filters
-      const activities = await activityService.searchActivities(filters, childFilters);
-      processAndSetActivities(activities);
+      // Use the bounds API for geographic filtering
+      const result = await activityService.searchActivitiesByBounds(boundsParams);
+      processAndSetActivities(result.activities);
+
+      if (__DEV__) console.log('[MapSearch] Loaded', result.total, 'activities in bounds');
 
       // Track the region we just fetched for
       if (forRegion) {
@@ -1696,6 +1736,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
+    zIndex: 101, // Above place search bar
   },
   searchButtonActive: {
     backgroundColor: Colors.primary,
@@ -1938,7 +1979,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    right: 12,
+    right: 60, // Leave room for filter button on right
     zIndex: 100,
   },
   placeSearchInputContainer: {

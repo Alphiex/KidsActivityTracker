@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
+import childPreferencesService from '../services/childPreferencesService';
+import { useAppSelector } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -30,6 +33,32 @@ const NewActivitiesScreen = () => {
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
+
+  // Child filter state for consistent filtering
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) return children;
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) return undefined;
+    const childPreferences = selectedChildren.filter(c => c.preferences).map(c => c.preferences!);
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+    const mergedFilters = childPreferencesService.getMergedFilters(childPreferences, childAges, childGenders, filterMode);
+    return { filterMode, mergedFilters };
+  }, [selectedChildren, filterMode]);
 
   const loadNewActivities = async (reset = false) => {
     try {
@@ -84,8 +113,21 @@ const NewActivitiesScreen = () => {
       if (preferences.timePreferences) {
         searchParams.timePreferences = preferences.timePreferences;
       }
-      
-      const result = await activityService.searchActivitiesPaginated(searchParams);
+
+      // Apply schedule preferences (days of week)
+      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
+        searchParams.daysOfWeek = preferences.daysOfWeek;
+      }
+
+      // Apply environment filter
+      if (preferences.environmentFilter && preferences.environmentFilter !== 'all') {
+        searchParams.environment = preferences.environmentFilter;
+      }
+
+      // Get child-based filters for consistent filtering
+      const childFilters = getChildBasedFilters();
+
+      const result = await activityService.searchActivitiesPaginated(searchParams, childFilters);
       
       // Sort by date, newest first
       result.items.sort((a, b) => {

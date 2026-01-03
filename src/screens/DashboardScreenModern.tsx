@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
+import childPreferencesService from '../services/childPreferencesService';
 import { Activity } from '../types';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey, aiRobotImage } from '../assets/images';
@@ -176,6 +177,63 @@ const DashboardScreenModern = () => {
       return childAge >= activityAgeMin && childAge <= activityAgeMax;
     });
   }, [children, selectedChildIds, calculateAge]);
+
+  // Get selected children for consistent filtering
+  const selectedChildren = React.useMemo(() => {
+    if (selectedChildIds.length === 0) {
+      return children; // If none selected, use all children
+    }
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  // Calculate child-based filters using the shared service (for consistency with MapSearchScreen)
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) {
+      return undefined;
+    }
+
+    // Get preferences for selected children
+    const childPreferences = selectedChildren
+      .filter(c => c.preferences)
+      .map(c => c.preferences!);
+
+    // Calculate ages from birth dates
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+    // Get merged filters using childPreferencesService
+    const mergedFilters = childPreferencesService.getMergedFilters(
+      childPreferences,
+      childAges,
+      childGenders,
+      filterMode
+    );
+
+    if (__DEV__) {
+      console.log('[Dashboard] Child-based filters:', {
+        selectedChildrenCount: selectedChildren.length,
+        childAges,
+        calculatedAgeRange: `${mergedFilters.ageMin}-${mergedFilters.ageMax}`,
+        activityTypes: mergedFilters.activityTypes?.length || 0,
+        filterMode,
+      });
+    }
+
+    return {
+      filterMode,
+      mergedFilters,
+    };
+  }, [selectedChildren, filterMode]);
 
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -470,7 +528,10 @@ const DashboardScreenModern = () => {
         filterParams.daysOfWeek = preferences.daysOfWeek;
       }
 
-      let response = await activityService.searchActivitiesPaginated(filterParams);
+      // Get child-based filters for consistent filtering across all screens
+      const childFilters = getChildBasedFilters();
+
+      let response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
       console.log('Recommended activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,
@@ -481,7 +542,7 @@ const DashboardScreenModern = () => {
       if (!response?.items || response.items.length === 0) {
         console.log('No results with preferences, trying broader search...');
 
-        // First fallback: just location filter
+        // First fallback: just location filter (still apply child filters for age)
         if (preferences.locations && preferences.locations.length > 0) {
           const locationOnlyParams = {
             limit: 6,
@@ -489,11 +550,11 @@ const DashboardScreenModern = () => {
             hideFullActivities: true,
             locations: preferences.locations
           };
-          response = await activityService.searchActivitiesPaginated(locationOnlyParams);
+          response = await activityService.searchActivitiesPaginated(locationOnlyParams, childFilters);
           console.log('Location-only search result:', response?.items?.length, 'items');
         }
 
-        // Second fallback: no filters at all - just get popular activities
+        // Second fallback: no filters at all - just get popular activities (still apply child filters for age)
         if (!response?.items || response.items.length === 0) {
           console.log('Still no results, fetching without filters...');
           const noFilterParams = {
@@ -503,7 +564,7 @@ const DashboardScreenModern = () => {
             sortBy: 'createdAt',
             sortOrder: 'desc'
           };
-          response = await activityService.searchActivitiesPaginated(noFilterParams);
+          response = await activityService.searchActivitiesPaginated(noFilterParams, childFilters);
           console.log('No-filter search result:', response?.items?.length, 'items');
         }
       }
@@ -593,7 +654,10 @@ const DashboardScreenModern = () => {
         filterParams.daysOfWeek = preferences.daysOfWeek;
       }
 
-      const response = await activityService.searchActivitiesPaginated(filterParams);
+      // Get child-based filters for consistent filtering
+      const childFilters = getChildBasedFilters();
+
+      const response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
       console.log('Budget friendly activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,
@@ -682,7 +746,10 @@ const DashboardScreenModern = () => {
         filterParams.daysOfWeek = preferences.daysOfWeek;
       }
 
-      const response = await activityService.searchActivitiesPaginated(filterParams);
+      // Get child-based filters for consistent filtering
+      const childFilters = getChildBasedFilters();
+
+      const response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
       console.log('New activities response:', {
         total: response?.total,
         itemsCount: response?.items?.length,

@@ -13,7 +13,11 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { Activity } from '../types';
 import { useAppSelector, useAppDispatch } from '../store';
-import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
+import {
+  selectActivityChildren,
+  linkActivity,
+  unlinkActivity,
+} from '../store/slices/childActivitiesSlice';
 import { selectAllChildren } from '../store/slices/childrenSlice';
 import {
   addChildFavorite,
@@ -88,10 +92,10 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   const { favoriteChildren, watchingChildren, calendarChildren } = useActivityChildStatus(activity.id);
 
   // Debug logging - remove after testing
-  console.log('[ActivityCard DEBUG] activityId:', activity.id);
-  console.log('[ActivityCard DEBUG] all children:', children.map(c => ({ name: c.name, colorId: c.colorId })));
-  console.log('[ActivityCard DEBUG] favoriteChildren:', favoriteChildren);
-  console.log('[ActivityCard DEBUG] calendarChildren:', calendarChildren);
+  console.log('[ActivityCard DEBUG] activityId:', activity.id, 'name:', activity.name?.substring(0, 20));
+  console.log('[ActivityCard DEBUG] favoriteChildren:', favoriteChildren.length, favoriteChildren);
+  console.log('[ActivityCard DEBUG] watchingChildren:', watchingChildren.length, watchingChildren);
+  console.log('[ActivityCard DEBUG] calendarChildren:', calendarChildren.length, calendarChildren);
 
   // Use external state if provided, otherwise use Redux-based child favorites
   const isExternallyControlled = externalIsFavorite !== undefined;

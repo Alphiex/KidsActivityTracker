@@ -19,8 +19,10 @@ import EmptyState from '../components/EmptyState';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityCard from '../components/ActivityCard';
 import { Activity } from '../types';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
+import childPreferencesService from '../services/childPreferencesService';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
 import FavoritesService from '../services/favoritesService';
 import { useAppSelector } from '../store';
@@ -88,6 +90,58 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const ITEMS_PER_PAGE = 50;
 
   const user = useAppSelector((state) => state.auth?.user);
+
+  // Child filter state for consistent filtering
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children for filtering
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) {
+      return children; // If none selected, use all children
+    }
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  // Calculate child-based filters using the shared service
+  const getChildBasedFilters = React.useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) {
+      return undefined;
+    }
+
+    // Get preferences for selected children
+    const childPreferences = selectedChildren
+      .filter(c => c.preferences)
+      .map(c => c.preferences!);
+
+    // Calculate ages from birth dates
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+    // Get merged filters using childPreferencesService
+    const mergedFilters = childPreferencesService.getMergedFilters(
+      childPreferences,
+      childAges,
+      childGenders,
+      filterMode
+    );
+
+    return {
+      filterMode,
+      mergedFilters,
+    };
+  }, [selectedChildren, filterMode]);
 
   // Subscription-aware waitlist
   const {
@@ -214,8 +268,18 @@ const UnifiedResultsScreenTest: React.FC = () => {
         const baseParams: any = {
           limit: ITEMS_PER_PAGE,
           offset: offset,
-          hideFullActivities: true,
         };
+
+        // Apply global hide preferences
+        if (preferences.hideFullActivities) {
+          baseParams.hideFullActivities = true;
+        }
+        if (preferences.hideClosedActivities) {
+          baseParams.hideClosedActivities = true;
+        }
+        if (preferences.hideClosedOrFull) {
+          baseParams.hideClosedOrFull = true;
+        }
 
         // Apply global active filters (from search screen)
         if (activeFilters && Object.keys(activeFilters).length > 0) {
@@ -268,8 +332,11 @@ const UnifiedResultsScreenTest: React.FC = () => {
 
         console.log(`[UnifiedResults] Loading ${type} with filters:`, baseParams);
 
+        // Get child-based filters for consistent filtering across all screens
+        const childFilters = getChildBasedFilters();
+
         const activityService = ActivityService.getInstance();
-        const response = await activityService.searchActivitiesPaginated(baseParams);
+        const response = await activityService.searchActivitiesPaginated(baseParams, childFilters);
 
         if (response && response.items) {
           if (isLoadMore) {

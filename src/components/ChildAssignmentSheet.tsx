@@ -200,6 +200,11 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
   const hasChildren = children.length > 0;
 
   console.log('[ChildAssignmentSheet] visible:', visible, 'actionType:', actionType, 'children:', children.length);
+  console.log('[ChildAssignmentSheet] activity.id:', activity.id);
+  console.log('[ChildAssignmentSheet] favoriteChildIds:', favoriteChildIds);
+  console.log('[ChildAssignmentSheet] watchingChildIds:', watchingChildIds);
+  console.log('[ChildAssignmentSheet] calendarChildIds:', calendarChildIds);
+  console.log('[ChildAssignmentSheet] assignedChildIds:', assignedChildIds);
 
   if (!visible) return null;
 

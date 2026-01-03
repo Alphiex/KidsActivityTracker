@@ -36,6 +36,11 @@ export function useActivityChildStatus(activityId: string): ActivityChildStatus 
   const watchingChildren = useAppSelector(selectChildrenOnWaitlistWithDetails(activityId));
   const calendarChildIds = useAppSelector(selectActivityChildren(activityId));
 
+  // Debug logging
+  console.log('[useActivityChildStatus] activityId:', activityId);
+  console.log('[useActivityChildStatus] watchingChildren:', watchingChildren);
+  console.log('[useActivityChildStatus] calendarChildIds:', calendarChildIds);
+
   // Convert calendar child IDs to full ChildAssignment objects
   const calendarChildren = useMemo(() => {
     return calendarChildIds

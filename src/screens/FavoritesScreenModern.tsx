@@ -22,7 +22,6 @@ import ActivityCard from '../components/ActivityCard';
 import EmptyState from '../components/EmptyState';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import ChildFilterSelector from '../components/ChildFilterSelector';
-import WaitlistService, { CachedWaitlistEntry } from '../services/waitlistService';
 import ActivityService from '../services/activityService';
 import { Activity } from '../types';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
@@ -36,10 +35,13 @@ import {
   fetchChildWaitlist,
   removeChildFavorite,
   addChildFavorite,
+  removeFromChildWaitlist,
   selectFavoritesByChild,
+  selectWaitlistByChild,
   selectFavoritesLoading,
   selectWaitlistLoading,
 } from '../store/slices/childFavoritesSlice';
+import { ChildWaitlistEntry } from '../services/childFavoritesService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -50,7 +52,6 @@ type TabType = 'favorites' | 'watching' | 'available';
 const FavoritesScreenModern: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const waitlistService = WaitlistService.getInstance();
   const activityService = ActivityService.getInstance();
 
   const [activeTab, setActiveTab] = useState<TabType>('favorites');
@@ -61,10 +62,43 @@ const FavoritesScreenModern: React.FC = () => {
   const selectedChildIds = React.useMemo(() => rawSelectedChildIds || [], [rawSelectedChildIds]);
   const allChildren = useAppSelector(selectAllChildren);
   const favoritesByChild = useAppSelector(selectFavoritesByChild);
+  const waitlistByChild = useAppSelector(selectWaitlistByChild);
   const favoritesLoading = useAppSelector(selectFavoritesLoading);
   const waitlistLoading = useAppSelector(selectWaitlistLoading);
 
   const loading = favoritesLoading || waitlistLoading;
+
+  // Derive watching and available entries from Redux waitlist data
+  const { watchingEntries, availableEntries, closedCount } = React.useMemo(() => {
+    const allWaitlistEntries: ChildWaitlistEntry[] = [];
+
+    // Collect waitlist entries from all selected children
+    for (const childId of selectedChildIds) {
+      const childWaitlist = waitlistByChild[childId] || [];
+      for (const entry of childWaitlist) {
+        // Deduplicate by activityId (activity may be watched by multiple children)
+        if (!allWaitlistEntries.some(e => e.activityId === entry.activityId)) {
+          allWaitlistEntries.push(entry);
+        }
+      }
+    }
+
+    // Separate by availability status
+    const watching = allWaitlistEntries.filter(e => {
+      const spots = e.activity?.spotsAvailable;
+      return spots === undefined || spots === null || spots === 0;
+    });
+
+    const available = allWaitlistEntries.filter(e => {
+      const spots = e.activity?.spotsAvailable;
+      return spots !== undefined && spots !== null && spots > 0;
+    });
+
+    // Count closed activities (those with registrationStatus 'Closed' if available)
+    const closed = 0; // Note: ChildWaitlistEntry doesn't have registrationStatus
+
+    return { watchingEntries: watching, availableEntries: available, closedCount: closed };
+  }, [waitlistByChild, selectedChildIds]);
 
   // Get unique favorited activities (deduplicated across children) for flat display
   const allFavoriteActivities: Activity[] = React.useMemo(() => {
@@ -106,10 +140,6 @@ const FavoritesScreenModern: React.FC = () => {
     return map;
   }, [favoritesByChild, selectedChildIds, allChildren]);
 
-  // Waitlist/Watching data (still using old service for now)
-  const [watchingEntries, setWatchingEntries] = useState<CachedWaitlistEntry[]>([]);
-  const [availableEntries, setAvailableEntries] = useState<CachedWaitlistEntry[]>([]);
-  const [closedCount, setClosedCount] = useState(0);
 
   // Subscription hooks
   const {
@@ -129,28 +159,17 @@ const FavoritesScreenModern: React.FC = () => {
 
   const loadData = useCallback(async (forceRefresh: boolean = false) => {
     try {
-      // Fetch child-centric favorites via Redux
+      // Fetch child-centric favorites and waitlist via Redux
       if (selectedChildIds.length > 0) {
         dispatch(fetchChildFavorites(selectedChildIds));
         dispatch(fetchChildWaitlist(selectedChildIds));
       }
-
-      // Load waitlist entries (using old service for now)
-      const waitlistEntries = await waitlistService.getWaitlist(forceRefresh);
-      const watching = waitlistEntries.filter(e => !e.hasAvailability);
-      const available = waitlistEntries.filter(e => e.hasAvailability);
-      setWatchingEntries(watching);
-      setAvailableEntries(available);
-
-      // Count closed activities for purge button
-      const closed = waitlistEntries.filter(e => e.activity?.registrationStatus === 'Closed');
-      setClosedCount(closed.length);
     } catch (error) {
       console.error('[FavoritesScreen] Error loading data:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch, selectedChildIds, waitlistService]);
+  }, [dispatch, selectedChildIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -204,14 +223,14 @@ const FavoritesScreenModern: React.FC = () => {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            const result = await waitlistService.leaveWaitlist(activityId);
-            if (result.success) {
-              setWatchingEntries(prev => prev.filter(e => e.activityId !== activityId));
-              setAvailableEntries(prev => prev.filter(e => e.activityId !== activityId));
-              syncWaitlistCount();
-            } else {
-              Alert.alert('Error', result.message || 'Failed to remove from watch list');
+            // Remove from waitlist for all selected children who have this activity
+            for (const childId of selectedChildIds) {
+              const childWaitlist = waitlistByChild[childId] || [];
+              if (childWaitlist.some(e => e.activityId === activityId)) {
+                dispatch(removeFromChildWaitlist({ childId, activityId }));
+              }
             }
+            syncWaitlistCount();
           },
         },
       ]
@@ -222,7 +241,7 @@ const FavoritesScreenModern: React.FC = () => {
     navigation.navigate('ActivityDetail', { activity });
   };
 
-  const handleWaitlistActivityPress = async (entry: CachedWaitlistEntry) => {
+  const handleWaitlistActivityPress = async (entry: ChildWaitlistEntry) => {
     try {
       const activity = await activityService.getActivityDetails(entry.activityId);
       if (activity) {
@@ -236,7 +255,7 @@ const FavoritesScreenModern: React.FC = () => {
     }
   };
 
-  const handleRegister = (entry: CachedWaitlistEntry) => {
+  const handleRegister = (entry: ChildWaitlistEntry) => {
     const url = entry.activity?.directRegistrationUrl || entry.activity?.registrationUrl;
     if (url) {
       Linking.openURL(url).catch(() => {
@@ -248,30 +267,9 @@ const FavoritesScreenModern: React.FC = () => {
   };
 
   const handlePurgeClosedActivities = () => {
-    Alert.alert(
-      'Clear Closed Activities',
-      `Remove ${closedCount} closed ${closedCount === 1 ? 'activity' : 'activities'} from your watch list?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await waitlistService.purgeClosedActivities();
-            if (result.success) {
-              // Reload the data
-              loadData(true);
-              syncWaitlistCount();
-              if (result.removedCount > 0) {
-                Alert.alert('Done', result.message || 'Closed activities removed');
-              }
-            } else {
-              Alert.alert('Error', result.message || 'Failed to remove closed activities');
-            }
-          },
-        },
-      ]
-    );
+    // Note: closedCount functionality requires registrationStatus in ChildWaitlistEntry
+    // For now, this is disabled as we moved to Redux-based waitlist
+    Alert.alert('Info', 'Purge closed activities is not available in this version');
   };
 
   const formatDate = (dateString: string) => {
@@ -310,7 +308,7 @@ const FavoritesScreenModern: React.FC = () => {
     );
   };
 
-  const renderWatchingItem = ({ item }: { item: CachedWaitlistEntry }) => (
+  const renderWatchingItem = ({ item }: { item: ChildWaitlistEntry }) => (
     <TouchableOpacity
       style={styles.watchingCard}
       onPress={() => handleWaitlistActivityPress(item)}
@@ -376,7 +374,7 @@ const FavoritesScreenModern: React.FC = () => {
     </TouchableOpacity>
   );
 
-  const renderAvailableItem = ({ item }: { item: CachedWaitlistEntry }) => (
+  const renderAvailableItem = ({ item }: { item: ChildWaitlistEntry }) => (
     <TouchableOpacity
       style={[styles.watchingCard, styles.availableCard]}
       onPress={() => handleWaitlistActivityPress(item)}

@@ -343,6 +343,7 @@ const childFavoritesSlice = createSlice({
       // Join waitlist - optimistic update
       .addCase(joinChildWaitlist.pending, (state, action) => {
         const { childId, activityId } = action.meta.arg;
+        console.log('[childFavoritesSlice REDUCER] joinChildWaitlist.pending:', { childId, activityId });
         const statusList = state.activityStatus[activityId];
         if (statusList) {
           const statusIndex = statusList.findIndex(s => s.childId === childId);
@@ -354,6 +355,7 @@ const childFavoritesSlice = createSlice({
         const alreadyExists = state.waitlist.some(
           w => w.childId === childId && w.activityId === activityId
         );
+        console.log('[childFavoritesSlice REDUCER] alreadyExists:', alreadyExists, 'waitlist length before:', state.waitlist.length);
         if (!alreadyExists) {
           const optimisticWaitlist = {
             id: `temp-${childId}-${activityId}`, // Temporary ID until server confirms
@@ -369,6 +371,7 @@ const childFavoritesSlice = createSlice({
             },
           };
           state.waitlist.push(optimisticWaitlist as any);
+          console.log('[childFavoritesSlice REDUCER] Added to waitlist, new length:', state.waitlist.length);
           // Update waitlistByChild
           if (!state.waitlistByChild[childId]) {
             state.waitlistByChild[childId] = [];
@@ -565,8 +568,13 @@ export const selectChildrenWhoFavoritedWithDetails = (activityId: string) => (st
 
 // Get children (with full details including colorId) who are on waitlist for an activity
 export const selectChildrenOnWaitlistWithDetails = (activityId: string) => (state: RootState): ChildAssignment[] => {
-  const waitlist = state.childFavorites.waitlist.filter(w => w.activityId === activityId);
+  const allWaitlist = state.childFavorites.waitlist;
+  const waitlist = allWaitlist.filter(w => w.activityId === activityId);
   const children = state.children.children;
+
+  console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] activityId:', activityId);
+  console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] total waitlist entries:', allWaitlist.length);
+  console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] filtered waitlist:', waitlist.length, waitlist.map(w => w.childId));
 
   return waitlist
     .map(w => {

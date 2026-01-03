@@ -13,6 +13,7 @@ import { loadAuthState } from '../store/slices/authSlice';
 import { fetchSubscription } from '../store/slices/subscriptionSlice';
 import { fetchChildren } from '../store/slices/childrenSlice';
 import { fetchChildFavorites, fetchChildWaitlist } from '../store/slices/childFavoritesSlice';
+import { fetchChildActivities } from '../store/slices/childActivitiesSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 import { pushNotificationService } from '../services/pushNotificationService';
 
@@ -442,9 +443,13 @@ const RootNavigator = () => {
           if (childrenResult.payload && Array.isArray(childrenResult.payload)) {
             const childIds = childrenResult.payload.map((c: any) => c.id);
             if (childIds.length > 0) {
-              // Fetch favorites and waitlists for all children
+              // Fetch favorites, waitlists, and activities for all children
               dispatch(fetchChildFavorites(childIds));
               dispatch(fetchChildWaitlist(childIds));
+              // Fetch calendar activities for each child
+              childIds.forEach((childId: string) => {
+                dispatch(fetchChildActivities(childId));
+              });
             }
           }
         } catch (error) {
