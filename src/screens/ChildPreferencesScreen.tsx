@@ -442,8 +442,8 @@ const ChildPreferencesScreen: React.FC = () => {
                 onPress={handleCopyPreferences}
                 activeOpacity={0.7}
               >
-                <Icon name="content-copy" size={16} color={ModernColors.primary} />
-                <Text style={styles.copyButtonText}>Copy from...</Text>
+                <Icon name="content-copy" size={14} color={ModernColors.primary} />
+                <Text style={styles.copyButtonText}>Copy from</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -789,16 +789,18 @@ const styles = StyleSheet.create({
   copyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: ModernColors.primary + '15',
-    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: ModernColors.primary,
+    gap: 6,
   },
   copyButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
     color: ModernColors.primary,
-    marginLeft: 4,
   },
   childChipsScroll: {
     marginHorizontal: -16,

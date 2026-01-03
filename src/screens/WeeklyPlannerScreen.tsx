@@ -1678,7 +1678,7 @@ const WeeklyPlannerScreen = () => {
             <View style={styles.scheduleCardRow}>
               <Icon name="map-marker" size={14} color={ModernColors.primary} />
               <Text style={styles.scheduleCardRowText} numberOfLines={1}>
-                {activity.location.name || activity.location}
+                {typeof activity.location === 'string' ? activity.location : activity.location.name}
               </Text>
             </View>
           )}
