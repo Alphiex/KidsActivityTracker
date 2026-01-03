@@ -126,7 +126,7 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
     const isSelected = selectedChildIds.includes(child.id);
     const age = calculateAge(child.dateOfBirth);
     const childColor = getChildColor(child.colorId);
-    const avatarSize = compact ? 28 : 36;
+    const avatarSize = compact ? 32 : 44;
 
     return (
       <TouchableOpacity
@@ -134,7 +134,7 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
         style={[
           styles.childChip,
           compact && styles.childChipCompact,
-          isSelected && { backgroundColor: childColor.hex + '20', borderColor: childColor.hex },
+          isSelected && { backgroundColor: childColor.hex + '25', borderColor: childColor.hex, borderWidth: 2.5 },
           !isSelected && { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
         onPress={() => handleToggleChild(child.id)}
@@ -144,14 +144,14 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
           child={child}
           size={avatarSize}
           showBorder={isSelected}
-          borderWidth={2}
+          borderWidth={3}
         />
         {!compact && (
           <View style={styles.childInfo}>
             <Text
               style={[
                 styles.childName,
-                { color: isSelected ? childColor.hex : colors.text },
+                { color: isSelected ? colors.primary : colors.text },
               ]}
               numberOfLines={1}
             >
@@ -171,7 +171,7 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
           <Text
             style={[
               styles.childNameCompact,
-              { color: isSelected ? childColor.hex : colors.text },
+              { color: isSelected ? colors.primary : colors.text },
             ]}
             numberOfLines={1}
           >

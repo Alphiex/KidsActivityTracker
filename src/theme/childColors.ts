@@ -24,16 +24,16 @@ export interface ChildAvatarDef {
  * These soft colors are used as border rings around avatars
  */
 export const CHILD_COLORS: ChildColor[] = [
-  { id: 1, name: 'Coral', hex: '#FFB5B5' },
-  { id: 2, name: 'Peach', hex: '#FFDAB3' },
-  { id: 3, name: 'Lemon', hex: '#FFF5BA' },
-  { id: 4, name: 'Mint', hex: '#B5EAD7' },
-  { id: 5, name: 'Sky', hex: '#B5D8EB' },
-  { id: 6, name: 'Lavender', hex: '#D4B5E0' },
-  { id: 7, name: 'Rose', hex: '#F0B5D4' },
-  { id: 8, name: 'Aqua', hex: '#B5E0E0' },
-  { id: 9, name: 'Sage', hex: '#C5D9B5' },
-  { id: 10, name: 'Periwinkle', hex: '#B5C5E0' },
+  { id: 1, name: 'Coral', hex: '#FF8A8A' },      // Stronger coral
+  { id: 2, name: 'Peach', hex: '#FFB87A' },      // Stronger peach/orange
+  { id: 3, name: 'Gold', hex: '#E6A832' },       // Gold instead of yellow (readable)
+  { id: 4, name: 'Mint', hex: '#5CC9A7' },       // Stronger mint
+  { id: 5, name: 'Sky', hex: '#5BB5E0' },        // Stronger sky blue
+  { id: 6, name: 'Lavender', hex: '#A87CC9' },   // Stronger lavender
+  { id: 7, name: 'Rose', hex: '#E87AAD' },       // Stronger rose
+  { id: 8, name: 'Teal', hex: '#4DB6B6' },       // Stronger teal
+  { id: 9, name: 'Sage', hex: '#7CB87C' },       // Stronger sage
+  { id: 10, name: 'Periwinkle', hex: '#7A9ED9' }, // Stronger periwinkle
 ];
 
 /**

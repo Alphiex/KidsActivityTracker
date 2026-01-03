@@ -462,7 +462,7 @@ const ChildPreferencesScreen: React.FC = () => {
                   key={child.id}
                   style={[
                     styles.childChip,
-                    isSelected && [styles.childChipSelected, { borderColor: childColor.hex, backgroundColor: childColor.hex + '15' }],
+                    isSelected && [styles.childChipSelected, { borderColor: childColor.hex, backgroundColor: childColor.hex + '20', borderWidth: 2.5 }],
                   ]}
                   onPress={() => {
                     if (!isSelected) {
@@ -487,28 +487,28 @@ const ChildPreferencesScreen: React.FC = () => {
                 >
                   <ChildAvatar
                     child={child}
-                    size={40}
+                    size={48}
                     showBorder={isSelected}
-                    borderWidth={2}
+                    borderWidth={3}
                   />
                   <View style={styles.childChipInfo}>
                     <Text style={[
                       styles.childChipName,
-                      isSelected && { color: getChildColor(child.colorId).hex },
+                      isSelected && { color: ModernColors.primary },
                     ]}>
                       {child.name}
                     </Text>
                     {age !== null && (
                       <Text style={[
                         styles.childChipAge,
-                        isSelected && { color: getChildColor(child.colorId).hex },
+                        isSelected && { color: ModernColors.primary },
                       ]}>
                         {age} years
                       </Text>
                     )}
                   </View>
                   {isSelected && (
-                    <Icon name="check-circle" size={20} color={getChildColor(child.colorId).hex} />
+                    <Icon name="check-circle" size={22} color={getChildColor(child.colorId).hex} />
                   )}
                 </TouchableOpacity>
               );

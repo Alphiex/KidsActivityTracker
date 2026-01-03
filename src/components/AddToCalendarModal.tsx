@@ -170,7 +170,7 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
                           onPress={() => handleToggleChild(child)}
                           disabled={isLoading}
                         >
-                          <ChildAvatar child={child} size={40} showBorder={isOnCalendar} borderWidth={2} />
+                          <ChildAvatar child={child} size={48} showBorder={isOnCalendar} borderWidth={3} />
                           <View style={styles.childInfo}>
                             <Text style={[styles.childName, { color: colors.text }]}>
                               {child.name}

@@ -50,7 +50,8 @@ const ChildAvatar: React.FC<ChildAvatarProps> = ({
 
   // Get color and avatar definitions
   const childColor = getChildColor(colorId);
-  const childAvatar = avatarId ? getChildAvatar(avatarId) : null;
+  // Always get an avatar - getChildAvatar returns default (Cat) if no avatarId
+  const childAvatar = getChildAvatar(avatarId);
 
   // Calculate border width based on size
   const borderWidthValue = propBorderWidth ?? Math.max(2, size * 0.06);
@@ -72,38 +73,29 @@ const ChildAvatar: React.FC<ChildAvatarProps> = ({
       );
     }
 
-    // Priority 2: Bundled animal avatar
-    if (childAvatar) {
-      if (childAvatar.source) {
-        return (
-          <Image
-            source={childAvatar.source}
-            style={styles.avatarImage}
-            resizeMode="contain"
-          />
-        );
-      }
-      // Use emoji fallback if no image source
+    // Priority 2: Bundled animal avatar (always available via getChildAvatar)
+    if (childAvatar.source) {
       return (
-        <Text style={[styles.emoji, { fontSize: innerSize * 0.5 }]}>
-          {childAvatar.emoji}
-        </Text>
+        <Image
+          source={childAvatar.source}
+          style={styles.avatarImage}
+          resizeMode="contain"
+        />
       );
     }
 
-    // Priority 3: Initials fallback
+    // Priority 3: Emoji fallback (when no PNG image source)
     return (
-      <Text style={[styles.initials, { fontSize: innerSize * 0.4 }]}>
-        {initials}
+      <Text style={[styles.emoji, { fontSize: innerSize * 0.5 }]}>
+        {childAvatar.emoji}
       </Text>
     );
   };
 
-  // Background color for initials/emoji mode
+  // Background color for avatar
   const getBackgroundColor = () => {
     if (avatarUrl) return '#f0f0f0';
-    if (childAvatar) return '#F8F9FA';
-    return childColor.hex + 'CC'; // 80% opacity for initials
+    return '#F8F9FA'; // Light background for emoji avatars
   };
 
   if (showBorder) {

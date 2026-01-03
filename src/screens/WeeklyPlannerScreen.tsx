@@ -812,10 +812,16 @@ const WeeklyPlannerScreen = () => {
           .find(e => e.child_id === entry.childId && e.activity_id === entry.activityId);
 
         if (scheduleEntry) {
-          await childrenService.linkActivityToChild(
+          // Calculate the scheduled date based on the day of week and current week start
+          const dayIndex = DAYS_OF_WEEK.indexOf(scheduleEntry.day);
+          const scheduledDate = new Date(currentWeekStartDate);
+          scheduledDate.setDate(scheduledDate.getDate() + dayIndex);
+
+          await childrenService.addActivityToChild(
             entry.childId,
             entry.activityId,
-            'enrolled',
+            'planned',
+            scheduledDate,
             scheduleEntry.time
           );
         }
@@ -969,10 +975,10 @@ const WeeklyPlannerScreen = () => {
                   ]}
                   onPress={() => setSelectedChildTab(idx)}
                 >
-                  <ChildAvatar child={child} size={24} showBorder={false} />
+                  <ChildAvatar child={child} size={32} showBorder={selectedChildTab === idx} borderWidth={2} />
                   <Text style={[
                     styles.childTabText,
-                    selectedChildTab === idx && { color: childColorHex, fontWeight: '600' },
+                    selectedChildTab === idx && { color: ModernColors.primary, fontWeight: '600' },
                   ]}>
                     {child.name}
                   </Text>
@@ -1959,7 +1965,7 @@ const WeeklyPlannerScreen = () => {
                     key={child.id}
                     style={{ marginLeft: idx > 0 ? -8 : 0 }}
                   >
-                    <ChildAvatar child={child} size={32} showBorder={true} borderWidth={2} />
+                    <ChildAvatar child={child} size={36} showBorder={true} borderWidth={3} />
                   </View>
                 ))}
               </View>
