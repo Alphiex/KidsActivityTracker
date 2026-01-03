@@ -32,16 +32,16 @@ import { useAppSelector, useAppDispatch } from '../store';
 import { selectSelectedChildIds, selectAllChildren } from '../store/slices/childrenSlice';
 import {
   fetchChildFavorites,
-  fetchChildWaitlist,
+  fetchChildWatching,
   removeChildFavorite,
   addChildFavorite,
-  removeFromChildWaitlist,
+  removeChildWatching,
   selectFavoritesByChild,
-  selectWaitlistByChild,
+  selectWatchingByChild,
   selectFavoritesLoading,
-  selectWaitlistLoading,
+  selectWatchingLoading,
 } from '../store/slices/childFavoritesSlice';
-import { ChildWaitlistEntry } from '../services/childFavoritesService';
+import { ChildWatching } from '../services/childFavoritesService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -62,43 +62,33 @@ const FavoritesScreenModern: React.FC = () => {
   const selectedChildIds = React.useMemo(() => rawSelectedChildIds || [], [rawSelectedChildIds]);
   const allChildren = useAppSelector(selectAllChildren);
   const favoritesByChild = useAppSelector(selectFavoritesByChild);
-  const waitlistByChild = useAppSelector(selectWaitlistByChild);
+  const watchingByChild = useAppSelector(selectWatchingByChild);
   const favoritesLoading = useAppSelector(selectFavoritesLoading);
-  const waitlistLoading = useAppSelector(selectWaitlistLoading);
+  const watchingLoading = useAppSelector(selectWatchingLoading);
 
-  const loading = favoritesLoading || waitlistLoading;
+  const loading = favoritesLoading || watchingLoading;
 
-  // Derive watching and available entries from Redux waitlist data
-  const { watchingEntries, availableEntries, closedCount } = React.useMemo(() => {
-    const allWaitlistEntries: ChildWaitlistEntry[] = [];
+  // Derive watching entries from Redux watching data
+  const watchingEntries = React.useMemo(() => {
+    const allWatchingEntries: ChildWatching[] = [];
 
-    // Collect waitlist entries from all selected children
+    // Collect watching entries from all selected children
     for (const childId of selectedChildIds) {
-      const childWaitlist = waitlistByChild[childId] || [];
-      for (const entry of childWaitlist) {
+      const childWatching = watchingByChild[childId] || [];
+      for (const entry of childWatching) {
         // Deduplicate by activityId (activity may be watched by multiple children)
-        if (!allWaitlistEntries.some(e => e.activityId === entry.activityId)) {
-          allWaitlistEntries.push(entry);
+        if (!allWatchingEntries.some(e => e.activityId === entry.activityId)) {
+          allWatchingEntries.push(entry);
         }
       }
     }
 
-    // Separate by availability status
-    const watching = allWaitlistEntries.filter(e => {
-      const spots = e.activity?.spotsAvailable;
-      return spots === undefined || spots === null || spots === 0;
-    });
+    return allWatchingEntries;
+  }, [watchingByChild, selectedChildIds]);
 
-    const available = allWaitlistEntries.filter(e => {
-      const spots = e.activity?.spotsAvailable;
-      return spots !== undefined && spots !== null && spots > 0;
-    });
-
-    // Count closed activities (those with registrationStatus 'Closed' if available)
-    const closed = 0; // Note: ChildWaitlistEntry doesn't have registrationStatus
-
-    return { watchingEntries: watching, availableEntries: available, closedCount: closed };
-  }, [waitlistByChild, selectedChildIds]);
+  // Placeholder for waiting list (activities with Waitlist status) - to be implemented
+  const availableEntries: ChildWatching[] = [];
+  const closedCount = 0;
 
   // Get unique favorited activities (deduplicated across children) for flat display
   const allFavoriteActivities: Activity[] = React.useMemo(() => {
@@ -159,10 +149,10 @@ const FavoritesScreenModern: React.FC = () => {
 
   const loadData = useCallback(async (forceRefresh: boolean = false) => {
     try {
-      // Fetch child-centric favorites and waitlist via Redux
+      // Fetch child-centric favorites and watching via Redux
       if (selectedChildIds.length > 0) {
         dispatch(fetchChildFavorites(selectedChildIds));
-        dispatch(fetchChildWaitlist(selectedChildIds));
+        dispatch(fetchChildWatching(selectedChildIds));
       }
     } catch (error) {
       console.error('[FavoritesScreen] Error loading data:', error);
@@ -213,21 +203,21 @@ const FavoritesScreenModern: React.FC = () => {
     }
   };
 
-  const handleRemoveFromWaitlist = async (activityId: string) => {
+  const handleRemoveFromWatching = async (activityId: string) => {
     Alert.alert(
       'Stop Watching',
-      'Are you sure you want to stop watching this activity for availability?',
+      'Are you sure you want to stop watching this activity for notifications?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            // Remove from waitlist for all selected children who have this activity
+            // Remove from watching for all selected children who have this activity
             for (const childId of selectedChildIds) {
-              const childWaitlist = waitlistByChild[childId] || [];
-              if (childWaitlist.some(e => e.activityId === activityId)) {
-                dispatch(removeFromChildWaitlist({ childId, activityId }));
+              const childWatching = watchingByChild[childId] || [];
+              if (childWatching.some(e => e.activityId === activityId)) {
+                dispatch(removeChildWatching({ childId, activityId }));
               }
             }
             syncWaitlistCount();
@@ -241,7 +231,7 @@ const FavoritesScreenModern: React.FC = () => {
     navigation.navigate('ActivityDetail', { activity });
   };
 
-  const handleWaitlistActivityPress = async (entry: ChildWaitlistEntry) => {
+  const handleWatchingActivityPress = async (entry: ChildWatching) => {
     try {
       const activity = await activityService.getActivityDetails(entry.activityId);
       if (activity) {
@@ -255,14 +245,14 @@ const FavoritesScreenModern: React.FC = () => {
     }
   };
 
-  const handleRegister = (entry: ChildWaitlistEntry) => {
+  const handleRegister = (entry: ChildWatching) => {
     const url = entry.activity?.directRegistrationUrl || entry.activity?.registrationUrl;
     if (url) {
       Linking.openURL(url).catch(() => {
-        handleWaitlistActivityPress(entry);
+        handleWatchingActivityPress(entry);
       });
     } else {
-      handleWaitlistActivityPress(entry);
+      handleWatchingActivityPress(entry);
     }
   };
 
@@ -308,10 +298,10 @@ const FavoritesScreenModern: React.FC = () => {
     );
   };
 
-  const renderWatchingItem = ({ item }: { item: ChildWaitlistEntry }) => (
+  const renderWatchingItem = ({ item }: { item: ChildWatching }) => (
     <TouchableOpacity
       style={styles.watchingCard}
-      onPress={() => handleWaitlistActivityPress(item)}
+      onPress={() => handleWatchingActivityPress(item)}
       activeOpacity={0.8}
     >
       <View style={styles.watchingContent}>
@@ -328,7 +318,7 @@ const FavoritesScreenModern: React.FC = () => {
           </View>
           <TouchableOpacity
             style={styles.removeButton}
-            onPress={() => handleRemoveFromWaitlist(item.activityId)}
+            onPress={() => handleRemoveFromWatching(item.activityId)}
           >
             <Icon name="bell-off" size={20} color={ModernColors.textSecondary} />
           </TouchableOpacity>
@@ -346,7 +336,7 @@ const FavoritesScreenModern: React.FC = () => {
           <View style={styles.detailRow}>
             <Icon name="calendar-clock" size={14} color={ModernColors.textSecondary} />
             <Text style={styles.detailText}>
-              Watching since {formatDate(item.joinedAt)}
+              Watching since {formatDate(item.createdAt)}
             </Text>
           </View>
           {item.activity?.cost !== undefined && item.activity.cost !== null && (
@@ -361,8 +351,8 @@ const FavoritesScreenModern: React.FC = () => {
 
         <View style={styles.watchingFooter}>
           <View style={styles.waitingBadge}>
-            <Icon name="clock-outline" size={14} color="#F59E0B" />
-            <Text style={styles.waitingBadgeText}>Waiting for spots</Text>
+            <Icon name="bell-ring" size={14} color="#F59E0B" />
+            <Text style={styles.waitingBadgeText}>Watching for notifications</Text>
           </View>
           {item.activity?.spotsAvailable !== undefined && (
             <Text style={styles.spotsText}>
@@ -374,10 +364,10 @@ const FavoritesScreenModern: React.FC = () => {
     </TouchableOpacity>
   );
 
-  const renderAvailableItem = ({ item }: { item: ChildWaitlistEntry }) => (
+  const renderAvailableItem = ({ item }: { item: ChildWatching }) => (
     <TouchableOpacity
       style={[styles.watchingCard, styles.availableCard]}
-      onPress={() => handleWaitlistActivityPress(item)}
+      onPress={() => handleWatchingActivityPress(item)}
       activeOpacity={0.8}
     >
       <View style={styles.availableBanner}>
@@ -399,7 +389,7 @@ const FavoritesScreenModern: React.FC = () => {
           </View>
           <TouchableOpacity
             style={styles.removeButton}
-            onPress={() => handleRemoveFromWaitlist(item.activityId)}
+            onPress={() => handleRemoveFromWatching(item.activityId)}
           >
             <Icon name="close" size={20} color={ModernColors.textSecondary} />
           </TouchableOpacity>

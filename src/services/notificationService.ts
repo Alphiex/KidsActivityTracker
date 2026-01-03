@@ -132,8 +132,14 @@ class NotificationService {
   async getWaitlist(): Promise<WaitlistEntry[]> {
     try {
       const response: any = await apiClient.get('/notifications/waitlist');
-      return response.waitlist;
-    } catch (error) {
+      return response.waitlist || [];
+    } catch (error: any) {
+      // 404 is expected if the endpoint isn't implemented yet - just return empty
+      const status = error.response?.status;
+      if (status === 404) {
+        // Silently return empty array - endpoint not implemented
+        return [];
+      }
       console.error('[NotificationService] Failed to get waitlist:', error);
       return [];
     }

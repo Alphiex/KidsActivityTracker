@@ -99,9 +99,10 @@ model Activity {
   snapshots              ActivitySnapshot[]
   waitlistEntries        WaitlistEntry[]
 
-  // Child-centric favorites and waitlist
+  // Child-centric favorites, waitlist, and watching
   childFavorites         ChildFavorite[]
   childWaitlistEntries   ChildWaitlistEntry[]
+  childWatching          ChildWatching[]
 
   // AI semantic search fields
   searchText             String?                // Pre-computed search text for embeddings
@@ -289,9 +290,10 @@ model Child {
   skillProgress   ChildSkillProgress[]
   preferences     ChildPreferences?      // Child-specific activity preferences
 
-  // Child-centric favorites, waitlist, and notifications
+  // Child-centric favorites, waitlist, watching, and notifications
   childFavorites            ChildFavorite[]                  // Activities favorited for this child
   childWaitlistEntries      ChildWaitlistEntry[]             // Waitlist entries for this child
+  childWatching             ChildWatching[]                  // Activities being watched for notifications
   notificationPreferences   ChildNotificationPreferences?    // Notification settings for this child
 
   @@index([userId])
@@ -379,6 +381,27 @@ model ChildWaitlistEntry {
   activityId String
   createdAt  DateTime  @default(now())
   notifiedAt DateTime? // When user was notified that spots became available
+
+  child      Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, activityId])
+  @@index([childId])
+  @@index([activityId])
+}
+
+// Child-specific watching entries for activity notifications
+// Subscribe to get notified about activity changes (capacity, price, new sessions)
+model ChildWatching {
+  id              String    @id @default(uuid())
+  childId         String
+  activityId      String
+  createdAt       DateTime  @default(now())
+
+  // Notification triggers (what to notify about)
+  notifyAlmostFull  Boolean  @default(true)   // Alert when few spots remain
+  notifyPriceChange Boolean  @default(true)   // Alert on price changes
+  notifyNewSessions Boolean  @default(false)  // Alert on new session dates
 
   child      Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
   activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)

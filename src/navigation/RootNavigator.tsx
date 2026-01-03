@@ -12,7 +12,7 @@ import { useAppSelector, useAppDispatch } from '../store';
 import { loadAuthState } from '../store/slices/authSlice';
 import { fetchSubscription } from '../store/slices/subscriptionSlice';
 import { fetchChildren } from '../store/slices/childrenSlice';
-import { fetchChildFavorites, fetchChildWaitlist } from '../store/slices/childFavoritesSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { fetchChildActivities } from '../store/slices/childActivitiesSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 import { pushNotificationService } from '../services/pushNotificationService';
@@ -437,15 +437,15 @@ const RootNavigator = () => {
       if (authResult.payload) {
         console.log('User authenticated via Firebase');
 
-        // Fetch children and their favorites/waitlists in parallel
+        // Fetch children and their favorites/watching in parallel
         try {
           const childrenResult = await dispatch(fetchChildren());
           if (childrenResult.payload && Array.isArray(childrenResult.payload)) {
             const childIds = childrenResult.payload.map((c: any) => c.id);
             if (childIds.length > 0) {
-              // Fetch favorites, waitlists, and activities for all children
+              // Fetch favorites, watching, and activities for all children
               dispatch(fetchChildFavorites(childIds));
-              dispatch(fetchChildWaitlist(childIds));
+              dispatch(fetchChildWatching(childIds));
               // Fetch calendar activities for each child
               childIds.forEach((childId: string) => {
                 dispatch(fetchChildActivities(childId));

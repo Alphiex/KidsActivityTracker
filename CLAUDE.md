@@ -68,6 +68,17 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 export ANDROID_SDK_ROOT=/opt/homebrew/share/android-commandlinetools
 ```
 
+## Known Issues / TODOs
+
+### RevenueCat Configuration (TODO)
+- **Issue**: RevenueCat throws errors on app load about missing offerings
+- **Products exist**: Monthly (`prodd665eef953`), Yearly (`prod041b48aa16`)
+- **Fix needed**: In RevenueCat dashboard (https://app.revenuecat.com/projects/7814d1ec):
+  1. Ensure products are synced (green checkmarks in Products tab)
+  2. Create an offering and set it as "Current"
+  3. Add Monthly package (`$rc_monthly`) → `prodd665eef953`
+  4. Add Annual package (`$rc_annual`) → `prod041b48aa16`
+
 ## Code Quality Rules
 
 ### Before Committing Code

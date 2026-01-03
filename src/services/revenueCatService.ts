@@ -138,8 +138,20 @@ class RevenueCatService {
       // Pre-fetch offerings
       await this.refreshOfferings();
     } catch (error: any) {
-      console.error('[RevenueCat] Failed to initialize:', error.message);
-      this.state.isConfigured = false;
+      // Check if this is just a configuration issue (no products)
+      const isConfigurationError = error.message?.includes('configuration') ||
+        error.message?.includes('offerings') ||
+        error.message?.includes('products');
+
+      if (isConfigurationError && __DEV__) {
+        // In development, this is expected - just log info level
+        console.log('[RevenueCat] SDK configured but products not set up in dashboard');
+        // Still mark as configured since the SDK itself is working
+        this.state.isConfigured = true;
+      } else {
+        console.error('[RevenueCat] Failed to initialize:', error.message);
+        this.state.isConfigured = false;
+      }
     } finally {
       this.state.isInitializing = false;
     }
@@ -193,11 +205,29 @@ class RevenueCatService {
       const offerings = await Purchases.getOfferings();
       this.state.offerings = offerings;
       this.notifyListeners();
+
+      // Debug logging to diagnose offerings issues
+      if (__DEV__) {
+        console.log('[RevenueCat] Offerings response:', {
+          currentOffering: offerings.current?.identifier,
+          availablePackages: offerings.current?.availablePackages?.map(p => ({
+            id: p.identifier,
+            product: p.product?.identifier,
+          })),
+          allOfferings: Object.keys(offerings.all || {}),
+        });
+      }
+
       console.log('[RevenueCat] Offerings loaded:', offerings.current?.identifier);
       return offerings;
     } catch (error: any) {
-      console.error('[RevenueCat] Failed to get offerings:', error.message);
-      throw new Error('Failed to load subscription options');
+      // This is expected during development when no products are configured
+      if (__DEV__) {
+        console.log('[RevenueCat] Offerings not available (no products configured in dashboard)');
+      } else {
+        console.warn('[RevenueCat] Failed to get offerings:', error.message);
+      }
+      return null;
     }
   }
 

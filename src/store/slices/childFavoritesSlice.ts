@@ -3,7 +3,7 @@
  * Manages favorites and waitlist entries on a per-child basis
  */
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { childFavoritesService, ChildFavorite, ChildWaitlistEntry, ActivityChildStatus } from '../../services/childFavoritesService';
+import { childFavoritesService, ChildFavorite, ChildWaitlistEntry, ChildWatching, ActivityChildStatus } from '../../services/childFavoritesService';
 import { RootState } from '../index';
 
 interface ChildFavoritesState {
@@ -18,6 +18,12 @@ interface ChildFavoritesState {
   waitlistByChild: Record<string, ChildWaitlistEntry[]>;
   waitlistLoading: boolean;
   waitlistError: string | null;
+
+  // Watching (notifications)
+  watching: ChildWatching[];
+  watchingByChild: Record<string, ChildWatching[]>;
+  watchingLoading: boolean;
+  watchingError: string | null;
 
   // Activity status cache (for UI state)
   activityStatus: Record<string, ActivityChildStatus[]>;
@@ -37,6 +43,11 @@ const initialState: ChildFavoritesState = {
   waitlistByChild: {},
   waitlistLoading: false,
   waitlistError: null,
+
+  watching: [],
+  watchingByChild: {},
+  watchingLoading: false,
+  watchingError: null,
 
   activityStatus: {},
   statusLoading: false,
@@ -59,6 +70,18 @@ const organizeFavoritesByChild = (favorites: ChildFavorite[]): Record<string, Ch
 // Helper to organize waitlist by child
 const organizeWaitlistByChild = (entries: ChildWaitlistEntry[]): Record<string, ChildWaitlistEntry[]> => {
   const byChild: Record<string, ChildWaitlistEntry[]> = {};
+  for (const entry of entries) {
+    if (!byChild[entry.childId]) {
+      byChild[entry.childId] = [];
+    }
+    byChild[entry.childId].push(entry);
+  }
+  return byChild;
+};
+
+// Helper to organize watching by child
+const organizeWatchingByChild = (entries: ChildWatching[]): Record<string, ChildWatching[]> => {
+  const byChild: Record<string, ChildWatching[]> = {};
   for (const entry of entries) {
     if (!byChild[entry.childId]) {
       byChild[entry.childId] = [];
@@ -152,6 +175,45 @@ export const leaveChildWaitlist = createAsyncThunk(
   }
 );
 
+// Fetch watching for multiple children
+export const fetchChildWatching = createAsyncThunk(
+  'childFavorites/fetchWatching',
+  async (childIds: string[]) => {
+    const watching = await childFavoritesService.getWatchingForChildren(childIds);
+    return watching;
+  }
+);
+
+// Add watching for a child
+export const addChildWatching = createAsyncThunk(
+  'childFavorites/addWatching',
+  async ({ childId, activityId }: { childId: string; activityId: string }) => {
+    console.log('[childFavoritesSlice] addChildWatching called:', { childId, activityId });
+    try {
+      await childFavoritesService.addWatching(childId, activityId);
+      console.log('[childFavoritesSlice] addChildWatching API SUCCESS');
+    } catch (error: any) {
+      console.error('[childFavoritesSlice] addChildWatching API FAILED:', error?.message);
+    }
+    return { childId, activityId };
+  }
+);
+
+// Remove watching for a child
+export const removeChildWatching = createAsyncThunk(
+  'childFavorites/removeWatching',
+  async ({ childId, activityId }: { childId: string; activityId: string }) => {
+    console.log('[childFavoritesSlice] removeChildWatching called:', { childId, activityId });
+    try {
+      await childFavoritesService.removeWatching(childId, activityId);
+      console.log('[childFavoritesSlice] removeChildWatching API SUCCESS');
+    } catch (error: any) {
+      console.error('[childFavoritesSlice] removeChildWatching API FAILED:', error?.message);
+    }
+    return { childId, activityId };
+  }
+);
+
 // Fetch activity status for multiple children
 export const fetchActivityStatus = createAsyncThunk(
   'childFavorites/fetchActivityStatus',
@@ -204,12 +266,28 @@ const childFavoritesSlice = createSlice({
         }
       }
     },
+    // Optimistically update watching status
+    setOptimisticWatching: (state, action: PayloadAction<{ childId: string; activityId: string; isWatching: boolean }>) => {
+      const { activityId, childId, isWatching } = action.payload;
+      const statusList = state.activityStatus[activityId];
+      if (statusList) {
+        const statusIndex = statusList.findIndex(s => s.childId === childId);
+        if (statusIndex !== -1) {
+          statusList[statusIndex].isWatching = isWatching;
+        }
+      }
+    },
+    clearWatchingError: (state) => {
+      state.watchingError = null;
+    },
     // Clear all cached data (on logout)
     clearAllChildFavorites: (state) => {
       state.favorites = [];
       state.favoritesByChild = {};
       state.waitlist = [];
       state.waitlistByChild = {};
+      state.watching = [];
+      state.watchingByChild = {};
       state.activityStatus = {};
       state.lastFetch = null;
     },
@@ -431,6 +509,115 @@ const childFavoritesSlice = createSlice({
         state.waitlistError = action.error.message || 'Failed to leave waitlist';
       })
 
+      // Fetch watching
+      .addCase(fetchChildWatching.pending, (state) => {
+        state.watchingLoading = true;
+        state.watchingError = null;
+      })
+      .addCase(fetchChildWatching.fulfilled, (state, action) => {
+        state.watchingLoading = false;
+        state.watching = action.payload;
+        state.watchingByChild = organizeWatchingByChild(action.payload);
+      })
+      .addCase(fetchChildWatching.rejected, (state, action) => {
+        state.watchingLoading = false;
+        state.watchingError = action.error.message || 'Failed to fetch watching';
+      })
+
+      // Add watching - optimistic update
+      .addCase(addChildWatching.pending, (state, action) => {
+        const { childId, activityId } = action.meta.arg;
+        console.log('[childFavoritesSlice REDUCER] addChildWatching.pending:', { childId, activityId });
+        const statusList = state.activityStatus[activityId];
+        if (statusList) {
+          const statusIndex = statusList.findIndex(s => s.childId === childId);
+          if (statusIndex !== -1) {
+            statusList[statusIndex].isWatching = true;
+          }
+        }
+        // ALSO add to watching array for selector to pick up
+        const alreadyExists = state.watching.some(
+          w => w.childId === childId && w.activityId === activityId
+        );
+        console.log('[childFavoritesSlice REDUCER] alreadyExists:', alreadyExists, 'watching length before:', state.watching.length);
+        if (!alreadyExists) {
+          const optimisticWatching = {
+            id: `temp-${childId}-${activityId}`,
+            childId,
+            activityId,
+            childName: '',
+            notifyAlmostFull: true,
+            notifyPriceChange: true,
+            notifyNewSessions: false,
+            createdAt: new Date().toISOString(),
+            activity: {
+              id: activityId,
+              name: '',
+              category: '',
+              cost: 0,
+            },
+          };
+          state.watching.push(optimisticWatching as any);
+          console.log('[childFavoritesSlice REDUCER] Added to watching, new length:', state.watching.length);
+          // Update watchingByChild
+          if (!state.watchingByChild[childId]) {
+            state.watchingByChild[childId] = [];
+          }
+          state.watchingByChild[childId].push(optimisticWatching as any);
+        }
+      })
+      .addCase(addChildWatching.fulfilled, (state, action) => {
+        // State already updated optimistically
+      })
+      .addCase(addChildWatching.rejected, (state, action) => {
+        const { childId, activityId } = action.meta.arg;
+        const statusList = state.activityStatus[activityId];
+        if (statusList) {
+          const statusIndex = statusList.findIndex(s => s.childId === childId);
+          if (statusIndex !== -1) {
+            statusList[statusIndex].isWatching = false;
+          }
+        }
+        // Remove from watching array
+        state.watching = state.watching.filter(
+          w => !(w.childId === childId && w.activityId === activityId)
+        );
+        if (state.watchingByChild[childId]) {
+          state.watchingByChild[childId] = state.watchingByChild[childId].filter(
+            w => w.activityId !== activityId
+          );
+        }
+        state.watchingError = action.error.message || 'Failed to add watching';
+      })
+
+      // Remove watching - optimistic update
+      .addCase(removeChildWatching.pending, (state, action) => {
+        const { childId, activityId } = action.meta.arg;
+        const statusList = state.activityStatus[activityId];
+        if (statusList) {
+          const statusIndex = statusList.findIndex(s => s.childId === childId);
+          if (statusIndex !== -1) {
+            statusList[statusIndex].isWatching = false;
+          }
+        }
+        // Remove from watching list
+        state.watching = state.watching.filter(
+          w => !(w.childId === childId && w.activityId === activityId)
+        );
+        // Update watchingByChild
+        if (state.watchingByChild[childId]) {
+          state.watchingByChild[childId] = state.watchingByChild[childId].filter(
+            w => w.activityId !== activityId
+          );
+        }
+      })
+      .addCase(removeChildWatching.fulfilled, (state, action) => {
+        // State already updated optimistically
+      })
+      .addCase(removeChildWatching.rejected, (state, action) => {
+        state.watchingError = action.error.message || 'Failed to remove watching';
+      })
+
       // Fetch activity status
       .addCase(fetchActivityStatus.pending, (state) => {
         state.statusLoading = true;
@@ -455,8 +642,10 @@ const childFavoritesSlice = createSlice({
 export const {
   clearFavoritesError,
   clearWaitlistError,
+  clearWatchingError,
   setOptimisticFavorite,
   setOptimisticWaitlist,
+  setOptimisticWatching,
   clearAllChildFavorites,
 } = childFavoritesSlice.actions;
 
@@ -473,6 +662,11 @@ export const selectWaitlistByChild = (state: RootState) => state.childFavorites.
 export const selectWaitlistLoading = (state: RootState) => state.childFavorites.waitlistLoading;
 export const selectWaitlistError = (state: RootState) => state.childFavorites.waitlistError;
 
+export const selectAllChildWatching = (state: RootState) => state.childFavorites.watching;
+export const selectWatchingByChild = (state: RootState) => state.childFavorites.watchingByChild;
+export const selectWatchingLoading = (state: RootState) => state.childFavorites.watchingLoading;
+export const selectWatchingError = (state: RootState) => state.childFavorites.watchingError;
+
 export const selectActivityStatus = (activityId: string) => (state: RootState) =>
   state.childFavorites.activityStatus[activityId] || [];
 export const selectStatusLoading = (state: RootState) => state.childFavorites.statusLoading;
@@ -486,6 +680,10 @@ export const selectChildFavorites = (childId: string) => (state: RootState) =>
 // Get waitlist for a specific child
 export const selectChildWaitlistEntries = (childId: string) => (state: RootState) =>
   state.childFavorites.waitlistByChild[childId] || [];
+
+// Get watching for a specific child
+export const selectChildWatchingEntries = (childId: string) => (state: RootState) =>
+  state.childFavorites.watchingByChild[childId] || [];
 
 // Check if activity is favorited by any selected child
 export const selectIsAnyChildFavorited = (activityId: string, selectedChildIds: string[]) => (state: RootState) => {
@@ -505,6 +703,18 @@ export const selectIsAnyChildOnWaitlist = (activityId: string, selectedChildIds:
   for (const childId of selectedChildIds) {
     const childWaitlist = waitlistByChild[childId] || [];
     if (childWaitlist.some(e => e.activityId === activityId)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Check if activity is being watched by any selected child
+export const selectIsAnyChildWatching = (activityId: string, selectedChildIds: string[]) => (state: RootState) => {
+  const { watchingByChild } = state.childFavorites;
+  for (const childId of selectedChildIds) {
+    const childWatching = watchingByChild[childId] || [];
+    if (childWatching.some(w => w.activityId === activityId)) {
       return true;
     }
   }
@@ -577,6 +787,24 @@ export const selectChildrenOnWaitlistWithDetails = (activityId: string) => (stat
   console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] filtered waitlist:', waitlist.length, waitlist.map(w => w.childId));
 
   return waitlist
+    .map(w => {
+      const child = children.find(c => c.id === w.childId);
+      return child ? { childId: child.id, name: child.name, colorId: child.colorId || 1 } : null;
+    })
+    .filter((c): c is ChildAssignment => c !== null);
+};
+
+// Get children (with full details including colorId) who are watching an activity (notifications)
+export const selectChildrenWatchingWithDetails = (activityId: string) => (state: RootState): ChildAssignment[] => {
+  const allWatching = state.childFavorites.watching;
+  const watching = allWatching.filter(w => w.activityId === activityId);
+  const children = state.children.children;
+
+  console.log('[SELECTOR selectChildrenWatchingWithDetails] activityId:', activityId);
+  console.log('[SELECTOR selectChildrenWatchingWithDetails] total watching entries:', allWatching.length);
+  console.log('[SELECTOR selectChildrenWatchingWithDetails] filtered watching:', watching.length, watching.map(w => w.childId));
+
+  return watching
     .map(w => {
       const child = children.find(c => c.id === w.childId);
       return child ? { childId: child.id, name: child.name, colorId: child.colorId || 1 } : null;

@@ -410,7 +410,7 @@ const DashboardScreenModern = () => {
 
   const loadDashboardData = async () => {
     try {
-      setLoading(true);
+      setReloading(true);
       console.log('Starting to load dashboard data...');
 
       // Load all data in parallel
@@ -436,7 +436,7 @@ const DashboardScreenModern = () => {
       console.error('Error loading dashboard data:', error);
     } finally {
       if (isMountedRef.current) {
-        setLoading(false);
+        setReloading(false);
       }
     }
   };
@@ -2326,19 +2326,6 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   // Sponsor section styles
-  sponsoredBadge: {
-    backgroundColor: '#E8638B',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginLeft: 10,
-  },
-  sponsoredBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFF',
-    letterSpacing: 0.5,
-  },
   sponsoredBadge: {
     position: 'absolute',
     top: 10,

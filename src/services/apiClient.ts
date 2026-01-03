@@ -94,11 +94,17 @@ class ApiClient {
       console.log('[API] GET', url, 'response:', response.status);
       return response.data;
     } catch (error: any) {
-      console.error('[API] GET', url, 'error:', {
-        status: error?.response?.status,
-        data: error?.response?.data,
-        message: error?.message,
-      });
+      // Don't log 404s as errors - they're often expected (missing endpoints)
+      const status = error?.response?.status;
+      if (status === 404) {
+        console.log('[API] GET', url, '- endpoint not found (404)');
+      } else {
+        console.error('[API] GET', url, 'error:', {
+          status,
+          data: error?.response?.data,
+          message: error?.message,
+        });
+      }
       throw error;
     }
   }

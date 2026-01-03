@@ -8,7 +8,7 @@ import { useAppSelector } from '../store';
 import { selectAllChildren } from '../store/slices/childrenSlice';
 import {
   selectChildrenWhoFavoritedWithDetails,
-  selectChildrenOnWaitlistWithDetails,
+  selectChildrenWatchingWithDetails,
   ChildAssignment,
 } from '../store/slices/childFavoritesSlice';
 import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
@@ -33,7 +33,7 @@ export interface ActivityChildStatus {
 export function useActivityChildStatus(activityId: string): ActivityChildStatus {
   const allChildren = useAppSelector(selectAllChildren);
   const favoriteChildren = useAppSelector(selectChildrenWhoFavoritedWithDetails(activityId));
-  const watchingChildren = useAppSelector(selectChildrenOnWaitlistWithDetails(activityId));
+  const watchingChildren = useAppSelector(selectChildrenWatchingWithDetails(activityId));
   const calendarChildIds = useAppSelector(selectActivityChildren(activityId));
 
   // Debug logging

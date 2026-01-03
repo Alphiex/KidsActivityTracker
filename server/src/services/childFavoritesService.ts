@@ -513,6 +513,274 @@ class ChildFavoritesService {
     }));
   }
 
+  // ============= WATCHING (ACTIVITY NOTIFICATIONS) =============
+
+  /**
+   * Get all watching entries for a specific child
+   */
+  async getChildWatching(childId: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId, isActive: true }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    const entries = await prisma.childWatching.findMany({
+      where: { childId },
+      include: {
+        activity: {
+          include: {
+            provider: true,
+            location: true,
+            activityType: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return entries.map(entry => ({
+      id: entry.id,
+      childId: entry.childId,
+      activityId: entry.activityId,
+      createdAt: entry.createdAt,
+      notifyAlmostFull: entry.notifyAlmostFull,
+      notifyPriceChange: entry.notifyPriceChange,
+      notifyNewSessions: entry.notifyNewSessions,
+      activity: {
+        id: entry.activity.id,
+        name: entry.activity.name,
+        category: entry.activity.category,
+        provider: entry.activity.provider?.name,
+        location: entry.activity.location?.name,
+        locationCity: entry.activity.location?.city,
+        spotsAvailable: entry.activity.spotsAvailable,
+        totalSpots: entry.activity.totalSpots,
+        cost: entry.activity.cost,
+        dateStart: entry.activity.dateStart,
+        dateEnd: entry.activity.dateEnd,
+        startTime: entry.activity.startTime,
+        endTime: entry.activity.endTime,
+        dayOfWeek: entry.activity.dayOfWeek,
+        ageMin: entry.activity.ageMin,
+        ageMax: entry.activity.ageMax,
+        registrationStatus: entry.activity.registrationStatus,
+        registrationUrl: entry.activity.registrationUrl,
+        directRegistrationUrl: entry.activity.directRegistrationUrl,
+        activityType: entry.activity.activityType?.name,
+        isActive: entry.activity.isActive
+      }
+    }));
+  }
+
+  /**
+   * Get watching entries for multiple children
+   */
+  async getWatchingForChildren(childIds: string[], userId: string) {
+    // Verify all children belong to user
+    const children = await prisma.child.findMany({
+      where: { id: { in: childIds }, userId, isActive: true }
+    });
+
+    if (children.length !== childIds.length) {
+      throw new Error('One or more children not found');
+    }
+
+    const entries = await prisma.childWatching.findMany({
+      where: { childId: { in: childIds } },
+      include: {
+        child: { select: { id: true, name: true, colorId: true } },
+        activity: {
+          include: {
+            provider: true,
+            location: true,
+            activityType: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return entries.map(entry => ({
+      id: entry.id,
+      childId: entry.childId,
+      childName: entry.child.name,
+      colorId: entry.child.colorId,
+      activityId: entry.activityId,
+      createdAt: entry.createdAt,
+      notifyAlmostFull: entry.notifyAlmostFull,
+      notifyPriceChange: entry.notifyPriceChange,
+      notifyNewSessions: entry.notifyNewSessions,
+      activity: {
+        id: entry.activity.id,
+        name: entry.activity.name,
+        category: entry.activity.category,
+        provider: entry.activity.provider?.name,
+        location: entry.activity.location?.name,
+        locationCity: entry.activity.location?.city,
+        spotsAvailable: entry.activity.spotsAvailable,
+        totalSpots: entry.activity.totalSpots,
+        cost: entry.activity.cost,
+        dateStart: entry.activity.dateStart,
+        dateEnd: entry.activity.dateEnd,
+        startTime: entry.activity.startTime,
+        endTime: entry.activity.endTime,
+        dayOfWeek: entry.activity.dayOfWeek,
+        ageMin: entry.activity.ageMin,
+        ageMax: entry.activity.ageMax,
+        registrationStatus: entry.activity.registrationStatus,
+        registrationUrl: entry.activity.registrationUrl,
+        directRegistrationUrl: entry.activity.directRegistrationUrl,
+        activityType: entry.activity.activityType?.name,
+        isActive: entry.activity.isActive
+      }
+    }));
+  }
+
+  /**
+   * Start watching an activity for a child
+   */
+  async addWatching(
+    childId: string,
+    activityId: string,
+    userId: string,
+    options?: {
+      notifyAlmostFull?: boolean;
+      notifyPriceChange?: boolean;
+      notifyNewSessions?: boolean;
+    }
+  ) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId, isActive: true }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    // Verify activity exists
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId }
+    });
+
+    if (!activity) {
+      throw new Error('Activity not found');
+    }
+
+    // Check if already watching
+    const existing = await prisma.childWatching.findUnique({
+      where: {
+        childId_activityId: { childId, activityId }
+      }
+    });
+
+    if (existing) {
+      throw new Error('Already watching this activity');
+    }
+
+    const entry = await prisma.childWatching.create({
+      data: {
+        childId,
+        activityId,
+        notifyAlmostFull: options?.notifyAlmostFull ?? true,
+        notifyPriceChange: options?.notifyPriceChange ?? true,
+        notifyNewSessions: options?.notifyNewSessions ?? false
+      },
+      include: {
+        activity: true
+      }
+    });
+
+    return {
+      id: entry.id,
+      childId: entry.childId,
+      activityId: entry.activityId,
+      createdAt: entry.createdAt,
+      notifyAlmostFull: entry.notifyAlmostFull,
+      notifyPriceChange: entry.notifyPriceChange,
+      notifyNewSessions: entry.notifyNewSessions,
+      activityName: entry.activity.name
+    };
+  }
+
+  /**
+   * Stop watching an activity for a child
+   */
+  async removeWatching(childId: string, activityId: string, userId: string) {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId, isActive: true }
+    });
+
+    if (!child) {
+      throw new Error('Child not found');
+    }
+
+    const result = await prisma.childWatching.deleteMany({
+      where: { childId, activityId }
+    });
+
+    if (result.count === 0) {
+      throw new Error('Not watching this activity');
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Check if child is watching an activity
+   */
+  async isWatching(childId: string, activityId: string, userId: string): Promise<boolean> {
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId, isActive: true }
+    });
+
+    if (!child) {
+      return false;
+    }
+
+    const entry = await prisma.childWatching.findUnique({
+      where: {
+        childId_activityId: { childId, activityId }
+      }
+    });
+
+    return !!entry;
+  }
+
+  /**
+   * Get watching status for an activity across multiple children
+   */
+  async getWatchingStatusForChildren(activityId: string, childIds: string[], userId: string) {
+    // Verify all children belong to user
+    const children = await prisma.child.findMany({
+      where: { id: { in: childIds }, userId, isActive: true },
+      select: { id: true, name: true, colorId: true }
+    });
+
+    const entries = await prisma.childWatching.findMany({
+      where: {
+        activityId,
+        childId: { in: childIds }
+      },
+      select: { childId: true }
+    });
+
+    const watchingChildIds = new Set(entries.map(e => e.childId));
+
+    return children.map(child => ({
+      childId: child.id,
+      childName: child.name,
+      colorId: child.colorId,
+      isWatching: watchingChildIds.has(child.id)
+    }));
+  }
+
   // ============= NOTIFICATION PREFERENCES =============
 
   /**
@@ -650,23 +918,33 @@ class ChildFavoritesService {
   }
 
   /**
-   * Get combined activity status (favorite + waitlist) for an activity
+   * Get combined activity status (favorite + waitlist + watching) for an activity
    */
   async getActivityStatusForChildren(activityId: string, childIds: string[], userId: string) {
-    const [favoriteStatus, waitlistStatus] = await Promise.all([
+    const [favoriteStatus, waitlistStatus, watchingStatus] = await Promise.all([
       this.getFavoriteStatusForChildren(activityId, childIds, userId),
-      this.getWaitlistStatusForChildren(activityId, childIds, userId)
+      this.getWaitlistStatusForChildren(activityId, childIds, userId),
+      this.getWatchingStatusForChildren(activityId, childIds, userId)
     ]);
 
     // Merge results
-    const statusMap = new Map<string, { childId: string; childName: string; isFavorited: boolean; isOnWaitlist: boolean }>();
+    const statusMap = new Map<string, {
+      childId: string;
+      childName: string;
+      colorId: number | null;
+      isFavorited: boolean;
+      isOnWaitlist: boolean;
+      isWatching: boolean;
+    }>();
 
     for (const fav of favoriteStatus) {
       statusMap.set(fav.childId, {
         childId: fav.childId,
         childName: fav.childName,
+        colorId: null,
         isFavorited: fav.isFavorited,
-        isOnWaitlist: false
+        isOnWaitlist: false,
+        isWatching: false
       });
     }
 
@@ -678,8 +956,27 @@ class ChildFavoritesService {
         statusMap.set(wl.childId, {
           childId: wl.childId,
           childName: wl.childName,
+          colorId: null,
           isFavorited: false,
-          isOnWaitlist: wl.isOnWaitlist
+          isOnWaitlist: wl.isOnWaitlist,
+          isWatching: false
+        });
+      }
+    }
+
+    for (const watch of watchingStatus) {
+      const existing = statusMap.get(watch.childId);
+      if (existing) {
+        existing.isWatching = watch.isWatching;
+        existing.colorId = watch.colorId;
+      } else {
+        statusMap.set(watch.childId, {
+          childId: watch.childId,
+          childName: watch.childName,
+          colorId: watch.colorId,
+          isFavorited: false,
+          isOnWaitlist: false,
+          isWatching: watch.isWatching
         });
       }
     }

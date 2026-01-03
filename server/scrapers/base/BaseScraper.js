@@ -1,6 +1,10 @@
 const { PrismaClient } = require('../../generated/prisma');
 const { mapActivityType, loadTypesCache } = require('../../utils/activityTypeMapper');
 const { findPotentialDuplicates, normalizeString } = require('../utils/stableIdGenerator');
+const https = require('https');
+
+// Google Maps API key from environment
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 /**
  * Abstract base class for all scrapers in the Kids Activity Tracker system.
@@ -483,6 +487,9 @@ class BaseScraper {
       for (const loc of newLocations) {
         locationMap.set(loc.name.toLowerCase(), loc);
       }
+
+      // Geocode newly created locations
+      await this.geocodeNewLocations(newLocations);
     }
 
     // Step 4: Process activities in batches
@@ -861,6 +868,95 @@ class BaseScraper {
     }
 
     return location;
+  }
+
+  /**
+   * Geocode an address using Google Maps API
+   * @param {string} address - The address to geocode
+   * @returns {Promise<{lat: number, lng: number, formattedAddress: string} | null>}
+   */
+  async geocodeAddress(address) {
+    if (!GOOGLE_MAPS_API_KEY) {
+      return null; // Skip if no API key
+    }
+
+    const encodedAddress = encodeURIComponent(address);
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAPS_API_KEY}&region=ca`;
+
+    return new Promise((resolve) => {
+      https.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            if (result.status === 'OK' && result.results.length > 0) {
+              const location = result.results[0].geometry.location;
+              resolve({
+                lat: location.lat,
+                lng: location.lng,
+                formattedAddress: result.results[0].formatted_address
+              });
+            } else {
+              resolve(null);
+            }
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      }).on('error', () => resolve(null));
+    });
+  }
+
+  /**
+   * Geocode newly created locations that don't have coordinates
+   * @param {Array} locations - Array of location records to geocode
+   * @returns {Promise<number>} - Number of locations geocoded
+   */
+  async geocodeNewLocations(locations) {
+    if (!GOOGLE_MAPS_API_KEY || !locations || locations.length === 0) {
+      return 0;
+    }
+
+    const locationsWithoutCoords = locations.filter(l => !l.latitude);
+    if (locationsWithoutCoords.length === 0) return 0;
+
+    console.log(`  🌍 Geocoding ${locationsWithoutCoords.length} new locations...`);
+    let geocoded = 0;
+
+    for (const location of locationsWithoutCoords) {
+      // Build address string
+      const addressParts = [
+        location.fullAddress || location.address || location.name,
+        location.city,
+        location.province,
+        'Canada'
+      ].filter(Boolean);
+
+      const address = addressParts.join(', ');
+      const result = await this.geocodeAddress(address);
+
+      if (result) {
+        await this.prisma.location.update({
+          where: { id: location.id },
+          data: {
+            latitude: result.lat,
+            longitude: result.lng,
+            fullAddress: result.formattedAddress
+          }
+        });
+        geocoded++;
+      }
+
+      // Rate limit: 50 req/sec limit, so delay 50ms between requests
+      await new Promise(r => setTimeout(r, 50));
+    }
+
+    if (geocoded > 0) {
+      console.log(`  ✅ Geocoded ${geocoded}/${locationsWithoutCoords.length} locations`);
+    }
+
+    return geocoded;
   }
 
   /**

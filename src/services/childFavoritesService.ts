@@ -63,6 +63,41 @@ export interface ChildWaitlistEntry {
   };
 }
 
+export interface ChildWatching {
+  id: string;
+  childId: string;
+  childName?: string;
+  colorId?: number;
+  activityId: string;
+  createdAt: string;
+  notifyAlmostFull: boolean;
+  notifyPriceChange: boolean;
+  notifyNewSessions: boolean;
+  activity: {
+    id: string;
+    name: string;
+    category: string;
+    provider?: string;
+    location?: string;
+    locationCity?: string;
+    spotsAvailable?: number;
+    totalSpots?: number;
+    cost: number;
+    dateStart?: string;
+    dateEnd?: string;
+    startTime?: string;
+    endTime?: string;
+    dayOfWeek?: string[];
+    ageMin?: number;
+    ageMax?: number;
+    registrationStatus?: string;
+    registrationUrl?: string;
+    directRegistrationUrl?: string;
+    activityType?: string;
+    isActive: boolean;
+  };
+}
+
 export interface ChildNotificationPreferences {
   childId: string;
   enabled: boolean;
@@ -82,8 +117,10 @@ export interface ChildNotificationPreferences {
 export interface ActivityChildStatus {
   childId: string;
   childName: string;
+  colorId?: number | null;
   isFavorited: boolean;
   isOnWaitlist: boolean;
+  isWatching: boolean;
 }
 
 interface ApiResponse<T> {
@@ -91,12 +128,15 @@ interface ApiResponse<T> {
   error?: string;
   favorites?: T[];
   waitlist?: T[];
+  watching?: T[];
   status?: T[];
   preferences?: T;
   favorite?: T;
   waitlistEntry?: T;
+  watchingEntry?: T;
   isFavorited?: boolean;
   isOnWaitlist?: boolean;
+  isWatching?: boolean;
   migrated?: number;
   skipped?: number;
   total?: number;
@@ -321,10 +361,114 @@ class ChildFavoritesService {
     }
   }
 
+  // ============= WATCHING (ACTIVITY NOTIFICATIONS) =============
+
+  /**
+   * Get all watching entries for a specific child
+   */
+  async getChildWatching(childId: string): Promise<ChildWatching[]> {
+    try {
+      const response = await apiClient.get<ApiResponse<ChildWatching>>(
+        `/api/v1/children/${childId}/watching`
+      );
+      return response.watching || [];
+    } catch (error: any) {
+      console.error('[ChildFavoritesService] Error getting watching:', error);
+      throw new Error(error?.response?.data?.error || 'Failed to get watching');
+    }
+  }
+
+  /**
+   * Get watching entries for multiple children
+   */
+  async getWatchingForChildren(childIds: string[]): Promise<ChildWatching[]> {
+    if (childIds.length === 0) return [];
+
+    try {
+      const response = await apiClient.get<ApiResponse<ChildWatching>>(
+        `/api/v1/children/watching/multi?childIds=${childIds.join(',')}`
+      );
+      return response.watching || [];
+    } catch (error: any) {
+      console.error('[ChildFavoritesService] Error getting watching for children:', error);
+      throw new Error(error?.response?.data?.error || 'Failed to get watching');
+    }
+  }
+
+  /**
+   * Start watching an activity for a child
+   */
+  async addWatching(
+    childId: string,
+    activityId: string,
+    options?: {
+      notifyAlmostFull?: boolean;
+      notifyPriceChange?: boolean;
+      notifyNewSessions?: boolean;
+    }
+  ): Promise<void> {
+    try {
+      await apiClient.post(
+        `/api/v1/children/${childId}/watching/${activityId}`,
+        options || {}
+      );
+    } catch (error: any) {
+      console.error('[ChildFavoritesService] Error adding watching:', error);
+      throw new Error(error?.response?.data?.error || 'Failed to start watching');
+    }
+  }
+
+  /**
+   * Stop watching an activity for a child
+   */
+  async removeWatching(childId: string, activityId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/v1/children/${childId}/watching/${activityId}`);
+    } catch (error: any) {
+      console.error('[ChildFavoritesService] Error removing watching:', error);
+      throw new Error(error?.response?.data?.error || 'Failed to stop watching');
+    }
+  }
+
+  /**
+   * Check if child is watching an activity
+   */
+  async isWatching(childId: string, activityId: string): Promise<boolean> {
+    try {
+      const response = await apiClient.get<ApiResponse<boolean>>(
+        `/api/v1/children/${childId}/watching/${activityId}/status`
+      );
+      return response.isWatching || false;
+    } catch (error: any) {
+      console.error('[ChildFavoritesService] Error checking watching status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get watching status for an activity across multiple children
+   */
+  async getWatchingStatusForChildren(
+    activityId: string,
+    childIds: string[]
+  ): Promise<Array<{ childId: string; childName: string; colorId?: number; isWatching: boolean }>> {
+    if (childIds.length === 0) return [];
+
+    try {
+      const response = await apiClient.get<ApiResponse<{ childId: string; childName: string; colorId?: number; isWatching: boolean }>>(
+        `/api/v1/children/watching/status/${activityId}?childIds=${childIds.join(',')}`
+      );
+      return response.status || [];
+    } catch (error: any) {
+      console.error('[ChildFavoritesService] Error getting watching status:', error);
+      return [];
+    }
+  }
+
   // ============= COMBINED STATUS =============
 
   /**
-   * Get combined activity status (favorite + waitlist) for multiple children
+   * Get combined activity status (favorite + waitlist + watching) for multiple children
    */
   async getActivityStatusForChildren(activityId: string, childIds: string[]): Promise<ActivityChildStatus[]> {
     if (childIds.length === 0) return [];

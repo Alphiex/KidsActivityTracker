@@ -1293,6 +1293,176 @@ router.get(
   }
 );
 
+// ============= Child Watching (Activity Notifications) =============
+
+// Get all watching entries for a specific child
+router.get('/:childId/watching', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const watching = await childFavoritesService.getChildWatching(
+      req.params.childId,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      watching
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get watching entries for multiple children
+router.get('/watching/multi', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+    if (!childIds || childIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'childIds query parameter is required'
+      });
+    }
+
+    const watching = await childFavoritesService.getWatchingForChildren(
+      childIds,
+      req.user!.id
+    );
+
+    res.json({
+      success: true,
+      watching
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Start watching an activity for a child
+router.post(
+  '/:childId/watching/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const entry = await childFavoritesService.addWatching(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id,
+        req.body // Optional notification preferences
+      );
+
+      res.status(201).json({
+        success: true,
+        watchingEntry: entry,
+        message: 'Started watching activity'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Stop watching an activity for a child
+router.delete(
+  '/:childId/watching/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      await childFavoritesService.removeWatching(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        message: 'Stopped watching activity'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Check if child is watching an activity
+router.get(
+  '/:childId/watching/:activityId/status',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const isWatching = await childFavoritesService.isWatching(
+        req.params.childId,
+        req.params.activityId,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        isWatching
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+// Get watching status for an activity across multiple children
+router.get(
+  '/watching/status/:activityId',
+  verifyToken,
+  [param('activityId').isUUID()],
+  handleValidationErrors,
+  async (req: Request, res: Response) => {
+    try {
+      const childIds = (req.query.childIds as string)?.split(',').filter(Boolean);
+
+      if (!childIds || childIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'childIds query parameter is required'
+        });
+      }
+
+      const status = await childFavoritesService.getWatchingStatusForChildren(
+        req.params.activityId,
+        childIds,
+        req.user!.id
+      );
+
+      res.json({
+        success: true,
+        status
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
 // ============= Child Notification Preferences =============
 
 // Get notification preferences for a child

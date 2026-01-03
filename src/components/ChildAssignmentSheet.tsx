@@ -24,10 +24,10 @@ import { selectAllChildren, Child } from '../store/slices/childrenSlice';
 import {
   addChildFavorite,
   removeChildFavorite,
-  joinChildWaitlist,
-  leaveChildWaitlist,
+  addChildWatching,
+  removeChildWatching,
   selectChildrenWhoFavoritedWithDetails,
-  selectChildrenOnWaitlistWithDetails,
+  selectChildrenWatchingWithDetails,
 } from '../store/slices/childFavoritesSlice';
 import {
   linkActivity,
@@ -96,7 +96,7 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
   // Get current assignment status based on action type
   const favoriteChildIds = useAppSelector(selectChildrenWhoFavoritedWithDetails(activity.id))
     .map(c => c.childId);
-  const watchingChildIds = useAppSelector(selectChildrenOnWaitlistWithDetails(activity.id))
+  const watchingChildIds = useAppSelector(selectChildrenWatchingWithDetails(activity.id))
     .map(c => c.childId);
   const calendarChildIds = useAppSelector(selectActivityChildren(activity.id));
 
@@ -163,13 +163,13 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
         }
       } else if (actionType === 'watching') {
         if (isAssigned) {
-          console.log('[ChildAssignmentSheet] Leaving waitlist...');
-          await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
-          console.log('[ChildAssignmentSheet] Leave waitlist SUCCESS');
+          console.log('[ChildAssignmentSheet] Removing watching...');
+          await dispatch(removeChildWatching({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Remove watching SUCCESS');
         } else {
-          console.log('[ChildAssignmentSheet] Joining waitlist...');
-          await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
-          console.log('[ChildAssignmentSheet] Join waitlist SUCCESS');
+          console.log('[ChildAssignmentSheet] Adding watching...');
+          await dispatch(addChildWatching({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Add watching SUCCESS');
         }
       } else if (actionType === 'calendar') {
         if (isAssigned) {

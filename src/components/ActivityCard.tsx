@@ -33,7 +33,7 @@ import { getChildColor } from '../theme/childColors';
 import { getActivityImageByKey } from '../assets/images';
 import { useTheme } from '../contexts/ThemeContext';
 import ChildActivityStatus from './activities/ChildActivityStatus';
-import { formatActivityPrice } from '../utils/formatters';
+import { formatActivityPrice, formatTime } from '../utils/formatters';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
 import { safeFirst, safeSubstring, safeParseDate } from '../utils/safeAccessors';
