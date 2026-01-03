@@ -299,6 +299,11 @@ const WeeklyPlannerScreen = () => {
   const [showExplanationModal, setShowExplanationModal] = useState(false);
   const EXPLANATION_SHOWN_KEY = 'weeklyPlannerExplanationShown';
 
+  // Success animation modal
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
   // Animation
   const fadeAnim = useState(new Animated.Value(0))[0];
 
@@ -783,15 +788,147 @@ const WeeklyPlannerScreen = () => {
   /**
    * Add approved activities to calendar
    */
-  const addApprovedToCalendar = () => {
-    const approved = Object.entries(entryApprovals)
+  const addApprovedToCalendar = async () => {
+    if (!schedule) return;
+
+    const approvedEntries = Object.entries(entryApprovals)
       .filter(([_, state]) => state === 'approved')
+      .map(([key]) => {
+        // Parse key: childId-activityId-day-entryIndex
+        const parts = key.split('-');
+        const childId = parts[0];
+        const activityId = parts[1];
+        const day = parts.slice(2, -1).join('-'); // Day might have dashes
+        return { childId, activityId, day };
+      });
+
+    if (approvedEntries.length === 0) return;
+
+    try {
+      // Add each approved activity to the child's calendar
+      for (const entry of approvedEntries) {
+        const scheduleEntry = Object.values(schedule.entries)
+          .flat()
+          .find(e => e.child_id === entry.childId && e.activity_id === entry.activityId);
+
+        if (scheduleEntry) {
+          await childrenService.linkActivityToChild(
+            entry.childId,
+            entry.activityId,
+            'enrolled',
+            scheduleEntry.time
+          );
+        }
+      }
+
+      // Show success animation
+      setSuccessMessage(`Added ${approvedEntries.length} ${approvedEntries.length === 1 ? 'activity' : 'activities'} to calendar!`);
+      setShowSuccessModal(true);
+
+      // Auto-hide after 2 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        clearSchedule();
+      }, 2000);
+
+    } catch (err: any) {
+      console.error('Error adding to calendar:', err);
+      setError('Failed to add activities to calendar. Please try again.');
+    }
+  };
+
+  /**
+   * Regenerate alternatives for all declined entries
+   */
+  const regenerateDeclined = async () => {
+    if (!schedule) return;
+
+    const declinedKeys = Object.entries(entryApprovals)
+      .filter(([_, state]) => state === 'declined')
       .map(([key]) => key);
 
-    // TODO: Integrate with calendar service
-    console.log('Adding to calendar:', approved);
-    // For now, show success message
+    if (declinedKeys.length === 0) return;
+
+    setIsRegenerating(true);
     setError(null);
+
+    try {
+      // Get all declined activity IDs to exclude
+      const excludedIds = getDeclinedActivityIds();
+
+      // For each declined entry, try to find an alternative
+      for (const key of declinedKeys) {
+        const parts = key.split('-');
+        const childId = parts[0];
+        const day = parts.slice(2, -1).join('-');
+        const entryIndex = parseInt(parts[parts.length - 1], 10);
+
+        const dayEntries = schedule.entries[day] || [];
+        const entry = dayEntries[entryIndex];
+
+        if (!entry) continue;
+
+        try {
+          const result = await aiService.findAlternativeActivity({
+            child_id: childId,
+            day: day,
+            time_slot: entry.time || 'morning',
+            excluded_activity_ids: excludedIds,
+            week_start: toISODateString(currentWeekStartDate),
+          });
+
+          if (result.success && result.alternative) {
+            // Update schedule with new activity
+            setSchedule(prev => {
+              if (!prev) return prev;
+              const newEntries = { ...prev.entries };
+              const updatedDayEntries = [...(newEntries[day] || [])];
+              if (entryIndex < updatedDayEntries.length) {
+                updatedDayEntries[entryIndex] = result.alternative!;
+                newEntries[day] = updatedDayEntries;
+              }
+              return { ...prev, entries: newEntries };
+            });
+
+            // Update approval state to pending for new entry
+            const newKey = `${result.alternative.child_id}-${result.alternative.activity_id}-${result.alternative.day}-${entryIndex}`;
+            setEntryApprovals(prev => {
+              const updated = { ...prev };
+              delete updated[key];
+              updated[newKey] = 'pending';
+              return updated;
+            });
+
+            // Load activity details for the new suggestion
+            if (result.alternative.activity_id) {
+              try {
+                const activity = await activityService.getActivityDetails(result.alternative.activity_id);
+                if (activity) {
+                  setActivityDetails(prev => ({ ...prev, [result.alternative!.activity_id]: activity }));
+                }
+              } catch {
+                // Ignore activity detail fetch errors
+              }
+            }
+
+            // Add to excluded list for next iteration
+            excludedIds.push(result.alternative.activity_id);
+          }
+        } catch (err) {
+          console.warn('Failed to find alternative for entry:', key);
+        }
+      }
+
+      setSuccessMessage(`Found alternatives for ${declinedKeys.length} ${declinedKeys.length === 1 ? 'activity' : 'activities'}`);
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2000);
+
+    } catch (err: any) {
+      console.error('Error regenerating declined:', err);
+      setError('Failed to find alternatives. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   /**
@@ -1208,6 +1345,28 @@ const WeeklyPlannerScreen = () => {
           >
             <Text style={styles.explanationButtonText}>Got it!</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  /**
+   * Render success modal with animation
+   */
+  const renderSuccessModal = () => (
+    <Modal
+      visible={showSuccessModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowSuccessModal(false)}
+    >
+      <View style={styles.successOverlay}>
+        <View style={styles.successModal}>
+          <View style={styles.successIconContainer}>
+            <Icon name="check-circle" size={64} color={ModernColors.success} />
+          </View>
+          <Text style={styles.successTitle}>Success!</Text>
+          <Text style={styles.successMessage}>{successMessage}</Text>
         </View>
       </View>
     </Modal>
@@ -1975,6 +2134,7 @@ const WeeklyPlannerScreen = () => {
     if (!schedule) return null;
 
     const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
+    const declinedCount = Object.values(entryApprovals).filter(s => s === 'declined').length;
     const pendingCount = Object.values(entryApprovals).filter(s => s === 'pending').length;
 
     return (
@@ -1987,6 +2147,24 @@ const WeeklyPlannerScreen = () => {
           <Icon name="close" size={18} color={ModernColors.textSecondary} />
           <Text style={styles.actionBarCancelText}>Cancel</Text>
         </TouchableOpacity>
+
+        {/* Regenerate Declined button - only show if there are declined entries */}
+        {declinedCount > 0 && (
+          <TouchableOpacity
+            style={styles.actionBarRegenerateButton}
+            onPress={regenerateDeclined}
+            disabled={isRegenerating}
+          >
+            {isRegenerating ? (
+              <ActivityIndicator size="small" color={ModernColors.warning} />
+            ) : (
+              <>
+                <Icon name="refresh" size={16} color={ModernColors.warning} />
+                <Text style={styles.actionBarRegenerateText}>{declinedCount}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Add to calendar button */}
         <TouchableOpacity
@@ -2179,6 +2357,7 @@ const WeeklyPlannerScreen = () => {
       {renderAvailabilityPicker()}
       {renderChatPanel()}
       {renderExplanationModal()}
+      {renderSuccessModal()}
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -3496,6 +3675,56 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
+  },
+
+  // Success modal styles
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  successModal: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.xl,
+    padding: 32,
+    alignItems: 'center',
+    ...ModernShadows.lg,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: ModernColors.text,
+    marginBottom: 8,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
+  },
+
+  // Regenerate button style
+  actionBarRegenerateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: ModernBorderRadius.lg,
+    backgroundColor: ModernColors.warning + '20',
+    borderWidth: 1,
+    borderColor: ModernColors.warning,
+    gap: 4,
+    minWidth: 48,
+  },
+  actionBarRegenerateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.warning,
   },
 
   // Week navigator styles
