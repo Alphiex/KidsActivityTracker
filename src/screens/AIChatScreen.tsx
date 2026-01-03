@@ -487,6 +487,20 @@ const AIChatScreen = () => {
                     ? `$${cost.toFixed(0)}`
                     : cost;
 
+                // Get days of week - check multiple sources
+                const daysOfWeek = extractDaysOfWeek(activity);
+
+                // Get time - check multiple field names
+                const timeText = activity.startTime
+                  ? `${activity.startTime}${activity.endTime ? ` - ${activity.endTime}` : ''}`
+                  : formatActivityTime(activity);
+
+                // Get spots - check multiple field names
+                const spotsDisplay = activity.spotsText
+                  || (activity.spotsAvailable !== null && activity.spotsAvailable !== undefined
+                    ? `${activity.spotsAvailable} spots`
+                    : null);
+
                 return (
                   <TouchableOpacity
                     key={activity.id || index}
@@ -510,28 +524,21 @@ const AIChatScreen = () => {
                       )}
 
                       {/* Days of Week & Time */}
-                      {(() => {
-                        const daysOfWeek = extractDaysOfWeek(activity);
-                        const timeText = formatActivityTime(activity);
-                        if (daysOfWeek || timeText) {
-                          return (
-                            <View style={styles.activityDaysRow}>
-                              <Icon name="calendar-week" size={12} color="#E8638B" />
-                              <Text style={styles.activityDaysText} numberOfLines={1}>
-                                {daysOfWeek}{daysOfWeek && timeText ? ' • ' : ''}{timeText || ''}
-                              </Text>
-                            </View>
-                          );
-                        }
-                        return null;
-                      })()}
+                      {(daysOfWeek || timeText) && (
+                        <View style={styles.activityDaysRow}>
+                          <Icon name="calendar-week" size={12} color="#E8638B" />
+                          <Text style={styles.activityDaysText} numberOfLines={1}>
+                            {daysOfWeek}{daysOfWeek && timeText ? ' • ' : ''}{timeText || ''}
+                          </Text>
+                        </View>
+                      )}
 
                       {/* Bottom row: Spots, Cost, Distance */}
                       <View style={styles.activityBottomRow}>
-                        {activity.spotsText && (
+                        {spotsDisplay && (
                           <View style={styles.spotsBadge}>
                             <Icon name="account-group-outline" size={10} color="#6B7280" />
-                            <Text style={styles.spotsText}>{activity.spotsText}</Text>
+                            <Text style={styles.spotsText}>{spotsDisplay}</Text>
                           </View>
                         )}
                         <View style={[styles.costBadge, costDisplay === 'Free' && styles.costBadgeFree]}>
