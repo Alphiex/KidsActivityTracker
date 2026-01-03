@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ActionSheetIOS,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -873,7 +874,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    minHeight: 500,
+    minHeight: Dimensions.get('window').height,
   },
   sectionContainer: {
     backgroundColor: '#F9FAFB',
