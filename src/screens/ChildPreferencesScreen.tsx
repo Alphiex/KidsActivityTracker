@@ -153,18 +153,30 @@ const ChildPreferencesScreen: React.FC = () => {
 
   // Sync local state with Redux state when child preferences change
   useEffect(() => {
+    console.log('[ChildPreferences] Syncing from Redux, selectedChild:', selectedChild?.name, 'preferences:', selectedChild?.preferences ? 'exists' : 'none');
+
     if (!selectedChild?.preferences) {
-      // Reset to defaults if no preferences
+      // Reset to defaults if no preferences - default to "anytime" (all slots enabled)
+      console.log('[ChildPreferences] No preferences, setting defaults (anytime)');
       setActivitiesData({ preferredActivityTypes: [] });
       setEnvironmentFilter('all');
       setDistanceRadiusKm(25);
       setPriceRangeMin(0);
       setPriceRangeMax(500);
-      setDayTimeSlots(createDefaultDayTimeSlots());
+      setDayTimeSlots(createDefaultDayTimeSlots()); // All slots enabled = anytime
+      setHasChanges(false);
       return;
     }
 
     const prefs = selectedChild.preferences;
+    console.log('[ChildPreferences] Loading preferences:', {
+      activityTypes: prefs.preferredActivityTypes?.length || 0,
+      environment: prefs.environmentFilter,
+      distance: prefs.distanceRadiusKm,
+      hasDayTimeSlots: !!prefs.dayTimeSlots,
+      daysOfWeek: prefs.daysOfWeek?.length || 0,
+    });
+
     setActivitiesData({ preferredActivityTypes: prefs.preferredActivityTypes ?? [] });
     setEnvironmentFilter(prefs.environmentFilter ?? 'all');
     setDistanceRadiusKm(prefs.distanceRadiusKm ?? 25);
@@ -172,12 +184,12 @@ const ChildPreferencesScreen: React.FC = () => {
     setPriceRangeMax(prefs.priceRangeMax ?? 500);
 
     // Load dayTimeSlots or create from legacy daysOfWeek/timePreferences
-    if (prefs.dayTimeSlots) {
+    if (prefs.dayTimeSlots && Object.keys(prefs.dayTimeSlots).length > 0) {
       setDayTimeSlots(prefs.dayTimeSlots);
-    } else {
+    } else if (prefs.daysOfWeek && prefs.daysOfWeek.length > 0) {
       // Create dayTimeSlots from legacy data
       const slots: DayTimeSlots = {};
-      const enabledDays = prefs.daysOfWeek ?? DAYS_OF_WEEK;
+      const enabledDays = prefs.daysOfWeek;
       const timePrefs = prefs.timePreferences ?? { morning: true, afternoon: true, evening: true };
 
       DAYS_OF_WEEK.forEach(day => {
@@ -189,6 +201,10 @@ const ChildPreferencesScreen: React.FC = () => {
         };
       });
       setDayTimeSlots(slots);
+    } else {
+      // No schedule preferences set - default to "anytime" (all slots enabled)
+      console.log('[ChildPreferences] No schedule preferences, defaulting to anytime');
+      setDayTimeSlots(createDefaultDayTimeSlots());
     }
 
     setHasChanges(false);

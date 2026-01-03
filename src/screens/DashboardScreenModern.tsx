@@ -39,6 +39,7 @@ import { getChildColor } from '../theme/childColors';
 import { useAppSelector, useAppDispatch } from '../store';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 import ChildAssignmentSheet, { ActionType } from '../components/ChildAssignmentSheet';
+import ActivityCard from '../components/ActivityCard';
 import {
   addChildFavorite,
   removeChildFavorite,

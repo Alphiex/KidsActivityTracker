@@ -62,7 +62,9 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
   useEffect(() => {
     const loadActivityTypes = async () => {
       try {
-        const types = await activityService.getActivityTypesWithCounts(true); // Include subtypes
+        // Pass false to NOT apply global filters - we want ALL activity types for preferences
+        const types = await activityService.getActivityTypesWithCounts(false);
+        console.log('[ChildActivitiesStep] Loaded activity types:', types?.length || 0);
         const sortedTypes = types.sort((a: ActivityType, b: ActivityType) => (b.activityCount || 0) - (a.activityCount || 0));
         setActivityTypes(sortedTypes);
       } catch (error) {

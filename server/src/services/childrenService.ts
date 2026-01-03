@@ -1136,9 +1136,14 @@ export class ChildrenService {
     if (userPrefs.preferredSubtypes) childPrefsData.preferredSubtypes = userPrefs.preferredSubtypes;
     if (userPrefs.excludedCategories) childPrefsData.excludedCategories = userPrefs.excludedCategories;
 
-    // Schedule preferences
-    if (userPrefs.daysOfWeek) childPrefsData.daysOfWeek = userPrefs.daysOfWeek;
-    if (userPrefs.timePreferences) childPrefsData.timePreferences = userPrefs.timePreferences;
+    // Schedule preferences - only copy if they have actual values (not empty)
+    // Empty arrays/objects should use schema defaults (all days, all times = "anytime")
+    if (userPrefs.daysOfWeek && userPrefs.daysOfWeek.length > 0) {
+      childPrefsData.daysOfWeek = userPrefs.daysOfWeek;
+    }
+    if (userPrefs.timePreferences && Object.keys(userPrefs.timePreferences).length > 0) {
+      childPrefsData.timePreferences = userPrefs.timePreferences;
+    }
 
     // Budget preferences
     if (userPrefs.priceRange?.min !== undefined) childPrefsData.priceRangeMin = userPrefs.priceRange.min;

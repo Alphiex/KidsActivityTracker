@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -52,19 +52,32 @@ interface ActivityCardProps {
   onFavoritePress?: () => void;
   // Variant support for different card styles
   variant?: 'default' | 'compact';
+  // Size preset for different contexts (controls image height & layout)
+  size?: 'default' | 'small' | 'dashboard';
   // Subscription limit checking for favorites
   canAddFavorite?: boolean;
   onFavoriteLimitReached?: () => void;
   // Custom container style for grid layouts
   containerStyle?: any;
-  // Custom image height (default: 200)
+  // Custom image height (overrides size preset if provided)
   imageHeight?: number;
   // Waitlist support
   isOnWaitlist?: boolean;
   onWaitlistPress?: () => void;
   canAddToWaitlist?: boolean;
   onWaitlistLimitReached?: () => void;
+  // Show "ON CALENDAR" badge on image (default: true)
+  showOnCalendarBadge?: boolean;
+  // Show "Great for:" badges with matching children (default: false)
+  showGreatFor?: boolean;
 }
+
+// Size presets for image height
+const SIZE_PRESETS = {
+  default: 200,
+  small: 150,
+  dashboard: 100,
+};
 
 const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
@@ -72,15 +85,20 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   isFavorite: externalIsFavorite,
   onFavoritePress,
   variant = 'default',
+  size = 'default',
   canAddFavorite = true,
   onFavoriteLimitReached,
   containerStyle,
-  imageHeight = 200,
+  imageHeight: customImageHeight,
   isOnWaitlist: externalIsOnWaitlist,
   onWaitlistPress,
   canAddToWaitlist = true,
   onWaitlistLimitReached,
+  showOnCalendarBadge = true,
+  showGreatFor = false,
 }) => {
+  // Calculate effective image height - custom overrides size preset
+  const imageHeight = customImageHeight ?? SIZE_PRESETS[size];
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const favoritesService = FavoritesService.getInstance();
@@ -88,6 +106,26 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
   // Get all children from Redux
   const children = useAppSelector(selectAllChildren);
+
+  // Calculate matching children based on age (for "Great for:" badges)
+  const matchingChildren = useMemo(() => {
+    if (!showGreatFor || children.length === 0) return [];
+
+    const activityAgeMin = activity.ageRange?.min ?? activity.ageMin ?? 0;
+    const activityAgeMax = activity.ageRange?.max ?? activity.ageMax ?? 18;
+
+    return children.filter(child => {
+      if (!child.dateOfBirth) return false;
+      const birthDate = new Date(child.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age >= activityAgeMin && age <= activityAgeMax;
+    });
+  }, [showGreatFor, children, activity]);
 
   // Get child assignment status for this activity
   const { favoriteChildren, watchingChildren, calendarChildren } = useActivityChildStatus(activity.id);
@@ -500,6 +538,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             <Text style={styles.sponsoredText}>Sponsored</Text>
           </View>
         )}
+        {/* ON CALENDAR badge - shows when activity is on any child's calendar */}
+        {showOnCalendarBadge && isOnCalendar && !activity.isFeatured && (
+          calendarChildren.length > 1 ? (
+            <LinearGradient
+              colors={getGradientColorsForChildren(calendarChildren.map(c => c.colorId))}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.calendarBadge}
+            >
+              <Icon name="calendar-check" size={10} color="#FFF" />
+              <Text style={styles.calendarBadgeText}>ON CALENDAR</Text>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.calendarBadge, { backgroundColor: getCalendarColor() }]}>
+              <Icon name="calendar-check" size={10} color="#FFF" />
+              <Text style={styles.calendarBadgeText}>ON CALENDAR</Text>
+            </View>
+          )
+        )}
         <View style={styles.imageOverlay}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>{formatActivityPrice(activity.cost)}</Text>
@@ -876,6 +933,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
         </View>
 
+        {/* "Great for:" badges showing matching children */}
+        {showGreatFor && matchingChildren.length > 0 && (
+          <View style={styles.greatForRow}>
+            <Text style={styles.greatForLabel}>Great for:</Text>
+            {matchingChildren.map(child => {
+              const color = getChildColor(child.colorId || 1);
+              return (
+                <View
+                  key={child.id}
+                  style={[styles.greatForBadge, { backgroundColor: color.hex + '25', borderColor: color.hex }]}
+                >
+                  <View style={[styles.greatForDot, { backgroundColor: color.hex }]} />
+                  <Text style={[styles.greatForName, { color: color.hex }]}>{child.name}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* Show registered children status */}
         {registeredChildIds.length > 0 && (
           <ChildActivityStatus
@@ -1056,12 +1132,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: '#4ECDC4',
+    // backgroundColor set dynamically based on child color
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    overflow: 'hidden',  // For gradient to clip to border radius
   },
   calendarBadgeText: {
     color: '#FFF',
@@ -1291,6 +1368,38 @@ const styles = StyleSheet.create({
   },
   watchSpotsButtonTextActive: {
     color: '#15803D',
+  },
+  // "Great for:" badges styles
+  greatForRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Theme.spacing.sm,
+  },
+  greatForLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    marginRight: 4,
+  },
+  greatForBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+  },
+  greatForDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  greatForName: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
 
