@@ -873,7 +873,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    minHeight: 500,
+    minHeight: 800,
   },
   sectionContainer: {
     backgroundColor: '#F9FAFB',
