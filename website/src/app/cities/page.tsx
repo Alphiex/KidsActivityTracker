@@ -43,7 +43,7 @@ export default async function CitiesPage() {
         <CitySearch cities={cities} />
 
         {/* Request City CTA */}
-        <div className="mt-16 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-8 text-center">
+        <div className="mt-16 bg-gradient-to-r from-[#FFF5F8] to-[#FFE5EC] rounded-2xl p-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Don&apos;t see your city?
           </h2>
@@ -53,7 +53,7 @@ export default async function CitiesPage() {
           </p>
           <Link
             href="/request-city"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
           >
             Request a City
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

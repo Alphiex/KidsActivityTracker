@@ -126,7 +126,7 @@ export default function BillingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -189,7 +189,7 @@ export default function BillingPage() {
               <button
                 onClick={handleManageSubscription}
                 disabled={isLoadingPortal}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors disabled:opacity-50"
               >
                 {isLoadingPortal ? 'Loading...' : 'Manage Subscription'}
               </button>
@@ -200,7 +200,7 @@ export default function BillingPage() {
             <p className="text-gray-500 mb-4">No active subscription</p>
             <a
               href="/sponsor/plans"
-              className="inline-block px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="inline-block px-6 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
             >
               View Plans
             </a>
@@ -248,7 +248,7 @@ export default function BillingPage() {
                   type="email"
                   value={editForm.billingEmail}
                   onChange={(e) => setEditForm({ ...editForm, billingEmail: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 />
               </div>
               <div>
@@ -260,7 +260,7 @@ export default function BillingPage() {
                   value={editForm.billingName}
                   onChange={(e) => setEditForm({ ...editForm, billingName: e.target.value })}
                   placeholder="Company or individual name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 />
               </div>
             </div>
@@ -276,7 +276,7 @@ export default function BillingPage() {
               <button
                 onClick={handleUpdateBilling}
                 disabled={isSaving}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors disabled:opacity-50"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -296,7 +296,7 @@ export default function BillingPage() {
             <button
               onClick={handleManageSubscription}
               disabled={isLoadingPortal}
-              className="inline-block px-6 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-50"
+              className="inline-block px-6 py-2 border border-[#E8638B] text-[#E8638B] rounded-lg hover:bg-pink-50 transition-colors disabled:opacity-50"
             >
               {isLoadingPortal ? 'Loading...' : 'View Payment History'}
             </button>

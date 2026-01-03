@@ -92,7 +92,7 @@ export default function RequestCityForm() {
         </p>
         <button
           onClick={() => setSubmitStatus('idle')}
-          className="text-purple-600 hover:text-purple-700 font-medium"
+          className="text-[#E8638B] hover:text-[#D53F8C] font-medium"
         >
           Submit another request
         </button>
@@ -115,7 +115,7 @@ export default function RequestCityForm() {
           onChange={handleChange}
           required
           placeholder="e.g., Victoria"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -130,7 +130,7 @@ export default function RequestCityForm() {
           value={formData.province}
           onChange={handleChange}
           required
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none bg-white"
         >
           <option value="">Select a province</option>
           {PROVINCES.map((province) => (
@@ -154,7 +154,7 @@ export default function RequestCityForm() {
           onChange={handleChange}
           required
           placeholder="you@example.com"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
         <p className="mt-1 text-sm text-gray-500">
           We&apos;ll notify you when we add support for this city
@@ -173,7 +173,7 @@ export default function RequestCityForm() {
           onChange={handleChange}
           rows={3}
           placeholder="e.g., City recreation centers, local swim clubs, community arts programs..."
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none resize-none"
         />
         <p className="mt-1 text-sm text-gray-500">
           Let us know about specific activity providers you&apos;d like us to add
@@ -192,7 +192,7 @@ export default function RequestCityForm() {
           onChange={handleChange}
           rows={2}
           placeholder="Any additional information..."
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none resize-none"
         />
       </div>
 
@@ -207,7 +207,7 @@ export default function RequestCityForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-4 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-6 py-4 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <span className="flex items-center justify-center gap-2">

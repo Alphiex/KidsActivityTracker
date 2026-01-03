@@ -141,7 +141,7 @@ export default function EditActivityPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -150,7 +150,7 @@ export default function EditActivityPage() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Activity not found</p>
-        <Link href="/vendor/dashboard/activities" className="text-purple-600 hover:text-purple-700 mt-4 inline-block">
+        <Link href="/vendor/dashboard/activities" className="text-[#E8638B] hover:text-[#D53F8C] mt-4 inline-block">
           Go to Activities
         </Link>
       </div>

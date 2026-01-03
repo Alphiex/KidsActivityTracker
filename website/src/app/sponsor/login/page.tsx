@@ -48,14 +48,14 @@ export default function SponsorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-purple-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF5F8] via-white to-[#E8F4FF] px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Partner Portal</h1>
-          <p className="mt-2 text-purple-200">Sign in to view your analytics</p>
+          <h1 className="text-3xl font-bold text-gray-900">Partner Portal</h1>
+          <p className="mt-2 text-gray-600">Sign in to view your analytics</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -73,7 +73,7 @@ export default function SponsorLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 placeholder="your@email.com"
               />
             </div>
@@ -83,7 +83,7 @@ export default function SponsorLoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <Link href="/sponsor/forgot-password" className="text-sm text-purple-600 hover:text-purple-700">
+                <Link href="/sponsor/forgot-password" className="text-sm text-[#E8638B] hover:text-[#D53F8C]">
                   Forgot password?
                 </Link>
               </div>
@@ -93,14 +93,14 @@ export default function SponsorLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-[#E8638B] text-white rounded-lg font-semibold hover:bg-[#D53F8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -112,16 +112,16 @@ export default function SponsorLoginPage() {
             </p>
             <Link
               href="/vendor"
-              className="text-purple-600 hover:text-purple-700 font-medium"
+              className="text-[#E8638B] hover:text-[#D53F8C] font-medium"
             >
               Become a Partner
             </Link>
           </div>
         </div>
 
-        <p className="mt-6 text-center text-sm text-purple-200">
-          <Link href="/" className="hover:text-white">
-            Back to Website
+        <p className="mt-6 text-center text-sm text-gray-500">
+          <Link href="/" className="hover:text-[#E8638B]">
+            ← Back to Website
           </Link>
         </p>
       </div>

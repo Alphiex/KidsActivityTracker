@@ -52,7 +52,7 @@ export default function CitySearch({ cities }: CitySearchProps) {
             placeholder="Search cities..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
           />
         </div>
 
@@ -60,7 +60,7 @@ export default function CitySearch({ cities }: CitySearchProps) {
         <select
           value={selectedProvince}
           onChange={(e) => setSelectedProvince(e.target.value)}
-          className="px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none min-w-[180px]"
+          className="px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none min-w-[180px]"
         >
           <option value="all">All Provinces</option>
           {provinces.map((province) => (
@@ -99,7 +99,7 @@ export default function CitySearch({ cities }: CitySearchProps) {
           </p>
           <a
             href="/request-city"
-            className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
+            className="inline-flex items-center gap-2 text-[#E8638B] hover:text-[#D53F8C] font-medium"
           >
             Request a city
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

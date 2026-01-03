@@ -12,8 +12,8 @@ export default function CityCard({ city }: CityCardProps) {
           <h3 className="text-lg font-semibold text-gray-900">{city.name}</h3>
           <p className="text-sm text-gray-500">{city.province}</p>
         </div>
-        <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
-          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="w-10 h-10 bg-gradient-to-br from-[#FFE5EC] to-[#FFF5F8] rounded-lg flex items-center justify-center">
+          <svg className="w-5 h-5 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
@@ -21,7 +21,7 @@ export default function CityCard({ city }: CityCardProps) {
       </div>
       <div className="mt-4 flex gap-4 text-sm">
         <div className="flex items-center gap-1 text-gray-600">
-          <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-4 h-4 text-[#E8638B]" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
           </svg>
           <span>{city.activityCount.toLocaleString()} activities</span>

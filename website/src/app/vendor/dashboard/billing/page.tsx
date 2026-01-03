@@ -74,7 +74,7 @@ export default function BillingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -114,7 +114,7 @@ export default function BillingPage() {
             )}
             <Link
               href="/vendor/dashboard/plans"
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+              className="px-4 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
             >
               {isSubscribed ? 'Change Plan' : 'Upgrade'}
             </Link>
@@ -162,14 +162,14 @@ export default function BillingPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-8 text-white mb-6">
+        <div className="bg-gradient-to-r from-[#E8638B] to-[#D53F8C] rounded-xl p-8 text-white mb-6">
           <h2 className="text-2xl font-bold mb-4">Upgrade to Sponsor</h2>
           <p className="mb-6 text-white/90">
             Get priority placement, detailed analytics, and geographic targeting to reach more families.
           </p>
           <Link
             href="/vendor/dashboard/plans"
-            className="inline-block px-6 py-3 bg-white text-purple-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            className="inline-block px-6 py-3 bg-white text-[#E8638B] font-medium rounded-lg hover:bg-gray-100 transition-colors"
           >
             View Sponsor Plans
           </Link>
@@ -184,7 +184,7 @@ export default function BillingPage() {
             <button
               onClick={openCustomerPortal}
               disabled={isOpeningPortal}
-              className="text-sm text-purple-600 hover:text-purple-700"
+              className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
             >
               Update
             </button>
@@ -211,7 +211,7 @@ export default function BillingPage() {
             <button
               onClick={openCustomerPortal}
               disabled={isOpeningPortal}
-              className="text-sm text-purple-600 hover:text-purple-700"
+              className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
             >
               View All Invoices
             </button>
@@ -224,7 +224,7 @@ export default function BillingPage() {
             <button
               onClick={openCustomerPortal}
               disabled={isOpeningPortal}
-              className="mt-4 px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
+              className="mt-4 px-4 py-2 text-[#E8638B] hover:text-[#D53F8C] font-medium"
             >
               Open Billing Portal
             </button>
@@ -241,7 +241,7 @@ export default function BillingPage() {
         </p>
         <a
           href="mailto:billing@kidsactivitytracker.ca"
-          className="text-purple-600 hover:text-purple-700 font-medium text-sm"
+          className="text-[#E8638B] hover:text-[#D53F8C] font-medium text-sm"
         >
           Contact Billing Support
         </a>

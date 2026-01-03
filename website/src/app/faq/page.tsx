@@ -27,7 +27,7 @@ const faqs: FAQItem[] = [
     answer: (
       <>
         We currently support activities in over 50 cities across Canada, with a focus on British Columbia and Ontario. We&apos;re constantly expanding to new cities.{' '}
-        <Link href="/cities" className="text-purple-600 hover:text-purple-700 underline">
+        <Link href="/cities" className="text-[#E8638B] hover:text-[#D53F8C] underline">
           View our full list of supported cities
         </Link>
         .
@@ -86,7 +86,7 @@ const faqs: FAQItem[] = [
     answer: (
       <>
         Absolutely! We&apos;re always looking to expand our coverage. If your city or a local activity provider is missing from our app, please{' '}
-        <Link href="/request-city" className="text-purple-600 hover:text-purple-700 underline">
+        <Link href="/request-city" className="text-[#E8638B] hover:text-[#D53F8C] underline">
           submit a request here
         </Link>
         . Include the city name, province, and if possible, links to local recreation centres or activity providers. We review all requests and prioritize additions based on demand.
@@ -152,7 +152,7 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5F8] to-white">
       {/* Hero Section */}
       <section className="py-16 lg:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -174,8 +174,8 @@ export default function FAQPage() {
               onClick={() => setActiveCategory('all')}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 activeCategory === 'all'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-purple-50 border border-gray-200'
+                  ? 'bg-[#E8638B] text-white'
+                  : 'bg-white text-gray-600 hover:bg-pink-50 border border-gray-200'
               }`}
             >
               All Questions
@@ -186,8 +186,8 @@ export default function FAQPage() {
                 onClick={() => setActiveCategory(category)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                   activeCategory === category
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-purple-50 border border-gray-200'
+                    ? 'bg-[#E8638B] text-white'
+                    : 'bg-white text-gray-600 hover:bg-pink-50 border border-gray-200'
                 }`}
               >
                 {category}
@@ -211,18 +211,18 @@ export default function FAQPage() {
                   className="w-full px-6 py-5 text-left flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors"
                 >
                   <div>
-                    <span className="text-xs font-medium text-purple-600 uppercase tracking-wide">
+                    <span className="text-xs font-medium text-[#E8638B] uppercase tracking-wide">
                       {faq.category}
                     </span>
                     <h3 className="text-lg font-semibold text-gray-900 mt-1">
                       {faq.question}
                     </h3>
                   </div>
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center transition-transform ${
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center transition-transform ${
                     openIndex === index ? 'rotate-180' : ''
                   }`}>
                     <svg
-                      className="w-5 h-5 text-purple-600"
+                      className="w-5 h-5 text-[#E8638B]"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -252,17 +252,17 @@ export default function FAQPage() {
       {/* Contact CTA */}
       <section className="pb-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-8 sm:p-12 text-center text-white">
+          <div className="bg-gradient-to-r from-[#E8638B] to-[#D53F8C] rounded-2xl p-8 sm:p-12 text-center text-white">
             <h2 className="text-2xl sm:text-3xl font-bold mb-4">
               Still have questions?
             </h2>
-            <p className="text-purple-100 mb-6 max-w-lg mx-auto">
+            <p className="text-pink-100 mb-6 max-w-lg mx-auto">
               We&apos;re here to help! Reach out to our support team and we&apos;ll get back to you as soon as possible.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="mailto:support@kidsactivitytracker.ca"
-                className="inline-flex items-center justify-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 bg-white text-[#E8638B] px-6 py-3 rounded-lg font-semibold hover:bg-pink-50 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -271,7 +271,7 @@ export default function FAQPage() {
               </a>
               <Link
                 href="/request-city"
-                className="inline-flex items-center justify-center gap-2 bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800 transition-colors"
+                className="inline-flex items-center justify-center gap-2 bg-[#D53F8C] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#C53078] transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

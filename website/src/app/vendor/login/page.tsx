@@ -53,7 +53,7 @@ export default function VendorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] via-white to-[#E8F4FF] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
@@ -79,7 +79,7 @@ export default function VendorLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 placeholder="you@company.com"
               />
             </div>
@@ -89,7 +89,7 @@ export default function VendorLoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <Link href="/vendor/forgot-password" className="text-sm text-purple-600 hover:text-purple-700">
+                <Link href="/vendor/forgot-password" className="text-sm text-[#E8638B] hover:text-[#D53F8C]">
                   Forgot password?
                 </Link>
               </div>
@@ -100,7 +100,7 @@ export default function VendorLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 placeholder="Enter your password"
               />
             </div>
@@ -108,7 +108,7 @@ export default function VendorLoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -117,7 +117,7 @@ export default function VendorLoginPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Don&apos;t have an account?{' '}
-              <Link href="/vendor/register" className="text-purple-600 hover:text-purple-700 font-medium">
+              <Link href="/vendor/register" className="text-[#E8638B] hover:text-[#D53F8C] font-medium">
                 Register
               </Link>
             </p>
@@ -128,7 +128,7 @@ export default function VendorLoginPage() {
               Need help? Contact us at{' '}
               <a
                 href="mailto:partners@kidsactivitytracker.ca"
-                className="text-purple-600 hover:text-purple-700"
+                className="text-[#E8638B] hover:text-[#D53F8C]"
               >
                 partners@kidsactivitytracker.ca
               </a>

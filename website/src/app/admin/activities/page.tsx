@@ -183,7 +183,7 @@ export default function ActivitiesListPage() {
       bronze: 'bg-orange-100 text-orange-800',
     };
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[tier] || 'bg-purple-100 text-purple-800'}`}>
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[tier] || 'bg-pink-100 text-[#C53078]'}`}>
         {tier}
       </span>
     );
@@ -209,7 +209,7 @@ export default function ActivitiesListPage() {
         <h1 className="text-2xl font-bold text-gray-900">Activities</h1>
         <Link
           href="/admin/activities/new"
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          className="px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
         >
           Add Activity
         </Link>
@@ -224,11 +224,11 @@ export default function ActivitiesListPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, description, or external ID..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-6 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
             >
               Search
             </button>
@@ -241,7 +241,7 @@ export default function ActivitiesListPage() {
                 setProviderId(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent text-sm"
             >
               <option value="">All Providers</option>
               {providers.map((p) => (
@@ -258,7 +258,7 @@ export default function ActivitiesListPage() {
                 fetchActivities();
               }}
               placeholder="City"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent text-sm"
             />
 
             <input
@@ -270,7 +270,7 @@ export default function ActivitiesListPage() {
                 fetchActivities();
               }}
               placeholder="Category"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent text-sm"
             />
 
             <select
@@ -279,7 +279,7 @@ export default function ActivitiesListPage() {
                 setIsActive(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent text-sm"
             >
               <option value="">All Status</option>
               <option value="true">Active</option>
@@ -292,7 +292,7 @@ export default function ActivitiesListPage() {
                 setIsFeatured(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent text-sm"
             >
               <option value="">All Types</option>
               <option value="true">Sponsored Only</option>
@@ -307,7 +307,7 @@ export default function ActivitiesListPage() {
                   setHasManualEdits(e.target.checked);
                   setCurrentPage(1);
                 }}
-                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                className="rounded border-gray-300 text-[#E8638B] focus:ring-[#E8638B]"
               />
               <span>Manual Edits</span>
             </label>
@@ -332,7 +332,7 @@ export default function ActivitiesListPage() {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
           </div>
         ) : activities.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
@@ -430,7 +430,7 @@ export default function ActivitiesListPage() {
                         <div className="flex items-center justify-end gap-2">
                           <Link
                             href={`/admin/activities/${activity.id}`}
-                            className="text-purple-600 hover:text-purple-900 text-sm"
+                            className="text-[#E8638B] hover:text-[#B8336B] text-sm"
                           >
                             Edit
                           </Link>

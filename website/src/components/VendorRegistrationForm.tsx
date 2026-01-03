@@ -103,7 +103,7 @@ export default function VendorRegistrationForm() {
         </p>
         <Link
           href="/vendor/login"
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
         >
           Go to Login
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,7 +129,7 @@ export default function VendorRegistrationForm() {
           onChange={handleChange}
           required
           placeholder="e.g., Vancouver Swim Club"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -146,7 +146,7 @@ export default function VendorRegistrationForm() {
           onChange={handleChange}
           required
           placeholder="John Smith"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -163,7 +163,7 @@ export default function VendorRegistrationForm() {
           onChange={handleChange}
           required
           placeholder="info@yourorganization.com"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -181,7 +181,7 @@ export default function VendorRegistrationForm() {
           required
           minLength={8}
           placeholder="At least 8 characters"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -199,7 +199,7 @@ export default function VendorRegistrationForm() {
           required
           minLength={8}
           placeholder="Confirm your password"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -215,7 +215,7 @@ export default function VendorRegistrationForm() {
           value={formData.phone}
           onChange={handleChange}
           placeholder="(604) 555-0123"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -231,7 +231,7 @@ export default function VendorRegistrationForm() {
           value={formData.website}
           onChange={handleChange}
           placeholder="https://www.yourorganization.com"
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#E8638B] focus:border-transparent outline-none"
         />
       </div>
 
@@ -246,7 +246,7 @@ export default function VendorRegistrationForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-4 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-6 py-4 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <span className="flex items-center justify-center gap-2">
@@ -264,7 +264,7 @@ export default function VendorRegistrationForm() {
       {/* Already have account */}
       <p className="text-center text-sm text-gray-600">
         Already have an account?{' '}
-        <Link href="/vendor/login" className="text-purple-600 hover:text-purple-700 font-medium">
+        <Link href="/vendor/login" className="text-[#E8638B] hover:text-[#D53F8C] font-medium">
           Login to partner portal
         </Link>
       </p>

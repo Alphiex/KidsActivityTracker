@@ -107,7 +107,7 @@ export default function TargetingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export default function TargetingPage() {
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+          className="px-6 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors disabled:opacity-50"
         >
           {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
@@ -179,7 +179,7 @@ export default function TargetingPage() {
               key={province}
               className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                 targeting.targetProvinces.includes(province)
-                  ? 'border-purple-500 bg-purple-50'
+                  ? 'border-[#E8638B] bg-pink-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
@@ -187,7 +187,7 @@ export default function TargetingPage() {
                 type="checkbox"
                 checked={targeting.targetProvinces.includes(province)}
                 onChange={() => toggleProvince(province)}
-                className="rounded text-purple-600 focus:ring-purple-500"
+                className="rounded text-[#E8638B] focus:ring-[#E8638B]"
               />
               <span className="text-sm font-medium text-gray-900">{province}</span>
             </label>
@@ -220,7 +220,7 @@ export default function TargetingPage() {
                     key={city}
                     className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors text-sm ${
                       targeting.targetCities.includes(city)
-                        ? 'border-purple-500 bg-purple-50'
+                        ? 'border-[#E8638B] bg-pink-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -228,7 +228,7 @@ export default function TargetingPage() {
                       type="checkbox"
                       checked={targeting.targetCities.includes(city)}
                       onChange={() => toggleCity(city)}
-                      className="rounded text-purple-600 focus:ring-purple-500"
+                      className="rounded text-[#E8638B] focus:ring-[#E8638B]"
                     />
                     <span className="text-gray-900 truncate">{city}</span>
                   </label>

@@ -11,7 +11,7 @@ interface MetricCardProps {
     value: number;
     isPositive: boolean;
   };
-  color?: 'default' | 'green' | 'yellow' | 'red' | 'blue' | 'purple';
+  color?: 'default' | 'green' | 'yellow' | 'red' | 'blue' | 'purple' | 'pink';
   loading?: boolean;
 }
 
@@ -21,7 +21,8 @@ const colorClasses = {
   yellow: 'bg-yellow-50 border-yellow-200',
   red: 'bg-red-50 border-red-200',
   blue: 'bg-blue-50 border-blue-200',
-  purple: 'bg-purple-50 border-purple-200',
+  purple: 'bg-pink-50 border-pink-200',
+  pink: 'bg-pink-50 border-pink-200',
 };
 
 const iconColorClasses = {
@@ -30,7 +31,8 @@ const iconColorClasses = {
   yellow: 'text-yellow-500',
   red: 'text-red-500',
   blue: 'text-blue-500',
-  purple: 'text-purple-500',
+  purple: 'text-[#E8638B]',
+  pink: 'text-[#E8638B]',
 };
 
 export default function MetricCard({

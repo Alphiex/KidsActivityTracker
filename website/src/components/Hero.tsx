@@ -124,7 +124,7 @@ export default function Hero() {
                               height={80}
                               className="mx-auto mb-4"
                             />
-                            <p className="text-purple-800 font-medium">Kids Activity Tracker</p>
+                            <p className="text-[#C53078] font-medium">Kids Activity Tracker</p>
                             <p className="text-gray-500 text-sm mt-2">Find activities near you</p>
                           </div>
                         </div>

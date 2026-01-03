@@ -74,7 +74,7 @@ export default function PlansPage() {
       silver: 'from-gray-300 to-gray-500',
       bronze: 'from-orange-400 to-orange-600',
     };
-    return colors[tier] || 'from-purple-400 to-purple-600';
+    return colors[tier] || 'from-[#FFB5C5] to-[#E8638B]';
   };
 
   const formatPrice = (price: string) => {
@@ -89,7 +89,7 @@ export default function PlansPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -105,14 +105,14 @@ export default function PlansPage() {
 
       {/* Current Plan Banner */}
       {currentPlan?.plan && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-8">
+        <div className="bg-pink-50 border border-pink-200 rounded-xl p-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-600 font-medium">Current Plan</p>
-              <p className="text-xl font-bold text-purple-900">
+              <p className="text-sm text-[#E8638B] font-medium">Current Plan</p>
+              <p className="text-xl font-bold text-[#B8336B]">
                 {currentPlan.plan.name}
               </p>
-              <p className="text-purple-600 capitalize">{currentPlan.status}</p>
+              <p className="text-[#E8638B] capitalize">{currentPlan.status}</p>
             </div>
             <span
               className={`px-4 py-2 bg-gradient-to-r ${getTierColor(currentPlan.plan.tier)} text-white rounded-full font-medium capitalize`}
@@ -133,7 +133,7 @@ export default function PlansPage() {
             <div
               key={plan.id}
               className={`bg-white rounded-xl shadow-lg overflow-hidden ${
-                isCurrentPlan ? 'ring-2 ring-purple-500' : ''
+                isCurrentPlan ? 'ring-2 ring-[#E8638B]' : ''
               }`}
             >
               {/* Header */}
@@ -207,7 +207,7 @@ export default function PlansPage() {
                 ) : (
                   <button
                     onClick={() => setSelectedPlan(plan)}
-                    className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                    className="w-full py-3 bg-[#E8638B] text-white rounded-lg font-medium hover:bg-[#D53F8C] transition-colors"
                   >
                     {currentPlan?.plan ? 'Upgrade' : 'Subscribe'}
                   </button>
@@ -230,7 +230,7 @@ export default function PlansPage() {
               <p className="text-gray-600 mb-6">{successMessage}</p>
               <button
                 onClick={() => setSuccessMessage(null)}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="px-6 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
               >
                 Close
               </button>
@@ -257,7 +257,7 @@ export default function PlansPage() {
                     onClick={() => setBillingCycle('monthly')}
                     className={`p-3 border rounded-lg text-center transition-colors ${
                       billingCycle === 'monthly'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        ? 'border-[#E8638B] bg-pink-50 text-[#D53F8C]'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
@@ -268,7 +268,7 @@ export default function PlansPage() {
                     onClick={() => setBillingCycle('annual')}
                     className={`p-3 border rounded-lg text-center transition-colors ${
                       billingCycle === 'annual'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        ? 'border-[#E8638B] bg-pink-50 text-[#D53F8C]'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
@@ -295,7 +295,7 @@ export default function PlansPage() {
               <button
                 onClick={handleSubscribe}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? 'Redirecting...' : 'Continue to Payment'}
               </button>

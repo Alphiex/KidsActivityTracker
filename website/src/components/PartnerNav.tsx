@@ -92,7 +92,7 @@ export default function PartnerNav({ vendorName, isSubscribed = false, onLogout 
         <div className="flex items-center justify-between h-14">
           {/* Partner Portal Badge */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+            <span className="text-sm font-semibold text-[#E8638B] bg-pink-50 px-3 py-1 rounded-full">
               Partner Portal
             </span>
             <span className="text-sm text-gray-500 hidden sm:inline">
@@ -112,14 +112,14 @@ export default function PartnerNav({ vendorName, isSubscribed = false, onLogout 
                   href={item.href}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     active
-                      ? 'bg-purple-100 text-purple-700'
+                      ? 'bg-pink-100 text-[#D53F8C]'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
                   {item.icon}
                   <span className="hidden lg:inline">{item.label}</span>
                   {showUpgradeBadge && (
-                    <span className="hidden sm:inline text-xs bg-gradient-to-r from-purple-600 to-pink-500 text-white px-1.5 py-0.5 rounded">
+                    <span className="hidden sm:inline text-xs bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-1.5 py-0.5 rounded">
                       PRO
                     </span>
                   )}

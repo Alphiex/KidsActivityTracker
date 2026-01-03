@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
         <p className="text-red-600">{error}</p>
         <button
           onClick={fetchDashboard}
-          className="mt-2 text-sm text-purple-600 hover:text-purple-700"
+          className="mt-2 text-sm text-[#E8638B] hover:text-[#D53F8C]"
         >
           Try again
         </button>
@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
           title="Clicks (30d)"
           value={formatNumber(data?.last30Days.clicks || 0)}
           icon="cursor"
-          color="purple"
+          color="pink"
         />
       </div>
 
@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
           Click-Through Rate (Last 30 Days)
         </h2>
         <div className="flex items-center">
-          <span className="text-4xl font-bold text-purple-600">
+          <span className="text-4xl font-bold text-[#E8638B]">
             {data?.last30Days.ctr || '0.00'}%
           </span>
           <span className="ml-4 text-gray-500">
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">Top Partners</h2>
           <Link
             href="/admin/sponsors"
-            className="text-sm text-purple-600 hover:text-purple-700"
+            className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
           >
             View All
           </Link>
@@ -156,7 +156,7 @@ export default function AdminDashboardPage() {
           ) : (
             <div className="px-6 py-8 text-center text-gray-500">
               No partners yet.{' '}
-              <Link href="/admin/sponsors" className="text-purple-600 hover:text-purple-700">
+              <Link href="/admin/sponsors" className="text-[#E8638B] hover:text-[#D53F8C]">
                 Add one
               </Link>
             </div>
@@ -171,15 +171,16 @@ function StatCard({
   title,
   value,
   icon,
-  color = 'purple',
+  color = 'pink',
 }: {
   title: string;
   value: string | number;
   icon: string;
-  color?: 'purple' | 'green' | 'blue';
+  color?: 'purple' | 'green' | 'blue' | 'pink';
 }) {
   const colorClasses = {
-    purple: 'bg-purple-100 text-purple-600',
+    purple: 'bg-pink-100 text-[#E8638B]',
+    pink: 'bg-pink-100 text-[#E8638B]',
     green: 'bg-green-100 text-green-600',
     blue: 'bg-blue-100 text-blue-600',
   };

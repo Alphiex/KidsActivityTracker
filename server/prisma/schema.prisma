@@ -271,6 +271,8 @@ model Child {
   dateOfBirth     DateTime
   gender          String?
   avatarUrl       String?
+  avatarId        Int?                   // 1-10, references bundled avatar
+  colorId         Int?                   // 1-10, references pastel color
   interests       String[]
   notes           String?
   location        String?                // City or formatted address (DEPRECATED - use preferences)

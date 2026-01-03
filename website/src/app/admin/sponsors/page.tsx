@@ -123,7 +123,7 @@ export default function SponsorsListPage() {
         <h1 className="text-2xl font-bold text-gray-900">Sponsored Partners</h1>
         <button
           onClick={() => {/* TODO: Add new partner modal */}}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          className="px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
         >
           Add Partner
         </button>
@@ -137,7 +137,7 @@ export default function SponsorsListPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by provider name..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
           />
           <select
             value={statusFilter}
@@ -145,7 +145,7 @@ export default function SponsorsListPage() {
               setStatusFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
           >
             <option value="">All Statuses</option>
             <option value="active">Active</option>
@@ -173,7 +173,7 @@ export default function SponsorsListPage() {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
           </div>
         ) : sponsors.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
@@ -247,7 +247,7 @@ export default function SponsorsListPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
                           href={`/admin/sponsors/${sponsor.id}`}
-                          className="text-purple-600 hover:text-purple-900"
+                          className="text-[#E8638B] hover:text-[#B8336B]"
                         >
                           View Details
                         </Link>

@@ -69,7 +69,7 @@ export default function Stats() {
     {
       value: statsData.totalActivities > 0 ? formatNumber(statsData.totalActivities) : '...',
       label: 'Activities',
-      color: 'from-purple-500 to-pink-500'
+      color: 'from-[#E8638B] to-[#D53F8C]'
     },
     {
       value: statsData.totalLocations > 0 ? formatNumber(statsData.totalLocations) : '...',
@@ -81,7 +81,7 @@ export default function Stats() {
   ];
 
   return (
-    <section className="py-16 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400">
+    <section className="py-16 bg-gradient-to-r from-[#E8638B] via-[#D53F8C] to-[#FFD166]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((stat, index) => (

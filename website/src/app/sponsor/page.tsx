@@ -52,7 +52,7 @@ export default function SponsorDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -71,14 +71,14 @@ export default function SponsorDashboardPage() {
 
       {/* Subscription Status */}
       {data?.subscription && (
-        <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-[#FFF5F8] to-[#FFE5EC] rounded-xl shadow-lg p-6 mb-6 border border-pink-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-200 text-sm">Current Plan</p>
-              <p className="text-2xl font-bold">
+              <p className="text-gray-500 text-sm">Current Plan</p>
+              <p className="text-2xl font-bold text-gray-900">
                 {data.subscription.plan?.name || 'No Plan'}
               </p>
-              <p className="text-purple-200 capitalize">
+              <p className="text-gray-600 capitalize">
                 {data.subscription.status}
                 {data.subscription.endsAt && (
                   <> - Renews {new Date(data.subscription.endsAt).toLocaleDateString()}</>
@@ -87,7 +87,7 @@ export default function SponsorDashboardPage() {
             </div>
             <Link
               href="/sponsor/plans"
-              className="px-4 py-2 bg-white text-purple-700 rounded-lg font-medium hover:bg-purple-50 transition-colors"
+              className="px-4 py-2 bg-[#E8638B] text-white rounded-lg font-medium hover:bg-[#D53F8C] transition-colors"
             >
               Upgrade
             </Link>
@@ -123,7 +123,7 @@ export default function SponsorDashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">Performance Trend</h2>
           <Link
             href="/sponsor/analytics"
-            className="text-sm text-purple-600 hover:text-purple-700"
+            className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
           >
             View Details
           </Link>
@@ -139,7 +139,7 @@ export default function SponsorDashboardPage() {
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center">
                     <div
-                      className="w-full bg-purple-500 hover:bg-purple-600 transition-colors rounded-t"
+                      className="w-full bg-[#E8638B] hover:bg-[#E8638B] transition-colors rounded-t"
                       style={{ height: `${Math.max(height, 4)}%` }}
                       title={`${new Date(day.date).toLocaleDateString()}: ${day.impressionsTotal} impressions, ${day.clicksTotal} clicks`}
                     />
@@ -165,8 +165,8 @@ export default function SponsorDashboardPage() {
           className="bg-white rounded-xl shadow p-6 hover:shadow-md transition-shadow"
         >
           <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-pink-100 rounded-lg">
+              <svg className="w-6 h-6 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
               </svg>
             </div>
@@ -182,8 +182,8 @@ export default function SponsorDashboardPage() {
           className="bg-white rounded-xl shadow p-6 hover:shadow-md transition-shadow"
         >
           <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-pink-100 rounded-lg">
+              <svg className="w-6 h-6 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
               </svg>
             </div>
@@ -223,7 +223,7 @@ function StatCard({
         </div>
         <div className="flex justify-between items-center pt-2 border-t">
           <span className="text-gray-600">CTR</span>
-          <span className="font-bold text-purple-600">{ctr}%</span>
+          <span className="font-bold text-[#E8638B]">{ctr}%</span>
         </div>
       </div>
     </div>

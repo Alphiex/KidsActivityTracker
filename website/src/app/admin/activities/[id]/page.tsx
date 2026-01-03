@@ -357,7 +357,7 @@ export default function EditActivityPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -366,7 +366,7 @@ export default function EditActivityPage() {
     return (
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">{error || 'Activity not found'}</p>
-        <Link href="/admin/activities" className="text-purple-600 hover:underline">
+        <Link href="/admin/activities" className="text-[#E8638B] hover:underline">
           Back to Activities
         </Link>
       </div>
@@ -477,7 +477,7 @@ export default function EditActivityPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div className="md:col-span-2">
@@ -490,7 +490,7 @@ export default function EditActivityPage() {
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -503,7 +503,7 @@ export default function EditActivityPage() {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -513,7 +513,7 @@ export default function EditActivityPage() {
                 name="subcategory"
                 value={formData.subcategory}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -522,7 +522,7 @@ export default function EditActivityPage() {
                 name="activityTypeId"
                 value={formData.activityTypeId}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               >
                 <option value="">Select Type</option>
                 {activityTypes.map(type => (
@@ -536,7 +536,7 @@ export default function EditActivityPage() {
                 name="activitySubtypeId"
                 value={formData.activitySubtypeId}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 disabled={!selectedActivityType}
               >
                 <option value="">Select Subtype</option>
@@ -560,7 +560,7 @@ export default function EditActivityPage() {
                 value={formData.startTime}
                 onChange={handleChange}
                 placeholder="e.g., 9:00 am"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -571,7 +571,7 @@ export default function EditActivityPage() {
                 value={formData.endTime}
                 onChange={handleChange}
                 placeholder="e.g., 10:00 am"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div className="md:col-span-2">
@@ -584,7 +584,7 @@ export default function EditActivityPage() {
                     onClick={() => handleDayOfWeekChange(day)}
                     className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                       formData.dayOfWeek.includes(day)
-                        ? 'bg-purple-600 text-white'
+                        ? 'bg-[#E8638B] text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -600,7 +600,7 @@ export default function EditActivityPage() {
                 name="dateStart"
                 value={formData.dateStart}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -610,7 +610,7 @@ export default function EditActivityPage() {
                 name="dateEnd"
                 value={formData.dateEnd}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div className="md:col-span-2">
@@ -620,7 +620,7 @@ export default function EditActivityPage() {
                 name="schedule"
                 value={formData.schedule}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
           </div>
@@ -636,7 +636,7 @@ export default function EditActivityPage() {
                 name="locationId"
                 value={formData.locationId}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               >
                 <option value="">Select Location</option>
                 {locations.map(loc => (
@@ -651,7 +651,7 @@ export default function EditActivityPage() {
                 name="locationName"
                 value={formData.locationName}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div className="md:col-span-2">
@@ -661,7 +661,7 @@ export default function EditActivityPage() {
                 name="fullAddress"
                 value={formData.fullAddress}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
           </div>
@@ -678,7 +678,7 @@ export default function EditActivityPage() {
                 name="registrationUrl"
                 value={formData.registrationUrl}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -687,7 +687,7 @@ export default function EditActivityPage() {
                 name="registrationStatus"
                 value={formData.registrationStatus}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               >
                 <option value="">Select Status</option>
                 <option value="Open">Open</option>
@@ -704,7 +704,7 @@ export default function EditActivityPage() {
                 value={formData.registrationButtonText}
                 onChange={handleChange}
                 placeholder="e.g., Register Now"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -714,7 +714,7 @@ export default function EditActivityPage() {
                 name="registrationDate"
                 value={formData.registrationDate}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -724,7 +724,7 @@ export default function EditActivityPage() {
                 name="registrationEndDate"
                 value={formData.registrationEndDate}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -735,7 +735,7 @@ export default function EditActivityPage() {
                 value={formData.spotsAvailable}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -746,7 +746,7 @@ export default function EditActivityPage() {
                 value={formData.totalSpots}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
           </div>
@@ -768,7 +768,7 @@ export default function EditActivityPage() {
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -780,7 +780,7 @@ export default function EditActivityPage() {
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div className="flex items-center pt-6">
@@ -790,7 +790,7 @@ export default function EditActivityPage() {
                   name="costIncludesTax"
                   checked={formData.costIncludesTax}
                   onChange={handleChange}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="rounded border-gray-300 text-[#E8638B] focus:ring-[#E8638B]"
                 />
                 <span className="text-sm text-gray-700">Cost includes tax</span>
               </label>
@@ -813,7 +813,7 @@ export default function EditActivityPage() {
                 value={formData.ageMin}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
             <div>
@@ -827,7 +827,7 @@ export default function EditActivityPage() {
                 value={formData.ageMax}
                 onChange={handleChange}
                 min="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
               />
             </div>
           </div>
@@ -844,7 +844,7 @@ export default function EditActivityPage() {
                   name="isFeatured"
                   checked={formData.isFeatured}
                   onChange={handleChange}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="rounded border-gray-300 text-[#E8638B] focus:ring-[#E8638B]"
                 />
                 <span className="text-sm font-medium text-gray-700">Is Sponsored Activity</span>
               </label>
@@ -856,7 +856,7 @@ export default function EditActivityPage() {
                 value={formData.featuredTier}
                 onChange={handleChange}
                 disabled={!formData.isFeatured}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent disabled:bg-gray-100"
               >
                 <option value="">Select Tier</option>
                 <option value="gold">Gold</option>
@@ -872,7 +872,7 @@ export default function EditActivityPage() {
                 value={formData.featuredStartDate}
                 onChange={handleChange}
                 disabled={!formData.isFeatured}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent disabled:bg-gray-100"
               />
             </div>
             <div>
@@ -883,7 +883,7 @@ export default function EditActivityPage() {
                 value={formData.featuredEndDate}
                 onChange={handleChange}
                 disabled={!formData.isFeatured}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent disabled:bg-gray-100"
               />
             </div>
           </div>
@@ -898,7 +898,7 @@ export default function EditActivityPage() {
               name="isActive"
               checked={formData.isActive}
               onChange={handleChange}
-              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              className="rounded border-gray-300 text-[#E8638B] focus:ring-[#E8638B]"
             />
             <span className="text-sm font-medium text-gray-700">Activity is Active</span>
           </label>
@@ -915,7 +915,7 @@ export default function EditActivityPage() {
           <button
             type="submit"
             disabled={isSaving}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className="px-6 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </button>

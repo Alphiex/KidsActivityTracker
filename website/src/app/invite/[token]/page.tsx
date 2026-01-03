@@ -112,7 +112,7 @@ export default function InvitationPage({ params }: { params: { token: string } }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] to-[#FFE5EC] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF385C] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading invitation...</p>
@@ -123,7 +123,7 @@ export default function InvitationPage({ params }: { params: { token: string } }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] to-[#FFE5EC] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@ export default function InvitationPage({ params }: { params: { token: string } }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] to-[#FFE5EC] py-8 px-4">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -192,8 +192,8 @@ export default function InvitationPage({ params }: { params: { token: string } }
                 <div className="space-y-3">
                   {invitation.sender.children.map((child, index) => (
                     <div key={index} className="flex items-center bg-gray-50 rounded-xl p-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                        <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center mr-3">
+                        <svg className="w-5 h-5 text-[#E8638B]" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 3c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-2 18h4v-6h2.5l-2.5-4.5V7H10v3.5L7.5 15H10v6z"/>
                         </svg>
                       </div>

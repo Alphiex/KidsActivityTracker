@@ -110,7 +110,7 @@ export default function VendorDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -130,7 +130,7 @@ export default function VendorDashboardPage() {
 
       {/* Subscription Banner */}
       {subscription.isSubscribed ? (
-        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-[#E8638B] to-[#D53F8C] rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/20 rounded-lg">
@@ -168,11 +168,11 @@ export default function VendorDashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-purple-500">
+        <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-[#E8638B]">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 bg-pink-100 rounded-lg">
+                <svg className="w-6 h-6 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
@@ -183,7 +183,7 @@ export default function VendorDashboardPage() {
             </div>
             <Link
               href="/vendor/dashboard/plans"
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              className="px-4 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
             >
               View Plans
             </Link>
@@ -199,8 +199,8 @@ export default function VendorDashboardPage() {
               <p className="text-sm font-medium text-gray-500">Total Activities</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total ?? 0}</p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-pink-100 rounded-full">
+              <svg className="w-6 h-6 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
@@ -257,9 +257,9 @@ export default function VendorDashboardPage() {
           <div className="space-y-3">
             <Link
               href="/vendor/dashboard/imports/new"
-              className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+              className="flex items-center p-4 bg-pink-50 rounded-lg hover:bg-pink-100 transition-colors"
             >
-              <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-500 rounded-lg">
+              <div className="p-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] rounded-lg">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
@@ -300,7 +300,7 @@ export default function VendorDashboardPage() {
               {stats.byCategory.length > 5 && (
                 <Link
                   href="/vendor/dashboard/activities"
-                  className="text-sm text-purple-600 hover:text-purple-700"
+                  className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
                 >
                   View all categories
                 </Link>
@@ -318,7 +318,7 @@ export default function VendorDashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">Recent Imports</h2>
           <Link
             href="/vendor/dashboard/imports"
-            className="text-sm text-purple-600 hover:text-purple-700"
+            className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
           >
             View all
           </Link>
@@ -353,7 +353,7 @@ export default function VendorDashboardPage() {
             <p>No imports yet</p>
             <Link
               href="/vendor/dashboard/imports/new"
-              className="text-purple-600 hover:text-purple-700 text-sm mt-2 inline-block"
+              className="text-[#E8638B] hover:text-[#D53F8C] text-sm mt-2 inline-block"
             >
               Import your first file
             </Link>

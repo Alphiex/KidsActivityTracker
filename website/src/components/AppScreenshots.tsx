@@ -68,7 +68,7 @@ export default function AppScreenshots() {
                 <div className="bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
                   <div className="bg-gray-100 rounded-[2.5rem] overflow-hidden aspect-[9/19]">
                     {/* Screenshot container */}
-                    <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-100 relative">
+                    <div className="w-full h-full bg-gradient-to-br from-[#FFE5EC] to-[#FFF5F8] relative">
                       {!imageErrors[activeIndex] && screenshots[activeIndex].image && (
                         <Image
                           src={screenshots[activeIndex].image}
@@ -82,7 +82,7 @@ export default function AppScreenshots() {
                       {imageErrors[activeIndex] && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center p-6">
-                            <div className="w-16 h-16 mx-auto mb-4 bg-purple-200 rounded-2xl flex items-center justify-center">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-pink-200 rounded-2xl flex items-center justify-center">
                               <span className="text-3xl">
                                 {activeIndex === 0 ? '🔍' : activeIndex === 1 ? '📅' : activeIndex === 2 ? '🗺️' : '📋'}
                               </span>
@@ -99,7 +99,7 @@ export default function AppScreenshots() {
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute -top-4 -left-4 w-24 h-24 bg-purple-200 rounded-full opacity-50 blur-2xl" />
+              <div className="absolute -top-4 -left-4 w-24 h-24 bg-pink-200 rounded-full opacity-50 blur-2xl" />
               <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-pink-200 rounded-full opacity-50 blur-2xl" />
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function AppScreenshots() {
                 onClick={() => setActiveIndex(index)}
                 className={`w-full text-left p-6 rounded-2xl transition-all duration-300 ${
                   index === activeIndex
-                    ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 shadow-lg'
+                    ? 'bg-gradient-to-r from-[#FFF5F8] to-[#FFE5EC] border-2 border-pink-200 shadow-lg'
                     : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
                 }`}
               >
@@ -120,7 +120,7 @@ export default function AppScreenshots() {
                   <div
                     className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                       index === activeIndex
-                        ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
+                        ? 'bg-gradient-to-br from-[#E8638B] to-[#D53F8C] text-white'
                         : 'bg-gray-200 text-gray-600'
                     }`}
                   >
@@ -130,7 +130,7 @@ export default function AppScreenshots() {
                   </div>
                   <div>
                     <h3 className={`font-bold text-lg mb-1 ${
-                      index === activeIndex ? 'text-purple-900' : 'text-gray-900'
+                      index === activeIndex ? 'text-[#B8336B]' : 'text-gray-900'
                     }`}>
                       {screenshot.title}
                     </h3>

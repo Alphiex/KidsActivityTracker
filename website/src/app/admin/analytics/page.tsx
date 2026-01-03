@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
         <p className="text-red-600">{error}</p>
         <button
           onClick={fetchAnalytics}
-          className="mt-2 text-sm text-purple-600 hover:text-purple-700"
+          className="mt-2 text-sm text-[#E8638B] hover:text-[#D53F8C]"
         >
           Retry
         </button>
@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
 
         <div className="bg-white rounded-xl shadow p-6 min-w-0">
           <div className="text-sm font-medium text-gray-500">Click-Through Rate</div>
-          <div className="text-3xl font-bold text-purple-600 mt-2">
+          <div className="text-3xl font-bold text-[#E8638B] mt-2">
             {overview?.last30Days.ctr ?? '0.00'}%
           </div>
         </div>
@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Click-Through Rate</span>
-              <span className="font-semibold text-purple-600">
+              <span className="font-semibold text-[#E8638B]">
                 {overview?.last30Days.ctr ?? '0.00'}%
               </span>
             </div>
@@ -157,7 +157,7 @@ export default function AnalyticsPage() {
                   className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-medium">
+                    <span className="w-6 h-6 rounded-full bg-pink-100 text-[#E8638B] flex items-center justify-center text-sm font-medium">
                       {index + 1}
                     </span>
                     <span className="font-medium text-gray-900">{partner.providerName}</span>

@@ -266,7 +266,7 @@ export default function SystemHealthPage() {
         {health && (
           <div className="h-8 bg-gray-100 rounded-lg overflow-hidden flex">
             <div
-              className="bg-purple-500 flex items-center justify-center text-white text-xs"
+              className="bg-[#E8638B] flex items-center justify-center text-white text-xs"
               style={{ width: `${(health.memory.heapUsed / health.memory.rss) * 100}%` }}
             >
               Heap
@@ -282,7 +282,7 @@ export default function SystemHealthPage() {
         )}
         <div className="flex items-center gap-6 mt-4 text-sm">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 bg-purple-500 rounded" />
+            <span className="w-3 h-3 bg-[#E8638B] rounded" />
             <span className="text-gray-600">Heap Used</span>
           </div>
           <div className="flex items-center gap-2">

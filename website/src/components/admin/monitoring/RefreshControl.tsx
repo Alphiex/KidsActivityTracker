@@ -66,7 +66,7 @@ export default function RefreshControl({
           />
           <div
             className={`block w-10 h-6 rounded-full transition-colors ${
-              autoRefresh ? 'bg-purple-600' : 'bg-gray-300'
+              autoRefresh ? 'bg-[#E8638B]' : 'bg-gray-300'
             }`}
           />
           <div

@@ -85,7 +85,7 @@ export default function ImportsPage() {
         <h1 className="text-2xl font-bold text-gray-900">Import History</h1>
         <Link
           href="/vendor/dashboard/imports/new"
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="px-4 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           New Import
         </Link>
@@ -100,7 +100,7 @@ export default function ImportsPage() {
               setStatusFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
           >
             <option value="">All Status</option>
             <option value="PENDING">Pending</option>
@@ -125,7 +125,7 @@ export default function ImportsPage() {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
           </div>
         ) : imports.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
@@ -135,7 +135,7 @@ export default function ImportsPage() {
             <p>No imports found.</p>
             <Link
               href="/vendor/dashboard/imports/new"
-              className="text-purple-600 hover:text-purple-700 mt-2 inline-block"
+              className="text-[#E8638B] hover:text-[#D53F8C] mt-2 inline-block"
             >
               Import your first file
             </Link>
@@ -200,7 +200,7 @@ export default function ImportsPage() {
                       <td className="px-4 py-3 text-right">
                         <Link
                           href={`/vendor/dashboard/imports/${batch.id}`}
-                          className="text-purple-600 hover:text-purple-800 text-sm"
+                          className="text-[#E8638B] hover:text-[#C53078] text-sm"
                         >
                           View Details
                         </Link>

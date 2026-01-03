@@ -210,7 +210,7 @@ export default function MonitoringDashboard() {
                 <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full ${
-                      aiMetrics.budget.exceeded ? 'bg-red-500' : 'bg-purple-600'
+                      aiMetrics.budget.exceeded ? 'bg-red-500' : 'bg-[#E8638B]'
                     }`}
                     style={{
                       width: `${Math.min(
@@ -264,7 +264,7 @@ export default function MonitoringDashboard() {
           {scraperStats.alerts.length > 5 && (
             <Link
               href="/admin/monitoring/scrapers"
-              className="block text-center text-sm text-purple-600 hover:text-purple-700 mt-4"
+              className="block text-center text-sm text-[#E8638B] hover:text-[#D53F8C] mt-4"
             >
               View all {scraperStats.alerts.length} alerts
             </Link>
@@ -279,7 +279,7 @@ export default function MonitoringDashboard() {
             <h2 className="text-lg font-semibold text-gray-900">Recent Scraper Runs</h2>
             <Link
               href="/admin/monitoring/scrapers"
-              className="text-sm text-purple-600 hover:text-purple-700"
+              className="text-sm text-[#E8638B] hover:text-[#D53F8C]"
             >
               View all
             </Link>

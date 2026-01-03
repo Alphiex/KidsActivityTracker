@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -85,9 +85,9 @@ export default function AnalyticsPage() {
           <div className="relative">
             <div className="filter blur-sm pointer-events-none p-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-purple-50 rounded-xl p-6">
-                  <div className="text-sm text-purple-600 mb-1">Impressions</div>
-                  <div className="text-3xl font-bold text-purple-700">12,458</div>
+                <div className="bg-pink-50 rounded-xl p-6">
+                  <div className="text-sm text-[#E8638B] mb-1">Impressions</div>
+                  <div className="text-3xl font-bold text-[#D53F8C]">12,458</div>
                 </div>
                 <div className="bg-pink-50 rounded-xl p-6">
                   <div className="text-sm text-pink-600 mb-1">Clicks</div>
@@ -104,8 +104,8 @@ export default function AnalyticsPage() {
             {/* Upgrade overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-white/80">
               <div className="text-center max-w-md mx-auto p-8">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
@@ -116,7 +116,7 @@ export default function AnalyticsPage() {
                 </p>
                 <Link
                   href="/vendor/dashboard/plans"
-                  className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+                  className="inline-block px-6 py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
                 >
                   View Upgrade Options
                 </Link>
@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
               onClick={() => setDateRange(range)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 dateRange === range
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-[#E8638B] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -161,8 +161,8 @@ export default function AnalyticsPage() {
               <p className="text-sm text-gray-500">Impressions</p>
               <p className="text-3xl font-bold text-gray-900">{analytics?.totals.impressions.toLocaleString() || 0}</p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-pink-100 rounded-full">
+              <svg className="w-6 h-6 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
@@ -208,7 +208,7 @@ export default function AnalyticsPage() {
               return (
                 <div key={i} className="flex-1 flex flex-col items-center">
                   <div
-                    className="w-full bg-gradient-to-t from-purple-500 to-pink-400 rounded-t transition-all hover:opacity-80"
+                    className="w-full bg-gradient-to-t from-[#E8638B] to-[#FFB5C5] rounded-t transition-all hover:opacity-80"
                     style={{ height: `${height}%`, minHeight: day.impressionsTotal > 0 ? '4px' : '0' }}
                     title={`${day.date}: ${day.impressionsTotal} impressions, ${day.clicksTotal} clicks`}
                   ></div>
@@ -227,16 +227,16 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Additional info */}
-      <div className="bg-purple-50 rounded-xl p-6">
+      <div className="bg-pink-50 rounded-xl p-6">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="p-2 bg-pink-100 rounded-lg">
+            <svg className="w-5 h-5 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h3 className="font-medium text-purple-900">Understanding Your Analytics</h3>
-            <p className="text-sm text-purple-700 mt-1">
+            <h3 className="font-medium text-[#B8336B]">Understanding Your Analytics</h3>
+            <p className="text-sm text-[#D53F8C] mt-1">
               <strong>Impressions</strong> are counted when your activity appears in search results or browse pages.
               <strong> Clicks</strong> are tracked when a parent taps on your activity to view details.
               A higher <strong>CTR</strong> indicates your activity titles and descriptions are engaging.

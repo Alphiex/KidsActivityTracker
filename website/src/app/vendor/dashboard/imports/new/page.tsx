@@ -213,7 +213,7 @@ export default function NewImportPage() {
             <div key={s} className="flex items-center">
               <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
                 step === s
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-[#E8638B] text-white'
                   : ['upload', 'mapping', 'validation', 'complete'].indexOf(step) > index
                   ? 'bg-green-500 text-white'
                   : 'bg-gray-200 text-gray-600'
@@ -226,7 +226,7 @@ export default function NewImportPage() {
                   index + 1
                 )}
               </div>
-              <span className={`ml-2 text-sm ${step === s ? 'text-purple-600 font-medium' : 'text-gray-500'}`}>
+              <span className={`ml-2 text-sm ${step === s ? 'text-[#E8638B] font-medium' : 'text-gray-500'}`}>
                 {s === 'upload' ? 'Upload' : s === 'mapping' ? 'Map Fields' : s === 'validation' ? 'Validate' : 'Complete'}
               </span>
               {index < 3 && (
@@ -257,7 +257,7 @@ export default function NewImportPage() {
             onDrop={handleDrop}
             className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
               isDragging
-                ? 'border-purple-500 bg-purple-50'
+                ? 'border-[#E8638B] bg-pink-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
@@ -271,7 +271,7 @@ export default function NewImportPage() {
 
             {isLoading ? (
               <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B] mb-4"></div>
                 <p className="text-gray-600">Processing file...</p>
               </div>
             ) : (
@@ -283,7 +283,7 @@ export default function NewImportPage() {
                   Drop your file here, or{' '}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-purple-600 hover:text-purple-700"
+                    className="text-[#E8638B] hover:text-[#D53F8C]"
                   >
                     browse
                   </button>
@@ -316,8 +316,8 @@ export default function NewImportPage() {
             </p>
           </div>
 
-          <div className="mb-4 p-4 bg-purple-50 rounded-lg">
-            <p className="text-purple-800">
+          <div className="mb-4 p-4 bg-pink-50 rounded-lg">
+            <p className="text-[#C53078]">
               <span className="font-medium">{preview.stats.totalRows}</span> rows found with{' '}
               <span className="font-medium">{preview.stats.columns}</span> columns
             </p>
@@ -337,7 +337,7 @@ export default function NewImportPage() {
                   <select
                     value={fieldMapping[header] || ''}
                     onChange={(e) => handleMappingChange(header, e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                   >
                     <option value="">-- Skip this column --</option>
                     {ACTIVITY_FIELDS.map((field) => (
@@ -361,7 +361,7 @@ export default function NewImportPage() {
             <button
               onClick={handleUploadAndValidate}
               disabled={isLoading}
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Processing...' : 'Continue'}
             </button>
@@ -415,8 +415,8 @@ export default function NewImportPage() {
           )}
 
           {validation.validRows > 0 && (
-            <div className="p-4 bg-purple-50 rounded-lg mb-6">
-              <p className="text-purple-800">
+            <div className="p-4 bg-pink-50 rounded-lg mb-6">
+              <p className="text-[#C53078]">
                 <span className="font-medium">{validation.validRows}</span> activities will be imported.
                 {validation.existingActivities > 0 && (
                   <span> ({validation.existingActivities} will update existing activities)</span>
@@ -435,7 +435,7 @@ export default function NewImportPage() {
             <button
               onClick={handleSubmit}
               disabled={isLoading || validation.validRows === 0}
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Submitting...' : 'Submit Import'}
             </button>
@@ -464,7 +464,7 @@ export default function NewImportPage() {
             </button>
             <Link
               href="/vendor/dashboard/imports"
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg hover:opacity-90"
+              className="px-6 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90"
             >
               View Import History
             </Link>

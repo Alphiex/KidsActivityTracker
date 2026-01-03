@@ -48,6 +48,8 @@ router.post('/', verifyToken, validateChild, handleValidationErrors, async (req:
       dateOfBirth: new Date(req.body.dateOfBirth),
       gender: req.body.gender,
       avatarUrl: req.body.avatarUrl,
+      avatarId: req.body.avatarId,
+      colorId: req.body.colorId,
       interests: req.body.interests,
       notes: req.body.notes,
       location: req.body.location,
@@ -194,6 +196,8 @@ router.put('/:childId', verifyToken, async (req: Request, res: Response) => {
     if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = new Date(req.body.dateOfBirth);
     if (req.body.gender !== undefined) updateData.gender = req.body.gender;
     if (req.body.avatarUrl !== undefined) updateData.avatarUrl = req.body.avatarUrl;
+    if (req.body.avatarId !== undefined) updateData.avatarId = req.body.avatarId;
+    if (req.body.colorId !== undefined) updateData.colorId = req.body.colorId;
     if (req.body.interests !== undefined) updateData.interests = req.body.interests;
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
     if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive;
@@ -234,6 +238,8 @@ router.patch('/:childId', verifyToken, async (req: Request, res: Response) => {
     if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = new Date(req.body.dateOfBirth);
     if (req.body.gender !== undefined) updateData.gender = req.body.gender;
     if (req.body.avatarUrl !== undefined) updateData.avatarUrl = req.body.avatarUrl;
+    if (req.body.avatarId !== undefined) updateData.avatarId = req.body.avatarId;
+    if (req.body.colorId !== undefined) updateData.colorId = req.body.colorId;
     if (req.body.interests !== undefined) updateData.interests = req.body.interests;
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
     if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive;
@@ -377,6 +383,8 @@ router.post('/bulk', verifyToken, async (req: Request, res: Response) => {
         dateOfBirth: new Date(child.dateOfBirth),
         gender: child.gender,
         avatarUrl: child.avatarUrl,
+        avatarId: child.avatarId,
+        colorId: child.colorId,
         interests: child.interests || [],
         notes: child.notes
       }))

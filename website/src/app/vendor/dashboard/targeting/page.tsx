@@ -119,7 +119,7 @@ export default function TargetingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -150,8 +150,8 @@ export default function TargetingPage() {
             {/* Upgrade overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-white/80">
               <div className="text-center max-w-md mx-auto p-8">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
@@ -164,7 +164,7 @@ export default function TargetingPage() {
                 </p>
                 <Link
                   href="/vendor/dashboard/plans"
-                  className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+                  className="inline-block px-6 py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
                 >
                   {isSubscribed ? 'Upgrade to Silver' : 'View Upgrade Options'}
                 </Link>
@@ -187,7 +187,7 @@ export default function TargetingPage() {
         <button
           onClick={saveSettings}
           disabled={isSaving}
-          className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="px-6 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {isSaving ? 'Saving...' : 'Save Settings'}
         </button>
@@ -215,7 +215,7 @@ export default function TargetingPage() {
               onClick={() => toggleProvince(province.code)}
               className={`p-3 border rounded-lg text-sm font-medium transition-colors ${
                 selectedProvinces.includes(province.code)
-                  ? 'border-purple-500 bg-purple-50 text-purple-700'
+                  ? 'border-[#E8638B] bg-pink-50 text-[#D53F8C]'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
               }`}
             >
@@ -242,7 +242,7 @@ export default function TargetingPage() {
                 onClick={() => toggleCity(city)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   selectedCities.includes(city)
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-[#E8638B] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -260,7 +260,7 @@ export default function TargetingPage() {
             onChange={(e) => setCustomCity(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addCustomCity()}
             placeholder="Add another city..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
           />
           <button
             onClick={addCustomCity}
@@ -278,12 +278,12 @@ export default function TargetingPage() {
               {selectedCities.map((city) => (
                 <span
                   key={city}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-pink-100 text-[#D53F8C] rounded-full text-sm"
                 >
                   {city}
                   <button
                     onClick={() => toggleCity(city)}
-                    className="ml-1 hover:text-purple-900"
+                    className="ml-1 hover:text-[#B8336B]"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -297,16 +297,16 @@ export default function TargetingPage() {
       </div>
 
       {/* Info Box */}
-      <div className="bg-purple-50 rounded-xl p-6">
+      <div className="bg-pink-50 rounded-xl p-6">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="p-2 bg-pink-100 rounded-lg">
+            <svg className="w-5 h-5 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h3 className="font-medium text-purple-900">How Targeting Works</h3>
-            <p className="text-sm text-purple-700 mt-1">
+            <h3 className="font-medium text-[#B8336B]">How Targeting Works</h3>
+            <p className="text-sm text-[#D53F8C] mt-1">
               When you select specific provinces or cities, your activities will receive priority placement
               for parents searching in those locations. If no targeting is set, your activities will be
               shown based on their actual location.

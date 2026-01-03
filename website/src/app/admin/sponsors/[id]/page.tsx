@@ -120,7 +120,7 @@ export default function SponsorDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function SponsorDetailPage() {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-600">{error || 'Partner not found'}</p>
-        <Link href="/admin/sponsors" className="mt-2 text-purple-600 hover:text-purple-700">
+        <Link href="/admin/sponsors" className="mt-2 text-[#E8638B] hover:text-[#D53F8C]">
           Back to Sponsored Partners
         </Link>
       </div>
@@ -173,7 +173,7 @@ export default function SponsorDetailPage() {
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
             >
               Edit
             </button>
@@ -201,7 +201,7 @@ export default function SponsorDetailPage() {
                 <p className="text-sm text-gray-500">Clicks</p>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-2xl font-bold text-[#E8638B]">
                   {sponsor.analytics.last30Days.ctr}%
                 </p>
                 <p className="text-sm text-gray-500">CTR</p>
@@ -218,7 +218,7 @@ export default function SponsorDetailPage() {
                   return (
                     <div
                       key={i}
-                      className="flex-1 bg-purple-200 hover:bg-purple-300 transition-colors rounded-t"
+                      className="flex-1 bg-pink-200 hover:bg-pink-300 transition-colors rounded-t"
                       style={{ height: `${Math.max(height, 2)}%` }}
                       title={`${new Date(day.date).toLocaleDateString()}: ${day.impressionsTotal} impressions`}
                     />
@@ -244,7 +244,7 @@ export default function SponsorDetailPage() {
                       ...formData,
                       targetCities: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                     placeholder="Vancouver, Surrey, Burnaby"
                   />
                 </div>
@@ -259,7 +259,7 @@ export default function SponsorDetailPage() {
                       ...formData,
                       targetProvinces: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                     placeholder="BC, AB, ON"
                   />
                 </div>
@@ -324,7 +324,7 @@ export default function SponsorDetailPage() {
                 <select
                   value={formData.subscriptionStatus}
                   onChange={(e) => setFormData({ ...formData, subscriptionStatus: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -348,7 +348,7 @@ export default function SponsorDetailPage() {
                     type="email"
                     value={formData.billingEmail}
                     onChange={(e) => setFormData({ ...formData, billingEmail: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -359,7 +359,7 @@ export default function SponsorDetailPage() {
                     type="text"
                     value={formData.billingName}
                     onChange={(e) => setFormData({ ...formData, billingName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -388,7 +388,7 @@ export default function SponsorDetailPage() {
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-[#E8638B] text-white rounded-lg hover:bg-[#D53F8C] transition-colors"
               >
                 Save
               </button>

@@ -27,7 +27,7 @@ export default function SponsorForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] via-white to-[#E8F4FF] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -41,7 +41,7 @@ export default function SponsorForgotPasswordPage() {
             </p>
             <Link
               href="/sponsor/login"
-              className="inline-block px-6 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+              className="inline-block px-6 py-3 bg-[#E8638B] text-white font-medium rounded-lg hover:bg-[#D53F8C] transition-colors"
             >
               Return to Login
             </Link>
@@ -52,13 +52,13 @@ export default function SponsorForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] via-white to-[#E8F4FF] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <Link
               href="/sponsor/login"
-              className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium mb-4"
+              className="inline-flex items-center gap-1 text-[#E8638B] hover:text-[#D53F8C] font-medium mb-4"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -87,7 +87,7 @@ export default function SponsorForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
                 placeholder="you@company.com"
               />
             </div>
@@ -95,7 +95,7 @@ export default function SponsorForgotPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-[#E8638B] text-white font-medium rounded-lg hover:bg-[#D53F8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Sending...' : 'Send Reset Link'}
             </button>

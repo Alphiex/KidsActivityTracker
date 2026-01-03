@@ -80,7 +80,7 @@ export default function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
               onClick={() => setDateRange(range)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 dateRange === range
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-[#E8638B] text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="bg-white rounded-xl shadow p-6">
           <p className="text-sm text-gray-500 mb-1">Click-Through Rate</p>
-          <p className="text-3xl font-bold text-purple-600">
+          <p className="text-3xl font-bold text-[#E8638B]">
             {data?.totals.ctr || '0.00'}%
           </p>
         </div>
@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
                     className="flex-1 relative group"
                   >
                     <div
-                      className="w-full bg-purple-500 hover:bg-purple-600 transition-colors rounded-t"
+                      className="w-full bg-[#E8638B] hover:bg-[#E8638B] transition-colors rounded-t"
                       style={{ height: `${Math.max(height, 2)}%` }}
                     />
                     {/* Tooltip */}
@@ -196,7 +196,7 @@ export default function AnalyticsPage() {
                         {item._count.toLocaleString()} impressions, {clicks.toLocaleString()} clicks
                       </p>
                     </div>
-                    <span className="text-purple-600 font-medium">{ctr}%</span>
+                    <span className="text-[#E8638B] font-medium">{ctr}%</span>
                   </div>
                 );
               })}

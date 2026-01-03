@@ -103,7 +103,7 @@ export default function PlansPage() {
       silver: 'from-gray-300 to-gray-500',
       bronze: 'from-orange-400 to-orange-600',
     };
-    return colors[tier] || 'from-purple-400 to-purple-600';
+    return colors[tier] || 'from-[#FFB5C5] to-[#E8638B]';
   };
 
   const formatPrice = (price: string) => {
@@ -118,7 +118,7 @@ export default function PlansPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -135,14 +135,14 @@ export default function PlansPage() {
       </div>
 
       {/* Current Plan Banner */}
-      <div className={`rounded-xl p-6 mb-8 ${isFreeUser ? 'bg-gray-50 border border-gray-200' : 'bg-purple-50 border border-purple-200'}`}>
+      <div className={`rounded-xl p-6 mb-8 ${isFreeUser ? 'bg-gray-50 border border-gray-200' : 'bg-pink-50 border border-pink-200'}`}>
         <div className="flex items-center justify-between">
           <div>
-            <p className={`text-sm font-medium ${isFreeUser ? 'text-gray-600' : 'text-purple-600'}`}>Current Plan</p>
-            <p className={`text-xl font-bold ${isFreeUser ? 'text-gray-900' : 'text-purple-900'}`}>
+            <p className={`text-sm font-medium ${isFreeUser ? 'text-gray-600' : 'text-[#E8638B]'}`}>Current Plan</p>
+            <p className={`text-xl font-bold ${isFreeUser ? 'text-gray-900' : 'text-[#B8336B]'}`}>
               {currentPlan?.plan?.name || 'Free Partner'}
             </p>
-            <p className={isFreeUser ? 'text-gray-600' : 'text-purple-600'}>
+            <p className={isFreeUser ? 'text-gray-600' : 'text-[#E8638B]'}>
               {isFreeUser ? 'Basic listing included' : currentPlan?.status}
             </p>
           </div>
@@ -158,7 +158,7 @@ export default function PlansPage() {
 
       {/* Why Upgrade Section */}
       {isFreeUser && (
-        <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-2xl p-8 mb-8 text-white">
+        <div className="bg-gradient-to-r from-[#E8638B] to-[#D53F8C] rounded-2xl p-8 mb-8 text-white">
           <h2 className="text-2xl font-bold mb-4">Why Upgrade to Sponsor?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex items-start gap-3">
@@ -207,7 +207,7 @@ export default function PlansPage() {
               onClick={() => setActiveFeatureTab('priority')}
               className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeFeatureTab === 'priority'
-                  ? 'border-purple-600 text-purple-600 bg-purple-50'
+                  ? 'border-[#E8638B] text-[#E8638B] bg-pink-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -217,7 +217,7 @@ export default function PlansPage() {
               onClick={() => setActiveFeatureTab('analytics')}
               className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeFeatureTab === 'analytics'
-                  ? 'border-purple-600 text-purple-600 bg-purple-50'
+                  ? 'border-[#E8638B] text-[#E8638B] bg-pink-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -227,7 +227,7 @@ export default function PlansPage() {
               onClick={() => setActiveFeatureTab('targeting')}
               className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeFeatureTab === 'targeting'
-                  ? 'border-purple-600 text-purple-600 bg-purple-50'
+                  ? 'border-[#E8638B] text-[#E8638B] bg-pink-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -281,7 +281,7 @@ export default function PlansPage() {
                         </svg>
                         <span className="text-[10px] font-bold text-white">SPONSORED</span>
                       </div>
-                      <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-purple-600 rounded-full">
+                      <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-[#E8638B] rounded-full">
                         <span className="text-[10px] font-bold text-white">$150</span>
                       </div>
                     </div>
@@ -359,8 +359,8 @@ export default function PlansPage() {
                   <h4 className="font-semibold text-gray-900 mb-4">Analytics Dashboard Preview</h4>
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="text-center p-3 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">12,458</div>
+                    <div className="text-center p-3 bg-pink-50 rounded-lg">
+                      <div className="text-2xl font-bold text-[#E8638B]">12,458</div>
                       <div className="text-xs text-gray-500">Impressions</div>
                     </div>
                     <div className="text-center p-3 bg-pink-50 rounded-lg">
@@ -373,11 +373,11 @@ export default function PlansPage() {
                     </div>
                   </div>
                   {/* Chart mockup */}
-                  <div className="h-32 bg-gradient-to-t from-purple-100 to-transparent rounded-lg flex items-end justify-around px-2 pb-2">
+                  <div className="h-32 bg-gradient-to-t from-pink-100 to-transparent rounded-lg flex items-end justify-around px-2 pb-2">
                     {[40, 55, 45, 70, 65, 80, 75].map((h, i) => (
                       <div
                         key={i}
-                        className="w-6 bg-gradient-to-t from-purple-500 to-pink-400 rounded-t"
+                        className="w-6 bg-gradient-to-t from-[#E8638B] to-[#FFB5C5] rounded-t"
                         style={{ height: `${h}%` }}
                       ></div>
                     ))}
@@ -426,18 +426,18 @@ export default function PlansPage() {
                       </svg>
                     </div>
                     {/* City markers */}
-                    <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-                    <div className="absolute top-1/3 left-1/2 w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-                    <div className="absolute top-1/2 left-1/3 w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                    <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-[#E8638B] rounded-full animate-pulse"></div>
+                    <div className="absolute top-1/3 left-1/2 w-3 h-3 bg-[#E8638B] rounded-full animate-pulse"></div>
+                    <div className="absolute top-1/2 left-1/3 w-3 h-3 bg-[#E8638B] rounded-full animate-pulse"></div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Selected Cities:</span>
-                      <span className="font-medium text-purple-600">Vancouver, Burnaby, Richmond</span>
+                      <span className="font-medium text-[#E8638B]">Vancouver, Burnaby, Richmond</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Province:</span>
-                      <span className="font-medium text-purple-600">British Columbia</span>
+                      <span className="font-medium text-[#E8638B]">British Columbia</span>
                     </div>
                   </div>
                 </div>
@@ -536,7 +536,7 @@ export default function PlansPage() {
             <div
               key={plan.id}
               className={`bg-white rounded-xl shadow-lg overflow-hidden ${
-                isCurrentPlan ? 'ring-2 ring-purple-500' : ''
+                isCurrentPlan ? 'ring-2 ring-[#E8638B]' : ''
               }`}
             >
               {/* Header */}
@@ -608,7 +608,7 @@ export default function PlansPage() {
                 ) : (
                   <button
                     onClick={() => setSelectedPlan(plan)}
-                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+                    className="w-full py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
                   >
                     {currentPlan?.plan ? 'Upgrade' : 'Subscribe'}
                   </button>
@@ -637,7 +637,7 @@ export default function PlansPage() {
                     onClick={() => setBillingCycle('monthly')}
                     className={`p-3 border rounded-lg text-center transition-colors ${
                       billingCycle === 'monthly'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        ? 'border-[#E8638B] bg-pink-50 text-[#D53F8C]'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
@@ -648,7 +648,7 @@ export default function PlansPage() {
                     onClick={() => setBillingCycle('annual')}
                     className={`p-3 border rounded-lg text-center transition-colors ${
                       billingCycle === 'annual'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        ? 'border-[#E8638B] bg-pink-50 text-[#D53F8C]'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
@@ -675,7 +675,7 @@ export default function PlansPage() {
               <button
                 onClick={handleSubscribe}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isSubmitting ? 'Redirecting...' : 'Continue to Payment'}
               </button>

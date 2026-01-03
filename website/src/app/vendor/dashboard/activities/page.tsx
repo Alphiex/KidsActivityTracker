@@ -115,7 +115,7 @@ export default function VendorActivitiesPage() {
         <h1 className="text-2xl font-bold text-gray-900">Activities</h1>
         <Link
           href="/vendor/dashboard/imports/new"
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="px-4 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           Import Activities
         </Link>
@@ -129,14 +129,14 @@ export default function VendorActivitiesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search activities..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
           />
           <input
             type="text"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="Category..."
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent lg:w-48"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent lg:w-48"
           />
           <select
             value={activeFilter}
@@ -144,7 +144,7 @@ export default function VendorActivitiesPage() {
               setActiveFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E8638B] focus:border-transparent"
           >
             <option value="">All Status</option>
             <option value="true">Active</option>
@@ -161,8 +161,8 @@ export default function VendorActivitiesPage() {
 
       {/* Bulk Actions */}
       {selectedIds.size > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4 flex items-center justify-between">
-          <span className="text-purple-700">{selectedIds.size} activities selected</span>
+        <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+          <span className="text-[#D53F8C]">{selectedIds.size} activities selected</span>
           <div className="flex gap-2">
             <button
               onClick={() => handleBulkAction('activate')}
@@ -197,14 +197,14 @@ export default function VendorActivitiesPage() {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
           </div>
         ) : activities.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <p>No activities found.</p>
             <Link
               href="/vendor/dashboard/imports/new"
-              className="text-purple-600 hover:text-purple-700 mt-2 inline-block"
+              className="text-[#E8638B] hover:text-[#D53F8C] mt-2 inline-block"
             >
               Import your first activities
             </Link>
@@ -284,7 +284,7 @@ export default function VendorActivitiesPage() {
                       <td className="px-4 py-3 text-right">
                         <Link
                           href={`/vendor/dashboard/activities/${activity.id}`}
-                          className="text-purple-600 hover:text-purple-800 text-sm mr-3"
+                          className="text-[#E8638B] hover:text-[#C53078] text-sm mr-3"
                         >
                           Edit
                         </Link>

@@ -91,19 +91,19 @@ export default function VendorPage() {
   return (
     <div>
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-purple-600 to-pink-500 py-20">
+      <section className="bg-gradient-to-br from-[#E8638B] to-[#D53F8C] py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
             Reach More Families with Your Activities
           </h1>
-          <p className="text-xl text-purple-100 max-w-2xl mx-auto mb-8">
+          <p className="text-xl text-pink-100 max-w-2xl mx-auto mb-8">
             List your programs, classes, and camps in Kids Activity Tracker and connect
             with thousands of parents looking for activities for their children.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/vendor/register"
-              className="inline-flex items-center justify-center bg-white text-purple-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-purple-50 transition-colors"
+              className="inline-flex items-center justify-center bg-white text-[#E8638B] px-8 py-4 rounded-full font-semibold text-lg hover:bg-pink-50 transition-colors"
             >
               Register as Vendor
             </Link>
@@ -132,7 +132,7 @@ export default function VendorPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {BENEFITS.map((benefit, index) => (
               <div key={index} className="bg-gray-50 rounded-2xl p-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-500 rounded-xl flex items-center justify-center text-white mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#E8638B] to-[#D53F8C] rounded-xl flex items-center justify-center text-white mb-4">
                   {benefit.icon}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -160,7 +160,7 @@ export default function VendorPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {STEPS.map((step, index) => (
               <div key={index} className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#E8638B] to-[#D53F8C] rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
                   {step.number}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{step.title}</h3>
@@ -174,10 +174,10 @@ export default function VendorPage() {
       {/* Sponsorship Section */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-3xl p-8 lg:p-12">
+          <div className="bg-gradient-to-r from-[#FFF5F8] to-[#FFE5EC] rounded-3xl p-8 lg:p-12">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <span className="inline-block bg-purple-100 text-purple-600 text-sm font-medium px-4 py-1 rounded-full mb-4">
+                <span className="inline-block bg-pink-100 text-[#E8638B] text-sm font-medium px-4 py-1 rounded-full mb-4">
                   Premium Feature
                 </span>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -195,7 +195,7 @@ export default function VendorPage() {
                     'Analytics and performance reports',
                   ].map((item, index) => (
                     <li key={index} className="flex items-center gap-3 text-gray-700">
-                      <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-[#E8638B] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       {item}
@@ -204,7 +204,7 @@ export default function VendorPage() {
                 </ul>
                 <Link
                   href="mailto:partners@kidsactivitytracker.ca"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity"
                 >
                   Contact for Pricing
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,7 +288,7 @@ export default function VendorPage() {
           </p>
           <Link
             href="/vendor/register"
-            className="inline-flex items-center justify-center bg-gradient-to-r from-purple-600 to-pink-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:opacity-90 transition-opacity"
+            className="inline-flex items-center justify-center bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white px-8 py-4 rounded-full font-semibold text-lg hover:opacity-90 transition-opacity"
           >
             Register as Vendor
           </Link>

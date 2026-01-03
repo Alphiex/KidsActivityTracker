@@ -2,14 +2,14 @@ import Link from 'next/link';
 
 export default function VendorCTA() {
   return (
-    <section className="py-20 bg-gradient-to-br from-purple-600 to-pink-500">
+    <section className="py-20 bg-gradient-to-br from-[#E8638B] to-[#D53F8C]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold text-white">
               Are You an Activity Provider?
             </h2>
-            <p className="mt-4 text-lg text-purple-100">
+            <p className="mt-4 text-lg text-pink-100">
               List your programs, classes, and camps in our app and reach
               thousands of families looking for activities for their children.
             </p>
@@ -21,7 +21,7 @@ export default function VendorCTA() {
                 'Reach parents actively searching for activities',
               ].map((item, index) => (
                 <li key={index} className="flex items-center gap-3 text-white">
-                  <svg className="w-5 h-5 text-purple-200 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-5 h-5 text-pink-200 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   {item}
@@ -31,7 +31,7 @@ export default function VendorCTA() {
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
               <Link
                 href="/vendor/register"
-                className="inline-flex items-center justify-center bg-white text-purple-600 px-6 py-3 rounded-full font-semibold hover:bg-purple-50 transition-colors"
+                className="inline-flex items-center justify-center bg-white text-[#E8638B] px-6 py-3 rounded-full font-semibold hover:bg-pink-50 transition-colors"
               >
                 Register as Vendor
               </Link>

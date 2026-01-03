@@ -93,7 +93,7 @@ export default function SponsorLayout({ children }: SponsorLayoutProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -105,15 +105,15 @@ export default function SponsorLayout({ children }: SponsorLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-purple-800 to-purple-900 transform transition-transform duration-200 ease-in-out ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0`}>
-        <div className="flex items-center justify-center h-16 px-4 bg-purple-900">
-          <h1 className="text-xl font-bold text-white">Partner Portal</h1>
+        <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-900">Partner Portal</h1>
         </div>
-        <div className="px-4 py-4 border-b border-purple-700">
-          <p className="text-purple-200 text-sm">Logged in as</p>
-          <p className="text-white font-medium truncate">{sponsorName || 'Loading...'}</p>
+        <div className="px-4 py-4 border-b border-gray-100 bg-pink-50">
+          <p className="text-gray-500 text-sm">Logged in as</p>
+          <p className="text-gray-900 font-medium truncate">{sponsorName || 'Loading...'}</p>
         </div>
         <nav className="mt-6 px-4">
           {navItems.map((item) => {
@@ -124,8 +124,8 @@ export default function SponsorLayout({ children }: SponsorLayoutProps) {
                 href={item.href}
                 className={`flex items-center px-4 py-3 mb-2 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-white text-purple-900'
-                    : 'text-purple-100 hover:bg-purple-700'
+                    ? 'bg-pink-100 text-[#E8638B]'
+                    : 'text-gray-600 hover:bg-gray-100'
                 }`}
                 onClick={() => setIsSidebarOpen(false)}
               >
@@ -138,7 +138,7 @@ export default function SponsorLayout({ children }: SponsorLayoutProps) {
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <button
             onClick={handleLogout}
-            className="flex items-center w-full px-4 py-3 text-purple-100 hover:bg-purple-700 rounded-lg transition-colors"
+            className="flex items-center w-full px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

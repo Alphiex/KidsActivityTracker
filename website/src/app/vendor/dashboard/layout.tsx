@@ -68,7 +68,7 @@ export default function VendorDashboardLayout({ children }: VendorLayoutProps) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
@@ -105,7 +105,7 @@ export default function VendorDashboardLayout({ children }: VendorLayoutProps) {
               </p>
               <p className="text-sm text-gray-500 mb-8">
                 This typically takes 1-2 business days. If you have any questions, please contact us at{' '}
-                <a href="mailto:vendors@kidsactivitytracker.ca" className="text-purple-600 hover:text-purple-700">
+                <a href="mailto:vendors@kidsactivitytracker.ca" className="text-[#E8638B] hover:text-[#D53F8C]">
                   vendors@kidsactivitytracker.ca
                 </a>
               </p>
@@ -118,7 +118,7 @@ export default function VendorDashboardLayout({ children }: VendorLayoutProps) {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+                  className="px-6 py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
                 >
                   Logout
                 </button>
@@ -157,7 +157,7 @@ export default function VendorDashboardLayout({ children }: VendorLayoutProps) {
               </p>
               <a
                 href="mailto:support@kidsactivitytracker.ca"
-                className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+                className="inline-block px-6 py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
               >
                 Contact Support
               </a>

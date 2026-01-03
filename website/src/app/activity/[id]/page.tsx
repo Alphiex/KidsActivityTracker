@@ -128,7 +128,7 @@ export default function ActivityPage({ params }: { params: { id: string } }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] to-[#FFE5EC] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF385C] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading activity...</p>
@@ -139,7 +139,7 @@ export default function ActivityPage({ params }: { params: { id: string } }) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] to-[#FFE5EC] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +165,7 @@ export default function ActivityPage({ params }: { params: { id: string } }) {
     (activity?.location?.city ? activity.location.city : '');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5F8] to-[#FFE5EC] py-8 px-4">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -189,7 +189,7 @@ export default function ActivityPage({ params }: { params: { id: string } }) {
             {/* Category */}
             {(activity?.category || activity?.subcategory) && (
               <div className="mb-4">
-                <span className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                <span className="inline-block bg-pink-100 text-[#D53F8C] px-3 py-1 rounded-full text-sm font-medium">
                   {activity.category}{activity.subcategory ? ` - ${activity.subcategory}` : ''}
                 </span>
               </div>
@@ -249,8 +249,8 @@ export default function ActivityPage({ params }: { params: { id: string } }) {
               {/* Schedule */}
               {(activity?.startTime || activity?.daysOfWeek) && (
                 <div className="flex items-center">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center mr-3">
+                    <svg className="w-5 h-5 text-[#E8638B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>

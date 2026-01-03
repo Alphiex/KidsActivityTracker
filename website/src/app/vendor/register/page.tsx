@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function VendorRegisterPage() {
   return (
-    <div className="py-12 bg-gray-50 min-h-screen">
+    <div className="py-12 bg-gradient-to-br from-[#FFF5F8] via-white to-[#E8F4FF] min-h-screen">
       <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -31,7 +31,7 @@ export default function VendorRegisterPage() {
             Need help? Contact us at{' '}
             <a
               href="mailto:vendors@kidsactivitytracker.ca"
-              className="text-purple-600 hover:text-purple-700"
+              className="text-[#E8638B] hover:text-[#D53F8C]"
             >
               vendors@kidsactivitytracker.ca
             </a>

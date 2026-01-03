@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -140,7 +140,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 href={item.href}
                 className={`flex items-center px-4 py-3 mb-2 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-[#E8638B] text-white'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`}
                 onClick={() => setIsSidebarOpen(false)}
@@ -251,7 +251,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                             {!notif.isRead && (
                               <button
                                 onClick={() => handleMarkAsRead(notif.id)}
-                                className="text-xs text-purple-600 hover:text-purple-700"
+                                className="text-xs text-[#E8638B] hover:text-[#D53F8C]"
                               >
                                 Mark read
                               </button>
@@ -264,7 +264,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <div className="p-3 border-t border-gray-200">
                     <Link
                       href="/admin/monitoring"
-                      className="block text-center text-sm text-purple-600 hover:text-purple-700"
+                      className="block text-center text-sm text-[#E8638B] hover:text-[#D53F8C]"
                       onClick={() => setShowNotifications(false)}
                     >
                       View all in Monitoring

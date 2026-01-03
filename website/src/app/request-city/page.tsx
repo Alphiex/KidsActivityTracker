@@ -33,8 +33,8 @@ export default function RequestCityPage() {
           </h2>
           <div className="grid sm:grid-cols-3 gap-6 text-left">
             <div className="bg-gray-50 rounded-xl p-6">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-                <span className="text-purple-600 font-bold">1</span>
+              <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center mb-3">
+                <span className="text-[#E8638B] font-bold">1</span>
               </div>
               <h3 className="font-medium text-gray-900 mb-1">We Review</h3>
               <p className="text-sm text-gray-600">
@@ -42,8 +42,8 @@ export default function RequestCityPage() {
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-6">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-                <span className="text-purple-600 font-bold">2</span>
+              <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center mb-3">
+                <span className="text-[#E8638B] font-bold">2</span>
               </div>
               <h3 className="font-medium text-gray-900 mb-1">We Add Data</h3>
               <p className="text-sm text-gray-600">
@@ -51,8 +51,8 @@ export default function RequestCityPage() {
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-6">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-                <span className="text-purple-600 font-bold">3</span>
+              <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center mb-3">
+                <span className="text-[#E8638B] font-bold">3</span>
               </div>
               <h3 className="font-medium text-gray-900 mb-1">You&apos;re Notified</h3>
               <p className="text-sm text-gray-600">

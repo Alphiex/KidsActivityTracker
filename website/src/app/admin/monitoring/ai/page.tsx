@@ -184,7 +184,7 @@ export default function AIMetricsDashboard() {
               className="flex-1 group relative"
             >
               <div
-                className="bg-purple-500 rounded-t hover:bg-purple-600 transition-colors cursor-pointer"
+                className="bg-[#E8638B] rounded-t hover:bg-[#E8638B] transition-colors cursor-pointer"
                 style={{ height: `${(day.cost_usd / maxCost) * 100}%`, minHeight: day.cost_usd > 0 ? '4px' : '0' }}
               />
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
@@ -322,7 +322,7 @@ export default function AIMetricsDashboard() {
                   min="0"
                   value={newBudget}
                   onChange={(e) => setNewBudget(e.target.value)}
-                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E8638B]"
                 />
               </div>
             </div>
@@ -335,7 +335,7 @@ export default function AIMetricsDashboard() {
               </button>
               <button
                 onClick={handleUpdateBudget}
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg"
+                className="px-4 py-2 text-sm font-medium text-white bg-[#E8638B] hover:bg-[#D53F8C] rounded-lg"
               >
                 Update
               </button>

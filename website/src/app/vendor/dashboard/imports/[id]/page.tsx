@@ -107,7 +107,7 @@ export default function ImportDetailPage() {
       WARNING: 'bg-yellow-100 text-yellow-800',
       ERROR: 'bg-red-100 text-red-800',
       CREATED: 'bg-blue-100 text-blue-800',
-      UPDATED: 'bg-purple-100 text-purple-800',
+      UPDATED: 'bg-pink-100 text-[#C53078]',
       SKIPPED: 'bg-gray-100 text-gray-500',
     };
     return (
@@ -132,7 +132,7 @@ export default function ImportDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8638B]"></div>
       </div>
     );
   }
@@ -141,7 +141,7 @@ export default function ImportDetailPage() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Import not found</p>
-        <Link href="/vendor/dashboard/imports" className="text-purple-600 hover:text-purple-700 mt-4 inline-block">
+        <Link href="/vendor/dashboard/imports" className="text-[#E8638B] hover:text-[#D53F8C] mt-4 inline-block">
           Go to Import History
         </Link>
       </div>

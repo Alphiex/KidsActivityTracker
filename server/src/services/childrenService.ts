@@ -9,6 +9,8 @@ export interface CreateChildInput {
   dateOfBirth: Date;
   gender?: string;
   avatarUrl?: string;
+  avatarId?: number;
+  colorId?: number;
   interests?: string[];
   notes?: string;
   location?: string;
@@ -20,6 +22,8 @@ export interface UpdateChildInput {
   dateOfBirth?: Date;
   gender?: string;
   avatarUrl?: string;
+  avatarId?: number;
+  colorId?: number;
   interests?: string[];
   notes?: string;
   isActive?: boolean;
@@ -44,6 +48,8 @@ export class ChildrenService {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         avatarUrl: data.avatarUrl,
+        avatarId: data.avatarId,
+        colorId: data.colorId,
         interests: data.interests || [],
         notes: data.notes,
         location: data.location,

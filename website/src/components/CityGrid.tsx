@@ -34,7 +34,7 @@ export default function CityGrid({ cities, showViewAll = true, maxDisplay }: Cit
           {showViewAll && (
             <Link
               href="/cities"
-              className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
+              className="inline-flex items-center gap-2 text-[#E8638B] hover:text-[#D53F8C] font-medium"
             >
               View all cities
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

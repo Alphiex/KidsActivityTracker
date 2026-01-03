@@ -23,6 +23,8 @@ interface ChildFormData {
   locationDetails?: LocationDetails;
   interests?: string[];
   avatar?: string;
+  avatarId?: number;
+  colorId?: number;
   allergies?: string[];
   medicalInfo?: string;
 }
