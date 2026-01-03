@@ -1367,7 +1367,7 @@ const DashboardScreenModern = () => {
                             </View>
                           )}
                         </View>
-                        {filterMode === 'and' && selectedChildren.length > 1 && (
+                        {filterMode === 'and' && children.length > 1 && (
                           <View style={styles.aiBannerTogetherBadge}>
                             <Icon name="account-group" size={14} color="#FFFFFF" />
                             <Text style={styles.aiBannerTogetherText}>Together</Text>
