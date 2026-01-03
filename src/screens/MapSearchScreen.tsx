@@ -1150,6 +1150,52 @@ const MapSearchScreen = () => {
 
         {/* Map Section - 55% of screen */}
       <View style={styles.mapSection}>
+        {/* Place Search Bar */}
+        <View style={styles.placeSearchContainer}>
+          <View style={styles.placeSearchInputContainer}>
+            <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              style={styles.placeSearchInput}
+              placeholder="Search for a place..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={handlePlaceSearchChange}
+              onFocus={() => setShowPlaceSearch(true)}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={clearPlaceSearch} style={styles.clearSearchButton}>
+                <Icon name="close-circle" size={18} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Predictions Dropdown */}
+          {showPlaceSearch && placePredictions.length > 0 && (
+            <View style={styles.predictionsContainer}>
+              {placePredictions.slice(0, 5).map((prediction: any, index: number) => (
+                <TouchableOpacity
+                  key={prediction.placeId || index}
+                  style={styles.predictionItem}
+                  onPress={() => handleSelectPlace(prediction)}
+                >
+                  <Icon name="map-marker" size={18} color={Colors.primary} />
+                  <View style={styles.predictionTextContainer}>
+                    <Text style={styles.predictionMainText} numberOfLines={1}>
+                      {prediction.primaryText || prediction.description}
+                    </Text>
+                    {prediction.secondaryText && (
+                      <Text style={styles.predictionSecondaryText} numberOfLines={1}>
+                        {prediction.secondaryText}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
         <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
