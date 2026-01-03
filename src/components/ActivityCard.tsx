@@ -92,12 +92,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   // Get child assignment status for this activity
   const { favoriteChildren, watchingChildren, calendarChildren } = useActivityChildStatus(activity.id);
 
-  // Debug logging - remove after testing
-  console.log('[ActivityCard DEBUG] activityId:', activity.id, 'name:', activity.name?.substring(0, 20));
-  console.log('[ActivityCard DEBUG] favoriteChildren:', favoriteChildren.length, favoriteChildren);
-  console.log('[ActivityCard DEBUG] watchingChildren:', watchingChildren.length, watchingChildren);
-  console.log('[ActivityCard DEBUG] calendarChildren:', calendarChildren.length, calendarChildren);
-
   // Use external state if provided, otherwise use Redux-based child favorites
   const isExternallyControlled = externalIsFavorite !== undefined;
   const [internalIsFavorite, setInternalIsFavorite] = useState(false);
@@ -469,8 +463,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.cardBackground }, containerStyle]}
       onPress={() => {
-        console.log('ActivityCard pressed:', activity.name);
-        console.log('onPress function exists:', !!onPress);
         if (onPress) {
           onPress();
         }
@@ -519,12 +511,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           {/* Favorite button with child color indicator */}
           <TouchableOpacity
             onPress={async () => {
-              console.log('[ActivityCard] Heart pressed! children.length:', children.length, 'onFavoritePress:', !!onFavoritePress);
-
               // PRIORITY: If we have children, use child-based logic (ignore legacy handlers)
               if (children.length === 1) {
                 // Single child - auto-assign
-                console.log('[ActivityCard] Single child, auto-assigning');
                 const child = children[0];
                 const isCurrentlyFavorited = favoriteChildren.some(c => c.childId === child.id);
                 try {
@@ -546,7 +535,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
               if (children.length > 1) {
                 // Multiple children - show selection sheet
-                console.log('[ActivityCard] Multiple children, showing sheet');
                 setCurrentAction('favorite');
                 setShowChildSheet(true);
                 return;
@@ -554,10 +542,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
               // No children - use legacy handler or service
               if (onFavoritePress) {
-                console.log('[ActivityCard] No children, using external handler');
                 onFavoritePress();
               } else {
-                console.log('[ActivityCard] No children, using legacy service');
                 favoritesService.toggleFavorite(activity);
                 setInternalIsFavorite(!internalIsFavorite);
               }
@@ -584,12 +570,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={async () => {
-              console.log('[ActivityCard] Bell pressed! children.length:', children.length);
-
               // PRIORITY: If we have children, use child-based logic (ignore legacy handlers)
               if (children.length === 1) {
                 // Single child - auto-assign
-                console.log('[ActivityCard] Single child, auto-assigning watching');
                 const child = children[0];
                 const isCurrentlyWatching = watchingChildren.some(c => c.childId === child.id);
                 try {
@@ -611,7 +594,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
               if (children.length > 1) {
                 // Multiple children - show selection sheet
-                console.log('[ActivityCard] Multiple children, showing sheet for watching');
                 setCurrentAction('watching');
                 setShowChildSheet(true);
                 return;
@@ -619,10 +601,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
               // No children - use legacy handler or service
               if (onWaitlistPress) {
-                console.log('[ActivityCard] No children, using external waitlist handler');
                 onWaitlistPress();
               } else {
-                console.log('[ActivityCard] No children, using legacy waitlist service');
                 handleWaitlistToggle();
               }
             }}
@@ -652,12 +632,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={async () => {
-              console.log('[ActivityCard] Calendar pressed! children.length:', children.length);
-
               // PRIORITY: If we have children, use child-based logic
               if (children.length === 1) {
                 // Single child - auto-assign
-                console.log('[ActivityCard] Single child, auto-assigning calendar');
                 const child = children[0];
                 const isCurrentlyOnCalendar = calendarChildren.some(c => c.childId === child.id);
                 try {

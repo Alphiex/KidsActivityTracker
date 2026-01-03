@@ -130,7 +130,6 @@ const CalendarScreenModernFixed = () => {
   const [childrenWithActivities, setChildrenWithActivities] = useState<ChildWithActivities[]>([]);
   const [sharedChildren, setSharedChildren] = useState<ChildWithActivities[]>([]);
   const [showSharedChildren, setShowSharedChildren] = useState(true);
-  const [showFilterModal, setShowFilterModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ChildActivity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1312,12 +1311,6 @@ const CalendarScreenModernFixed = () => {
         </View>
         <View style={styles.legendRightActions}>
           <TouchableOpacity
-            onPress={() => setShowFilterModal(true)}
-            style={styles.headerActionButton}
-          >
-            <Icon name="filter-variant" size={24} color={ModernColors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
             onPress={exportToCalendar}
             style={styles.headerActionButton}
           >
@@ -1906,88 +1899,6 @@ const CalendarScreenModernFixed = () => {
               </View>
             </View>
           )}
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowFilterModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter Calendar</Text>
-            <TouchableOpacity
-              onPress={() => setShowFilterModal(false)}
-              style={styles.modalCloseButton}
-            >
-              <Icon name="close" size={24} color={ModernColors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.filterContent}>
-            {/* My Children */}
-            <Text style={styles.filterSectionTitle}>My Children</Text>
-            {childrenWithActivities.map((child) => (
-              <TouchableOpacity
-                key={child.id}
-                style={styles.filterItem}
-                onPress={() => toggleChildVisibility(child.id, false)}
-              >
-                <View style={[styles.filterColorDot, { backgroundColor: child.color }]} />
-                <Text style={styles.filterItemText}>{child.name}</Text>
-                <Icon
-                  name={child.isVisible ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                  size={24}
-                  color={child.isVisible ? ModernColors.primary : ModernColors.textSecondary}
-                />
-              </TouchableOpacity>
-            ))}
-
-            {/* Shared Children */}
-            {sharedChildren.length > 0 && (
-              <>
-                <View style={styles.filterDivider} />
-                <TouchableOpacity
-                  style={styles.filterSectionHeader}
-                  onPress={toggleSharedChildrenVisibility}
-                >
-                  <Text style={styles.filterSectionTitle}>Shared Children</Text>
-                  <Icon
-                    name={showSharedChildren ? 'chevron-up' : 'chevron-down'}
-                    size={24}
-                    color={ModernColors.text}
-                  />
-                </TouchableOpacity>
-                {showSharedChildren &&
-                  sharedChildren.map((child) => (
-                    <TouchableOpacity
-                      key={child.id}
-                      style={styles.filterItem}
-                      onPress={() => toggleChildVisibility(child.id, true)}
-                    >
-                      <View style={[styles.filterColorDot, { backgroundColor: child.color }]} />
-                      <View style={styles.filterItemContent}>
-                        <Text style={styles.filterItemText}>{child.name}</Text>
-                        <Text style={styles.filterItemSubtext}>
-                          Shared by {child.sharedBy}
-                        </Text>
-                      </View>
-                      <Icon
-                        name={child.isVisible ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                        size={24}
-                        color={child.isVisible ? ModernColors.primary : ModernColors.textSecondary}
-                      />
-                    </TouchableOpacity>
-                  ))}
-              </>
-            )}
-          </ScrollView>
         </View>
       </View>
     </Modal>
