@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
-  Switch,
   Animated,
   Platform,
   Modal,
@@ -29,6 +28,12 @@ import { LockedFeature } from '../components/PremiumBadge';
 import DistanceFilterSection from '../components/filters/DistanceFilterSection';
 import AddressAutocomplete from '../components/AddressAutocomplete/AddressAutocomplete';
 import { getActivityTypeIcon } from '../utils/activityTypeIcons';
+import DayTimeGridSelector, {
+  DayTimeSlots,
+  createDefaultDayTimeSlots,
+  DAYS_OF_WEEK,
+} from '../components/DayTimeGridSelector';
+import { ModernColors } from '../theme/modernTheme';
 
 interface ExpandableSection {
   id: string;
@@ -109,10 +114,12 @@ const FiltersScreen = () => {
     { id: 'locations', title: 'Where?', expanded: false },
     { id: 'distance', title: 'How Far?', expanded: false },
     { id: 'budget', title: 'Cost?', expanded: false },
-    { id: 'daysOfWeek', title: 'Day of the Week?', expanded: false },
-    { id: 'preferredTimes', title: 'Preferred Times?', expanded: false },
+    { id: 'dayTime', title: 'Day & Time?', expanded: false },
     { id: 'dates', title: 'When?', expanded: false },
   ]);
+
+  // Day/time grid selector state
+  const [dayTimeSlots, setDayTimeSlots] = useState<DayTimeSlots>(createDefaultDayTimeSlots());
 
   // Location autocomplete state
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -173,6 +180,26 @@ const FiltersScreen = () => {
       }
       if (userPrefs.dateRange?.end) {
         setTempEndDate(new Date(userPrefs.dateRange.end));
+      }
+
+      // Initialize dayTimeSlots from preferences
+      if (userPrefs.dayTimeSlots) {
+        setDayTimeSlots(userPrefs.dayTimeSlots);
+      } else {
+        // Create dayTimeSlots from legacy daysOfWeek/timePreferences
+        const slots: DayTimeSlots = {};
+        const enabledDays = userPrefs.daysOfWeek ?? DAYS_OF_WEEK;
+        const timePrefs = userPrefs.timePreferences ?? { morning: true, afternoon: true, evening: true };
+
+        DAYS_OF_WEEK.forEach(day => {
+          const isDayEnabled = enabledDays.includes(day);
+          slots[day] = {
+            morning: isDayEnabled && timePrefs.morning,
+            afternoon: isDayEnabled && timePrefs.afternoon,
+            evening: isDayEnabled && timePrefs.evening,
+          };
+        });
+        setDayTimeSlots(slots);
       }
     } catch (error) {
       console.error('Error loading preferences:', error);
@@ -444,16 +471,12 @@ const FiltersScreen = () => {
         const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
         const budgetIsUnlimited = priceRange.max >= 10000;
         return budgetIsUnlimited ? 'No Limit' : `Up to $${priceRange.max}`;
-      case 'daysOfWeek':
-        const days = preferences?.daysOfWeek || [];
-        return days.length === 7 || days.length === 0 ? 'Any day' : `${days.length} days`;
-      case 'preferredTimes':
-        const times = preferences?.timePreferences;
-        if (!times || (!times.morning && !times.afternoon && !times.evening)) {
-          return 'Any time';
-        }
-        const activeCount = [times.morning, times.afternoon, times.evening].filter(Boolean).length;
-        return `${activeCount} time${activeCount > 1 ? 's' : ''} selected`;
+      case 'dayTime':
+        const enabledSlots = DAYS_OF_WEEK.reduce((total, day) => {
+          const slots = dayTimeSlots[day];
+          return total + (slots?.morning ? 1 : 0) + (slots?.afternoon ? 1 : 0) + (slots?.evening ? 1 : 0);
+        }, 0);
+        return enabledSlots === 21 ? 'Any time' : `${enabledSlots} time slots`;
       case 'dates':
         const dateFilter = preferences?.dateFilter || 'any';
         if (dateFilter === 'any') {
@@ -490,10 +513,8 @@ const FiltersScreen = () => {
         return 'map-marker-radius';
       case 'budget':
         return 'currency-usd';
-      case 'daysOfWeek':
-        return 'calendar-week';
-      case 'preferredTimes':
-        return 'clock-outline';
+      case 'dayTime':
+        return 'calendar-clock';
       case 'dates':
         return 'calendar-range';
       default:
@@ -511,9 +532,12 @@ const FiltersScreen = () => {
         <TouchableOpacity
           style={[styles.sectionHeader, isExpanded && styles.sectionHeaderExpanded]}
           onPress={() => toggleSection(section.id)}
+          activeOpacity={0.7}
         >
           <View style={styles.sectionHeaderContent}>
-            <Icon name={icon} size={24} color="#222222" style={styles.sectionIcon} />
+            <View style={styles.sectionIconContainer}>
+              <Icon name={icon} size={22} color={ModernColors.primary} />
+            </View>
             <View style={styles.sectionHeaderText}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
               <Text style={styles.sectionSummary}>{summary}</Text>
@@ -522,7 +546,7 @@ const FiltersScreen = () => {
           <Icon
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
             size={24}
-            color="#717171"
+            color="#9CA3AF"
           />
         </TouchableOpacity>
 
@@ -549,10 +573,8 @@ const FiltersScreen = () => {
         return renderDistanceContent();
       case 'budget':
         return renderBudgetContent();
-      case 'daysOfWeek':
-        return renderDaysOfWeekContent();
-      case 'preferredTimes':
-        return renderPreferredTimesContent();
+      case 'dayTime':
+        return renderDayTimeContent();
       case 'dates':
         return renderDatesContent();
       default:
@@ -1107,169 +1129,39 @@ const FiltersScreen = () => {
     );
   };
 
-  const renderDaysOfWeekContent = () => {
-    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const selectedDays = preferences?.daysOfWeek || [];
+  const handleDayTimeSlotsChange = useCallback((slots: DayTimeSlots) => {
+    setDayTimeSlots(slots);
 
-    return (
-      <View style={styles.sectionContent}>
-        <Text style={styles.helperText}>
-          Select which days of the week you're looking for activities
-        </Text>
-        <View style={[styles.daysGrid, { marginTop: 12 }]}>
-          {daysOfWeek.map((day) => (
-            <TouchableOpacity
-              key={day}
-              style={[
-                styles.dayChip,
-                selectedDays.includes(day) && styles.dayChipActive,
-              ]}
-              onPress={() => toggleDayOfWeek(day)}
-            >
-              <Text style={[
-                styles.dayChipText,
-                selectedDays.includes(day) && styles.dayChipTextActive,
-              ]}>
-                {day.substring(0, 3)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Quick select buttons */}
-        <View style={styles.dayQuickSelect}>
-          <TouchableOpacity
-            style={[
-              styles.dayQuickSelectButton,
-              selectedDays.length === 7 && styles.dayQuickSelectButtonActive,
-            ]}
-            onPress={() => updatePreferences({ daysOfWeek: daysOfWeek })}
-          >
-            <Text style={[
-              styles.dayQuickSelectText,
-              selectedDays.length === 7 && styles.dayQuickSelectTextActive,
-            ]}>All Days</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.dayQuickSelectButton,
-              selectedDays.length === 5 &&
-              selectedDays.includes('Monday') &&
-              selectedDays.includes('Friday') &&
-              !selectedDays.includes('Saturday') &&
-              styles.dayQuickSelectButtonActive,
-            ]}
-            onPress={() => updatePreferences({ daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] })}
-          >
-            <Text style={[
-              styles.dayQuickSelectText,
-              selectedDays.length === 5 &&
-              selectedDays.includes('Monday') &&
-              !selectedDays.includes('Saturday') &&
-              styles.dayQuickSelectTextActive,
-            ]}>Weekdays</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.dayQuickSelectButton,
-              selectedDays.length === 2 &&
-              selectedDays.includes('Saturday') &&
-              selectedDays.includes('Sunday') &&
-              styles.dayQuickSelectButtonActive,
-            ]}
-            onPress={() => updatePreferences({ daysOfWeek: ['Saturday', 'Sunday'] })}
-          >
-            <Text style={[
-              styles.dayQuickSelectText,
-              selectedDays.length === 2 &&
-              selectedDays.includes('Saturday') &&
-              selectedDays.includes('Sunday') &&
-              styles.dayQuickSelectTextActive,
-            ]}>Weekends</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    // Convert dayTimeSlots to legacy format for backward compatibility
+    const enabledDays = DAYS_OF_WEEK.filter(day =>
+      slots[day]?.morning || slots[day]?.afternoon || slots[day]?.evening
     );
-  };
 
-  const renderPreferredTimesContent = () => {
+    const timePrefs = {
+      morning: DAYS_OF_WEEK.some(day => slots[day]?.morning),
+      afternoon: DAYS_OF_WEEK.some(day => slots[day]?.afternoon),
+      evening: DAYS_OF_WEEK.some(day => slots[day]?.evening),
+    };
+
+    updatePreferences({
+      dayTimeSlots: slots,
+      daysOfWeek: enabledDays,
+      timePreferences: timePrefs,
+    });
+  }, [updatePreferences]);
+
+  const renderDayTimeContent = () => {
     return (
       <View style={styles.sectionContent}>
         <Text style={styles.helperText}>
-          Select what times of day work best for your family
+          Select which days and times you're looking for activities
         </Text>
-        <View style={[styles.timePreferences, { marginTop: 12 }]}>
-          <View style={styles.timePreference}>
-            <View style={styles.timeLabelContainer}>
-              <Icon name="weather-sunset-up" size={20} color="#F59E0B" style={{ marginRight: 10 }} />
-              <View>
-                <Text style={styles.timeLabel}>Morning</Text>
-                <Text style={styles.timeSubLabel}>6:00 AM - 12:00 PM</Text>
-              </View>
-            </View>
-            <Switch
-              value={preferences?.timePreferences?.morning || false}
-              onValueChange={(value) =>
-                updatePreferences({
-                  timePreferences: {
-                    morning: value,
-                    afternoon: preferences?.timePreferences?.afternoon ?? false,
-                    evening: preferences?.timePreferences?.evening ?? false,
-                  }
-                })
-              }
-              trackColor={{ false: '#EEEEEE', true: '#E8638B' }}
-              thumbColor={preferences?.timePreferences?.morning ? '#FFFFFF' : '#CCCCCC'}
-            />
-          </View>
-
-          <View style={styles.timePreference}>
-            <View style={styles.timeLabelContainer}>
-              <Icon name="weather-sunny" size={20} color="#F97316" style={{ marginRight: 10 }} />
-              <View>
-                <Text style={styles.timeLabel}>Afternoon</Text>
-                <Text style={styles.timeSubLabel}>12:00 PM - 5:00 PM</Text>
-              </View>
-            </View>
-            <Switch
-              value={preferences?.timePreferences?.afternoon || false}
-              onValueChange={(value) =>
-                updatePreferences({
-                  timePreferences: {
-                    morning: preferences?.timePreferences?.morning ?? false,
-                    afternoon: value,
-                    evening: preferences?.timePreferences?.evening ?? false,
-                  }
-                })
-              }
-              trackColor={{ false: '#EEEEEE', true: '#E8638B' }}
-              thumbColor={preferences?.timePreferences?.afternoon ? '#FFFFFF' : '#CCCCCC'}
-            />
-          </View>
-
-          <View style={styles.timePreference}>
-            <View style={styles.timeLabelContainer}>
-              <Icon name="weather-sunset-down" size={20} color="#8B5CF6" style={{ marginRight: 10 }} />
-              <View>
-                <Text style={styles.timeLabel}>Evening</Text>
-                <Text style={styles.timeSubLabel}>5:00 PM - 9:00 PM</Text>
-              </View>
-            </View>
-            <Switch
-              value={preferences?.timePreferences?.evening || false}
-              onValueChange={(value) =>
-                updatePreferences({
-                  timePreferences: {
-                    morning: preferences?.timePreferences?.morning ?? false,
-                    afternoon: preferences?.timePreferences?.afternoon ?? false,
-                    evening: value,
-                  }
-                })
-              }
-              trackColor={{ false: '#EEEEEE', true: '#E8638B' }}
-              thumbColor={preferences?.timePreferences?.evening ? '#FFFFFF' : '#CCCCCC'}
-            />
-          </View>
+        <View style={{ marginTop: 12 }}>
+          <DayTimeGridSelector
+            selectedSlots={dayTimeSlots}
+            onChange={handleDayTimeSlotsChange}
+            accentColor={ModernColors.primary}
+          />
         </View>
       </View>
     );
@@ -1599,160 +1491,11 @@ const FiltersScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          Set Your Preferences
+          Search Filters
         </Text>
         <Text style={styles.headerSubtitle}>
-          Filter Explore results: Recommended, New, and Nearby activities
+          These filters apply to your activity search results in Explore
         </Text>
-      </View>
-
-      {/* Global Preference - Hide Closed or Full Activities */}
-      <View style={styles.globalPreferenceContainer}>
-        <View style={styles.globalPreferenceContent}>
-          <Icon name="eye-off-outline" size={24} color="#222222" style={styles.globalPreferenceIcon} />
-          <View style={styles.globalPreferenceText}>
-            <View style={styles.globalPreferenceTitleRow}>
-              <Text style={styles.globalPreferenceTitle}>Hide Closed or Full Activities</Text>
-              {!hasAdvancedFilters && (
-                <View style={styles.proBadge}>
-                  <Text style={styles.proBadgeText}>PREMIUM</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.globalPreferenceDescription}>
-              Only show activities that are open for registration
-            </Text>
-          </View>
-        </View>
-        <Switch
-          value={hasAdvancedFilters ? (preferences?.hideClosedOrFull ?? true) : false}
-          onValueChange={(value) => {
-            if (!hasAdvancedFilters) {
-              checkAndShowUpgrade('filters');
-              return;
-            }
-            updatePreferences({ hideClosedOrFull: value });
-          }}
-          trackColor={{ false: '#EEEEEE', true: '#E8638B' }}
-          thumbColor={hasAdvancedFilters && preferences?.hideClosedOrFull ? '#FFFFFF' : '#CCCCCC'}
-          disabled={!hasAdvancedFilters}
-        />
-      </View>
-
-      {/* Quick Filter Chips - Toggleable */}
-      <View style={styles.quickFiltersContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickFiltersContent}
-        >
-          {(() => {
-            const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-            const isTodayActive = preferences?.daysOfWeek?.length === 1 && preferences?.daysOfWeek?.includes(today);
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.quickFilterChip,
-                  isTodayActive && styles.quickFilterChipActive
-                ]}
-                onPress={() => {
-                  // Toggle: if active, reset to all days; otherwise set to today
-                  if (isTodayActive) {
-                    updatePreferences({ daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] });
-                  } else {
-                    updatePreferences({ daysOfWeek: [today] });
-                  }
-                }}
-              >
-                <Icon name="calendar-today" size={16} color={isTodayActive ? '#FFF' : '#6B7280'} />
-                <Text style={[styles.quickFilterChipText, isTodayActive && styles.quickFilterChipTextActive]}>Today</Text>
-              </TouchableOpacity>
-            );
-          })()}
-
-          {(() => {
-            const isWeekendActive = preferences?.daysOfWeek?.length === 2 && preferences?.daysOfWeek?.includes('Saturday') && preferences?.daysOfWeek?.includes('Sunday');
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.quickFilterChip,
-                  isWeekendActive && styles.quickFilterChipActive
-                ]}
-                onPress={() => {
-                  // Toggle: if active, reset to all days; otherwise set to weekend
-                  if (isWeekendActive) {
-                    updatePreferences({ daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] });
-                  } else {
-                    updatePreferences({ daysOfWeek: ['Saturday', 'Sunday'] });
-                  }
-                }}
-              >
-                <Icon name="calendar-weekend" size={16} color={isWeekendActive ? '#FFF' : '#6B7280'} />
-                <Text style={[styles.quickFilterChipText, isWeekendActive && styles.quickFilterChipTextActive]}>Weekend</Text>
-              </TouchableOpacity>
-            );
-          })()}
-
-          {(() => {
-            const isFreeActive = preferences?.priceRange?.max === 0;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.quickFilterChip,
-                  isFreeActive && styles.quickFilterChipActive
-                ]}
-                onPress={() => {
-                  // Toggle: if active, reset to unlimited; otherwise set to free
-                  if (isFreeActive) {
-                    updatePreferences({ priceRange: { min: 0, max: 999999 } });
-                  } else {
-                    updatePreferences({ priceRange: { min: 0, max: 0 } });
-                  }
-                }}
-              >
-                <Icon name="gift-outline" size={16} color={isFreeActive ? '#FFF' : '#6B7280'} />
-                <Text style={[styles.quickFilterChipText, isFreeActive && styles.quickFilterChipTextActive]}>Free</Text>
-              </TouchableOpacity>
-            );
-          })()}
-
-          {(() => {
-            const isUnder50Active = preferences?.priceRange?.max === 50;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.quickFilterChip,
-                  isUnder50Active && styles.quickFilterChipActive
-                ]}
-                onPress={() => {
-                  // Toggle: if active, reset to unlimited; otherwise set to under $50
-                  if (isUnder50Active) {
-                    updatePreferences({ priceRange: { min: 0, max: 999999 } });
-                  } else {
-                    updatePreferences({ priceRange: { min: 0, max: 50 } });
-                  }
-                }}
-              >
-                <Icon name="currency-usd" size={16} color={isUnder50Active ? '#FFF' : '#6B7280'} />
-                <Text style={[styles.quickFilterChipText, isUnder50Active && styles.quickFilterChipTextActive]}>Under $50</Text>
-              </TouchableOpacity>
-            );
-          })()}
-
-          <TouchableOpacity
-            style={styles.quickFilterChipReset}
-            onPress={() => {
-              updatePreferences({
-                daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                priceRange: { min: 0, max: 999999 },
-                environmentFilter: 'all',
-              });
-            }}
-          >
-            <Icon name="refresh" size={16} color="#E8638B" />
-            <Text style={styles.quickFilterChipResetText}>Reset</Text>
-          </TouchableOpacity>
-        </ScrollView>
       </View>
 
       {/* Scrollable Content */}
@@ -1944,26 +1687,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  sectionIcon: {
+  sectionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ModernColors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   sectionHeaderText: {
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
-    marginBottom: 2,
+    color: '#1F2937',
   },
   sectionSummary: {
-    fontSize: 14,
-    color: '#717171',
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
   },
   sectionContent: {
-    padding: 20,
-    paddingTop: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   optionsGrid: {
     flexDirection: 'row',
@@ -2465,15 +2217,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
     gap: 8,
   },
   activityTypeChipActive: {
-    borderColor: '#E8638B',
-    backgroundColor: '#E8638B',
+    borderColor: ModernColors.primary,
+    backgroundColor: ModernColors.primary,
   },
   activityTypeText: {
     fontSize: 15,
@@ -2502,17 +2254,17 @@ const styles = StyleSheet.create({
   subtypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
     borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     gap: 4,
   },
   subtypeChipActive: {
-    borderColor: '#E8638B',
-    backgroundColor: '#FEF2F2',
+    borderColor: ModernColors.primary,
+    backgroundColor: ModernColors.primary + '15',
   },
   subtypeText: {
     fontSize: 13,
@@ -2520,7 +2272,8 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   subtypeTextActive: {
-    color: '#E8638B',
+    color: ModernColors.primary,
+    fontWeight: '600',
   },
   // Location section styles
   locationDivider: {

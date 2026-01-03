@@ -176,6 +176,84 @@ function buildPlannerContext(state: AIGraphStateType, candidates: any[], constra
 }
 
 /**
+ * Determine time slot from hour string (e.g., "09:00" -> "morning")
+ */
+function getTimeSlot(time: string): 'morning' | 'afternoon' | 'evening' {
+  const hour = parseInt(time.split(':')[0], 10);
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+}
+
+/**
+ * Validate and enforce schedule constraints
+ * Returns filtered schedule that respects all constraints
+ */
+function validateAndEnforceConstraints(
+  schedule: Record<string, ScheduleEntry[]>,
+  constraints: any,
+  familyChildren: Array<{ child_id: string; name?: string }>
+): { entries: Record<string, ScheduleEntry[]>; violations: string[]; removedCount: number } {
+  const violations: string[] = [];
+  let removedCount = 0;
+  const result: Record<string, ScheduleEntry[]> = {};
+
+  // Track activities per child for max_activities_per_child constraint
+  const activitiesPerChild: Record<string, number> = {};
+
+  // Process each day
+  for (const [day, entries] of Object.entries(schedule)) {
+    result[day] = [];
+
+    for (const entry of entries) {
+      let shouldInclude = true;
+
+      // 1. Validate max_activities_per_child
+      if (constraints?.max_activities_per_child) {
+        const currentCount = activitiesPerChild[entry.child_id] || 0;
+        if (currentCount >= constraints.max_activities_per_child) {
+          const childName = familyChildren.find(c => c.child_id === entry.child_id)?.name || entry.child_id;
+          violations.push(`Removed "${entry.activity_name}" for ${childName}: exceeds max ${constraints.max_activities_per_child} activities`);
+          shouldInclude = false;
+          removedCount++;
+        }
+      }
+
+      // 2. Validate child availability
+      if (shouldInclude && constraints?.child_availability) {
+        const childAvail = constraints.child_availability.find(
+          (ca: any) => ca.child_id === entry.child_id
+        );
+        if (childAvail?.available_slots?.[day]) {
+          const timeSlot = getTimeSlot(entry.time);
+          if (!childAvail.available_slots[day][timeSlot]) {
+            const childName = familyChildren.find(c => c.child_id === entry.child_id)?.name || entry.child_id;
+            violations.push(`Removed "${entry.activity_name}" for ${childName}: ${day} ${timeSlot} not available`);
+            shouldInclude = false;
+            removedCount++;
+          }
+        }
+      }
+
+      if (shouldInclude) {
+        result[day].push(entry);
+        activitiesPerChild[entry.child_id] = (activitiesPerChild[entry.child_id] || 0) + 1;
+      }
+    }
+  }
+
+  // Log validation results
+  if (violations.length > 0) {
+    console.log(`📅 [PlannerNode] Constraint validation removed ${removedCount} entries:`);
+    violations.forEach(v => console.log(`  - ${v}`));
+  } else {
+    console.log('📅 [PlannerNode] All entries passed constraint validation');
+  }
+
+  return { entries: result, violations, removedCount };
+}
+
+/**
  * Planner node - generates weekly schedule
  */
 export async function plannerNode(state: AIGraphStateType): Promise<Partial<AIGraphStateType>> {
@@ -230,19 +308,35 @@ export async function plannerNode(state: AIGraphStateType): Promise<Partial<AIGr
       : JSON.stringify(result.content);
     
     const parsed = ScheduleResponseSchema.parse(JSON.parse(content));
-    
+
     console.log(`📅 [PlannerNode] Generated schedule with ${parsed.total_activities} activities`);
-    
+
+    // Validate and enforce constraints on the generated schedule
+    const validationResult = validateAndEnforceConstraints(
+      parsed.schedule as Record<string, ScheduleEntry[]>,
+      state.planner_constraints,
+      children.map(c => ({ child_id: c.child_id, name: c.name }))
+    );
+
+    // Recalculate total after validation
+    const validatedTotalActivities = Object.values(validationResult.entries)
+      .reduce((sum, entries) => sum + entries.length, 0);
+
     // Convert to WeeklySchedule format
     const weeklySchedule: WeeklySchedule = {
       week_start: new Date().toISOString().split('T')[0],
-      entries: parsed.schedule as Record<string, ScheduleEntry[]>,
+      entries: validationResult.entries,
       conflicts: parsed.conflicts,
-      suggestions: parsed.suggestions,
+      suggestions: [
+        ...parsed.suggestions,
+        ...(validationResult.violations.length > 0
+          ? [`${validationResult.removedCount} activities were removed to match your constraints`]
+          : []),
+      ],
       total_cost: parsed.total_cost,
-      total_activities: parsed.total_activities,
+      total_activities: validatedTotalActivities,
     };
-    
+
     return {
       weekly_schedule: weeklySchedule,
       source: 'llm',

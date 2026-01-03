@@ -6,15 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService from '../../services/activityService';
-
-const { width: screenWidth } = Dimensions.get('window');
+import { getActivityTypeIcon } from '../../utils/activityTypeIcons';
+import { ModernColors } from '../../theme/modernTheme';
 
 export interface ChildActivitiesData {
   preferredActivityTypes: string[];
+  preferredSubtypes?: string[];
 }
 
 interface SiblingOption {
@@ -31,11 +31,19 @@ interface ChildActivitiesStepProps {
   onCopyFromSibling?: (siblingId: string) => void;
 }
 
+interface ActivitySubtype {
+  id: string;
+  name: string;
+  code: string;
+  activityCount: number;
+}
+
 interface ActivityType {
   code: string;
   name: string;
   iconName?: string;
   activityCount?: number;
+  subtypes?: ActivitySubtype[];
 }
 
 const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
@@ -49,12 +57,13 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
 
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadActivityTypes = async () => {
       try {
-        const types = await activityService.getActivityTypesWithCounts(false);
-        const sortedTypes = types.sort((a, b) => (b.activityCount || 0) - (a.activityCount || 0));
+        const types = await activityService.getActivityTypesWithCounts(true); // Include subtypes
+        const sortedTypes = types.sort((a: ActivityType, b: ActivityType) => (b.activityCount || 0) - (a.activityCount || 0));
         setActivityTypes(sortedTypes);
       } catch (error) {
         console.error('[ChildActivitiesStep] Error loading activity types:', error);
@@ -65,12 +74,55 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
     loadActivityTypes();
   }, [activityService]);
 
-  const toggleType = useCallback((typeName: string) => {
-    const newTypes = data.preferredActivityTypes.includes(typeName)
-      ? data.preferredActivityTypes.filter(t => t !== typeName)
-      : [...data.preferredActivityTypes, typeName];
+  const toggleTypeExpand = useCallback((typeCode: string) => {
+    setExpandedTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(typeCode)) {
+        next.delete(typeCode);
+      } else {
+        next.add(typeCode);
+      }
+      return next;
+    });
+  }, []);
 
-    onChange({ ...data, preferredActivityTypes: newTypes });
+  const toggleType = useCallback((typeCode: string) => {
+    const currentTypes = data.preferredActivityTypes || [];
+    const currentSubtypes = data.preferredSubtypes || [];
+    const isCurrentlySelected = currentTypes.includes(typeCode);
+
+    // Find the activity type to get its subtypes
+    const activityType = activityTypes.find(t => t.code === typeCode);
+    const subtypeCodes = activityType?.subtypes?.map(s => s.code) || [];
+
+    if (isCurrentlySelected) {
+      // Deselecting - remove type and all its subtypes
+      const updatedTypes = currentTypes.filter(code => code !== typeCode);
+      const updatedSubtypes = currentSubtypes.filter(code => !subtypeCodes.includes(code));
+      onChange({
+        ...data,
+        preferredActivityTypes: updatedTypes,
+        preferredSubtypes: updatedSubtypes,
+      });
+    } else {
+      // Selecting - add type and all its subtypes
+      const updatedTypes = [...currentTypes, typeCode];
+      const updatedSubtypes = [...new Set([...currentSubtypes, ...subtypeCodes])];
+      onChange({
+        ...data,
+        preferredActivityTypes: updatedTypes,
+        preferredSubtypes: updatedSubtypes,
+      });
+    }
+  }, [data, onChange, activityTypes]);
+
+  const toggleSubtype = useCallback((subtypeCode: string) => {
+    const currentSubtypes = data.preferredSubtypes || [];
+    const updatedSubtypes = currentSubtypes.includes(subtypeCode)
+      ? currentSubtypes.filter(code => code !== subtypeCode)
+      : [...currentSubtypes, subtypeCode];
+
+    onChange({ ...data, preferredSubtypes: updatedSubtypes });
   }, [data, onChange]);
 
   const handleCopyFromSibling = (siblingId: string) => {
@@ -119,37 +171,92 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
         </View>
       )}
 
-      {/* Activity Types Grid */}
+      {/* Activity Types List */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.gridContainer}
+        contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       >
         {activityTypes.map((type) => {
-          const isSelected = data.preferredActivityTypes.includes(type.name);
+          const isSelected = data.preferredActivityTypes.includes(type.code);
+          const isExpanded = expandedTypes.has(type.code);
+          const hasSubtypes = type.subtypes && type.subtypes.length > 0;
+          const iconName = getActivityTypeIcon(type.name);
+
           return (
-            <TouchableOpacity
-              key={type.code}
-              style={[styles.typeCard, isSelected && styles.typeCardSelected]}
-              onPress={() => toggleType(type.name)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconContainer, isSelected && styles.iconContainerSelected]}>
-                <Icon
-                  name={type.iconName || 'tag'}
-                  size={24}
-                  color={isSelected ? '#FFFFFF' : '#E8638B'}
-                />
+            <View key={type.code} style={styles.activityTypeContainer}>
+              {/* Main activity type row */}
+              <View style={styles.activityTypeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.activityTypeChip,
+                    isSelected && styles.activityTypeChipSelected,
+                  ]}
+                  onPress={() => toggleType(type.code)}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    name={iconName}
+                    size={20}
+                    color={isSelected ? '#FFFFFF' : ModernColors.primary}
+                  />
+                  <Text style={[
+                    styles.activityTypeText,
+                    isSelected && styles.activityTypeTextSelected,
+                  ]}>
+                    {type.name}
+                  </Text>
+                  {isSelected && (
+                    <Icon name="check" size={18} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+
+                {/* Expand button for subtypes */}
+                {hasSubtypes && (
+                  <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={() => toggleTypeExpand(type.code)}
+                    activeOpacity={0.7}
+                  >
+                    <Icon
+                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color="#9CA3AF"
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
-              <Text style={[styles.typeName, isSelected && styles.typeNameSelected]} numberOfLines={2}>
-                {type.name}
-              </Text>
-              {isSelected && (
-                <View style={styles.checkmark}>
-                  <Icon name="check" size={14} color="#FFFFFF" />
+
+              {/* Subtypes (when expanded) */}
+              {isExpanded && hasSubtypes && (
+                <View style={styles.subtypesContainer}>
+                  {type.subtypes!.map((subtype) => {
+                    const isSubtypeSelected = data.preferredSubtypes?.includes(subtype.code);
+                    return (
+                      <TouchableOpacity
+                        key={subtype.code}
+                        style={[
+                          styles.subtypeChip,
+                          isSubtypeSelected && styles.subtypeChipSelected,
+                        ]}
+                        onPress={() => toggleSubtype(subtype.code)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[
+                          styles.subtypeText,
+                          isSubtypeSelected && styles.subtypeTextSelected,
+                        ]}>
+                          {subtype.name}
+                        </Text>
+                        {isSubtypeSelected && (
+                          <Icon name="check" size={14} color={ModernColors.primary} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
           );
         })}
       </ScrollView>
@@ -219,59 +326,80 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  listContainer: {
     paddingBottom: 16,
   },
-  typeCard: {
-    width: (screenWidth - 112) / 3, // Account for container padding (64) and gaps (24) with buffer
-    aspectRatio: 1,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+  activityTypeContainer: {
+    marginBottom: 12,
   },
-  typeCardSelected: {
-    backgroundColor: '#FFF0F5',
+  activityTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityTypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#E8638B',
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    gap: 10,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF0F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+  activityTypeChipSelected: {
+    borderColor: ModernColors.primary,
+    backgroundColor: ModernColors.primary,
   },
-  iconContainerSelected: {
-    backgroundColor: '#E8638B',
-  },
-  typeName: {
-    fontSize: 11,
-    color: '#333',
-    textAlign: 'center',
+  activityTypeText: {
+    fontSize: 15,
     fontWeight: '500',
+    color: '#1F2937',
+    flex: 1,
   },
-  typeNameSelected: {
-    color: '#E8638B',
-    fontWeight: '600',
+  activityTypeTextSelected: {
+    color: '#FFFFFF',
   },
-  checkmark: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#E8638B',
-    justifyContent: 'center',
+  expandButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subtypesContainer: {
+    marginTop: 8,
+    marginLeft: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  subtypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    gap: 6,
+  },
+  subtypeChipSelected: {
+    borderColor: ModernColors.primary,
+    backgroundColor: ModernColors.primary + '15',
+  },
+  subtypeText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  subtypeTextSelected: {
+    color: ModernColors.primary,
+    fontWeight: '600',
   },
   selectionInfo: {
     flexDirection: 'row',

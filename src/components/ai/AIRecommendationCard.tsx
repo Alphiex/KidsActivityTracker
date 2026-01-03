@@ -108,7 +108,13 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
       if (startDate <= today && endDate >= today) {
         return `In Progress`;
       }
-      return `${start} - ${end}`;
+
+      // Check if start and end dates are the same day
+      const isSameDay = startDate.getFullYear() === endDate.getFullYear() &&
+                        startDate.getMonth() === endDate.getMonth() &&
+                        startDate.getDate() === endDate.getDate();
+
+      return isSameDay ? start : `${start} - ${end}`;
     }
     return start || end;
   };

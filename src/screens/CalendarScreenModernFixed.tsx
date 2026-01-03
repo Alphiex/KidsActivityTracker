@@ -1229,8 +1229,7 @@ const CalendarScreenModernFixed = () => {
 
     return (
       <View style={styles.legendContainer}>
-        <View style={styles.legendLeftSection}>
-          <Text style={styles.legendTitle}>Children</Text>
+        <View style={styles.legendChipsSection}>
           <ChildColorLegend
             children={legendItems}
             onToggleChild={handleToggle}
@@ -2262,6 +2261,9 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   calendarActions: {
     flexDirection: 'row',
@@ -2293,22 +2295,18 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
   },
   legendContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: ModernColors.borderLight,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  legendLeftSection: {
+  legendChipsSection: {
     flex: 1,
-  },
-  legendTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: ModernColors.textSecondary,
-    marginBottom: 8,
-    textTransform: 'uppercase',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   legendItems: {
     flexDirection: 'row',
@@ -2411,7 +2409,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 10,
-    backgroundColor: ModernColors.borderLight,
+    backgroundColor: 'transparent',
     marginTop: 4,
     zIndex: 10,
   },

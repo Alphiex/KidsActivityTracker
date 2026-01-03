@@ -123,6 +123,7 @@ export async function executeAIGraph(input: Partial<AIGraphStateType>): Promise<
     multi_child_mode: input.multi_child_mode,
     selected_child_ids: input.selected_child_ids,
     activity_id: input.activity_id,
+    planner_constraints: input.planner_constraints,
   };
   
   try {

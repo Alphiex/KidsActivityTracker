@@ -153,6 +153,19 @@ const formatActivityTime = (activity: any): string | null => {
 };
 
 /**
+ * Extract activity IDs from text content using [activity:UUID] pattern
+ */
+const extractActivityIdsFromText = (text: string): string[] => {
+  const pattern = /\[activity:([a-f0-9-]+)\]/gi;
+  const ids: string[] = [];
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    ids.push(match[1]);
+  }
+  return ids;
+};
+
+/**
  * Generate personalized prompts based on children's data and preferences
  */
 const generatePersonalizedPrompts = (
@@ -243,6 +256,75 @@ const generatePersonalizedPrompts = (
   }
 
   return prompts.slice(0, 4); // Limit to 4 prompts
+};
+
+/**
+ * Render message text with tappable activity links
+ * Parses [activity:UUID] patterns and makes them tappable
+ */
+interface ParsedTextProps {
+  content: string;
+  style: any;
+  onActivityPress: (activityId: string) => void;
+}
+
+const ParsedMessageText: React.FC<ParsedTextProps> = ({ content, style, onActivityPress }) => {
+  // Pattern to match [activity:UUID] - we'll remove these from display
+  // and make the preceding **Activity Name** clickable
+  const activityLinkPattern = /\*\*([^*]+)\*\*\s*\[activity:([a-f0-9-]+)\]/gi;
+
+  // Split content into parts - text and activity links
+  const parts: Array<{ type: 'text' | 'activityLink'; content: string; activityId?: string }> = [];
+  let lastIndex = 0;
+  let match;
+
+  // Reset regex
+  activityLinkPattern.lastIndex = 0;
+
+  while ((match = activityLinkPattern.exec(content)) !== null) {
+    // Add text before this match
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: content.substring(lastIndex, match.index) });
+    }
+
+    // Add the activity link (activity name becomes tappable, UUID is hidden)
+    parts.push({
+      type: 'activityLink',
+      content: match[1], // Activity name
+      activityId: match[2], // UUID
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < content.length) {
+    parts.push({ type: 'text', content: content.substring(lastIndex) });
+  }
+
+  // If no activity links found, just render plain text
+  if (parts.length === 0 || (parts.length === 1 && parts[0].type === 'text')) {
+    return <Text style={style}>{content}</Text>;
+  }
+
+  return (
+    <Text style={style}>
+      {parts.map((part, index) => {
+        if (part.type === 'activityLink' && part.activityId) {
+          return (
+            <Text
+              key={index}
+              style={[{ fontWeight: '700', color: '#E8638B', textDecorationLine: 'underline' }]}
+              onPress={() => onActivityPress(part.activityId!)}
+            >
+              {part.content}
+            </Text>
+          );
+        }
+        return <Text key={index}>{part.content}</Text>;
+      })}
+    </Text>
+  );
 };
 
 /**
@@ -422,6 +504,12 @@ const AIChatScreen = () => {
     navigation.navigate('ActivityDetail' as never, { activity } as never);
   };
 
+  // Handle tapping an activity ID from the parsed text
+  const handleActivityIdPress = (activityId: string) => {
+    // Navigate to activity detail with just the ID - the screen will fetch details
+    navigation.navigate('ActivityDetail' as never, { activityId } as never);
+  };
+
   const startNewConversation = () => {
     if (conversationId) {
       aiService.endConversation(conversationId);
@@ -444,6 +532,10 @@ const AIChatScreen = () => {
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.role === 'user';
     const hasActivities = item.activities && item.activities.length > 0;
+
+    // Extract activity IDs mentioned in text (for View All fallback)
+    const textActivityIds = item.content ? extractActivityIdsFromText(item.content) : [];
+    const hasTextActivityIds = textActivityIds.length > 0;
 
     return (
       <View style={[styles.messageContainer, isUser ? styles.userMessageContainer : styles.assistantMessageContainer]}>
@@ -572,15 +664,35 @@ const AIChatScreen = () => {
             </View>
           )}
 
+          {/* Show View All button for text-mentioned activities when no cards */}
+          {!hasActivities && hasTextActivityIds && !isUser && (
+            <TouchableOpacity
+              style={styles.textActivityViewAllButton}
+              onPress={() => handleViewAllActivities(textActivityIds)}
+            >
+              <Text style={styles.textActivityViewAllText}>
+                View all {textActivityIds.length} recommended activities
+              </Text>
+              <Icon name="chevron-right" size={16} color="#E8638B" />
+            </TouchableOpacity>
+          )}
+
           {/* AI Response Text - Show BELOW activities */}
           {item.content && (
-            <Text style={[
-              styles.messageText,
-              isUser && styles.userMessageText,
-              hasActivities && styles.aiResponseText,
-            ]}>
-              {item.content}
-            </Text>
+            isUser ? (
+              <Text style={[styles.messageText, styles.userMessageText]}>
+                {item.content}
+              </Text>
+            ) : (
+              <ParsedMessageText
+                content={item.content}
+                style={[
+                  styles.messageText,
+                  hasActivities && styles.aiResponseText,
+                ]}
+                onActivityPress={handleActivityIdPress}
+              />
+            )
           )}
 
           {/* Follow-up Prompts */}
@@ -1075,6 +1187,24 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   viewMoreText: {
+    fontSize: 13,
+    color: '#E8638B',
+    fontWeight: '500',
+  },
+  textActivityViewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF5F7',
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+  },
+  textActivityViewAllText: {
     fontSize: 13,
     color: '#E8638B',
     fontWeight: '500',

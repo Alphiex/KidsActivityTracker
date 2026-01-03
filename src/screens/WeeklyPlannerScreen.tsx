@@ -301,6 +301,7 @@ const WeeklyPlannerScreen = () => {
   const [feedbackHistory, setFeedbackHistory] = useState<FeedbackHistory[]>([]);
   const [showChat, setShowChat] = useState(false);
   const [showOtherInput, setShowOtherInput] = useState(false);
+  const [highlightedEntryKey, setHighlightedEntryKey] = useState<string | null>(null);
   const chatScrollRef = React.useRef<FlatList>(null);
 
   // First-time explanation modal
@@ -746,6 +747,14 @@ const WeeklyPlannerScreen = () => {
     // Close chat
     setShowChat(false);
     setActiveChatContext(null);
+    setChatMessages([]);
+    setShowOtherInput(false);
+
+    // Highlight the new entry briefly
+    setHighlightedEntryKey(newKey);
+    setTimeout(() => {
+      setHighlightedEntryKey(null);
+    }, 3000); // Clear highlight after 3 seconds
   }, [activeChatContext]);
 
   /**
@@ -1588,6 +1597,8 @@ const WeeklyPlannerScreen = () => {
       return timeLabels[time] || time;
     };
 
+    const isHighlighted = highlightedEntryKey === uniqueKey;
+
     return (
       <TouchableOpacity
         key={uniqueKey}
@@ -1595,6 +1606,7 @@ const WeeklyPlannerScreen = () => {
           styles.scheduleCard,
           approvalState === 'approved' && styles.scheduleCardApproved,
           approvalState === 'declined' && styles.scheduleCardDeclined,
+          isHighlighted && styles.scheduleCardHighlighted,
         ]}
         onPress={() => handleActivityPress(entry)}
         activeOpacity={0.8}
@@ -3289,6 +3301,16 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     borderWidth: 2,
     borderColor: ModernColors.error,
+  },
+  scheduleCardHighlighted: {
+    borderWidth: 3,
+    borderColor: ModernColors.primary,
+    backgroundColor: 'rgba(255, 64, 129, 0.08)',
+    shadowColor: ModernColors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
   childColorBarsContainer: {
     flexDirection: 'row',

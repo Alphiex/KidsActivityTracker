@@ -130,7 +130,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       return date.toLocaleDateString('en-US', options);
     };
 
-    const baseRange = `${formatFullDate(startDate)} - ${formatFullDate(endDate)}`;
+    // Check if start and end dates are the same day
+    const isSameDay = startDate.getFullYear() === endDate.getFullYear() &&
+                      startDate.getMonth() === endDate.getMonth() &&
+                      startDate.getDate() === endDate.getDate();
+
+    const baseRange = isSameDay
+      ? formatFullDate(startDate)
+      : `${formatFullDate(startDate)} - ${formatFullDate(endDate)}`;
 
     // Check if activity has already started
     if (startDate <= today && endDate >= today) {

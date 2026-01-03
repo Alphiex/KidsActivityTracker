@@ -176,10 +176,29 @@ GENERAL RULES:
 6. If the query is complex or results are poor, use enhanced_search for better matching
 
 CRITICAL RESPONSE FORMAT:
-- DO NOT list or describe individual activities in your text response - the app will display them as clickable cards automatically
-- Just provide a brief summary like "I found X great activities for your child!" or "Here are some skating options that would be perfect for a 3-year-old"
-- Add a brief note about why these are good choices or what to look for
-- Keep your text response SHORT (1-2 sentences max) since activities are shown separately`;
+Your response MUST include a personalized summary that mentions specific activities and why they're recommended.
+
+ALWAYS include activity IDs using this format: [activity:UUID] right after the activity name.
+This allows the app to link directly to activity details.
+
+Format each recommended activity as:
+• **[Activity Name]** [activity:UUID-HERE] - [reason it's great for their child]
+
+Example format:
+"I found some great skating options for Aiden! Here are my top picks:
+
+• **Learn to Skate - Beginners** [activity:abc123-def456-...] - Perfect for a 3-year-old just starting out, with small class sizes
+• **Parent & Tot Skating** [activity:xyz789-ghi012-...] - You can join Aiden on the ice, great for building confidence
+• **Saturday Skating Camp** [activity:jkl345-mno678-...] - Fits your weekend schedule and includes all equipment
+
+All of these are within 15km of your location. Would you like more details on any of these?"
+
+Guidelines:
+1. Start with a brief intro acknowledging what they're looking for
+2. List 2-3 TOP recommended activities BY NAME with their ID and a reason
+3. Keep each reason tied to their child's age, interests, location, or stated preferences
+4. End with an invitation to explore more or ask questions
+5. Keep it concise but specific - parents want to know WHY each activity is a good fit`;
 
 /**
  * Format family context for the system prompt

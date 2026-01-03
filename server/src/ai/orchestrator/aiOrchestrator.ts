@@ -223,10 +223,12 @@ export class AIOrchestrator {
     weekStart: string,
     userId: string,
     constraints?: {
+      child_ids?: string[];
       max_activities_per_child?: number;
       avoid_back_to_back?: boolean;
       max_travel_between_activities_km?: number;
       schedule_siblings_together?: boolean;
+      allow_gaps?: boolean;
       child_availability?: Array<{
         child_id: string;
         available_slots: {
@@ -240,7 +242,31 @@ export class AIOrchestrator {
     }
   ): Promise<WeeklySchedule | null> {
     // Build family context
-    const familyContext = await buildFamilyContext(userId, this.prisma);
+    let familyContext = await buildFamilyContext(userId, this.prisma);
+
+    // Filter to specific children if child_ids provided
+    if (constraints?.child_ids && constraints.child_ids.length > 0) {
+      const filteredChildren = familyContext.children.filter(
+        child => constraints.child_ids!.includes(child.child_id)
+      );
+      if (filteredChildren.length > 0) {
+        familyContext = {
+          ...familyContext,
+          children: filteredChildren,
+        };
+        console.log(`[AIOrchestrator] Filtered to ${filteredChildren.length} children:`,
+          filteredChildren.map(c => c.name).join(', '));
+      }
+    }
+
+    console.log('[AIOrchestrator] Planning with constraints:', {
+      child_ids: constraints?.child_ids,
+      max_activities_per_child: constraints?.max_activities_per_child,
+      avoid_back_to_back: constraints?.avoid_back_to_back,
+      allow_gaps: constraints?.allow_gaps,
+      schedule_siblings_together: constraints?.schedule_siblings_together,
+      child_availability_count: constraints?.child_availability?.length,
+    });
 
     const result = await executeAIGraph({
       request_id: `plan_${Date.now()}`,

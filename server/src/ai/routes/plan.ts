@@ -25,6 +25,7 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
     const {
       week_start,       // Start date (legacy name, kept for compatibility)
       end_date,         // End date for multi-week planning
+      child_ids,        // Optional: specific child IDs to plan for (filters family context)
       max_activities_per_child,
       avoid_back_to_back,
       max_travel_between_activities_km,
@@ -78,6 +79,10 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
       start_date: startDate,
       end_date: endDateStr,
     };
+    // Add child_ids filter (to plan for specific children only)
+    if (Array.isArray(child_ids) && child_ids.length > 0) {
+      constraints.child_ids = child_ids;
+    }
     if (typeof max_activities_per_child === 'number') {
       constraints.max_activities_per_child = Math.min(10, Math.max(1, max_activities_per_child));
     }
