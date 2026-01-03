@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Switch,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
@@ -34,6 +34,9 @@ import { selectAllChildren, ChildWithPreferences } from '../store/slices/childre
 import { ChildAvatar } from '../components/children';
 import { getChildColor } from '../theme/childColors';
 import { ModernColors } from '../theme/modernTheme';
+import ScreenBackground from '../components/ScreenBackground';
+import ChildFilterSelector from '../components/ChildFilterSelector';
+import { ChildFilterMode, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
 
 const DAYS_OF_WEEK = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -93,8 +96,16 @@ const SearchScreen = () => {
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
 
-  // Get children from Redux
+  // Get children and filter state from Redux (same as Explore page)
   const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children objects
+  const selectedChildren = useMemo(() =>
+    children.filter(c => selectedChildIds.includes(c.id)),
+    [children, selectedChildIds]
+  );
 
   // Subscription state for premium features
   const {
@@ -102,13 +113,6 @@ const SearchScreen = () => {
     hasAdvancedFilters,
     isPremium,
   } = useSubscription();
-
-  // Selected child for preferences
-  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const selectedChild = useMemo(() =>
-    children.find(c => c.id === selectedChildId),
-    [children, selectedChildId]
-  );
 
   // Search state
   const [searchText, setSearchText] = useState('');
@@ -167,9 +171,9 @@ const SearchScreen = () => {
     loadActivityTypes();
     loadLocations();
 
-    // Select first child by default if available
-    if (children.length > 0 && !selectedChildId) {
-      setSelectedChildId(children[0].id);
+    // Load preferences from selected children on mount
+    if (selectedChildren.length > 0) {
+      loadChildrenPreferencesAsFilters(selectedChildren, filterMode);
     }
   }, []);
 
@@ -206,43 +210,103 @@ const SearchScreen = () => {
     }
   };
 
-  // Load child preferences when selected child changes
+  // Handler for child filter changes
+  const handleChildFilterChange = useCallback((newSelectedIds: string[], newMode: ChildFilterMode) => {
+    console.log('[SearchScreen] Child filter changed:', { selectedCount: newSelectedIds.length, mode: newMode });
+    // Preferences will reload via the useEffect below
+  }, []);
+
+  // Load preferences when selected children change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (selectedChild) {
-      loadChildPreferencesAsFilters(selectedChild);
+    if (selectedChildren.length > 0) {
+      loadChildrenPreferencesAsFilters(selectedChildren, filterMode);
     }
-  }, [selectedChildId]);
+  }, [selectedChildIds, filterMode]);
 
-  const loadChildPreferencesAsFilters = (child: ChildWithPreferences) => {
-    const prefs = child.preferences;
-    if (!prefs) return;
+  const loadChildrenPreferencesAsFilters = (children: ChildWithPreferences[], mode: ChildFilterMode) => {
+    if (children.length === 0) return;
 
-    // Apply child preferences to search filters
-    if (prefs.preferredActivityTypes && prefs.preferredActivityTypes.length > 0) {
-      setSelectedActivityTypes(prefs.preferredActivityTypes);
+    // Collect all activity types from selected children
+    const allActivityTypes = new Set<string>();
+    const allDays = new Set<string>();
+    const prices: { min: number; max: number }[] = [];
+    const environments: ('all' | 'indoor' | 'outdoor')[] = [];
+    const distances: number[] = [];
+    const ages: number[] = [];
+
+    children.forEach(child => {
+      const prefs = child.preferences;
+      if (prefs?.preferredActivityTypes) {
+        prefs.preferredActivityTypes.forEach(t => allActivityTypes.add(t));
+      }
+      if (prefs?.daysOfWeek) {
+        prefs.daysOfWeek.forEach(d => allDays.add(d));
+      }
+      if (prefs?.priceRangeMin !== undefined || prefs?.priceRangeMax !== undefined) {
+        prices.push({
+          min: prefs.priceRangeMin ?? 0,
+          max: prefs.priceRangeMax ?? 500,
+        });
+      }
+      if (prefs?.environmentFilter) {
+        environments.push(prefs.environmentFilter);
+      }
+      if (prefs?.distanceRadiusKm) {
+        distances.push(prefs.distanceRadiusKm);
+      }
+      if (child.dateOfBirth) {
+        ages.push(calculateAge(child.dateOfBirth));
+      }
+    });
+
+    // Apply activity types (union of all selected children)
+    if (allActivityTypes.size > 0) {
+      setSelectedActivityTypes(Array.from(allActivityTypes));
     }
-    if (prefs.daysOfWeek && prefs.daysOfWeek.length > 0) {
-      setSelectedDays(prefs.daysOfWeek);
+
+    // Apply days (union of all selected children)
+    if (allDays.size > 0) {
+      setSelectedDays(Array.from(allDays));
     }
-    if (prefs.priceRangeMin !== undefined || prefs.priceRangeMax !== undefined) {
-      setMinCost(prefs.priceRangeMin ?? 0);
-      setMaxCost(prefs.priceRangeMax ?? 500);
-      setIsUnlimitedCost((prefs.priceRangeMax ?? 500) >= 10000);
+
+    // Apply price range based on mode
+    if (prices.length > 0) {
+      if (mode === 'and') {
+        // Together mode: use most restrictive (intersection)
+        setMinCost(Math.max(...prices.map(p => p.min)));
+        setMaxCost(Math.min(...prices.map(p => p.max)));
+      } else {
+        // Any mode: use most permissive (union)
+        setMinCost(Math.min(...prices.map(p => p.min)));
+        setMaxCost(Math.max(...prices.map(p => p.max)));
+      }
+      setIsUnlimitedCost(maxCost >= 10000);
     }
-    if (prefs.environmentFilter) {
-      setEnvironmentFilter(prefs.environmentFilter);
+
+    // Apply environment (if all agree, use that; otherwise 'all')
+    if (environments.length > 0) {
+      const uniqueEnv = [...new Set(environments)];
+      setEnvironmentFilter(uniqueEnv.length === 1 ? uniqueEnv[0] : 'all');
     }
-    if (prefs.distanceRadiusKm) {
-      setDistanceRadius(prefs.distanceRadiusKm);
+
+    // Apply distance (use max for coverage)
+    if (distances.length > 0) {
+      setDistanceRadius(Math.max(...distances));
       setDistanceEnabled(true);
     }
 
-    // Calculate age from child's DOB
-    if (child.dateOfBirth) {
-      const age = calculateAge(child.dateOfBirth);
-      setMinAge(Math.max(0, age - 1));
-      setMaxAge(Math.min(18, age + 2));
+    // Apply age range based on mode
+    if (ages.length > 0) {
+      if (mode === 'and') {
+        // Together mode: age range that covers ALL children
+        setMinAge(Math.max(0, Math.min(...ages) - 1));
+        setMaxAge(Math.min(18, Math.max(...ages) + 2));
+      } else {
+        // Any mode: expand range
+        setMinAge(Math.max(0, Math.min(...ages) - 1));
+        setMaxAge(Math.min(18, Math.max(...ages) + 2));
+      }
     }
   };
 
@@ -1033,13 +1097,10 @@ const SearchScreen = () => {
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {/* Fogged Background */}
-      <View style={styles.foggedBackground} />
-
-      <SafeAreaView style={styles.safeArea}>
+    <ScreenBackground style={styles.container}>
+      <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <StatusBar barStyle="dark-content" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Header with close button */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{returnToMap ? 'Filter Activities' : 'Search'}</Text>
@@ -1048,50 +1109,22 @@ const SearchScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Child Preferences Selector */}
+        {/* Child Preferences Selector - same as Explore page */}
         {children.length > 0 && (
           <View style={styles.childSelectorContainer}>
-            <Text style={styles.childSelectorLabel}>Search for:</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.childSelectorScroll}
-            >
-              {children.map((child) => {
-                const isSelected = child.id === selectedChildId;
-                const childColor = getChildColor(child.colorId);
-                return (
-                  <TouchableOpacity
-                    key={child.id}
-                    style={[
-                      styles.childChip,
-                      isSelected && [styles.childChipSelected, { borderColor: childColor.hex }],
-                    ]}
-                    onPress={() => setSelectedChildId(child.id)}
-                    activeOpacity={0.7}
-                  >
-                    <ChildAvatar
-                      child={child}
-                      size={32}
-                      showBorder={isSelected}
-                      borderWidth={2}
-                    />
-                    <Text style={[
-                      styles.childChipName,
-                      isSelected && { color: ModernColors.primary },
-                    ]}>
-                      {child.name}
-                    </Text>
-                    {isSelected && (
-                      <Icon name="check-circle" size={16} color={childColor.hex} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            {selectedChild && (
+            <Text style={styles.childSelectorLabel}>Apply Preferences</Text>
+            <ChildFilterSelector
+              compact={false}
+              showModeToggle={true}
+              onSelectionChange={handleChildFilterChange}
+            />
+            {selectedChildren.length > 0 && (
               <Text style={styles.childPreferencesInfo}>
-                Using {selectedChild.name}'s saved preferences
+                {filterMode === 'and'
+                  ? `Finding activities for all ${selectedChildren.length} children together`
+                  : selectedChildren.length === children.length
+                    ? 'Using preferences from all children'
+                    : `Using preferences from ${selectedChildren.map(c => c.name).join(', ')}`}
               </Text>
             )}
           </View>
@@ -1127,83 +1160,84 @@ const SearchScreen = () => {
 
         {/* Bottom Actions */}
         <View style={styles.bottomActions}>
-          <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
-            <Text style={styles.clearButtonText}>Clear All</Text>
-          </TouchableOpacity>
-
-          <View style={styles.searchActions}>
-            {/* AI Match Button with Robot - Hidden when filtering for map */}
-            {!returnToMap && (
-              <TouchableOpacity
-                onPress={handleAISearch}
-                style={styles.aiMatchContainer}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={isPremium ? ['#FFB5C5', '#E8638B', '#D53F8C'] : ['#D1D5DB', '#9CA3AF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.aiMatchButton}
-                >
-                  <Text style={styles.aiMatchText}>AI Match</Text>
-                  {!isPremium && (
-                    <Icon name="lock" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
-                  )}
-                </LinearGradient>
-                <Image
-                  source={aiRobotImage}
-                  style={styles.robotImage}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+          {/* Search Button */}
+          <TouchableOpacity style={styles.searchButton} onPress={handleSearch} activeOpacity={0.8}>
+            <LinearGradient
+              colors={[ModernColors.primary, '#D53F8C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.searchButtonGradient}
+            >
               <Icon name={returnToMap ? 'filter-check' : 'magnify'} size={20} color="#FFFFFF" />
               <Text style={styles.searchButtonText}>{returnToMap ? 'Apply Filters' : 'Search'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* AI Match Button - Hidden when filtering for map */}
+          {!returnToMap && (
+            <TouchableOpacity
+              onPress={handleAISearch}
+              style={styles.aiMatchContainer}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={isPremium ? ['#FFB5C5', '#E8638B', '#D53F8C'] : ['#D1D5DB', '#9CA3AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.aiMatchButtonGradient}
+              >
+                <Image
+                  source={aiRobotImage}
+                  style={styles.robotImageInline}
+                  resizeMode="contain"
+                />
+                <Text style={styles.aiMatchText}>AI Match</Text>
+                {!isPremium && (
+                  <Icon name="lock" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
+                )}
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
+          )}
+
+          {/* Clear All Button */}
+          <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
+            <Text style={styles.clearButtonText}>Clear All Filters</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </Animated.View>
+        </SafeAreaView>
+      </Animated.View>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
   },
-  foggedBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  animatedContainer: {
+    flex: 1,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#222222',
+    color: '#1F2937',
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1251,24 +1285,24 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   childPreferencesInfo: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: ModernColors.primary,
     marginTop: 8,
     fontStyle: 'italic',
   },
   scrollContent: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   searchContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    marginBottom: 20,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    marginBottom: 100,
   },
   // What section - always visible
   whatSection: {
@@ -1646,71 +1680,67 @@ const styles = StyleSheet.create({
   customTimeContainer: {
     marginTop: 16,
   },
-  // Bottom actions
+  // Bottom actions - vertically stacked
   bottomActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  clearButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-  },
-  clearButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#6B7280',
-    textDecorationLine: 'underline',
-  },
-  searchActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderTopColor: '#E5E7EB',
     gap: 12,
   },
-  aiMatchContainer: {
-    position: 'relative',
-    marginRight: 30,
-    marginTop: 10,
-  },
-  aiMatchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    paddingRight: 40,
-    borderRadius: 12,
-  },
-  aiMatchText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  robotImage: {
-    position: 'absolute',
-    right: -20,
-    top: -15,
-    width: 50,
-    height: 50,
-  },
   searchButton: {
-    flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
     borderRadius: 12,
-    backgroundColor: '#E8638B',
+    overflow: 'hidden',
+  },
+  searchButtonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 52,
     gap: 8,
+    shadowColor: ModernColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   searchButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  aiMatchContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  aiMatchButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 52,
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  aiMatchText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  robotImageInline: {
+    width: 32,
+    height: 32,
+  },
+  clearButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  clearButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: ModernColors.textSecondary,
+    textDecorationLine: 'underline',
   },
 });
 
