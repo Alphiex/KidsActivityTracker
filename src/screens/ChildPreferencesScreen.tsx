@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
+    paddingBottom: 250,
   },
   header: {
     paddingHorizontal: 20,
@@ -866,14 +866,14 @@ const styles = StyleSheet.create({
     color: ModernColors.primary,
   },
   sectionsContainer: {
-    flex: 1,
     marginTop: 20,
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: 100,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    minHeight: 500,
   },
   sectionContainer: {
     backgroundColor: '#F9FAFB',
