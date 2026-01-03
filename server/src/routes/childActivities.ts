@@ -147,14 +147,18 @@ router.get('/history', verifyToken, async (req: Request, res: Response) => {
       startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
       endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
       category: req.query.category as string,
-      minRating: req.query.minRating ? parseInt(req.query.minRating as string) : undefined
+      minRating: req.query.minRating ? parseInt(req.query.minRating as string) : undefined,
+      page: req.query.page ? parseInt(req.query.page as string) : undefined,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined
     };
 
     const history = await childActivityService.getActivityHistory(req.user!.id, filters);
 
+    // Return both data and pagination for proper paginated responses
     res.json({
       success: true,
-      activities: history
+      activities: history.data,
+      pagination: history.pagination
     });
   } catch (error: any) {
     res.status(400).json({
@@ -282,15 +286,17 @@ router.get('/upcoming', verifyToken, async (req: Request, res: Response) => {
 router.get('/:childId/activities', verifyToken, async (req: Request, res: Response) => {
   try {
     const status = req.query.status as ActivityStatus | undefined;
-    
+
     const history = await childActivityService.getActivityHistory(req.user!.id, {
       childId: req.params.childId,
       status
     });
 
+    // getActivityHistory returns { data: [...], pagination: {...} }
+    // but frontend expects activities as a flat array
     res.json({
       success: true,
-      activities: history
+      activities: history.data
     });
   } catch (error: any) {
     res.status(400).json({
