@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 // react-native-image-picker is installed and loaded dynamically in handlePickImage
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   addChild,
@@ -324,6 +325,14 @@ const AddEditChildScreen: React.FC = () => {
           </View>
 
           <View style={styles.form}>
+            {/* Recommendation tip */}
+            <View style={styles.recommendationTip}>
+              <MaterialCommunityIcon name="lightbulb-outline" size={20} color="#F59E0B" />
+              <Text style={styles.recommendationTipText}>
+                Adding date of birth helps us find age-appropriate activities for your child.
+              </Text>
+            </View>
+
             {/* Avatar Section */}
             <View style={styles.avatarSection}>
               <ChildAvatar
@@ -485,6 +494,23 @@ const styles = StyleSheet.create({
   },
   form: {
     padding: 20,
+  },
+  recommendationTip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 10,
+  },
+  recommendationTipText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20,
   },
   avatarSection: {
     alignItems: 'center',

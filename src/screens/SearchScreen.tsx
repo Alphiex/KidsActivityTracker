@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,11 @@ import LinearGradient from 'react-native-linear-gradient';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
 import { HierarchicalProvince, EnhancedAddress } from '../types/preferences';
+import { useAppSelector } from '../store';
+import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
+import { ChildAvatar } from '../components/children';
+import { getChildColor } from '../theme/childColors';
+import { ModernColors } from '../theme/modernTheme';
 
 const DAYS_OF_WEEK = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -88,6 +93,9 @@ const SearchScreen = () => {
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
 
+  // Get children from Redux
+  const children = useAppSelector(selectAllChildren);
+
   // Subscription state for premium features
   const {
     checkAndShowUpgrade,
@@ -95,8 +103,12 @@ const SearchScreen = () => {
     isPremium,
   } = useSubscription();
 
-  // Use preferences toggle
-  const [usePreferences, setUsePreferences] = useState(true);
+  // Selected child for preferences
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const selectedChild = useMemo(() =>
+    children.find(c => c.id === selectedChildId),
+    [children, selectedChildId]
+  );
 
   // Search state
   const [searchText, setSearchText] = useState('');
@@ -155,9 +167,9 @@ const SearchScreen = () => {
     loadActivityTypes();
     loadLocations();
 
-    // Load preferences as initial values if toggle is on
-    if (usePreferences) {
-      loadPreferencesAsFilters();
+    // Select first child by default if available
+    if (children.length > 0 && !selectedChildId) {
+      setSelectedChildId(children[0].id);
     }
   }, []);
 
@@ -184,55 +196,65 @@ const SearchScreen = () => {
     setSelectedLocationIds(newSelection);
   };
 
-  const handleLocationAutocompleteSelect = (address: EnhancedAddress) => {
+  const handleLocationAutocompleteSelect = (address: EnhancedAddress | null) => {
     setSearchedLocation(address);
     // Also add to selectedCities if it's a city
-    if (address.city) {
+    if (address?.city) {
       setSelectedCities(prev =>
         prev.includes(address.city!) ? prev : [...prev, address.city!]
       );
     }
   };
 
-  // Load preferences when toggle changes
+  // Load child preferences when selected child changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (usePreferences) {
-      loadPreferencesAsFilters();
+    if (selectedChild) {
+      loadChildPreferencesAsFilters(selectedChild);
     }
-  }, [usePreferences]);
+  }, [selectedChildId]);
 
-  const loadPreferencesAsFilters = () => {
-    const prefs = preferencesService.getPreferences();
+  const loadChildPreferencesAsFilters = (child: ChildWithPreferences) => {
+    const prefs = child.preferences;
+    if (!prefs) return;
 
-    // Apply preferences to search filters
+    // Apply child preferences to search filters
     if (prefs.preferredActivityTypes && prefs.preferredActivityTypes.length > 0) {
       setSelectedActivityTypes(prefs.preferredActivityTypes);
-    }
-    if (prefs.preferredSubtypes && prefs.preferredSubtypes.length > 0) {
-      setSelectedSubtypes(prefs.preferredSubtypes);
     }
     if (prefs.daysOfWeek && prefs.daysOfWeek.length > 0) {
       setSelectedDays(prefs.daysOfWeek);
     }
-    if (prefs.ageRanges && prefs.ageRanges.length > 0) {
-      setMinAge(prefs.ageRanges[0].min);
-      setMaxAge(prefs.ageRanges[0].max);
-    }
-    if (prefs.priceRange) {
-      setMinCost(prefs.priceRange.min);
-      setMaxCost(prefs.priceRange.max);
-      setIsUnlimitedCost(prefs.priceRange.max >= 10000);
+    if (prefs.priceRangeMin !== undefined || prefs.priceRangeMax !== undefined) {
+      setMinCost(prefs.priceRangeMin ?? 0);
+      setMaxCost(prefs.priceRangeMax ?? 500);
+      setIsUnlimitedCost((prefs.priceRangeMax ?? 500) >= 10000);
     }
     if (prefs.environmentFilter) {
       setEnvironmentFilter(prefs.environmentFilter);
     }
-    if (prefs.distanceFilterEnabled !== undefined) {
-      setDistanceEnabled(prefs.distanceFilterEnabled);
-    }
     if (prefs.distanceRadiusKm) {
       setDistanceRadius(prefs.distanceRadiusKm);
+      setDistanceEnabled(true);
     }
+
+    // Calculate age from child's DOB
+    if (child.dateOfBirth) {
+      const age = calculateAge(child.dateOfBirth);
+      setMinAge(Math.max(0, age - 1));
+      setMaxAge(Math.min(18, age + 2));
+    }
+  };
+
+  const calculateAge = (dateOfBirth: string): number => {
+    const dob = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return Math.max(0, age);
   };
 
   const loadActivityTypes = async () => {
@@ -555,11 +577,12 @@ const SearchScreen = () => {
                     isTypeSelected && styles.activityTypeChipActive,
                   ]}
                   onPress={() => toggleActivityType(type.code)}
+                  activeOpacity={0.7}
                 >
                   <Icon
                     name={iconName}
                     size={20}
-                    color={isTypeSelected ? '#FFFFFF' : '#E8638B'}
+                    color={isTypeSelected ? '#FFFFFF' : ModernColors.primary}
                   />
                   <Text style={[
                     styles.activityTypeText,
@@ -567,17 +590,21 @@ const SearchScreen = () => {
                   ]}>
                     {type.name}
                   </Text>
+                  {isTypeSelected && (
+                    <Icon name="check" size={18} color="#FFFFFF" />
+                  )}
                 </TouchableOpacity>
 
                 {hasSubtypes && (
                   <TouchableOpacity
                     style={styles.expandSubtypesButton}
                     onPress={() => toggleActivityTypeExpand(type.code)}
+                    activeOpacity={0.7}
                   >
                     <Icon
                       name={isExpanded ? 'chevron-up' : 'chevron-down'}
                       size={20}
-                      color="#717171"
+                      color="#9CA3AF"
                     />
                   </TouchableOpacity>
                 )}
@@ -595,6 +622,7 @@ const SearchScreen = () => {
                           isSubtypeSelected && styles.subtypeChipActive,
                         ]}
                         onPress={() => toggleSubtype(subtype.code)}
+                        activeOpacity={0.7}
                       >
                         <Text style={[
                           styles.subtypeText,
@@ -602,6 +630,9 @@ const SearchScreen = () => {
                         ]}>
                           {subtype.name}
                         </Text>
+                        {isSubtypeSelected && (
+                          <Icon name="check" size={14} color={ModernColors.primary} />
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -974,9 +1005,12 @@ const SearchScreen = () => {
         <TouchableOpacity
           style={[styles.sectionHeader, section.expanded && styles.sectionHeaderExpanded]}
           onPress={() => toggleSection(section.id)}
+          activeOpacity={0.7}
         >
           <View style={styles.sectionHeaderContent}>
-            <Icon name={section.icon} size={24} color="#222222" style={styles.sectionIcon} />
+            <View style={styles.sectionIconContainer}>
+              <Icon name={section.icon} size={22} color={ModernColors.primary} />
+            </View>
             <View style={styles.sectionHeaderText}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
               <Text style={styles.sectionSummary}>{summary}</Text>
@@ -985,7 +1019,7 @@ const SearchScreen = () => {
           <Icon
             name={section.expanded ? "chevron-up" : "chevron-down"}
             size={24}
-            color="#717171"
+            color="#9CA3AF"
           />
         </TouchableOpacity>
 
@@ -1014,24 +1048,54 @@ const SearchScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Use Preferences Toggle */}
-        <View style={styles.preferencesToggle}>
-          <View style={styles.preferencesToggleContent}>
-            <Icon name="tune-variant" size={20} color="#E8638B" />
-            <View style={styles.preferencesToggleText}>
-              <Text style={styles.preferencesToggleTitle}>Use My Preferences</Text>
-              <Text style={styles.preferencesToggleDescription}>
-                Start with your saved preference settings
+        {/* Child Preferences Selector */}
+        {children.length > 0 && (
+          <View style={styles.childSelectorContainer}>
+            <Text style={styles.childSelectorLabel}>Search for:</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.childSelectorScroll}
+            >
+              {children.map((child) => {
+                const isSelected = child.id === selectedChildId;
+                const childColor = getChildColor(child.colorId);
+                return (
+                  <TouchableOpacity
+                    key={child.id}
+                    style={[
+                      styles.childChip,
+                      isSelected && [styles.childChipSelected, { borderColor: childColor.hex }],
+                    ]}
+                    onPress={() => setSelectedChildId(child.id)}
+                    activeOpacity={0.7}
+                  >
+                    <ChildAvatar
+                      child={child}
+                      size={32}
+                      showBorder={isSelected}
+                      borderWidth={2}
+                    />
+                    <Text style={[
+                      styles.childChipName,
+                      isSelected && { color: ModernColors.primary },
+                    ]}>
+                      {child.name}
+                    </Text>
+                    {isSelected && (
+                      <Icon name="check-circle" size={16} color={childColor.hex} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {selectedChild && (
+              <Text style={styles.childPreferencesInfo}>
+                Using {selectedChild.name}'s saved preferences
               </Text>
-            </View>
+            )}
           </View>
-          <Switch
-            value={usePreferences}
-            onValueChange={setUsePreferences}
-            trackColor={{ false: '#D1D5DB', true: '#F9A8D4' }}
-            thumbColor={usePreferences ? '#E8638B' : '#F3F4F6'}
-          />
-        </View>
+        )}
 
         {/* Search Content */}
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -1039,7 +1103,9 @@ const SearchScreen = () => {
             {/* What? section - always visible, not collapsible */}
             <View style={styles.whatSection}>
               <View style={styles.whatSectionHeader}>
-                <Icon name="magnify" size={24} color="#222222" style={styles.sectionIcon} />
+                <View style={styles.sectionIconContainer}>
+                  <Icon name="magnify" size={22} color={ModernColors.primary} />
+                </View>
                 <Text style={styles.whatSectionTitle}>What?</Text>
               </View>
               <TextInput
@@ -1146,36 +1212,49 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  preferencesToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  childSelectorContainer: {
     marginHorizontal: 20,
     marginBottom: 12,
-    padding: 16,
-    backgroundColor: '#FFF5F8',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#F9A8D4',
   },
-  preferencesToggleContent: {
+  childSelectorLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 10,
+  },
+  childSelectorScroll: {
+    gap: 10,
+    paddingRight: 20,
+  },
+  childChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  preferencesToggleText: {
-    marginLeft: 12,
-    flex: 1,
+  childChipSelected: {
+    backgroundColor: ModernColors.primary + '10',
   },
-  preferencesToggleTitle: {
-    fontSize: 16,
+  childChipName: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#222222',
+    color: '#1F2937',
   },
-  preferencesToggleDescription: {
+  childPreferencesInfo: {
     fontSize: 12,
-    color: '#717171',
-    marginTop: 2,
+    color: '#6B7280',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   scrollContent: {
     flex: 1,
@@ -1229,7 +1308,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  sectionIcon: {
+  sectionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ModernColors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   sectionHeaderText: {
@@ -1238,12 +1323,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222222',
-    marginBottom: 2,
+    color: '#1F2937',
   },
   sectionSummary: {
     fontSize: 13,
-    color: '#717171',
+    color: '#6B7280',
+    marginTop: 2,
   },
   sectionContent: {
     paddingHorizontal: 20,
@@ -1275,65 +1360,76 @@ const styles = StyleSheet.create({
   },
   // Activity types
   activityTypeContainer: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   activityTypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   activityTypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8638B',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
     flex: 1,
-    marginRight: 8,
+    gap: 10,
   },
   activityTypeChipActive: {
-    backgroundColor: '#E8638B',
+    backgroundColor: ModernColors.primary,
+    borderColor: ModernColors.primary,
   },
   activityTypeText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#E8638B',
-    marginLeft: 10,
+    color: '#1F2937',
+    flex: 1,
   },
   activityTypeTextActive: {
     color: '#FFFFFF',
   },
   expandSubtypesButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subtypesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 8,
-    marginLeft: 20,
+    marginLeft: 16,
     gap: 8,
   },
   subtypeChip: {
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    gap: 6,
   },
   subtypeChipActive: {
-    backgroundColor: '#FDF2F8',
-    borderColor: '#F9A8D4',
+    backgroundColor: ModernColors.primary + '15',
+    borderColor: ModernColors.primary,
   },
   subtypeText: {
     fontSize: 13,
+    fontWeight: '500',
     color: '#6B7280',
   },
   subtypeTextActive: {
-    color: '#E8638B',
-    fontWeight: '500',
+    color: ModernColors.primary,
+    fontWeight: '600',
   },
   // Location section
   selectedLocationsContainer: {
@@ -1381,24 +1477,24 @@ const styles = StyleSheet.create({
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   chip: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
   },
   chipSelected: {
-    backgroundColor: '#E8638B',
-    borderColor: '#E8638B',
+    backgroundColor: ModernColors.primary,
+    borderColor: ModernColors.primary,
   },
   chipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#222222',
+    color: '#374151',
   },
   chipTextSelected: {
     color: '#FFFFFF',
@@ -1409,15 +1505,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    marginBottom: 8,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 10,
   },
   optionCardSelected: {
-    borderColor: '#E8638B',
-    backgroundColor: '#FDF2F8',
+    borderColor: ModernColors.primary,
+    backgroundColor: ModernColors.primary + '10',
   },
   optionCardContent: {
     flex: 1,
@@ -1434,22 +1530,22 @@ const styles = StyleSheet.create({
     marginLeft: 30,
   },
   radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: '#D1D5DB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioActive: {
-    borderColor: '#E8638B',
+    borderColor: ModernColors.primary,
   },
   radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E8638B',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: ModernColors.primary,
   },
   // Range sliders
   rangeHeader: {

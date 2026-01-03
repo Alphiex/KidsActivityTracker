@@ -688,6 +688,14 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.modalBodyContent}
           >
+            {/* Recommendation tip */}
+            <View style={styles.recommendationTip}>
+              <Icon name="lightbulb-outline" size={20} color="#F59E0B" />
+              <Text style={styles.recommendationTipText}>
+                Adding date of birth and location helps us find age-appropriate activities near you.
+              </Text>
+            </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
@@ -762,74 +770,7 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
               )}
             </View>
 
-            {/* Gender (Optional) */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Gender (Optional)</Text>
-              <View style={styles.genderOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    gender === 'male' && styles.genderOptionSelected,
-                  ]}
-                  onPress={() => setGender(gender === 'male' ? null : 'male')}
-                >
-                  <Icon
-                    name="gender-male"
-                    size={20}
-                    color={gender === 'male' ? ModernColors.primary : ModernColors.textLight}
-                  />
-                  <Text style={[
-                    styles.genderOptionText,
-                    gender === 'male' && styles.genderOptionTextSelected,
-                  ]}>
-                    Boy
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    gender === 'female' && styles.genderOptionSelected,
-                  ]}
-                  onPress={() => setGender(gender === 'female' ? null : 'female')}
-                >
-                  <Icon
-                    name="gender-female"
-                    size={20}
-                    color={gender === 'female' ? ModernColors.primary : ModernColors.textLight}
-                  />
-                  <Text style={[
-                    styles.genderOptionText,
-                    gender === 'female' && styles.genderOptionTextSelected,
-                  ]}>
-                    Girl
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Avatar Preview */}
-            <View style={styles.avatarPreviewSection}>
-              <ChildAvatar
-                name={name || 'Child'}
-                avatarId={avatarId}
-                colorId={colorId}
-                size={80}
-              />
-            </View>
-
-            {/* Avatar Selection */}
-            <AvatarPicker
-              selectedId={avatarId}
-              colorId={colorId}
-              onSelect={setAvatarId}
-            />
-
-            {/* Color Selection */}
-            <ColorPicker
-              selectedId={colorId}
-              onSelect={setColorId}
-            />
-
+            {/* Location (Optional) */}
             <View style={[styles.inputGroup, { zIndex: 100 }]}>
               <Text style={styles.inputLabel}>Location (Optional)</Text>
 
@@ -910,6 +851,74 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
                 </>
               )}
             </View>
+
+            {/* Gender (Optional) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Gender (Optional)</Text>
+              <View style={styles.genderOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.genderOption,
+                    gender === 'male' && styles.genderOptionSelected,
+                  ]}
+                  onPress={() => setGender(gender === 'male' ? null : 'male')}
+                >
+                  <Icon
+                    name="gender-male"
+                    size={20}
+                    color={gender === 'male' ? ModernColors.primary : ModernColors.textLight}
+                  />
+                  <Text style={[
+                    styles.genderOptionText,
+                    gender === 'male' && styles.genderOptionTextSelected,
+                  ]}>
+                    Boy
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.genderOption,
+                    gender === 'female' && styles.genderOptionSelected,
+                  ]}
+                  onPress={() => setGender(gender === 'female' ? null : 'female')}
+                >
+                  <Icon
+                    name="gender-female"
+                    size={20}
+                    color={gender === 'female' ? ModernColors.primary : ModernColors.textLight}
+                  />
+                  <Text style={[
+                    styles.genderOptionText,
+                    gender === 'female' && styles.genderOptionTextSelected,
+                  ]}>
+                    Girl
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Avatar Preview */}
+            <View style={styles.avatarPreviewSection}>
+              <ChildAvatar
+                name={name || 'Child'}
+                avatarId={avatarId}
+                colorId={colorId}
+                size={80}
+              />
+            </View>
+
+            {/* Avatar Selection */}
+            <AvatarPicker
+              selectedId={avatarId}
+              colorId={colorId}
+              onSelect={setAvatarId}
+            />
+
+            {/* Color Selection */}
+            <ColorPicker
+              selectedId={colorId}
+              onSelect={setColorId}
+            />
           </ScrollView>
 
           <View style={styles.modalFooter}>
@@ -1142,6 +1151,23 @@ const styles = StyleSheet.create({
   },
   modalBodyContent: {
     paddingBottom: 350, // Extra padding to allow scrolling above keyboard
+  },
+  recommendationTip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 10,
+  },
+  recommendationTipText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20,
   },
   inputGroup: {
     marginBottom: 20,
