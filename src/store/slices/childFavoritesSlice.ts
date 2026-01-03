@@ -230,6 +230,32 @@ const childFavoritesSlice = createSlice({
             statusList[statusIndex].isFavorited = true;
           }
         }
+        // ALSO add to favorites array for selector to pick up
+        const alreadyExists = state.favorites.some(
+          f => f.childId === childId && f.activityId === activityId
+        );
+        if (!alreadyExists) {
+          const optimisticFavorite = {
+            id: `temp-${childId}-${activityId}`, // Temporary ID until server confirms
+            childId,
+            activityId,
+            childName: '', // Will be populated from children slice
+            notifyOnChange: false,
+            createdAt: new Date().toISOString(),
+            activity: {
+              id: activityId,
+              name: '',
+              category: '',
+              cost: 0,
+            },
+          };
+          state.favorites.push(optimisticFavorite as any);
+          // Update favoritesByChild
+          if (!state.favoritesByChild[childId]) {
+            state.favoritesByChild[childId] = [];
+          }
+          state.favoritesByChild[childId].push(optimisticFavorite as any);
+        }
       })
       .addCase(addChildFavorite.fulfilled, (state, action) => {
         // State already updated optimistically
@@ -243,6 +269,15 @@ const childFavoritesSlice = createSlice({
           if (statusIndex !== -1) {
             statusList[statusIndex].isFavorited = false;
           }
+        }
+        // Remove from favorites array
+        state.favorites = state.favorites.filter(
+          f => !(f.childId === childId && f.activityId === activityId)
+        );
+        if (state.favoritesByChild[childId]) {
+          state.favoritesByChild[childId] = state.favoritesByChild[childId].filter(
+            f => f.activityId !== activityId
+          );
         }
         state.favoritesError = action.error.message || 'Failed to add favorite';
       })
@@ -287,6 +322,31 @@ const childFavoritesSlice = createSlice({
             statusList[statusIndex].isOnWaitlist = true;
           }
         }
+        // ALSO add to waitlist array for selector to pick up
+        const alreadyExists = state.waitlist.some(
+          w => w.childId === childId && w.activityId === activityId
+        );
+        if (!alreadyExists) {
+          const optimisticWaitlist = {
+            id: `temp-${childId}-${activityId}`, // Temporary ID until server confirms
+            childId,
+            activityId,
+            childName: '', // Will be populated from children slice
+            joinedAt: new Date().toISOString(),
+            activity: {
+              id: activityId,
+              name: '',
+              category: '',
+              cost: 0,
+            },
+          };
+          state.waitlist.push(optimisticWaitlist as any);
+          // Update waitlistByChild
+          if (!state.waitlistByChild[childId]) {
+            state.waitlistByChild[childId] = [];
+          }
+          state.waitlistByChild[childId].push(optimisticWaitlist as any);
+        }
       })
       .addCase(joinChildWaitlist.fulfilled, (state, action) => {
         // State already updated optimistically
@@ -299,6 +359,15 @@ const childFavoritesSlice = createSlice({
           if (statusIndex !== -1) {
             statusList[statusIndex].isOnWaitlist = false;
           }
+        }
+        // Remove from waitlist array
+        state.waitlist = state.waitlist.filter(
+          w => !(w.childId === childId && w.activityId === activityId)
+        );
+        if (state.waitlistByChild[childId]) {
+          state.waitlistByChild[childId] = state.waitlistByChild[childId].filter(
+            w => w.activityId !== activityId
+          );
         }
         state.waitlistError = action.error.message || 'Failed to join waitlist';
       })

@@ -10,13 +10,22 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { Activity } from '../types';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
 import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
+import { selectAllChildren } from '../store/slices/childrenSlice';
+import {
+  addChildFavorite,
+  removeChildFavorite,
+  joinChildWaitlist,
+  leaveChildWaitlist,
+} from '../store/slices/childFavoritesSlice';
 import FavoritesService from '../services/favoritesService';
 import WaitlistService from '../services/waitlistService';
 import { fixDayAbbreviations } from '../utils/dayAbbreviations';
 import { Colors, Theme } from '../theme';
+import { getChildColor } from '../theme/childColors';
 import { getActivityImageByKey } from '../assets/images';
 import { useTheme } from '../contexts/ThemeContext';
 import ChildActivityStatus from './activities/ChildActivityStatus';
@@ -25,6 +34,8 @@ import { getActivityImageKey } from '../utils/activityHelpers';
 import { OptimizedActivityImage } from './OptimizedActivityImage';
 import { safeFirst, safeSubstring, safeParseDate } from '../utils/safeAccessors';
 import AddToCalendarModal from './AddToCalendarModal';
+import ChildAssignmentSheet, { ActionType } from './ChildAssignmentSheet';
+import { useActivityChildStatus } from '../hooks/useActivityChildStatus';
 
 const { width } = Dimensions.get('window');
 
@@ -65,26 +76,67 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   canAddToWaitlist = true,
   onWaitlistLimitReached,
 }) => {
+  const navigation = useNavigation<any>();
+  const dispatch = useAppDispatch();
   const favoritesService = FavoritesService.getInstance();
   const waitlistService = WaitlistService.getInstance();
 
-  // Use external state if provided, otherwise manage internally
+  // Get all children from Redux
+  const children = useAppSelector(selectAllChildren);
+
+  // Get child assignment status for this activity
+  const { favoriteChildren, watchingChildren, calendarChildren } = useActivityChildStatus(activity.id);
+
+  // Debug logging - remove after testing
+  console.log('[ActivityCard] children:', children.length, 'favoriteChildren:', favoriteChildren.length, 'activityId:', activity.id);
+
+  // Use external state if provided, otherwise use Redux-based child favorites
   const isExternallyControlled = externalIsFavorite !== undefined;
   const [internalIsFavorite, setInternalIsFavorite] = useState(false);
-  const isFavorite = isExternallyControlled ? externalIsFavorite : internalIsFavorite;
+  // Use child-based favorites (from Redux) if we have children, otherwise use legacy service
+  const isFavorite = isExternallyControlled
+    ? externalIsFavorite
+    : (children.length > 0 ? favoriteChildren.length > 0 : internalIsFavorite);
 
   // Waitlist state - same pattern as favorites
   const isWaitlistExternallyControlled = externalIsOnWaitlist !== undefined;
   const [internalIsOnWaitlist, setInternalIsOnWaitlist] = useState(false);
-  const isOnWaitlist = isWaitlistExternallyControlled ? externalIsOnWaitlist : internalIsOnWaitlist;
+  // Use child-based waitlist (from Redux) if we have children
+  const isOnWaitlist = isWaitlistExternallyControlled
+    ? externalIsOnWaitlist
+    : (children.length > 0 ? watchingChildren.length > 0 : internalIsOnWaitlist);
 
   const [hasCapacityAlert, setHasCapacityAlert] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showChildSheet, setShowChildSheet] = useState(false);
+  const [currentAction, setCurrentAction] = useState<ActionType>('favorite');
   const { colors, isDark } = useTheme();
   const registeredChildIds = useAppSelector(selectActivityChildren(activity.id));
 
   // Check if activity is on any child's calendar
-  const isOnCalendar = registeredChildIds.length > 0;
+  const isOnCalendar = calendarChildren.length > 0;
+
+  // Get icon colors based on assigned children
+  const getFavoriteColor = () => {
+    if (favoriteChildren.length > 0) {
+      return getChildColor(favoriteChildren[0].colorId).hex;
+    }
+    return '#FFF';
+  };
+
+  const getWatchingColor = () => {
+    if (watchingChildren.length > 0) {
+      return getChildColor(watchingChildren[0].colorId).hex;
+    }
+    return '#FFF';
+  };
+
+  const getCalendarColor = () => {
+    if (calendarChildren.length > 0) {
+      return getChildColor(calendarChildren[0].colorId).hex;
+    }
+    return '#FFF';
+  };
 
   useEffect(() => {
     // Only set internal state if not externally controlled
@@ -467,57 +519,175 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         </View>
         {/* Action buttons row - favorites, waitlist, share, calendar */}
         <View style={styles.actionButtonsRow}>
+          {/* Favorite button with child color indicator */}
           <TouchableOpacity
-            onPress={() => {
-              console.log('Toggling favorite for activity:', activity.id, activity.name);
-              console.log('Current favorite status:', isFavorite);
+            onPress={async () => {
+              console.log('[ActivityCard] Heart pressed! children.length:', children.length, 'onFavoritePress:', !!onFavoritePress);
 
-              // If trying to add (not remove), check subscription limit
-              if (!isFavorite && !canAddFavorite) {
-                console.log('Favorite limit reached, showing upgrade prompt');
-                if (onFavoriteLimitReached) {
-                  onFavoriteLimitReached();
+              // PRIORITY: If we have children, use child-based logic (ignore legacy handlers)
+              if (children.length === 1) {
+                // Single child - auto-assign
+                console.log('[ActivityCard] Single child, auto-assigning');
+                const child = children[0];
+                const isCurrentlyFavorited = favoriteChildren.some(c => c.childId === child.id);
+                try {
+                  if (isCurrentlyFavorited) {
+                    await dispatch(removeChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
+                  } else {
+                    // Check subscription limit before adding
+                    if (!canAddFavorite) {
+                      onFavoriteLimitReached?.();
+                      return;
+                    }
+                    await dispatch(addChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
+                  }
+                } catch (error) {
+                  console.error('Failed to toggle favorite:', error);
                 }
                 return;
               }
 
+              if (children.length > 1) {
+                // Multiple children - show selection sheet
+                console.log('[ActivityCard] Multiple children, showing sheet');
+                setCurrentAction('favorite');
+                setShowChildSheet(true);
+                return;
+              }
+
+              // No children - use legacy handler or service
               if (onFavoritePress) {
-                // Use external handler if provided
+                console.log('[ActivityCard] No children, using external handler');
                 onFavoritePress();
               } else {
-                // Use internal handler
+                console.log('[ActivityCard] No children, using legacy service');
                 favoritesService.toggleFavorite(activity);
                 setInternalIsFavorite(!internalIsFavorite);
               }
-              console.log('New favorite status:', !isFavorite);
             }}
             style={styles.actionButton}
           >
             <Icon
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={18}
-              color={isFavorite ? '#E8638B' : '#FFF'}
+              color={isFavorite ? getFavoriteColor() : '#FFF'}
             />
+            {/* Child color dots for multiple children */}
+            {favoriteChildren.length > 1 && (
+              <View style={styles.childDots}>
+                {favoriteChildren.slice(1, 4).map((child) => (
+                  <View
+                    key={child.childId}
+                    style={[styles.childDot, { backgroundColor: getChildColor(child.colorId).hex }]}
+                  />
+                ))}
+              </View>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={handleWaitlistToggle}>
+
+          {/* Watching/Bell button with child color indicator */}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={async () => {
+              console.log('[ActivityCard] Bell pressed! children.length:', children.length);
+
+              // PRIORITY: If we have children, use child-based logic (ignore legacy handlers)
+              if (children.length === 1) {
+                // Single child - auto-assign
+                console.log('[ActivityCard] Single child, auto-assigning watching');
+                const child = children[0];
+                const isCurrentlyWatching = watchingChildren.some(c => c.childId === child.id);
+                try {
+                  if (isCurrentlyWatching) {
+                    await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                  } else {
+                    // Check subscription limit before adding
+                    if (!canAddToWaitlist) {
+                      onWaitlistLimitReached?.();
+                      return;
+                    }
+                    await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                  }
+                } catch (error) {
+                  console.error('Failed to toggle watching:', error);
+                }
+                return;
+              }
+
+              if (children.length > 1) {
+                // Multiple children - show selection sheet
+                console.log('[ActivityCard] Multiple children, showing sheet for watching');
+                setCurrentAction('watching');
+                setShowChildSheet(true);
+                return;
+              }
+
+              // No children - use legacy handler or service
+              if (onWaitlistPress) {
+                console.log('[ActivityCard] No children, using external waitlist handler');
+                onWaitlistPress();
+              } else {
+                console.log('[ActivityCard] No children, using legacy waitlist service');
+                handleWaitlistToggle();
+              }
+            }}
+          >
             <Icon
               name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
               size={18}
-              color={isOnWaitlist ? '#FFB800' : '#FFF'}
+              color={isOnWaitlist ? getWatchingColor() : '#FFF'}
             />
+            {/* Child color dots for multiple children */}
+            {watchingChildren.length > 1 && (
+              <View style={styles.childDots}>
+                {watchingChildren.slice(1, 4).map((child) => (
+                  <View
+                    key={child.childId}
+                    style={[styles.childDot, { backgroundColor: getChildColor(child.colorId).hex }]}
+                  />
+                ))}
+              </View>
+            )}
           </TouchableOpacity>
+
+          {/* Share button */}
           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
             <Icon name="share-variant" size={18} color="#FFF" />
           </TouchableOpacity>
+
+          {/* Calendar button with child color indicator */}
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => setShowCalendarModal(true)}
+            onPress={() => {
+              // If no children, prompt to add one (handled by modal)
+              // If 1 child, we could auto-add, but calendar has more options
+              // So always show the modal for calendar
+              if (children.length === 1) {
+                // Auto-handle for single child via modal (existing behavior)
+                setShowCalendarModal(true);
+              } else {
+                // For multiple children, use the new sheet
+                setCurrentAction('calendar');
+                setShowChildSheet(true);
+              }
+            }}
           >
             <Icon
               name={isOnCalendar ? 'calendar-check' : 'calendar-plus'}
               size={18}
-              color={isOnCalendar ? '#4ECDC4' : '#FFF'}
+              color={isOnCalendar ? getCalendarColor() : '#FFF'}
             />
+            {/* Child color dots for multiple children */}
+            {calendarChildren.length > 1 && (
+              <View style={styles.childDots}>
+                {calendarChildren.slice(1, 4).map((child) => (
+                  <View
+                    key={child.childId}
+                    style={[styles.childDot, { backgroundColor: getChildColor(child.colorId).hex }]}
+                  />
+                ))}
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -765,6 +935,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       activity={activity}
       onClose={() => setShowCalendarModal(false)}
     />
+
+    {/* Child Assignment Sheet - for favorite/watching/calendar with multiple children */}
+    <ChildAssignmentSheet
+      visible={showChildSheet}
+      actionType={currentAction}
+      activity={activity}
+      onClose={() => setShowChildSheet(false)}
+    />
     </>
   );
 };
@@ -834,6 +1012,22 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 6,
     marginHorizontal: 2,
+    position: 'relative',
+  },
+  childDots: {
+    position: 'absolute',
+    bottom: -2,
+    left: '50%',
+    transform: [{ translateX: -6 }],
+    flexDirection: 'row',
+    gap: 2,
+  },
+  childDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   sponsoredBadge: {
     position: 'absolute',

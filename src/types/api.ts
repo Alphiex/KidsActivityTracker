@@ -37,6 +37,7 @@ export interface ActivitySearchParams extends PaginationParams {
   hideClosedActivities?: boolean;
   hideFullActivities?: boolean;
   timePreferences?: any;
+  environmentFilter?: 'all' | 'indoor' | 'outdoor'; // Filter by indoor/outdoor
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'dateEnd' | string;
   sortOrder?: 'asc' | 'desc';
 }

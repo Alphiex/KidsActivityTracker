@@ -28,6 +28,7 @@ model Activity {
   ageMin                 Int?
   ageMax                 Int?
   gender                 String?                // 'male', 'female', or null for all genders
+  isIndoor               Boolean?               // true = indoor, false = outdoor, null = unknown/both
   cost                   Float                  @default(0)
   costIncludesTax        Boolean                @default(true)
   taxAmount              Float?

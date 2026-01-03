@@ -744,6 +744,57 @@ class ActivityService {
   }
 
   /**
+   * Search activities within map bounds
+   * Used by map screen for viewport-based queries
+   */
+  async searchActivitiesByBounds(params: {
+    minLat: number;
+    maxLat: number;
+    minLng: number;
+    maxLng: number;
+    limit?: number;
+    activityType?: string;
+    activitySubtype?: string;
+    ageMin?: number;
+    ageMax?: number;
+    costMin?: number;
+    costMax?: number;
+    dayOfWeek?: string[];
+    hideClosedOrFull?: boolean;
+    hideClosedActivities?: boolean;
+    hideFullActivities?: boolean;
+  }): Promise<{ activities: Activity[]; total: number }> {
+    try {
+      const response = await this.api.get('/api/v1/activities/bounds', { params });
+
+      if (response.data.success) {
+        const activities = (response.data.activities || []).map((activity: any) => ({
+          ...activity,
+          activityType: [activity.category],
+          dateRange: activity.dateStart && activity.dateEnd ? {
+            start: new Date(activity.dateStart),
+            end: new Date(activity.dateEnd),
+          } : null,
+          ageRange: {
+            min: activity.ageMin,
+            max: activity.ageMax
+          },
+        }));
+
+        return {
+          activities,
+          total: response.data.total || activities.length,
+        };
+      }
+
+      return { activities: [], total: 0 };
+    } catch (error: any) {
+      console.error('Error searching activities by bounds:', error);
+      return { activities: [], total: 0 };
+    }
+  }
+
+  /**
    * Get activity details
    */
   async getActivityDetails(activityId: string): Promise<Activity | null> {

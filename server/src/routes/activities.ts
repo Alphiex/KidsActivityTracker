@@ -54,6 +54,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       radiusKm,
       // Map filtering - only return activities with coordinates
       hasCoordinates,
+      // Environment filter - indoor/outdoor/all
+      environmentFilter,
+      environment, // Alternative name
       limit = '50',
       offset = '0',
       sortBy = 'availability', // Default: availability-first random ordering
@@ -135,6 +138,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       radiusKm: radiusKm ? parseFloat(radiusKm as string) : undefined,
       // Map filtering - only return activities with coordinates
       hasCoordinates: hasCoordinates === 'true',
+      // Environment filter - indoor/outdoor/all
+      environmentFilter: (environmentFilter || environment) as 'indoor' | 'outdoor' | 'all' | undefined,
       limit: parseInt(limit as string),
       offset: parseInt(offset as string),
       sortBy: sortBy as 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability',
@@ -184,6 +189,105 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to search activities'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/v1/activities/bounds
+ * @desc    Search activities within map bounds
+ * @access  Public
+ */
+router.get('/bounds', optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const {
+      minLat,
+      maxLat,
+      minLng,
+      maxLng,
+      // Filter options
+      activityType,
+      activitySubtype,
+      ageMin,
+      ageMax,
+      costMin,
+      costMax,
+      dayOfWeek,
+      hideClosedOrFull,
+      hideClosedActivities,
+      hideFullActivities,
+      limit = '500',
+    } = req.query;
+
+    // Validate required bounds parameters
+    if (!minLat || !maxLat || !minLng || !maxLng) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required bounds parameters: minLat, maxLat, minLng, maxLng'
+      });
+    }
+
+    const bounds = {
+      minLat: parseFloat(minLat as string),
+      maxLat: parseFloat(maxLat as string),
+      minLng: parseFloat(minLng as string),
+      maxLng: parseFloat(maxLng as string),
+    };
+
+    // Calculate center and radius for the existing search function
+    const centerLat = (bounds.minLat + bounds.maxLat) / 2;
+    const centerLng = (bounds.minLng + bounds.maxLng) / 2;
+    // Calculate radius as half the diagonal distance (approximate)
+    const latDiff = bounds.maxLat - bounds.minLat;
+    const lngDiff = bounds.maxLng - bounds.minLng;
+    // 1 degree latitude ~ 111km
+    const radiusKm = Math.max(latDiff * 111, lngDiff * 85) / 2 * 1.2; // 20% buffer
+
+    const params = {
+      userLat: centerLat,
+      userLon: centerLng,
+      radiusKm: Math.min(radiusKm, 200), // Cap at 200km
+      hasCoordinates: true,
+      activityType: activityType as string,
+      activitySubtype: activitySubtype as string,
+      ageMin: ageMin ? parseInt(ageMin as string) : undefined,
+      ageMax: ageMax ? parseInt(ageMax as string) : undefined,
+      costMin: costMin ? parseFloat(costMin as string) : undefined,
+      costMax: costMax ? parseFloat(costMax as string) : undefined,
+      dayOfWeek: dayOfWeek ? (Array.isArray(dayOfWeek) ? dayOfWeek : [dayOfWeek]) as string[] : undefined,
+      hideClosedOrFull: hideClosedOrFull === 'true',
+      hideClosedActivities: hideClosedActivities === 'true',
+      hideFullActivities: hideFullActivities === 'true',
+      limit: parseInt(limit as string),
+      offset: 0,
+      sortBy: 'distance' as const,
+      sortOrder: 'asc' as const,
+    };
+
+    console.log('[Routes] Activities Bounds Request:', { bounds, params });
+
+    const result = await activityService.searchActivities(params);
+
+    // Filter to activities actually within bounds (more precise than radius)
+    const activitiesInBounds = result.activities.filter(activity => {
+      const lat = activity.latitude || activity.location?.latitude;
+      const lng = activity.longitude || activity.location?.longitude;
+      if (!lat || !lng) return false;
+      return lat >= bounds.minLat && lat <= bounds.maxLat &&
+             lng >= bounds.minLng && lng <= bounds.maxLng;
+    });
+
+    res.json({
+      success: true,
+      activities: activitiesInBounds,
+      total: activitiesInBounds.length,
+      bounds,
+    });
+  } catch (error: any) {
+    console.error('Activities bounds search error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search activities within bounds'
     });
   }
 });

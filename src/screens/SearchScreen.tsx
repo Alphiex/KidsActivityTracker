@@ -406,6 +406,7 @@ const SearchScreen = () => {
       locations: allLocations.length > 1 ? allLocations : undefined,
       ageMin: minAge > 0 ? minAge : undefined,
       ageMax: maxAge < 18 ? maxAge : undefined,
+      environmentFilter: environmentFilter !== 'all' ? environmentFilter : undefined,
       hideFullActivities: true,
     };
 
@@ -462,6 +463,7 @@ const SearchScreen = () => {
       locations: allLocations.length > 1 ? allLocations : undefined,
       ageMin: minAge > 0 ? minAge : undefined,
       ageMax: maxAge < 18 ? maxAge : undefined,
+      environmentFilter: environmentFilter !== 'all' ? environmentFilter : undefined,
     };
 
     const searchIntent = aiService.buildSearchIntent({

@@ -10,11 +10,14 @@ import {
   FlatList,
   Image,
   Share,
+  TextInput,
+  Keyboard,
 } from 'react-native';
-import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Region, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import GooglePlacesSDK from 'react-native-google-places-sdk';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityService from '../services/activityService';
@@ -23,6 +26,7 @@ import FavoritesService from '../services/favoritesService';
 import WaitlistService from '../services/waitlistService';
 import { revenueCatService } from '../services/revenueCatService';
 import { ClusterMarker } from '../components/map';
+import ChildAvatar from '../components/children/ChildAvatar';
 import { Colors } from '../theme';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
@@ -286,12 +290,12 @@ const MapSearchScreen = () => {
 
   // Get user preferences for filtering
   const preferences = preferencesService.getPreferences();
-
-  // Preference-based filtering - load from persisted preferences
-  const [usePreferencesFilter, setUsePreferencesFilter] = useState(
-    preferences.useMapPreferencesFilter ?? true
-  );
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Place search state
+  const [searchQuery, setPlaceSearchQuery] = useState('');
+  const [showPlaceSearch, setShowPlaceSearch] = useState(false);
+  const [placePredictions, setPlacePredictions] = useState<any[]>([]);
 
   // Handle search filters from navigation params
   useEffect(() => {
@@ -318,30 +322,6 @@ const MapSearchScreen = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters]);
-
-  // Reload activities when preference filter toggle changes
-  useEffect(() => {
-    if (locationLoaded && !searchFilters) {
-      // Reload activities for the current region
-      loadActivities(region);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usePreferencesFilter]);
-
-  // Handle toggling preference filter - requires premium to disable
-  const handleTogglePreferencesFilter = useCallback(() => {
-    if (usePreferencesFilter) {
-      // Trying to turn OFF preference filtering - check if premium
-      if (!revenueCatService.isPro()) {
-        setShowUpgradeModal(true);
-        return;
-      }
-    }
-    const newValue = !usePreferencesFilter;
-    setUsePreferencesFilter(newValue);
-    // Persist the setting across screens
-    preferencesService.updatePreferences({ useMapPreferencesFilter: newValue });
-  }, [usePreferencesFilter, preferencesService]);
 
   // Navigate to filters screen for map-based filtering
   // Hide distance and location sections since the map handles location visually
@@ -684,38 +664,6 @@ const MapSearchScreen = () => {
     }
   };
 
-  // Build filters from user preferences
-  const buildPreferenceFilters = useCallback((): Record<string, unknown> => {
-    const prefs = preferencesService.getPreferences();
-    const filters: Record<string, unknown> = {};
-
-    // Age range filtering
-    if (prefs.ageRanges && prefs.ageRanges.length > 0) {
-      // Use the first age range (most common use case)
-      const ageRange = prefs.ageRanges[0];
-      if (ageRange.min > 0) filters.ageMin = ageRange.min;
-      if (ageRange.max < 18) filters.ageMax = ageRange.max;
-    }
-
-    // Activity type filtering
-    if (prefs.preferredActivityTypes && prefs.preferredActivityTypes.length > 0) {
-      filters.activityTypes = prefs.preferredActivityTypes;
-    }
-
-    // Price range filtering
-    if (prefs.priceRange) {
-      if (prefs.priceRange.min > 0) filters.priceMin = prefs.priceRange.min;
-      if (prefs.priceRange.max < 999999) filters.priceMax = prefs.priceRange.max;
-    }
-
-    // Hide full activities
-    if (prefs.hideFullActivities || prefs.hideClosedOrFull) {
-      filters.hideFullActivities = true;
-    }
-
-    return filters;
-  }, [preferencesService]);
-
   const loadActivities = async (forRegion?: Region) => {
     try {
       setLoading(true);
@@ -744,18 +692,16 @@ const MapSearchScreen = () => {
         }
       }
 
-      // Apply global active filters first (from search screen)
+      // Apply global active filters (from FiltersScreen)
       const activeFilters = preferencesService.getActiveFilters();
       if (activeFilters && Object.keys(activeFilters).length > 0) {
         Object.assign(filters, activeFilters);
         if (__DEV__) console.log('[MapSearch] Applying global active filters:', activeFilters);
       }
 
-      // Apply user preference filters if enabled (on top of global filters)
-      if (usePreferencesFilter) {
-        const prefFilters = buildPreferenceFilters();
-        Object.assign(filters, prefFilters);
-        if (__DEV__) console.log('[MapSearch] Applying preference filters:', prefFilters);
+      // Apply hide closed/full settings from global preferences
+      if (preferences.hideClosedOrFull) {
+        filters.hideClosedOrFull = true;
       }
 
       if (__DEV__) console.log('[MapSearch] Loading activities with filters:', filters);
@@ -791,7 +737,7 @@ const MapSearchScreen = () => {
     if (__DEV__) console.log('[MapSearch] Region changed significantly, refetching activities');
     await loadActivities(mapRegion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchFilters, usePreferencesFilter, buildPreferenceFilters, preferencesService, activityService]);
+  }, [searchFilters, preferencesService, activityService]);
 
   // Handle tapping a marker on the map - scroll list to show the card
   const handleMarkerPress = useCallback((cluster: LocationCluster) => {
@@ -1212,30 +1158,6 @@ const MapSearchScreen = () => {
             </Text>
           </View>
         )}
-
-        {/* My Preferences Toggle Chip - Top Left */}
-        <TouchableOpacity
-          style={[
-            styles.preferencesChip,
-            usePreferencesFilter && styles.preferencesChipActive,
-          ]}
-          onPress={handleTogglePreferencesFilter}
-        >
-          <Icon
-            name={usePreferencesFilter ? 'account-check' : 'account-off'}
-            size={16}
-            color={usePreferencesFilter ? '#fff' : Colors.primary}
-          />
-          <Text style={[
-            styles.preferencesChipText,
-            usePreferencesFilter && styles.preferencesChipTextActive,
-          ]}>
-            My Preferences
-          </Text>
-          {!revenueCatService.isPro() && !usePreferencesFilter && (
-            <Icon name="crown" size={12} color={Colors.primary} style={{ marginLeft: 2 }} />
-          )}
-        </TouchableOpacity>
 
         {/* Action Buttons - Bottom Right */}
         <View style={styles.actionButtons}>

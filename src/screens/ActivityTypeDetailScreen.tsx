@@ -74,6 +74,8 @@ const ActivityTypeDetailScreen = () => {
       }
 
       const activityService = ActivityService.getInstance();
+      const preferencesService = PreferencesService.getInstance();
+      const preferences = preferencesService.getPreferences();
       const types = await activityService.getActivityTypesWithCounts();
 
       const currentType = types.find(t => t.name === typeName || t.code === typeCode);
@@ -89,7 +91,17 @@ const ActivityTypeDetailScreen = () => {
           .sort((a: any, b: any) => b.activityCount - a.activityCount);
 
         setSubtypes(subtypesWithCounts);
-        setTotalCount(currentType.activityCount || 0);
+
+        // Get actual filtered count using search API (same filters as UnifiedResults)
+        const countResult = await activityService.searchActivities({
+          activityType: typeName,
+          lat: preferences?.location?.lat,
+          lng: preferences?.location?.lng,
+          maxDistance: preferences?.maxDistance || 50,
+          limit: 1,
+          offset: 0,
+        });
+        setTotalCount(countResult.total || 0);
       } else {
         const activityTypeService = ActivityTypeService.getInstance();
         const typeInfo = await activityTypeService.getActivityTypeWithSubtypes(typeName);
@@ -105,7 +117,17 @@ const ActivityTypeDetailScreen = () => {
             .sort((a: any, b: any) => b.activityCount - a.activityCount);
 
           setSubtypes(subtypesWithCounts);
-          setTotalCount(typeInfo.totalCount || 0);
+
+          // Get actual filtered count using search API
+          const countResult = await activityService.searchActivities({
+            activityType: typeName,
+            lat: preferences?.location?.lat,
+            lng: preferences?.location?.lng,
+            maxDistance: preferences?.maxDistance || 50,
+            limit: 1,
+            offset: 0,
+          });
+          setTotalCount(countResult.total || 0);
         } else {
           setSubtypes([]);
           setTotalCount(0);
@@ -376,7 +398,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
     paddingTop: 8,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 28,
     justifyContent: 'space-between',
   },
   heroTopRow: {
@@ -416,9 +438,9 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   countBadgeRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
+    position: 'absolute',
+    bottom: 32,
+    right: 16,
   },
   countBadge: {
     backgroundColor: 'rgba(255,255,255,0.95)',

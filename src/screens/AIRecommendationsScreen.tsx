@@ -122,8 +122,30 @@ const AIRecommendationsScreen = () => {
       setError(null);
 
       // Get merged child preferences (combines all selected children's preferences)
-      const childIds = selectedChildIds?.length > 0 ? selectedChildIds : children.map(c => c.id);
-      const mergedChildPrefs = childPreferencesService.getMergedPreferences(childIds, filterMode || 'or');
+      // Collect preferences, ages, and genders from selected children
+      const childPreferences = selectedChildren
+        .map(child => child.preferences)
+        .filter((p): p is NonNullable<typeof p> => p !== undefined);
+
+      const childAges = selectedChildren.map(child => {
+        const birthDate = new Date(child.dateOfBirth);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      }).filter(age => age >= 0 && age <= 18);
+
+      const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+      const mergedChildPrefs = childPreferencesService.getMergedFilters(
+        childPreferences,
+        childAges,
+        childGenders,
+        filterMode || 'or'
+      );
 
       // Get user preferences as fallback
       const preferencesService = PreferencesService.getInstance();
@@ -156,20 +178,26 @@ const AIRecommendationsScreen = () => {
         // Add age range from children or preferences
         ageMin: filters.ageMin ?? ageMin,
         ageMax: filters.ageMax ?? ageMax,
-        // Add location from child preferences or user preferences
-        city: filters.city ?? mergedChildPrefs?.city ?? preferences.preferredLocation,
+        // Add location from user preferences (child prefs don't have city, only coords)
+        city: filters.city ?? preferences.preferredLocation,
         // Add GPS coordinates if available with child's preferred radius
         ...(locationData.latitude && locationData.longitude ? {
           latitude: locationData.latitude,
           longitude: locationData.longitude,
           radiusKm: radiusKm,
-        } : {}),
+        } : (mergedChildPrefs?.latitude && mergedChildPrefs?.longitude ? {
+          latitude: mergedChildPrefs.latitude,
+          longitude: mergedChildPrefs.longitude,
+          radiusKm: radiusKm,
+        } : {})),
         // Add preferred activity types from child preferences
         activityTypes: filters.activityTypes ?? mergedChildPrefs?.activityTypes ?? preferences.preferredActivityTypes,
         // Add day preferences from child preferences
         dayOfWeek: filters.dayOfWeek ?? mergedChildPrefs?.daysOfWeek,
         // Add price preferences from child preferences
-        costMax: filters.costMax ?? mergedChildPrefs?.maxPrice ?? preferences.priceRange?.max,
+        costMax: filters.costMax ?? mergedChildPrefs?.priceRangeMax ?? preferences.priceRange?.max,
+        // Add environment filter from child preferences
+        environmentFilter: filters.environmentFilter ?? (mergedChildPrefs?.environmentFilter !== 'all' ? mergedChildPrefs?.environmentFilter : undefined),
       };
 
       console.log('[AIRecommendationsScreen] Enriched filters with preferences:', enrichedFilters);

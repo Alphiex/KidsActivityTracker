@@ -452,8 +452,6 @@ const FavoritesScreenModern: React.FC = () => {
             icon="heart-outline"
             title="No favourites yet"
             subtitle="Tap the heart icon on activities to save them here"
-            actionLabel="Browse Activities"
-            onAction={() => navigation.navigate('Dashboard')}
           />
         );
       case 'watching':
@@ -462,8 +460,6 @@ const FavoritesScreenModern: React.FC = () => {
             icon="bell-outline"
             title="Not watching any activities"
             subtitle="Tap the bell icon on activities to get notified when spots become available"
-            actionLabel="Browse Activities"
-            onAction={() => navigation.navigate('Dashboard')}
           />
         );
       case 'available':

@@ -26,6 +26,7 @@ interface SearchParams {
   hideFullActivities?: boolean; // Hide activities with no spots available
   hideClosedOrFull?: boolean; // Hide activities that are closed OR full
   hasCoordinates?: boolean; // Only return activities with lat/lng for map view
+  environmentFilter?: 'indoor' | 'outdoor' | 'all'; // Filter by indoor/outdoor
   limit?: number;
   offset?: number;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability';
@@ -70,6 +71,7 @@ export class EnhancedActivityService {
       hideFullActivities = false,
       hideClosedOrFull = false,
       hasCoordinates = false,
+      environmentFilter,
       limit = 50,
       offset = 0,
       sortBy = 'availability', // Default to availability-first random ordering
@@ -144,6 +146,16 @@ export class EnhancedActivityService {
       where.longitude = { not: null };
     }
 
+    // Environment filter (indoor/outdoor)
+    if (environmentFilter && environmentFilter !== 'all') {
+      if (environmentFilter === 'indoor') {
+        where.isIndoor = true;
+      } else if (environmentFilter === 'outdoor') {
+        where.isIndoor = false;
+      }
+      console.log(`🏠 [ActivityService] Environment filter applied: ${environmentFilter}`);
+    }
+
     // Text search
     if (search) {
       where.OR = [
@@ -172,7 +184,7 @@ export class EnhancedActivityService {
         const activityTypeRecords = await this.prisma.activityType.findMany({
           where: {
             OR: [
-              { code: { in: activityTypes.map(t => t.toLowerCase().replace(/\s+/g, '-')) } },
+              { code: { in: activityTypes.map((t: string) => t.toLowerCase().replace(/\s+/g, '-')) } },
               { name: { in: activityTypes } }
             ]
           }
