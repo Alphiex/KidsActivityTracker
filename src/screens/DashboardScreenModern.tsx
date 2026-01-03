@@ -32,6 +32,7 @@ import ChildFilterSelector from '../components/ChildFilterSelector';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode } from '../store/slices/childrenSlice';
+import { getChildColor } from '../theme/childColors';
 import { useAppSelector } from '../store';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 
@@ -142,6 +143,21 @@ const DashboardScreenModern = () => {
     console.log('[Dashboard] Child filter changed:', { selectedCount: newSelectedIds.length, mode: newMode });
     // The useEffect watching selectedChildIds/filterMode will trigger the reload
   }, []);
+
+  // Get children that match an activity based on age
+  const getMatchingChildren = useCallback((activity: Activity) => {
+    if (children.length === 0) return [];
+
+    // Get activity age range
+    const activityAgeMin = activity.ageRange?.min ?? activity.ageMin ?? 0;
+    const activityAgeMax = activity.ageRange?.max ?? activity.ageMax ?? 18;
+
+    return children.filter(child => {
+      if (!child.dateOfBirth) return false;
+      const childAge = calculateAge(child.dateOfBirth);
+      return childAge >= activityAgeMin && childAge <= activityAgeMax;
+    });
+  }, [children, calculateAge]);
 
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -1211,6 +1227,29 @@ const DashboardScreenModern = () => {
               </Text>
             </View>
           )}
+
+          {/* Matching children indicators */}
+          {(() => {
+            const matchingChildren = getMatchingChildren(activity);
+            if (matchingChildren.length === 0) return null;
+            return (
+              <View style={styles.matchingChildrenRow}>
+                <Text style={styles.matchingChildrenLabel}>Great for:</Text>
+                {matchingChildren.map(child => {
+                  const color = getChildColor(child.colorId);
+                  return (
+                    <View
+                      key={child.id}
+                      style={[styles.childMatchBadge, { backgroundColor: color.hex + '25', borderColor: color.hex }]}
+                    >
+                      <View style={[styles.childMatchDot, { backgroundColor: color.hex }]} />
+                      <Text style={[styles.childMatchName, { color: color.hex }]}>{child.name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })()}
         </View>
       </TouchableOpacity>
     );
@@ -1872,6 +1911,36 @@ const styles = StyleSheet.create({
   },
   spotsTextUrgent: {
     color: '#D93025',
+  },
+  matchingChildrenRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 6,
+  },
+  matchingChildrenLabel: {
+    fontSize: 11,
+    color: '#717171',
+    marginRight: 2,
+  },
+  childMatchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  childMatchDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  childMatchName: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   typeCard: {
     width: 120,

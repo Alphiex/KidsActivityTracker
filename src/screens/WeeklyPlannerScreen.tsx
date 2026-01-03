@@ -23,7 +23,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { Calendar } from 'react-native-calendars';
 import aiService from '../services/aiService';
 import ActivityService from '../services/activityService';
-import ChildrenService, { ChildActivity } from '../services/childrenService';
+import childrenService, { ChildActivity } from '../services/childrenService';
 import { WeeklySchedule, ScheduleEntry } from '../types/ai';
 import { Activity } from '../types';
 
@@ -278,7 +278,6 @@ const WeeklyPlannerScreen = () => {
   // Existing calendar activities (user's pre-scheduled activities)
   const [existingActivities, setExistingActivities] = useState<ExistingActivity[]>([]);
   const [_loadingExisting, setLoadingExisting] = useState(false); // TODO: Show loading state for existing activities
-  const childrenService = ChildrenService.getInstance();
 
   // Activity details cache (loaded from API when schedule is generated)
   const [activityDetails, setActivityDetails] = useState<Record<string, Activity>>({});
