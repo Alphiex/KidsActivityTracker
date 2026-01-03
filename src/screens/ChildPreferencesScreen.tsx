@@ -393,7 +393,7 @@ const ChildPreferencesScreen: React.FC = () => {
 
   return (
     <ScreenBackground style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <TopTabNavigation />
         <ScrollView
           style={styles.scrollView}
