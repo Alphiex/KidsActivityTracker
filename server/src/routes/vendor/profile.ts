@@ -41,6 +41,29 @@ router.get('/', async (req: Request, res: Response) => {
         featuredStartDate: true,
         featuredEndDate: true,
         createdAt: true,
+        provider: {
+          select: {
+            partnerAccount: {
+              select: {
+                id: true,
+                subscriptionStatus: true,
+                subscriptionStartDate: true,
+                subscriptionEndDate: true,
+                plan: {
+                  select: {
+                    id: true,
+                    name: true,
+                    tier: true,
+                    monthlyPrice: true,
+                    yearlyPrice: true,
+                    impressionLimit: true,
+                    features: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -51,10 +74,27 @@ router.get('/', async (req: Request, res: Response) => {
       });
     }
 
-    // Check if vendor has sponsor subscription by looking at featuredTier
-    const subscriptionStatus = vendor.defaultFeaturedTier ? 'active' : null;
+    // Get subscription info from PartnerAccount if it exists
+    const partnerAccount = vendor.provider?.partnerAccount;
+    let subscriptionStatus = 'free';
     let plan = null;
-    if (vendor.defaultFeaturedTier) {
+
+    if (partnerAccount) {
+      subscriptionStatus = partnerAccount.subscriptionStatus || 'inactive';
+      if (partnerAccount.plan) {
+        plan = {
+          id: partnerAccount.plan.id,
+          name: partnerAccount.plan.name,
+          tier: partnerAccount.plan.tier,
+          monthlyPrice: partnerAccount.plan.monthlyPrice,
+          yearlyPrice: partnerAccount.plan.yearlyPrice,
+          impressionLimit: partnerAccount.plan.impressionLimit,
+          features: partnerAccount.plan.features,
+        };
+      }
+    } else if (vendor.defaultFeaturedTier) {
+      // Fallback to legacy vendor-level featured tier
+      subscriptionStatus = 'active';
       const tierName = vendor.defaultFeaturedTier.charAt(0).toUpperCase() +
                        vendor.defaultFeaturedTier.slice(1).toLowerCase();
       plan = {
@@ -63,12 +103,16 @@ router.get('/', async (req: Request, res: Response) => {
       };
     }
 
+    // Remove provider from response (internal detail)
+    const { provider, ...vendorData } = vendor;
+
     res.json({
       success: true,
       vendor: {
-        ...vendor,
+        ...vendorData,
         subscriptionStatus,
         plan,
+        subscriptionEndDate: partnerAccount?.subscriptionEndDate || null,
       },
     });
   } catch (error: any) {

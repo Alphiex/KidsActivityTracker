@@ -12,6 +12,7 @@ import {
   Share,
   TextInput,
   Keyboard,
+  Platform,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -28,6 +29,7 @@ import childPreferencesService from '../services/childPreferencesService';
 import { ClusterMarker } from '../components/map';
 import ChildAvatar from '../components/children/ChildAvatar';
 import { Colors } from '../theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
@@ -35,8 +37,9 @@ import ScreenBackground from '../components/ScreenBackground';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 import { formatActivityPrice } from '../utils/formatters';
-import { useAppSelector } from '../store';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildWithPreferences } from '../store/slices/childrenSlice';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { geocodeAddress } from '../utils/geocoding';
 
 type MapSearchRouteProp = RouteProp<{
@@ -244,9 +247,17 @@ function clusterActivities(activities: Activity[]): LocationCluster[] {
 const MapSearchScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<MapSearchRouteProp>();
+  const { colors, isDark } = useTheme();
   const mapRef = useRef<MapView>(null);
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get children from Redux to center map on their locations
   const children = useAppSelector(selectAllChildren);
@@ -723,8 +734,14 @@ const MapSearchScreen = () => {
         // Reload activities for the current region
         loadActivities(region);
       }
+      // Refresh child favorites/watching data for icon colors
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locationLoaded, searchFilters, region])
+    }, [locationLoaded, searchFilters, region, children.length])
   );
 
   // Process activities and set state
@@ -1379,13 +1396,23 @@ const MapSearchScreen = () => {
           <View style={styles.placeSearchInputContainer}>
             <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
-              style={styles.placeSearchInput}
+              key={`place-search-${isDark ? 'dark' : 'light'}`}
+              style={[
+                styles.placeSearchInput,
+                {
+                  backgroundColor: colors.surface,
+                  color: colors.text,
+                },
+                Platform.OS === 'ios' && { color: colors.text },
+              ]}
               placeholder="Search for a place..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               value={placeSearchQuery}
               onChangeText={handlePlaceSearchChange}
               onFocus={() => setShowPlaceSearch(true)}
               returnKeyType="search"
+              keyboardAppearance={isDark ? 'dark' : 'light'}
+              selectionColor={colors.primary}
             />
             {placeSearchQuery.length > 0 && (
               <TouchableOpacity onPress={clearPlaceSearch} style={styles.clearSearchButton}>
@@ -2001,7 +2028,7 @@ const styles = StyleSheet.create({
   placeSearchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: '#333333', // Default color for iOS, overridden by theme
     paddingVertical: 4,
   },
   clearSearchButton: {

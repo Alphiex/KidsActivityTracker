@@ -22,10 +22,10 @@ import { Activity } from '../types';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
 import FavoritesService from '../services/favoritesService';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
 import TopTabNavigation from '../components/TopTabNavigation';
 import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
 import UpgradePromptModal from '../components/UpgradePromptModal';
@@ -66,6 +66,13 @@ type RouteParams = {
 const UnifiedResultsScreenTest: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'UnifiedResults'>>();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activityIds = route?.params?.activityIds;
   const fromScreen = route?.params?.fromScreen;
@@ -311,24 +318,8 @@ const UnifiedResultsScreenTest: React.FC = () => {
           if (ageMax !== undefined) {
             baseParams.ageMax = ageMax;
           }
-        } else if (type === 'recommended') {
-          // Apply user preferences for recommended
-          if (!baseParams.activityTypes && preferences.preferredActivityTypes?.length > 0) {
-            baseParams.activityTypes = preferences.preferredActivityTypes;
-          }
-          if (baseParams.ageMin === undefined && preferences.ageRanges?.length > 0) {
-            const ageRange = preferences.ageRanges[0];
-            if (ageRange.min > 0 || ageRange.max < 18) {
-              baseParams.ageMin = ageRange.min;
-              baseParams.ageMax = ageRange.max;
-            }
-          }
         }
-
-        // Apply location preferences (for all types except map)
-        if (!baseParams.locations && preferences.locations?.length > 0) {
-          baseParams.locations = preferences.locations;
-        }
+        // Child-based filters handle all preference filtering (activity types, age, location, etc.)
 
         console.log(`[UnifiedResults] Loading ${type} with filters:`, baseParams);
 

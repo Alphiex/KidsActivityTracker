@@ -29,10 +29,11 @@ import {
   selectAllChildren,
   selectSelectedChildIds,
   selectFilterMode,
+  fetchChildren,
 } from '../store/slices/childrenSlice';
-import PreferencesService from '../services/preferencesService';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import { useTheme } from '../contexts/ThemeContext';
 import { aiRobotImage } from '../assets/images';
 import useSubscription from '../hooks/useSubscription';
 
@@ -334,8 +335,16 @@ const ParsedMessageText: React.FC<ParsedTextProps> = ({ content, style, onActivi
  */
 const AIChatScreen = () => {
   const navigation = useNavigation();
+  const { colors, isDark } = useTheme();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get children and filter state from Redux store
   const children = useAppSelector(selectAllChildren);
@@ -348,24 +357,18 @@ const AIChatScreen = () => {
     return children.map(c => c.id);
   }, [children, selectedChildIds]);
 
-  // Get user preferences for personalized prompts
-  const preferencesService = PreferencesService.getInstance();
-  const preferences = preferencesService.getPreferences();
-
-  // Generate personalized prompts based on user data
+  // Generate personalized prompts based on child data
   const suggestedPrompts = useMemo(() => {
-    const savedAddr = preferences.savedAddress as any;
-    const locationName = savedAddr?.city || savedAddr?.locality ||
-                         (preferences.locationIds?.[0] ? undefined : undefined);
-    const favoriteTypes = preferences.preferredActivityTypes || [];
-    return generatePersonalizedPrompts(children, locationName, favoriteTypes);
-  }, [children, preferences]);
+    // Get location from first child's saved address (child preferences)
+    const selectedChild = children.find(c => selectedChildIds.includes(c.id)) || children[0];
+    const childAddr = selectedChild?.preferences?.savedAddress as any;
+    const locationName = childAddr?.city || childAddr?.locality;
+    // Activity types come from child.preferences inside generatePersonalizedPrompts
+    return generatePersonalizedPrompts(children, locationName, []);
+  }, [children, selectedChildIds]);
 
   // Subscription
   const { isPremium, openPaywall } = useSubscription();
-
-  // Redux dispatch
-  const dispatch = useAppDispatch();
 
   // Redux persisted state
   const messages = useAppSelector((state) => state.chat.messages);
@@ -839,14 +842,23 @@ const AIChatScreen = () => {
           <View style={styles.inputContainer}>
             <TextInput
               ref={inputRef}
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
               value={inputText}
               onChangeText={setInputText}
               placeholder="Ask about activities..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               multiline
               maxLength={500}
               editable={!isLoading && (quota?.allowed !== false)}
+              keyboardAppearance={isDark ? 'dark' : 'light'}
+              selectionColor={colors.primary}
             />
             <TouchableOpacity
               style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}

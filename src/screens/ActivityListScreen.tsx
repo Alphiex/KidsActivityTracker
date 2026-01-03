@@ -18,8 +18,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
-import { useAppSelector } from '../store';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -29,6 +29,13 @@ import { safeToISOString } from '../utils/safeAccessors';
 const ActivityListScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const params = route.params as { category?: string; filters?: any; isActivityType?: boolean } | undefined;
   const category = params?.category ?? 'All';
   const filters = params?.filters;
@@ -120,61 +127,28 @@ const ActivityListScreen = () => {
         searchParams = { ...searchParams, ...filters };
       }
       
-      // Apply ALL global filters to match other screens
+      // Apply view settings (these are user-level, not filtering preferences)
       if (preferences.hideClosedActivities) {
         searchParams.hideClosedActivities = true;
       }
       if (preferences.hideFullActivities) {
         searchParams.hideFullActivities = true;
       }
-      
-      // Apply location filters
-      if (preferences.locations && preferences.locations.length > 0) {
-        searchParams.locations = preferences.locations;
-      }
-      
-      // Apply price range filter (don't override Budget Friendly maxCost)
-      if (preferences.priceRange && !searchParams.maxCost) {
-        searchParams.maxCost = preferences.priceRange.max;
-      }
-      
-      // Apply age range filter
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
-        const ageRange = preferences.ageRanges[0];
-        searchParams.ageMin = ageRange.min;
-        searchParams.ageMax = ageRange.max;
-      }
-      
-      // Apply schedule preferences
-      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
-        searchParams.daysOfWeek = preferences.daysOfWeek;
-      }
-      
-      // Apply time preferences
-      if (preferences.timePreferences) {
-        searchParams.timePreferences = preferences.timePreferences;
-      }
-      
+
       console.log('ActivityListScreen: Final searchParams being sent to API:', searchParams);
 
-      // Get child-based filters for consistent filtering
+      // Child-based filters handle all filtering preferences (location, price, age, days, etc.)
       const childFilters = getChildBasedFilters();
 
       const result = await activityService.searchActivitiesPaginated(searchParams, childFilters);
-      
+
       if (reset) {
         setActivities(result.items);
-        
-        // If ANY global filters are applied, get unfiltered count to show difference
-        const hasGlobalFilters = preferences.hideClosedActivities || 
-                                preferences.hideFullActivities ||
-                                (preferences.locations && preferences.locations.length > 0) ||
-                                (preferences.ageRanges && preferences.ageRanges.length > 0) ||
-                                preferences.priceRange ||
-                                (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) ||
-                                preferences.timePreferences;
-        
-        if (hasGlobalFilters) {
+
+        // If view settings filter out activities, show the difference
+        const hasViewFilters = preferences.hideClosedActivities || preferences.hideFullActivities;
+
+        if (hasViewFilters) {
           let unfilteredParams: any = {
             limit: 1,  // We only need the count
             offset: 0

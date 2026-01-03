@@ -802,15 +802,37 @@ router.put('/settings', [
 
 /**
  * @route   GET /api/partner/plans
- * @desc    List available partner plans
- * @access  Partner
+ * @desc    List available partner plans (PUBLIC - no auth required)
+ * @access  Public
  */
-router.get('/plans', verifyPartnerToken, async (req: Request, res: Response) => {
+router.get('/plans', async (req: Request, res: Response) => {
   try {
-    const plans = await prisma.partnerPlan.findMany({
+    // First try to get from database
+    let plans = await prisma.partnerPlan.findMany({
       where: { isActive: true },
       orderBy: { monthlyPrice: 'asc' }
     });
+
+    // If no plans in database, return static tier info from stripeService
+    if (plans.length === 0) {
+      const { PARTNER_TIERS } = await import('../services/stripeService');
+
+      // Return static plans based on PARTNER_TIERS config
+      const staticPlans = Object.entries(PARTNER_TIERS).map(([tier, config]) => ({
+        id: tier,
+        name: config.name,
+        tier,
+        monthlyPrice: (config.monthlyPrice / 100).toString(),
+        yearlyPrice: (config.yearlyPrice / 100).toString(),
+        impressionLimit: config.impressionLimit,
+        features: config.features
+      }));
+
+      return res.json({
+        success: true,
+        plans: staticPlans
+      });
+    }
 
     res.json({
       success: true,

@@ -10,6 +10,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ChildAvatar, AvatarPicker, ColorPicker } from '../children';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export type Gender = 'male' | 'female' | null;
 
@@ -38,6 +39,7 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
   onChange,
   showAvatar = true,
 }) => {
+  const { colors, isDark } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleNameChange = (name: string) => {
@@ -92,13 +94,22 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Name</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
           value={data.name}
           onChangeText={handleNameChange}
           placeholder="Enter child's name"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.textSecondary}
           autoCapitalize="words"
           autoCorrect={false}
+          keyboardAppearance={isDark ? 'dark' : 'light'}
+          selectionColor={colors.primary}
         />
       </View>
 

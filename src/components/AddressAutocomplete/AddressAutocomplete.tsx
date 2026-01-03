@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Keyboard,
   FlatList,
+  Platform,
 } from 'react-native';
 import GooglePlacesSDK, { PLACE_FIELDS, PlacePrediction } from 'react-native-google-places-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -32,7 +33,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   containerStyle,
   inputStyle,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const inputRef = useRef<TextInput>(null);
   const [searchText, setSearchText] = useState('');
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -291,6 +292,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           </Text>
 
           <TextInput
+            key={`street-${isDark ? 'dark' : 'light'}`}
             style={[
               styles.manualInput,
               {
@@ -298,6 +300,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 borderColor: colors.border,
                 color: colors.text,
               },
+              Platform.OS === 'ios' && { color: colors.text },
             ]}
             value={manualStreet}
             onChangeText={setManualStreet}
@@ -307,9 +310,12 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             autoCorrect={false}
             editable={!disabled && !isGeocodingManual}
             onFocus={onFocus}
+            keyboardAppearance={isDark ? 'dark' : 'light'}
+            selectionColor={colors.primary}
           />
 
           <TextInput
+            key={`city-${isDark ? 'dark' : 'light'}`}
             style={[
               styles.manualInput,
               {
@@ -317,6 +323,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 borderColor: apiError && !manualCity.trim() ? '#EF4444' : colors.border,
                 color: colors.text,
               },
+              Platform.OS === 'ios' && { color: colors.text },
             ]}
             value={manualCity}
             onChangeText={setManualCity}
@@ -326,10 +333,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             autoCorrect={false}
             editable={!disabled && !isGeocodingManual}
             onFocus={onFocus}
+            keyboardAppearance={isDark ? 'dark' : 'light'}
+            selectionColor={colors.primary}
           />
 
           <View style={styles.manualInputRow}>
             <TextInput
+              key={`province-${isDark ? 'dark' : 'light'}`}
               style={[
                 styles.manualInput,
                 styles.manualInputHalf,
@@ -338,6 +348,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                   borderColor: colors.border,
                   color: colors.text,
                 },
+                Platform.OS === 'ios' && { color: colors.text },
               ]}
               value={manualProvince}
               onChangeText={setManualProvince}
@@ -347,8 +358,11 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               autoCorrect={false}
               editable={!disabled && !isGeocodingManual}
               onFocus={onFocus}
+              keyboardAppearance={isDark ? 'dark' : 'light'}
+              selectionColor={colors.primary}
             />
             <TextInput
+              key={`postal-${isDark ? 'dark' : 'light'}`}
               style={[
                 styles.manualInput,
                 styles.manualInputHalf,
@@ -357,6 +371,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                   borderColor: colors.border,
                   color: colors.text,
                 },
+                Platform.OS === 'ios' && { color: colors.text },
               ]}
               value={manualPostalCode}
               onChangeText={setManualPostalCode}
@@ -366,6 +381,8 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               autoCorrect={false}
               editable={!disabled && !isGeocodingManual}
               onFocus={onFocus}
+              keyboardAppearance={isDark ? 'dark' : 'light'}
+              selectionColor={colors.primary}
             />
           </View>
 
@@ -423,14 +440,17 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
         <TextInput
           ref={inputRef}
+          key={`search-input-${isDark ? 'dark' : 'light'}`}
           style={[
             styles.textInput,
+            inputStyle,
             {
               backgroundColor: colors.surface,
               borderColor: apiError ? '#EF4444' : colors.border,
               color: colors.text,
             },
-            inputStyle,
+            // iOS-specific: Force text color to be applied on physical devices
+            Platform.OS === 'ios' && { color: colors.text },
           ]}
           value={searchText}
           onChangeText={handleTextChange}
@@ -440,6 +460,8 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="search"
+          keyboardAppearance={isDark ? 'dark' : 'light'}
+          selectionColor={colors.primary}
           onFocus={() => {
             if (predictions.length > 0) {
               setShowDropdown(true);
@@ -536,6 +558,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     height: 50,
+    color: '#333333', // Default color for iOS, overridden by theme
   },
   predictionsContainer: {
     position: 'absolute',
@@ -649,6 +672,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 48,
     marginBottom: 10,
+    color: '#333333', // Default color for iOS, overridden by theme
   },
   manualInputRow: {
     flexDirection: 'row',

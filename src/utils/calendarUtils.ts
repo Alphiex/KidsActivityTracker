@@ -229,6 +229,49 @@ export interface ActivityScheduleInfo {
   sessions?: Array<{ date?: string; dayOfWeek?: string }>;
 }
 
+/**
+ * Extract the best available start/end time from a child activity
+ * Priority: childActivity.startTime > activity.startTime > sessions[0].startTime
+ */
+export function extractActivityTimes(childActivity: any): { startTime: string | null; endTime: string | null } {
+  // 1. First priority: time explicitly set on the childActivity
+  if (childActivity.startTime) {
+    return {
+      startTime: childActivity.startTime,
+      endTime: childActivity.endTime || null,
+    };
+  }
+
+  const activity = childActivity.activity;
+  if (!activity) {
+    return { startTime: null, endTime: null };
+  }
+
+  // 2. Second priority: time on the activity itself
+  if (activity.startTime) {
+    return {
+      startTime: activity.startTime,
+      endTime: activity.endTime || null,
+    };
+  }
+
+  // 3. Third priority: time from sessions
+  // Check both activity.sessions and activity.rawData?.sessions
+  const sessions = activity.sessions || (activity.rawData as any)?.sessions;
+  if (sessions && Array.isArray(sessions) && sessions.length > 0) {
+    // Find the first session with a startTime
+    const sessionWithTime = sessions.find((s: any) => s.startTime);
+    if (sessionWithTime) {
+      return {
+        startTime: sessionWithTime.startTime,
+        endTime: sessionWithTime.endTime || null,
+      };
+    }
+  }
+
+  return { startTime: null, endTime: null };
+}
+
 export function isActivityOnDate(
   activity: ActivityScheduleInfo,
   targetDate: string

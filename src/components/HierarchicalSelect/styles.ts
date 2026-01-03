@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text, // Default color for iOS, overridden by theme
     padding: 0,
   },
   searchClearButton: {

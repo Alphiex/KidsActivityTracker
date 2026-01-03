@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Switch,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -83,7 +84,7 @@ type SearchRouteProp = RouteProp<{
 const SearchScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<SearchRouteProp>();
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
 
   // Check if we should return to map instead of SearchResults
   const returnToMap = route.params?.returnToMap || false;
@@ -932,12 +933,23 @@ const SearchScreen = () => {
                 <Text style={styles.whatSectionTitle}>What?</Text>
               </View>
               <TextInput
-                style={styles.searchInput}
+                key={`search-${isDark ? 'dark' : 'light'}`}
+                style={[
+                  styles.searchInput,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                  Platform.OS === 'ios' && { color: colors.text },
+                ]}
                 placeholder="Search for activities, sports, camps..."
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textSecondary}
                 value={searchText}
                 onChangeText={setSearchText}
                 autoFocus={false}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
+                selectionColor={colors.primary}
               />
             </View>
 
@@ -1139,7 +1151,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     fontSize: 16,
-    color: '#222222',
+    color: '#333333', // Default color for iOS, overridden by theme
     borderWidth: 1,
     borderColor: '#DDDDDD',
     borderRadius: 12,

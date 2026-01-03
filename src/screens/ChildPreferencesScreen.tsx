@@ -23,6 +23,7 @@ import {
   copyChildPreferences,
   fetchChildPreferences,
   initializeChildPreferences,
+  fetchChildren,
   ChildWithPreferences,
 } from '../store/slices/childrenSlice';
 import { selectSubscription } from '../store/slices/subscriptionSlice';
@@ -72,6 +73,14 @@ const ChildPreferencesScreen: React.FC = () => {
   const children = useAppSelector(selectAllChildren);
   const subscription = useAppSelector(selectSubscription);
   const isPremium = subscription?.currentPlan?.code === 'premium';
+
+  // Ensure children are loaded into Redux on mount
+  // This fixes the issue where children added on physical devices don't appear
+  useEffect(() => {
+    // Always fetch to ensure we have latest data from server
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Selected child for editing
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);

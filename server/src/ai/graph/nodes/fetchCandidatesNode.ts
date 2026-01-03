@@ -92,6 +92,7 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
     ...filters,
     limit: filters.limit || 50, // Get more candidates for LLM to rank
     hideClosedActivities: true,
+    sponsoredMode: 'top', // Include sponsored activities at top for AI to consider
   };
   
   console.log('🔍 [FetchCandidatesNode] Search filters:', JSON.stringify(searchFilters, null, 2));

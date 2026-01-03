@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import childPreferencesService from '../services/childPreferencesService';
 import { Activity } from '../types';
+import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey, aiRobotImage } from '../assets/images';
 import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
@@ -33,7 +34,7 @@ import ChildFilterSelector from '../components/ChildFilterSelector';
 import { ChildAvatar } from '../components/children';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode } from '../store/slices/childrenSlice';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import { getChildColor } from '../theme/childColors';
 import { useAppSelector, useAppDispatch } from '../store';
 import AddToCalendarModal from '../components/AddToCalendarModal';
@@ -45,6 +46,8 @@ import {
   leaveChildWaitlist,
   selectChildrenWhoFavoritedWithDetails,
   selectChildrenOnWaitlistWithDetails,
+  fetchChildFavorites,
+  fetchChildWatching,
 } from '../store/slices/childFavoritesSlice';
 import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 
@@ -53,7 +56,6 @@ const DashboardScreenModern = () => {
   const isTrialing = useSelector(selectIsTrialing);
   const trialDaysRemaining = useSelector(selectTrialDaysRemaining);
   // Section-level loading states for progressive skeleton loading
-  const [sponsoredLoading, setSponsoredLoading] = useState(true);
   const [recommendedLoading, setRecommendedLoading] = useState(true);
   const [newLoading, setNewLoading] = useState(true);
   const [budgetLoading, setBudgetLoading] = useState(true);
@@ -61,7 +63,6 @@ const DashboardScreenModern = () => {
   const [ageGroupsLoading, setAgeGroupsLoading] = useState(true);
   const shimmerAnim = useRef(new Animated.Value(0)).current;
   const [_reloading, setReloading] = useState(false); // Used to track reload state, may be used for refresh indicator
-  const [sponsoredActivities, setSponsoredActivities] = useState<Activity[]>([]);
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
   const [budgetFriendlyActivities, setBudgetFriendlyActivities] = useState<Activity[]>([]);
   const [newActivities, setNewActivities] = useState<Activity[]>([]);
@@ -309,7 +310,6 @@ const DashboardScreenModern = () => {
         try {
           // Load all data in parallel
           await Promise.all([
-            loadSponsoredActivities(),
             loadRecommendedActivities(),
             loadBudgetFriendlyActivities(),
             loadNewActivities(),
@@ -328,6 +328,17 @@ const DashboardScreenModern = () => {
         }
       };
 
+      // Ensure children are synced from server
+      dispatch(fetchChildren()).then((result) => {
+        // After children are loaded, fetch their favorites and watching data
+        if (result.payload && Array.isArray(result.payload) && result.payload.length > 0) {
+          const childIds = result.payload.map((c: any) => c.id);
+          console.log('[Dashboard] Fetching favorites/watching for children:', childIds.length);
+          dispatch(fetchChildFavorites(childIds));
+          dispatch(fetchChildWatching(childIds));
+        }
+      });
+
       loadData();
       loadFavorites();
       loadWaitlistCount();
@@ -338,7 +349,7 @@ const DashboardScreenModern = () => {
   );
 
   // Check if any section is still loading (for shimmer animation)
-  const isAnyLoading = sponsoredLoading || recommendedLoading || newLoading || budgetLoading || typesLoading || ageGroupsLoading;
+  const isAnyLoading = recommendedLoading || newLoading || budgetLoading || typesLoading || ageGroupsLoading;
 
   // Shimmer animation for loading placeholders - runs while any section is loading
   useEffect(() => {
@@ -415,7 +426,6 @@ const DashboardScreenModern = () => {
 
       // Load all data in parallel
       const results = await Promise.allSettled([
-        loadSponsoredActivities(),
         loadRecommendedActivities(),
         loadBudgetFriendlyActivities(),
         loadNewActivities(),
@@ -425,7 +435,7 @@ const DashboardScreenModern = () => {
 
       // Log results of each promise
       results.forEach((result, index) => {
-        const names = ['Sponsored', 'Recommended', 'Budget', 'New', 'ActivityTypes', 'AgeGroups'];
+        const names = ['Recommended', 'Budget', 'New', 'ActivityTypes', 'AgeGroups'];
         if (result.status === 'rejected') {
           console.error(`Failed to load ${names[index]}:`, result.reason);
         } else {
@@ -441,95 +451,20 @@ const DashboardScreenModern = () => {
     }
   };
 
-  const loadSponsoredActivities = async () => {
-    try {
-      setSponsoredLoading(true);
-      console.log('[Dashboard] Loading sponsored activities...');
-      const sponsors = await activityService.getSponsoredActivities(6);
-      console.log(`[Dashboard] Found ${sponsors.length} sponsored activities`);
-      if (isMountedRef.current) {
-        setSponsoredActivities(sponsors);
-      }
-    } catch (error) {
-      console.error('Error loading sponsored activities:', error);
-      if (isMountedRef.current) {
-        setSponsoredActivities([]);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setSponsoredLoading(false);
-      }
-    }
-  };
-
   const loadRecommendedActivities = async () => {
     try {
       setRecommendedLoading(true);
-      // Get user preferences for filtering
-      const preferencesService = PreferencesService.getInstance();
-      const preferences = preferencesService.getPreferences();
 
-      // Build filter params from preferences
+      // Build filter params - child-based filters handle everything
       const filterParams: any = {
         limit: 6,
         offset: 0,
         hideFullActivities: true
       };
 
-      // Apply child-based age filtering FIRST (highest priority)
-      const childAgeRange = getSelectedChildrenAgeRange();
-      if (childAgeRange) {
-        filterParams.ageMin = childAgeRange.ageMin;
-        filterParams.ageMax = childAgeRange.ageMax;
-        console.log('[Dashboard] Applying child age filter:', childAgeRange);
-      }
-
-      // Apply global active filters (from search screen)
-      const activeFilters = preferencesService.getActiveFilters();
-      if (activeFilters && Object.keys(activeFilters).length > 0) {
-        // Don't override child age range with global filters
-        const { ageMin, ageMax, ...otherFilters } = activeFilters;
-        Object.assign(filterParams, otherFilters);
-        // Only use global age filters if no child filter set
-        if (!childAgeRange) {
-          if (ageMin !== undefined) filterParams.ageMin = ageMin;
-          if (ageMax !== undefined) filterParams.ageMax = ageMax;
-        }
-        console.log('[Dashboard] Applying global active filters:', activeFilters);
-      }
-
-      // Apply activity type preferences (if not already set by global filters)
-      if (!filterParams.activityTypes && preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
-        filterParams.activityTypes = preferences.preferredActivityTypes;
-      }
-
-      // Apply age range preferences (only if changed from defaults and not already set)
-      if (filterParams.ageMin === undefined && filterParams.ageMax === undefined && preferences.ageRanges && preferences.ageRanges.length > 0) {
-        const ageRange = preferences.ageRanges[0];
-        if (ageRange.min > 0 || ageRange.max < 18) {
-          filterParams.ageMin = ageRange.min;
-          filterParams.ageMax = ageRange.max;
-        }
-      }
-
-      // Apply price range preferences (only if not unlimited - 10000+ means unlimited and not already set)
-      if (filterParams.costMin === undefined && filterParams.costMax === undefined && preferences.priceRange && preferences.priceRange.max < 10000) {
-        filterParams.costMin = preferences.priceRange.min;
-        filterParams.costMax = preferences.priceRange.max;
-      }
-
-      // Apply location preferences (if not already set)
-      if (!filterParams.locations && preferences.locations && preferences.locations.length > 0) {
-        filterParams.locations = preferences.locations;
-      }
-
-      // Apply days of week preferences (only if not all 7 days selected and not already set)
-      if (!filterParams.daysOfWeek && preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
-        filterParams.daysOfWeek = preferences.daysOfWeek;
-      }
-
-      // Get child-based filters for consistent filtering across all screens
+      // Get child-based filters (includes age, activity types, price, location, days from child preferences)
       const childFilters = getChildBasedFilters();
+      console.log('[Dashboard] Loading recommended with child filters:', childFilters?.mergedFilters ? 'yes' : 'no');
 
       let response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
       console.log('Recommended activities response:', {
@@ -538,35 +473,20 @@ const DashboardScreenModern = () => {
         firstItem: response?.items?.[0]?.name
       });
 
-      // If no results with preferences, try a broader search (location only, then no filters)
+      // If no results with child filters, try a broader search (just child age, no other filters)
       if (!response?.items || response.items.length === 0) {
-        console.log('No results with preferences, trying broader search...');
+        console.log('No results with full filters, trying broader search...');
 
-        // First fallback: just location filter (still apply child filters for age)
-        if (preferences.locations && preferences.locations.length > 0) {
-          const locationOnlyParams = {
-            limit: 6,
-            offset: 0,
-            hideFullActivities: true,
-            locations: preferences.locations
-          };
-          response = await activityService.searchActivitiesPaginated(locationOnlyParams, childFilters);
-          console.log('Location-only search result:', response?.items?.length, 'items');
-        }
-
-        // Second fallback: no filters at all - just get popular activities (still apply child filters for age)
-        if (!response?.items || response.items.length === 0) {
-          console.log('Still no results, fetching without filters...');
-          const noFilterParams = {
-            limit: 6,
-            offset: 0,
-            hideFullActivities: true,
-            sortBy: 'createdAt',
-            sortOrder: 'desc'
-          };
-          response = await activityService.searchActivitiesPaginated(noFilterParams, childFilters);
-          console.log('No-filter search result:', response?.items?.length, 'items');
-        }
+        // Fallback: no additional filters - just get recent activities (still apply child age filter)
+        const noFilterParams: ActivitySearchParams = {
+          limit: 6,
+          offset: 0,
+          hideFullActivities: true,
+          sortBy: 'createdAt',
+          sortOrder: 'desc'
+        };
+        response = await activityService.searchActivitiesPaginated(noFilterParams, childFilters);
+        console.log('Broader search result:', response?.items?.length, 'items');
       }
 
       if (isMountedRef.current) {
@@ -597,65 +517,22 @@ const DashboardScreenModern = () => {
   const loadBudgetFriendlyActivities = async () => {
     try {
       setBudgetLoading(true);
-      // Get user preferences
+      // Get budget-friendly amount setting (this is a view setting, not a filter preference)
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
       const maxBudgetAmount = preferences.maxBudgetFriendlyAmount || 20;
 
-      // Build filter params from preferences
+      // Build filter params - child-based filters handle everything except budget limit
       const filterParams: any = {
         limit: 6,
         offset: 0,
-        maxCost: maxBudgetAmount,  // Budget friendly limit
+        maxCost: maxBudgetAmount,  // Budget friendly limit (view setting)
         hideFullActivities: true
       };
 
-      // Apply child-based age filtering FIRST (highest priority)
-      const childAgeRange = getSelectedChildrenAgeRange();
-      if (childAgeRange) {
-        filterParams.ageMin = childAgeRange.ageMin;
-        filterParams.ageMax = childAgeRange.ageMax;
-      }
-
-      // Apply global active filters (from search screen)
-      const activeFilters = preferencesService.getActiveFilters();
-      if (activeFilters && Object.keys(activeFilters).length > 0) {
-        const { ageMin, ageMax, ...otherFilters } = activeFilters;
-        Object.assign(filterParams, otherFilters);
-        filterParams.maxCost = maxBudgetAmount; // Preserve budget limit
-        // Only use global age filters if no child filter set
-        if (!childAgeRange) {
-          if (ageMin !== undefined) filterParams.ageMin = ageMin;
-          if (ageMax !== undefined) filterParams.ageMax = ageMax;
-        }
-      }
-
-      // Apply activity type preferences
-      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
-        filterParams.activityTypes = preferences.preferredActivityTypes;
-      }
-
-      // Apply age range preferences (only if changed from defaults and no child filter)
-      if (!childAgeRange && preferences.ageRanges && preferences.ageRanges.length > 0) {
-        const ageRange = preferences.ageRanges[0];
-        if (ageRange.min > 0 || ageRange.max < 18) {
-          filterParams.ageMin = ageRange.min;
-          filterParams.ageMax = ageRange.max;
-        }
-      }
-
-      // Apply location preferences
-      if (preferences.locations && preferences.locations.length > 0) {
-        filterParams.locations = preferences.locations;
-      }
-
-      // Apply days of week preferences (only if not all 7 days selected)
-      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
-        filterParams.daysOfWeek = preferences.daysOfWeek;
-      }
-
-      // Get child-based filters for consistent filtering
+      // Get child-based filters (includes age, activity types, location, days from child preferences)
       const childFilters = getChildBasedFilters();
+      console.log('[Dashboard] Loading budget-friendly with child filters:', childFilters?.mergedFilters ? 'yes' : 'no');
 
       const response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
       console.log('Budget friendly activities response:', {
@@ -684,11 +561,8 @@ const DashboardScreenModern = () => {
   const loadNewActivities = async () => {
     try {
       setNewLoading(true);
-      // Get user preferences
-      const preferencesService = PreferencesService.getInstance();
-      const preferences = preferencesService.getPreferences();
 
-      // Build filter params from preferences
+      // Build filter params - child-based filters handle everything
       const filterParams: any = {
         limit: 6,
         offset: 0,
@@ -697,57 +571,9 @@ const DashboardScreenModern = () => {
         hideFullActivities: true
       };
 
-      // Apply child-based age filtering FIRST (highest priority)
-      const childAgeRange = getSelectedChildrenAgeRange();
-      if (childAgeRange) {
-        filterParams.ageMin = childAgeRange.ageMin;
-        filterParams.ageMax = childAgeRange.ageMax;
-      }
-
-      // Apply global active filters (from search screen)
-      const activeFilters = preferencesService.getActiveFilters();
-      if (activeFilters && Object.keys(activeFilters).length > 0) {
-        const { ageMin, ageMax, ...otherFilters } = activeFilters;
-        Object.assign(filterParams, otherFilters);
-        // Only use global age filters if no child filter set
-        if (!childAgeRange) {
-          if (ageMin !== undefined) filterParams.ageMin = ageMin;
-          if (ageMax !== undefined) filterParams.ageMax = ageMax;
-        }
-      }
-
-      // Apply activity type preferences
-      if (preferences.preferredActivityTypes && preferences.preferredActivityTypes.length > 0) {
-        filterParams.activityTypes = preferences.preferredActivityTypes;
-      }
-
-      // Apply age range preferences (only if changed from defaults and no child filter)
-      if (!childAgeRange && preferences.ageRanges && preferences.ageRanges.length > 0) {
-        const ageRange = preferences.ageRanges[0];
-        if (ageRange.min > 0 || ageRange.max < 18) {
-          filterParams.ageMin = ageRange.min;
-          filterParams.ageMax = ageRange.max;
-        }
-      }
-
-      // Apply price range preferences (only if not unlimited - 10000+ means unlimited)
-      if (preferences.priceRange && preferences.priceRange.max < 10000) {
-        filterParams.costMin = preferences.priceRange.min;
-        filterParams.costMax = preferences.priceRange.max;
-      }
-
-      // Apply location preferences
-      if (preferences.locations && preferences.locations.length > 0) {
-        filterParams.locations = preferences.locations;
-      }
-
-      // Apply days of week preferences (only if not all 7 days selected)
-      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
-        filterParams.daysOfWeek = preferences.daysOfWeek;
-      }
-
-      // Get child-based filters for consistent filtering
+      // Get child-based filters (includes age, activity types, price, location, days from child preferences)
       const childFilters = getChildBasedFilters();
+      console.log('[Dashboard] Loading new activities with child filters:', childFilters?.mergedFilters ? 'yes' : 'no');
 
       const response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
       console.log('New activities response:', {
@@ -778,22 +604,29 @@ const DashboardScreenModern = () => {
       console.log('Loading activity types from database...');
       const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/activity-types`);
       const result = await response.json();
-      
+
       if (result.success && result.data && Array.isArray(result.data)) {
         type ActivityTypeData = { code: string; name: string; iconName?: string; activityCount: number };
         let allTypes: ActivityTypeData[] = result.data;
         console.log('Found', allTypes.length, 'activity types in database');
 
-        // Get user preferences to show preferred types first
-        const preferencesService = PreferencesService.getInstance();
-        const preferences = preferencesService.getPreferences();
-        const preferredTypes = preferences.preferredActivityTypes || [];
+        // Get preferred activity types from selected children's preferences
+        const preferredTypes: string[] = [];
+        selectedChildren.forEach(child => {
+          if (child.preferences?.preferredActivityTypes) {
+            child.preferences.preferredActivityTypes.forEach((type: string) => {
+              if (!preferredTypes.includes(type)) {
+                preferredTypes.push(type);
+              }
+            });
+          }
+        });
 
-        console.log('User preferred activity types:', preferredTypes);
+        console.log('Child preferred activity types:', preferredTypes);
 
         let selectedTypes: ActivityTypeData[] = [];
 
-        // First, add user's preferred activity types
+        // First, add children's preferred activity types
         if (preferredTypes.length > 0) {
           const preferred = allTypes.filter((type: ActivityTypeData) =>
             preferredTypes.some((pref: string) =>
@@ -802,7 +635,7 @@ const DashboardScreenModern = () => {
             )
           );
           selectedTypes = [...preferred];
-          console.log('Added', preferred.length, 'preferred types');
+          console.log('Added', preferred.length, 'preferred types from children');
         }
 
         // If we have less than 6, add more types by activity count (most popular first)
@@ -810,15 +643,15 @@ const DashboardScreenModern = () => {
           const remaining = allTypes
             .filter((type: ActivityTypeData) => !selectedTypes.some((selected: ActivityTypeData) => selected.code === type.code))
             .sort((a: ActivityTypeData, b: ActivityTypeData) => (b.activityCount || 0) - (a.activityCount || 0));
-          
+
           const needed = 6 - selectedTypes.length;
           selectedTypes = [...selectedTypes, ...remaining.slice(0, needed)];
           console.log('Added', Math.min(needed, remaining.length), 'additional types by popularity');
         }
-        
+
         // Ensure we have exactly 6 types
         selectedTypes = selectedTypes.slice(0, 6);
-        
+
         console.log('Final activity types:', selectedTypes.map(t => `${t.name} (${t.activityCount} activities)`));
         if (isMountedRef.current) {
           setActivityTypes(selectedTypes);
@@ -1464,31 +1297,6 @@ const DashboardScreenModern = () => {
             showModeToggle={true}
             onSelectionChange={handleChildFilterChange}
           />
-        )}
-
-        {/* Sponsored Partners Section - shows skeleton while loading, then content or nothing */}
-        {(sponsoredLoading || sponsoredActivities.length > 0) && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.sectionHeader}
-              onPress={() => handleNavigate('SponsoredPartners')}
-            >
-              <View style={styles.sectionHeaderLeft}>
-                <Text style={styles.sectionTitle}>Sponsored Partners</Text>
-                <Icon name="chevron-right" size={20} color="#222" style={styles.chevronIcon} />
-              </View>
-            </TouchableOpacity>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {sponsoredLoading ? (
-                // Skeleton loading cards
-                <>
-                  {[0, 1, 2].map(renderSkeletonCard)}
-                </>
-              ) : (
-                sponsoredActivities.map(renderActivityCard)
-              )}
-            </ScrollView>
-          </View>
         )}
 
         {/* AI Recommendations Banner - with robot overlay */}

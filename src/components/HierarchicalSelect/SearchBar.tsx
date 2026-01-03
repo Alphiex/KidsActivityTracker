@@ -1,14 +1,17 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity } from 'react-native';
+import { View, TextInput, TouchableOpacity, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SearchBarProps } from './types';
 import { styles, COLORS } from './styles';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
   placeholder = 'Search locations...',
 }) => {
+  const { isDark, colors } = useTheme();
+
   return (
     <View style={styles.searchContainer}>
       <Icon
@@ -18,7 +21,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
         style={styles.searchIcon}
       />
       <TextInput
-        style={styles.searchInput}
+        key={`hier-search-${isDark ? 'dark' : 'light'}`}
+        style={[
+          styles.searchInput,
+          { color: colors.text },
+          Platform.OS === 'ios' && { color: colors.text },
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -26,6 +34,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
+        keyboardAppearance={isDark ? 'dark' : 'light'}
+        selectionColor={colors.primary}
       />
       {value.length > 0 && (
         <TouchableOpacity

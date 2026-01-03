@@ -22,11 +22,12 @@ import aiService from '../services/aiService';
 import PreferencesService from '../services/preferencesService';
 import locationService from '../services/locationService';
 import childPreferencesService from '../services/childPreferencesService';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
 import {
   selectAllChildren,
   selectSelectedChildIds,
   selectFilterMode,
+  fetchChildren,
 } from '../store/slices/childrenSlice';
 import { AIRecommendation, AIRecommendationResponse, AISourceType } from '../types/ai';
 import { Activity } from '../types';
@@ -56,6 +57,13 @@ const AIRecommendationsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const { colors, isDark } = useTheme();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get children and filter state from Redux store
   const children = useAppSelector(selectAllChildren);
@@ -165,21 +173,19 @@ const AIRecommendationsScreen = () => {
         console.warn('[AIRecommendationsScreen] Could not get location:', locError);
       }
 
-      // Use children's age range if available, otherwise fall back to preferences
-      const ageMin = childrenAgeRange?.min ?? preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min;
-      const ageMax = childrenAgeRange?.max ?? preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max;
+      // Use children's age range (no user preference fallbacks - all filtering from child preferences)
+      const ageMin = childrenAgeRange?.min;
+      const ageMax = childrenAgeRange?.max;
 
       // Get distance radius from child preferences (default 25km)
       const radiusKm = mergedChildPrefs?.distanceRadiusKm ?? 25;
 
-      // Merge child preferences with route filters
+      // Merge child preferences with route filters (no user preference fallbacks)
       const enrichedFilters = {
         ...filters,
-        // Add age range from children or preferences
+        // Add age range from children
         ageMin: filters.ageMin ?? ageMin,
         ageMax: filters.ageMax ?? ageMax,
-        // Add location from user preferences (child prefs don't have city, only coords)
-        city: filters.city ?? preferences.preferredLocation,
         // Add GPS coordinates if available with child's preferred radius
         ...(locationData.latitude && locationData.longitude ? {
           latitude: locationData.latitude,
@@ -191,11 +197,11 @@ const AIRecommendationsScreen = () => {
           radiusKm: radiusKm,
         } : {})),
         // Add preferred activity types from child preferences
-        activityTypes: filters.activityTypes ?? mergedChildPrefs?.activityTypes ?? preferences.preferredActivityTypes,
+        activityTypes: filters.activityTypes ?? mergedChildPrefs?.activityTypes,
         // Add day preferences from child preferences
         dayOfWeek: filters.dayOfWeek ?? mergedChildPrefs?.daysOfWeek,
         // Add price preferences from child preferences
-        costMax: filters.costMax ?? mergedChildPrefs?.priceRangeMax ?? preferences.priceRange?.max,
+        costMax: filters.costMax ?? mergedChildPrefs?.priceRangeMax,
         // Add environment filter from child preferences
         environmentFilter: filters.environmentFilter ?? (mergedChildPrefs?.environmentFilter !== 'all' ? mergedChildPrefs?.environmentFilter : undefined),
       };

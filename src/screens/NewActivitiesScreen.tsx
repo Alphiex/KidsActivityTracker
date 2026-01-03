@@ -13,8 +13,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
-import { useAppSelector } from '../store';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -23,6 +23,14 @@ import { safeToISOString } from '../utils/safeAccessors';
 
 const NewActivitiesScreen = () => {
   const navigation = useNavigation<any>();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -84,47 +92,15 @@ const NewActivitiesScreen = () => {
         createdAfter: oneWeekAgo.toISOString()
       };
       
-      // Apply ALL global filters to match other screens
+      // Apply view settings (these are user-level, not filtering preferences)
       if (preferences.hideClosedActivities) {
         searchParams.hideClosedActivities = true;
       }
       if (preferences.hideFullActivities) {
         searchParams.hideFullActivities = true;
       }
-      
-      // Apply location filters
-      if (preferences.locations && preferences.locations.length > 0) {
-        searchParams.locations = preferences.locations;
-      }
-      
-      // Apply price range filter
-      if (preferences.priceRange) {
-        searchParams.maxCost = preferences.priceRange.max;
-      }
-      
-      // Apply age range filter
-      if (preferences.ageRanges && preferences.ageRanges.length > 0) {
-        const ageRange = preferences.ageRanges[0];
-        searchParams.ageMin = ageRange.min;
-        searchParams.ageMax = ageRange.max;
-      }
-      
-      // Apply time preferences
-      if (preferences.timePreferences) {
-        searchParams.timePreferences = preferences.timePreferences;
-      }
 
-      // Apply schedule preferences (days of week)
-      if (preferences.daysOfWeek && preferences.daysOfWeek.length > 0 && preferences.daysOfWeek.length < 7) {
-        searchParams.daysOfWeek = preferences.daysOfWeek;
-      }
-
-      // Apply environment filter
-      if (preferences.environmentFilter && preferences.environmentFilter !== 'all') {
-        searchParams.environment = preferences.environmentFilter;
-      }
-
-      // Get child-based filters for consistent filtering
+      // Child-based filters handle all filtering preferences (location, price, age, days, etc.)
       const childFilters = getChildBasedFilters();
 
       const result = await activityService.searchActivitiesPaginated(searchParams, childFilters);

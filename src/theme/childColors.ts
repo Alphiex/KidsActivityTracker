@@ -106,6 +106,24 @@ export const getNextAvailableColorId = (usedColorIds: number[]): number => {
 };
 
 /**
+ * Get gradient colors for multiple children
+ * Used when an activity is assigned to multiple children
+ * @param colorIds - Array of child color IDs
+ * @returns Array of hex colors for gradient (always 2 colors)
+ */
+export const getGradientColorsForChildren = (colorIds: number[]): string[] => {
+  if (colorIds.length === 0) {
+    return ['#FFFFFF', '#FFFFFF'];
+  }
+  if (colorIds.length === 1) {
+    const color = getChildColor(colorIds[0]).hex;
+    return [color, color];
+  }
+  // Return first two children's colors for gradient
+  return colorIds.slice(0, 2).map(id => getChildColor(id).hex);
+};
+
+/**
  * Default export for convenient imports
  */
 export default {
@@ -115,4 +133,5 @@ export default {
   getChildAvatar,
   getNextAvailableAvatarId,
   getNextAvailableColorId,
+  getGradientColorsForChildren,
 };

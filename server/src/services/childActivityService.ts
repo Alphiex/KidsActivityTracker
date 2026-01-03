@@ -242,7 +242,8 @@ export class ChildActivityService {
           activity: {
             include: {
               location: true,
-              provider: true
+              provider: true,
+              sessions: true  // Include sessions for startTime/endTime
             }
           }
         },
@@ -354,7 +355,8 @@ export class ChildActivityService {
         activity: {
           include: {
             location: true,
-            provider: true
+            provider: true,
+            sessions: true  // Include sessions for startTime/endTime
           }
         }
       },
@@ -422,7 +424,8 @@ export class ChildActivityService {
         child: true,
         activity: {
           include: {
-            location: true
+            location: true,
+            sessions: true  // Include sessions for startTime/endTime
           }
         }
       }
@@ -571,7 +574,8 @@ export class ChildActivityService {
         activity: {
           include: {
             location: true,
-            provider: true
+            provider: true,
+            sessions: true  // Include sessions for startTime/endTime
           }
         }
       },

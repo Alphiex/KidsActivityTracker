@@ -29,6 +29,26 @@ export const resetStorageInit = () => {
 const PREFERENCES_KEY = 'user_preferences';
 const FILTER_PRESETS_KEY = 'filter_presets';
 
+/**
+ * PreferencesService - Manages user-level app preferences
+ *
+ * ACTIVE SETTINGS (still in use):
+ * - View settings: hideClosedActivities, hideFullActivities, hideClosedOrFull, maxBudgetFriendlyAmount
+ * - Display: theme, viewType, useMapPreferencesFilter
+ * - Date filters: dateFilter, dateRange, dateMatchMode
+ * - Notifications: notifications object (backend notifications)
+ * - App state: hasCompletedOnboarding, schoolBreaks
+ * - UI state: activeFilters (temporary filter state)
+ *
+ * DEPRECATED (now in child preferences via childPreferencesService):
+ * - locations, locationIds, maxDistance, savedAddress, distanceFilterEnabled, distanceRadiusKm
+ * - ageRanges, priceRange, daysOfWeek, timePreferences
+ * - preferredCategories, preferredActivityTypes, preferredSubtypes, environmentFilter
+ * - Filter presets (getFilterPresets, saveFilterPreset, deleteFilterPreset)
+ * - matchesPreferences, shouldNotifyForActivity
+ *
+ * All activity filtering is now handled per-child using childPreferencesService.getMergedFilters()
+ */
 class PreferencesService {
   private static instance: PreferencesService;
   private preferences: UserPreferences | null = null;
@@ -204,6 +224,7 @@ class PreferencesService {
   }
 
   // Location preferences
+  /** @deprecated Use child preferences instead - managed via childPreferencesService */
   addLocation(location: string) {
     if (!this.preferences!.locations.includes(location)) {
       this.preferences!.locations.push(location);
@@ -211,6 +232,7 @@ class PreferencesService {
     }
   }
 
+  /** @deprecated Use child preferences instead - managed via childPreferencesService */
   removeLocation(location: string) {
     this.preferences!.locations = this.preferences!.locations.filter(
       (loc) => loc !== location
@@ -219,17 +241,20 @@ class PreferencesService {
   }
 
   // Age range preferences
+  /** @deprecated Use child preferences instead - age is calculated from child's date of birth */
   addAgeRange(min: number, max: number) {
     this.preferences!.ageRanges.push({ min, max });
     this.savePreferences();
   }
 
+  /** @deprecated Use child preferences instead - age is calculated from child's date of birth */
   removeAgeRange(index: number) {
     this.preferences!.ageRanges.splice(index, 1);
     this.savePreferences();
   }
 
   // Category preferences
+  /** @deprecated Use child preferences instead - activity types managed per-child */
   toggleCategory(category: string, preferred: boolean) {
     if (preferred) {
       if (!this.preferences!.preferredCategories.includes(category)) {
@@ -250,6 +275,7 @@ class PreferencesService {
   }
 
   // Filter presets
+  /** @deprecated Filter presets are no longer used - filtering is per-child via childPreferencesService */
   private loadFilterPresets() {
     try {
       const storage = getStorage();
@@ -306,10 +332,12 @@ class PreferencesService {
     ];
   }
 
+  /** @deprecated Filter presets are no longer used - filtering is per-child via childPreferencesService */
   getFilterPresets(): FilterPreset[] {
     return this.filterPresets;
   }
 
+  /** @deprecated Filter presets are no longer used - filtering is per-child via childPreferencesService */
   saveFilterPreset(preset: FilterPreset) {
     const existingIndex = this.filterPresets.findIndex((p) => p.id === preset.id);
     if (existingIndex >= 0) {
@@ -320,19 +348,21 @@ class PreferencesService {
     this.saveFilterPresets();
   }
 
+  /** @deprecated Filter presets are no longer used - filtering is per-child via childPreferencesService */
   deleteFilterPreset(id: string) {
     this.filterPresets = this.filterPresets.filter((p) => p.id !== id);
     this.saveFilterPresets();
   }
 
   // Check if activity matches preferences
+  /** @deprecated Use child-based filtering via childPreferencesService.getMergedFilters() instead */
   matchesPreferences(activity: any): boolean {
     const prefs = this.preferences!;
-    
+
     // Check age range
     const ageMatch = prefs.ageRanges.some(
-      (range) => 
-        activity.ageRange.min <= range.max && 
+      (range) =>
+        activity.ageRange.min <= range.max &&
         activity.ageRange.max >= range.min
     );
     if (!ageMatch) return false;
@@ -356,10 +386,11 @@ class PreferencesService {
   }
 
   // Notification check
+  /** @deprecated Use child-based filtering for notification matching */
   shouldNotifyForActivity(activity: any): boolean {
     if (!this.preferences!.notifications.enabled) return false;
     if (!this.preferences!.notifications.newActivities) return false;
-    
+
     return this.matchesPreferences(activity);
   }
 

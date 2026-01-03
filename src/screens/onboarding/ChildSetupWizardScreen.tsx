@@ -238,9 +238,14 @@ const ChildSetupWizardScreen: React.FC = () => {
 
       // Navigate back
       navigation.goBack();
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ChildSetupWizard] Save error:', error);
-      Alert.alert('Error', 'Failed to save. Please try again.');
+      // Extract user-friendly error message from API response
+      const errorMessage = error?.response?.data?.error
+        || error?.response?.data?.message
+        || error?.message
+        || 'Failed to save. Please try again.';
+      Alert.alert('Unable to Save', errorMessage);
     } finally {
       setIsSaving(false);
     }

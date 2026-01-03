@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,16 +15,27 @@ const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
+import childPreferencesService from '../services/childPreferencesService';
 import PreferencesService from '../services/preferencesService';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ActivityCard from '../components/ActivityCard';
 import { Colors } from '../theme';
 import { Activity } from '../types';
 import { safeToISOString } from '../utils/safeAccessors';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 
 const RecommendedActivitiesScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -35,47 +46,76 @@ const RecommendedActivitiesScreen = () => {
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  
+
+  // Get children from Redux
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children for child-based filters
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) {
+      return children; // If none selected, use all children
+    }
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  // Calculate child-based filters
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) {
+      return undefined;
+    }
+
+    // Get preferences for selected children
+    const childPreferences = selectedChildren
+      .filter(c => c.preferences)
+      .map(c => c.preferences!);
+
+    // Calculate ages from birth dates
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+    // Get merged filters using childPreferencesService
+    const mergedFilters = childPreferencesService.getMergedFilters(
+      childPreferences,
+      childAges,
+      childGenders,
+      filterMode
+    );
+
+    return {
+      selectedChildIds: selectedChildren.map(c => c.id),
+      filterMode,
+      mergedFilters,
+    };
+  }, [selectedChildren, filterMode]);
+
   const preferencesService = PreferencesService.getInstance();
   const preferences = preferencesService.getPreferences();
   const ITEMS_PER_PAGE = 50;
 
   const buildFilters = () => {
     const filters: any = {};
-    
-    // Apply user preference filters
+
+    // Apply view settings only (user-level, not filtering preferences)
     if (preferences.hideClosedActivities) {
       filters.hideClosedActivities = true;
     }
     if (preferences.hideFullActivities) {
       filters.hideFullActivities = true;
     }
-    
-    // Apply activity type filters from preferredCategories
-    // preferredCategories contains activity type names like "Swimming & Aquatics", "Dance", etc.
-    if (preferences.preferredCategories && preferences.preferredCategories.length > 0) {
-      filters.activityTypes = preferences.preferredCategories;
-    }
-    
-    if (preferences.locations && preferences.locations.length > 0) {
-      filters.locations = preferences.locations;
-    }
-    if (preferences.priceRange) {
-      filters.maxCost = preferences.priceRange.max;
-    }
-    
-    // Apply age range if set
-    if (preferences.ageRanges && preferences.ageRanges.length > 0) {
-      const ageRange = preferences.ageRanges[0];
-      filters.ageMin = ageRange.min;
-      filters.ageMax = ageRange.max;
-    }
-    
-    // Apply time preferences to match dashboard behavior
-    if (preferences.timePreferences) {
-      filters.timePreferences = preferences.timePreferences;
-    }
-    
+
+    // Child-based filters handle all filtering preferences (activity types, age, location, days, price)
     return filters;
   };
 
@@ -95,10 +135,12 @@ const RecommendedActivitiesScreen = () => {
       const filters = buildFilters();
       filters.limit = ITEMS_PER_PAGE;
       filters.offset = isRefresh ? 0 : currentOffset;
-      
-      console.log('Loading recommended activities with filters:', filters);
-      
-      const response = await activityService.searchActivitiesPaginated(filters);
+
+      // Get child-based filters
+      const childFilters = getChildBasedFilters();
+      console.log('Loading recommended activities with filters:', filters, 'childFilters:', childFilters ? 'yes' : 'no');
+
+      const response = await activityService.searchActivitiesPaginated(filters, childFilters);
       console.log(`Fetched ${response.items.length} activities, total: ${response.total}`);
       
       // If global filters are applied, also get unfiltered count to show difference
@@ -204,27 +246,11 @@ const RecommendedActivitiesScreen = () => {
         )}
       </Text>
       <View style={styles.preferencesInfo}>
-        {preferences.preferredCategories && preferences.preferredCategories.length > 0 && (
+        {selectedChildren.length > 0 && (
           <View style={styles.preferenceChip}>
-            <Icon name="tag" size={16} color="#fff" />
+            <Icon name="child-care" size={16} color="#fff" />
             <Text style={styles.preferenceText}>
-              {preferences.preferredCategories.length} categories
-            </Text>
-          </View>
-        )}
-        {preferences.locations && preferences.locations.length > 0 && (
-          <View style={styles.preferenceChip}>
-            <Icon name="location-on" size={16} color="#fff" />
-            <Text style={styles.preferenceText}>
-              {preferences.locations.length} locations
-            </Text>
-          </View>
-        )}
-        {preferences.priceRange && (
-          <View style={styles.preferenceChip}>
-            <Icon name="attach-money" size={16} color="#fff" />
-            <Text style={styles.preferenceText}>
-              Max ${preferences.priceRange.max}
+              {selectedChildren.length} {selectedChildren.length === 1 ? 'child' : 'children'}
             </Text>
           </View>
         )}
@@ -269,32 +295,37 @@ const RecommendedActivitiesScreen = () => {
     );
   }
 
+  // Get child-based filter info for empty state
+  const childFilters = getChildBasedFilters();
+  const childActivityTypes = childFilters?.mergedFilters?.activityTypes || [];
+  const childMaxPrice = childFilters?.mergedFilters?.priceRangeMax;
+
   if (!isLoading && activities.length === 0) {
     return (
       <View style={styles.centerContainer}>
         <Icon name="search-off" size={60} color={Colors.textSecondary} />
         <Text style={styles.emptyText}>No activities match your preferences</Text>
-        <Text style={styles.emptySubtext}>
-          {preferences.preferredCategories?.length > 0 
-            ? `Looking for: ${preferences.preferredCategories.join(', ')}` 
-            : 'No categories selected'}
-        </Text>
-        {preferences.priceRange && (
-          <Text style={styles.emptySubtext}>Max price: ${preferences.priceRange.max}</Text>
-        )}
-        {preferences.ageRanges && preferences.ageRanges[0] && (
+        {selectedChildren.length > 0 && (
           <Text style={styles.emptySubtext}>
-            Age range: {preferences.ageRanges[0].min}-{preferences.ageRanges[0].max} years
+            Filtering for: {selectedChildren.map(c => c.name).join(', ')}
           </Text>
         )}
-        <TouchableOpacity 
-          style={styles.settingsButton} 
+        <Text style={styles.emptySubtext}>
+          {childActivityTypes.length > 0
+            ? `Looking for: ${childActivityTypes.slice(0, 3).join(', ')}${childActivityTypes.length > 3 ? '...' : ''}`
+            : 'No activity types selected'}
+        </Text>
+        {childMaxPrice && (
+          <Text style={styles.emptySubtext}>Max price: ${childMaxPrice}</Text>
+        )}
+        <TouchableOpacity
+          style={styles.settingsButton}
           onPress={() => navigation.navigate('Profile' as never)}
         >
-          <Text style={styles.settingsButtonText}>Adjust Preferences</Text>
+          <Text style={styles.settingsButtonText}>Adjust Child Preferences</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.settingsButton, { marginTop: 10 }]} 
+        <TouchableOpacity
+          style={[styles.settingsButton, { marginTop: 10 }]}
           onPress={onRefresh}
         >
           <Text style={styles.settingsButtonText}>Refresh</Text>

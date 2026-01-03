@@ -405,7 +405,7 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
             }
             await loadChildren();
             // Also update Redux store so other screens get the updated data
-            dispatch(fetchChildren());
+            await dispatch(fetchChildren()).unwrap();
             setShowAddChildModal(false);
             setEditingChild(null);
           } catch (error) {

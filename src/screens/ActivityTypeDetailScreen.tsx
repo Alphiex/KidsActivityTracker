@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,9 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import ActivityTypeService from '../services/activityTypeService';
-import PreferencesService from '../services/preferencesService';
+import childPreferencesService from '../services/childPreferencesService';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import EmptyState from '../components/EmptyState';
 import ScreenBackground from '../components/ScreenBackground';
 import { getActivityImageKey } from '../utils/activityHelpers';
@@ -37,6 +39,13 @@ interface Subtype {
 const ActivityTypeDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const params = route.params as any;
   const activityType = params?.activityType;
@@ -58,6 +67,32 @@ const ActivityTypeDetailScreen = () => {
 
   const ITEMS_PER_PAGE = 50;
 
+  // Child filter state
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) return children;
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) return undefined;
+    const childPreferences = selectedChildren.filter(c => c.preferences).map(c => c.preferences!);
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+    const mergedFilters = childPreferencesService.getMergedFilters(childPreferences, childAges, childGenders, filterMode);
+    return { filterMode, mergedFilters };
+  }, [selectedChildren, filterMode]);
+
   const {
     showUpgradeModal: showWaitlistUpgradeModal,
     hideUpgradeModal: hideWaitlistUpgradeModal,
@@ -74,9 +109,8 @@ const ActivityTypeDetailScreen = () => {
       }
 
       const activityService = ActivityService.getInstance();
-      const preferencesService = PreferencesService.getInstance();
-      const preferences = preferencesService.getPreferences();
       const types = await activityService.getActivityTypesWithCounts();
+      const childFilters = getChildBasedFilters();
 
       const currentType = types.find(t => t.name === typeName || t.code === typeCode);
 
@@ -92,15 +126,12 @@ const ActivityTypeDetailScreen = () => {
 
         setSubtypes(subtypesWithCounts);
 
-        // Get actual filtered count using search API (same filters as UnifiedResults)
-        const countResult = await activityService.searchActivities({
+        // Get actual filtered count using paginated search API with child filters
+        const countResult = await activityService.searchActivitiesPaginated({
           activityType: typeName,
-          lat: preferences?.location?.lat,
-          lng: preferences?.location?.lng,
-          maxDistance: preferences?.maxDistance || 50,
           limit: 1,
           offset: 0,
-        });
+        }, childFilters);
         setTotalCount(countResult.total || 0);
       } else {
         const activityTypeService = ActivityTypeService.getInstance();
@@ -118,15 +149,12 @@ const ActivityTypeDetailScreen = () => {
 
           setSubtypes(subtypesWithCounts);
 
-          // Get actual filtered count using search API
-          const countResult = await activityService.searchActivities({
+          // Get actual filtered count using paginated search API with child filters
+          const countResult = await activityService.searchActivitiesPaginated({
             activityType: typeName,
-            lat: preferences?.location?.lat,
-            lng: preferences?.location?.lng,
-            maxDistance: preferences?.maxDistance || 50,
             limit: 1,
             offset: 0,
-          });
+          }, childFilters);
           setTotalCount(countResult.total || 0);
         } else {
           setSubtypes([]);
@@ -139,7 +167,7 @@ const ActivityTypeDetailScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [typeName, typeCode]);
+  }, [typeName, typeCode, getChildBasedFilters]);
 
   const loadActivities = useCallback(async (reset = false) => {
     if (isLoadingMore && !reset) return;
@@ -156,20 +184,16 @@ const ActivityTypeDetailScreen = () => {
 
       const offset = reset ? 0 : currentOffset;
       const activityService = ActivityService.getInstance();
-      const preferencesService = PreferencesService.getInstance();
-      const preferences = preferencesService.getPreferences();
+      const childFilters = getChildBasedFilters();
 
-      const result = await activityService.searchActivities({
+      const result = await activityService.searchActivitiesPaginated({
         activityType: typeName,
-        subtype: selectedSubtype || undefined,
-        lat: preferences?.location?.lat,
-        lng: preferences?.location?.lng,
-        maxDistance: preferences?.maxDistance || 50,
+        activitySubtype: selectedSubtype || undefined,
         limit: ITEMS_PER_PAGE,
         offset: offset,
-      });
+      }, childFilters);
 
-      if (result.activities.length === 0) {
+      if (result.items.length === 0) {
         const newEmptyCount = consecutiveEmptyResponses + 1;
         setConsecutiveEmptyResponses(newEmptyCount);
         if (newEmptyCount >= MAX_EMPTY_RESPONSES) {
@@ -180,14 +204,14 @@ const ActivityTypeDetailScreen = () => {
       }
 
       if (reset) {
-        setActivities(result.activities);
+        setActivities(result.items);
       } else {
-        setActivities(prev => [...prev, ...result.activities]);
+        setActivities(prev => [...prev, ...result.items]);
       }
 
       setTotalCount(result.total);
-      setCurrentOffset(offset + result.activities.length);
-      setHasMore(offset + result.activities.length < result.total);
+      setCurrentOffset(offset + result.items.length);
+      setHasMore(result.hasMore);
     } catch (err: any) {
       console.error('Error loading activities:', err);
       setError(err.message || 'Failed to load activities.');
@@ -195,7 +219,7 @@ const ActivityTypeDetailScreen = () => {
       setIsLoadingMore(false);
       setRefreshing(false);
     }
-  }, [typeName, selectedSubtype, isLoadingMore, hasMore, currentOffset, consecutiveEmptyResponses]);
+  }, [typeName, selectedSubtype, isLoadingMore, hasMore, currentOffset, consecutiveEmptyResponses, getChildBasedFilters]);
 
   useEffect(() => {
     loadTypeDetails();

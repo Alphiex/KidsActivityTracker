@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import PreferencesService from '../../services/preferencesService';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   locationService,
@@ -20,29 +20,79 @@ import {
 } from '../../services/locationService';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { EnhancedAddress } from '../../types/preferences';
+import childPreferencesService from '../../services/childPreferencesService';
+import { useAppSelector, useAppDispatch } from '../../store';
+import { selectAllChildren, selectSelectedChildIds, fetchChildren } from '../../store/slices/childrenSlice';
+import { ChildAvatar } from '../../components/children';
+
+type RouteParams = {
+  DistancePreferences: {
+    childId?: string;
+  };
+};
 
 const DistancePreferencesScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RouteParams, 'DistancePreferences'>>();
   const { colors } = useTheme();
-  const preferencesService = PreferencesService.getInstance();
-  const currentPreferences = preferencesService.getPreferences();
+  const dispatch = useAppDispatch();
 
-  const [distanceEnabled, setDistanceEnabled] = useState(currentPreferences.distanceFilterEnabled);
-  const [selectedRadius, setSelectedRadius] = useState<RadiusOption>(
-    (currentPreferences.distanceRadiusKm as RadiusOption) || 25
-  );
-  const [locationSource, setLocationSource] = useState<'gps' | 'saved_address'>(
-    currentPreferences.locationSource || 'gps'
-  );
-  const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(
-    locationService.getEnhancedAddress()
-  );
+  // Get children from Redux
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Use route param childId, or first selected child, or first child
+  const initialChildId = route.params?.childId || selectedChildIds[0] || children[0]?.id;
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(initialChildId || null);
+
+  const selectedChild = children.find(c => c.id === selectedChildId);
+
+  // Preferences state
+  const [distanceEnabled, setDistanceEnabled] = useState(true);
+  const [selectedRadius, setSelectedRadius] = useState<RadiusOption>(25);
+  const [locationSource, setLocationSource] = useState<'gps' | 'saved_address'>('saved_address');
+  const [selectedAddress, setSelectedAddress] = useState<EnhancedAddress | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationPermissionStatus>('unavailable');
   const [checkingLocation, setCheckingLocation] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load child preferences when child changes
+  useEffect(() => {
+    if (selectedChildId) {
+      loadChildPreferences();
+    }
+  }, [selectedChildId]);
 
   useEffect(() => {
     checkLocationStatus();
   }, []);
+
+  const loadChildPreferences = async () => {
+    if (!selectedChildId) return;
+
+    setLoading(true);
+    try {
+      const prefs = await childPreferencesService.getChildPreferences(selectedChildId);
+      if (prefs) {
+        setSelectedRadius((prefs.distanceRadiusKm as RadiusOption) || 25);
+        if (prefs.savedAddress) {
+          setSelectedAddress(prefs.savedAddress);
+          setLocationSource('saved_address');
+        }
+      }
+    } catch (error) {
+      console.error('[DistancePreferences] Error loading preferences:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkLocationStatus = async () => {
     setCheckingLocation(true);
@@ -76,24 +126,53 @@ const DistancePreferencesScreen = () => {
   const handleAddressSelect = async (address: EnhancedAddress | null) => {
     setSelectedAddress(address);
     if (address) {
-      // Save the address immediately when selected
-      await locationService.saveEnhancedAddress(address);
       setLocationSource('saved_address');
     }
   };
 
-  const handleSave = () => {
-    preferencesService.updatePreferences({
-      distanceFilterEnabled: distanceEnabled,
-      distanceRadiusKm: selectedRadius,
-      locationSource: locationSource,
-    });
-    navigation.goBack();
+  const handleSave = async () => {
+    if (!selectedChildId) return;
+
+    setSaving(true);
+    try {
+      await childPreferencesService.updateLocationPreferences(
+        selectedChildId,
+        'saved_address',
+        selectedAddress || undefined,
+        selectedRadius
+      );
+      navigation.goBack();
+    } catch (error) {
+      console.error('[DistancePreferences] Error saving:', error);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const savedAddress = locationService.getSavedAddress();
   const canUseGPS = locationStatus === 'granted';
-  const hasSavedAddress = !!savedAddress;
+  const hasSavedAddress = !!selectedAddress;
+
+  if (children.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Distance Settings
+          </Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.emptyState}>
+          <Icon name="account-child" size={64} color={colors.textSecondary} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            Add a child first to set distance preferences
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -104,40 +183,66 @@ const DistancePreferencesScreen = () => {
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           Distance Settings
         </Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
+        <TouchableOpacity onPress={handleSave} disabled={saving}>
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
+          )}
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.description, { color: colors.textSecondary }]}>
-          Filter activities by distance from your location. Only activities within your
-          selected radius will appear in search results.
-        </Text>
-
-        {/* Enable/Disable Toggle */}
-        <View style={[styles.toggleRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.toggleContent}>
-            <Icon name="map-marker-radius" size={28} color={colors.primary} />
-            <View style={styles.toggleTextContainer}>
-              <Text style={[styles.toggleLabel, { color: colors.text }]}>
-                Distance Filtering
-              </Text>
-              <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>
-                Show only nearby activities
-              </Text>
-            </View>
+        {/* Child Selector */}
+        {children.length > 1 && (
+          <View style={styles.childSelector}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Select Child
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.childChips}>
+                {children.map((child) => {
+                  const isSelected = child.id === selectedChildId;
+                  return (
+                    <TouchableOpacity
+                      key={child.id}
+                      style={[
+                        styles.childChip,
+                        {
+                          backgroundColor: isSelected ? colors.primary : colors.surface,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedChildId(child.id)}
+                    >
+                      <ChildAvatar child={child} size={28} />
+                      <Text
+                        style={[
+                          styles.childChipText,
+                          { color: isSelected ? '#fff' : colors.text },
+                        ]}
+                      >
+                        {child.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
           </View>
-          <Switch
-            value={distanceEnabled}
-            onValueChange={setDistanceEnabled}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={distanceEnabled ? '#fff' : '#f4f3f4'}
-          />
-        </View>
+        )}
 
-        {distanceEnabled && (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
           <>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
+              Set the search radius for {selectedChild?.name || 'this child'}. Activities within this
+              distance from their saved address will appear in search results.
+            </Text>
+
             {/* Radius Selection */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -172,125 +277,35 @@ const DistancePreferencesScreen = () => {
               </View>
             </View>
 
-            {/* Location Source */}
+            {/* Location/Address */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Location Source
+                Home Address
+              </Text>
+              <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
+                This address is used to calculate distances to activities
               </Text>
 
-              {/* GPS Option */}
-              <TouchableOpacity
-                style={[
-                  styles.sourceOption,
-                  {
-                    backgroundColor: locationSource === 'gps' ? colors.primary + '10' : colors.surface,
-                    borderColor: locationSource === 'gps' ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => {
-                  if (canUseGPS) {
-                    setLocationSource('gps');
-                  } else {
-                    handleRequestPermission();
-                  }
-                }}
-              >
-                <View style={styles.sourceContent}>
-                  <Icon
-                    name="crosshairs-gps"
-                    size={24}
-                    color={locationSource === 'gps' ? colors.primary : colors.text}
-                  />
-                  <View style={styles.sourceTextContainer}>
-                    <Text
-                      style={[
-                        styles.sourceLabel,
-                        { color: locationSource === 'gps' ? colors.primary : colors.text },
-                      ]}
-                    >
-                      Use GPS Location
-                    </Text>
-                    <Text style={[styles.sourceSubtitle, { color: colors.textSecondary }]}>
-                      {checkingLocation
-                        ? 'Checking...'
-                        : canUseGPS
-                          ? 'Location access granted'
-                          : locationStatus === 'blocked'
-                            ? 'Permission blocked - tap to open settings'
-                            : 'Tap to enable location access'}
+              <View style={[styles.addressContainer, { borderColor: colors.border }]}>
+                <AddressAutocomplete
+                  value={selectedAddress}
+                  onAddressSelect={handleAddressSelect}
+                  label="Address"
+                  placeholder="Search for address..."
+                  country={['ca', 'us']}
+                  showFallbackOption={true}
+                />
+                {selectedAddress?.city && (
+                  <View style={styles.addressDetailsRow}>
+                    <Icon name="map-marker" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.addressDetailsText, { color: colors.textSecondary }]}>
+                      {[selectedAddress.city, selectedAddress.state, selectedAddress.postalCode]
+                        .filter(Boolean)
+                        .join(', ')}
                     </Text>
                   </View>
-                </View>
-                <Icon
-                  name={locationSource === 'gps' ? 'radiobox-marked' : 'radiobox-blank'}
-                  size={24}
-                  color={locationSource === 'gps' ? colors.primary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-
-              {/* Saved Address Option */}
-              <TouchableOpacity
-                style={[
-                  styles.sourceOption,
-                  {
-                    backgroundColor: locationSource === 'saved_address' ? colors.primary + '10' : colors.surface,
-                    borderColor: locationSource === 'saved_address' ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setLocationSource('saved_address')}
-              >
-                <View style={styles.sourceContent}>
-                  <Icon
-                    name="home-map-marker"
-                    size={24}
-                    color={locationSource === 'saved_address' ? colors.primary : colors.text}
-                  />
-                  <View style={styles.sourceTextContainer}>
-                    <Text
-                      style={[
-                        styles.sourceLabel,
-                        { color: locationSource === 'saved_address' ? colors.primary : colors.text },
-                      ]}
-                    >
-                      Use Saved Address
-                    </Text>
-                    <Text style={[styles.sourceSubtitle, { color: colors.textSecondary }]}>
-                      {hasSavedAddress
-                        ? savedAddress.address.substring(0, 40) + (savedAddress.address.length > 40 ? '...' : '')
-                        : 'Enter your address below'}
-                    </Text>
-                  </View>
-                </View>
-                <Icon
-                  name={locationSource === 'saved_address' ? 'radiobox-marked' : 'radiobox-blank'}
-                  size={24}
-                  color={locationSource === 'saved_address' ? colors.primary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-
-              {/* Address Autocomplete */}
-              {locationSource === 'saved_address' && (
-                <View style={[styles.addressContainer, { borderColor: colors.border }]}>
-                  <AddressAutocomplete
-                    value={selectedAddress}
-                    onAddressSelect={handleAddressSelect}
-                    label="Your Address"
-                    placeholder="Search for your address..."
-                    country={['ca', 'us']}
-                    showFallbackOption={true}
-                  />
-                  {selectedAddress?.city && (
-                    <View style={styles.addressDetailsRow}>
-                      <Icon name="map-marker" size={16} color={colors.textSecondary} />
-                      <Text style={[styles.addressDetailsText, { color: colors.textSecondary }]}>
-                        {[selectedAddress.city, selectedAddress.state, selectedAddress.postalCode]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
+                )}
+              </View>
             </View>
           </>
         )}
@@ -329,31 +344,43 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 24,
   },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+  childSelector: {
     marginBottom: 24,
   },
-  toggleContent: {
+  childChips: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  childChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 8,
   },
-  toggleTextContainer: {
-    marginLeft: 12,
-    flex: 1,
+  childChipText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  toggleLabel: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 16,
+  },
+  emptyText: {
     fontSize: 16,
-    fontWeight: '600',
-  },
-  toggleSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
+    textAlign: 'center',
   },
   section: {
     marginBottom: 24,
@@ -364,6 +391,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    marginBottom: 12,
   },
   radiusContainer: {
     flexDirection: 'row',
@@ -380,37 +411,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  sourceOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    marginBottom: 12,
-  },
-  sourceContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  sourceTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  sourceLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  sourceSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
   addressContainer: {
     padding: 16,
     borderWidth: 1,
     borderRadius: 12,
-    marginTop: 8,
   },
   addressDetailsRow: {
     flexDirection: 'row',

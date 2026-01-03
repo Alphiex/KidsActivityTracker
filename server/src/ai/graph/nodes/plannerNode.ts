@@ -281,6 +281,7 @@ export async function plannerNode(state: AIGraphStateType): Promise<Partial<AIGr
         ageMax: child.age + 1,
         limit: 30,
         hideClosedActivities: true,
+        sponsoredMode: 'top', // Include sponsored activities for planner to consider
       });
       
       const compressed = compressActivities(result.activities);

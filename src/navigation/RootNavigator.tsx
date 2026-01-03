@@ -43,7 +43,6 @@ import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
 import UnifiedResultsScreen from '../screens/UnifiedResultsScreen';
-import SponsoredPartnersScreen from '../screens/SponsoredPartnersScreen';
 import LegalScreen from '../screens/legal/LegalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import CustomerCenterScreen from '../screens/CustomerCenterScreen';
@@ -56,12 +55,7 @@ import InvitationAcceptScreen from '../screens/InvitationAcceptScreen';
 import ChildPreferencesScreen from '../screens/ChildPreferencesScreen';
 
 // Import Preference Screens
-import ActivityTypePreferencesScreen from '../screens/preferences/ActivityTypePreferencesScreen';
-import AgePreferencesScreen from '../screens/preferences/AgePreferencesScreen';
-import LocationPreferencesScreen from '../screens/preferences/LocationPreferencesScreen';
 import DistancePreferencesScreen from '../screens/preferences/DistancePreferencesScreen';
-import BudgetPreferencesScreen from '../screens/preferences/BudgetPreferencesScreen';
-import SchedulePreferencesScreen from '../screens/preferences/SchedulePreferencesScreen';
 import ViewSettingsScreen from '../screens/preferences/ViewSettingsScreen';
 
 // Import Navigators
@@ -90,7 +84,6 @@ const HomeStack = () => (
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
-    <Stack.Screen name="SponsoredPartners" component={SponsoredPartnersScreen} />
     <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
     <Stack.Screen name="AIChat" component={AIChatScreen} />
@@ -129,12 +122,7 @@ const ProfileStack = () => (
     <Stack.Screen name="Children" component={ChildrenNavigator} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
-    <Stack.Screen name="ActivityTypePreferences" component={ActivityTypePreferencesScreen} />
-    <Stack.Screen name="AgePreferences" component={AgePreferencesScreen} />
-    <Stack.Screen name="LocationPreferences" component={LocationPreferencesScreen} />
     <Stack.Screen name="DistancePreferences" component={DistancePreferencesScreen} />
-    <Stack.Screen name="BudgetPreferences" component={BudgetPreferencesScreen} />
-    <Stack.Screen name="SchedulePreferences" component={SchedulePreferencesScreen} />
     <Stack.Screen name="ViewSettings" component={ViewSettingsScreen} />
     <Stack.Screen name="Legal" component={LegalScreen} />
   </Stack.Navigator>

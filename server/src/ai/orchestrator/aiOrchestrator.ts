@@ -289,6 +289,7 @@ export class AIOrchestrator {
         ageMax: Math.min(18, age + 2),
         limit: 50,  // Get more candidates
         hideClosedOrFull: true,
+        sponsoredMode: 'top', // Include sponsored activities for AI to consider
       };
 
       // Add location filter if available
@@ -540,7 +541,8 @@ export class AIOrchestrator {
       const result = await this.activityService.searchActivities({
         ...mergedFilters,
         limit: 100, // Fetch more candidates for better scoring
-        hideClosedOrFull: true
+        hideClosedOrFull: true,
+        sponsoredMode: 'top' // Include sponsored activities for AI to consider
       });
       activities = result.activities || [];
     }

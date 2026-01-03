@@ -29,7 +29,8 @@ import FavoritesService from '../services/favoritesService';
 import WaitlistService from '../services/waitlistService';
 import { fixDayAbbreviations } from '../utils/dayAbbreviations';
 import { Colors, Theme } from '../theme';
-import { getChildColor } from '../theme/childColors';
+import { getChildColor, getGradientColorsForChildren } from '../theme/childColors';
+import { GradientIcon } from './GradientIcon';
 import { getActivityImageByKey } from '../assets/images';
 import { useTheme } from '../contexts/ThemeContext';
 import ChildActivityStatus from './activities/ChildActivityStatus';
@@ -563,21 +564,19 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             }}
             style={styles.actionButton}
           >
-            <Icon
-              name={isFavorite ? 'heart' : 'heart-outline'}
-              size={18}
-              color={isFavorite ? getFavoriteColor() : '#FFF'}
-            />
-            {/* Child color dots for multiple children */}
-            {favoriteChildren.length > 1 && (
-              <View style={styles.childDots}>
-                {favoriteChildren.slice(1, 4).map((child) => (
-                  <View
-                    key={child.childId}
-                    style={[styles.childDot, { backgroundColor: getChildColor(child.colorId).hex }]}
-                  />
-                ))}
-              </View>
+            {/* Use gradient icon for multiple children, solid color for single child */}
+            {favoriteChildren.length > 1 ? (
+              <GradientIcon
+                name="heart"
+                size={18}
+                colors={getGradientColorsForChildren(favoriteChildren.map(c => c.colorId))}
+              />
+            ) : (
+              <Icon
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={18}
+                color={isFavorite ? getFavoriteColor() : '#FFF'}
+              />
             )}
           </TouchableOpacity>
 
@@ -628,21 +627,19 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               }
             }}
           >
-            <Icon
-              name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
-              size={18}
-              color={isOnWaitlist ? getWatchingColor() : '#FFF'}
-            />
-            {/* Child color dots for multiple children */}
-            {watchingChildren.length > 1 && (
-              <View style={styles.childDots}>
-                {watchingChildren.slice(1, 4).map((child) => (
-                  <View
-                    key={child.childId}
-                    style={[styles.childDot, { backgroundColor: getChildColor(child.colorId).hex }]}
-                  />
-                ))}
-              </View>
+            {/* Use gradient icon for multiple children, solid color for single child */}
+            {watchingChildren.length > 1 ? (
+              <GradientIcon
+                name="bell-ring"
+                size={18}
+                colors={getGradientColorsForChildren(watchingChildren.map(c => c.colorId))}
+              />
+            ) : (
+              <Icon
+                name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
+                size={18}
+                color={isOnWaitlist ? getWatchingColor() : '#FFF'}
+              />
             )}
           </TouchableOpacity>
 
@@ -687,21 +684,19 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               setShowCalendarModal(true);
             }}
           >
-            <Icon
-              name={isOnCalendar ? 'calendar-check' : 'calendar-plus'}
-              size={18}
-              color={isOnCalendar ? getCalendarColor() : '#FFF'}
-            />
-            {/* Child color dots for multiple children */}
-            {calendarChildren.length > 1 && (
-              <View style={styles.childDots}>
-                {calendarChildren.slice(1, 4).map((child) => (
-                  <View
-                    key={child.childId}
-                    style={[styles.childDot, { backgroundColor: getChildColor(child.colorId).hex }]}
-                  />
-                ))}
-              </View>
+            {/* Use gradient icon for multiple children, solid color for single child */}
+            {calendarChildren.length > 1 ? (
+              <GradientIcon
+                name="calendar-check"
+                size={18}
+                colors={getGradientColorsForChildren(calendarChildren.map(c => c.colorId))}
+              />
+            ) : (
+              <Icon
+                name={isOnCalendar ? 'calendar-check' : 'calendar-plus'}
+                size={18}
+                color={isOnCalendar ? getCalendarColor() : '#FFF'}
+              />
             )}
           </TouchableOpacity>
         </View>

@@ -131,7 +131,7 @@ class NotificationService {
    */
   async getWaitlist(): Promise<WaitlistEntry[]> {
     try {
-      const response: any = await apiClient.get('/notifications/waitlist');
+      const response: any = await apiClient.get('/api/notifications/waitlist');
       return response.waitlist || [];
     } catch (error: any) {
       // 404 is expected if the endpoint isn't implemented yet - just return empty
@@ -150,7 +150,7 @@ class NotificationService {
    */
   async joinWaitlist(activityId: string): Promise<{ success: boolean; message?: string }> {
     try {
-      const response: any = await apiClient.post(`/notifications/waitlist/${activityId}`);
+      const response: any = await apiClient.post(`/api/notifications/waitlist/${activityId}`);
       return {
         success: response.success,
         message: response.message,
@@ -167,7 +167,7 @@ class NotificationService {
    */
   async leaveWaitlist(activityId: string): Promise<{ success: boolean; message?: string }> {
     try {
-      const response: any = await apiClient.delete(`/notifications/waitlist/${activityId}`);
+      const response: any = await apiClient.delete(`/api/notifications/waitlist/${activityId}`);
       return {
         success: response.success,
         message: response.message,

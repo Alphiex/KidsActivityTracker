@@ -71,8 +71,13 @@ export default function PlansPage() {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('vendor_token');
+      const vendorId = localStorage.getItem('vendor_id');
 
-      const response = await fetch(`${API_URL}/api/vendor/subscription/checkout`, {
+      if (!vendorId) {
+        throw new Error('Please log in again to continue');
+      }
+
+      const response = await fetch(`${API_URL}/api/vendor/${vendorId}/subscription/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -535,7 +540,7 @@ export default function PlansPage() {
           return (
             <div
               key={plan.id}
-              className={`bg-white rounded-xl shadow-lg overflow-hidden ${
+              className={`bg-white rounded-xl shadow-lg overflow-hidden flex flex-col ${
                 isCurrentPlan ? 'ring-2 ring-[#E8638B]' : ''
               }`}
             >
@@ -544,7 +549,6 @@ export default function PlansPage() {
                 className={`p-6 bg-gradient-to-r ${getTierColor(plan.tier)} text-white`}
               >
                 <h2 className="text-2xl font-bold">{plan.name}</h2>
-                <p className="text-white/80 capitalize">{plan.tier} Tier</p>
               </div>
 
               {/* Pricing */}
@@ -561,7 +565,7 @@ export default function PlansPage() {
               </div>
 
               {/* Features */}
-              <div className="p-6">
+              <div className="p-6 flex-grow">
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2">
                     <CheckIcon className="text-green-500" />

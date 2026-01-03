@@ -33,6 +33,7 @@ import {
 } from '../../theme/childColors';
 import childrenService from '../../services/childrenService';
 import useSmartPaywallTrigger from '../../hooks/useSmartPaywallTrigger';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type ChildrenStackParamList = {
   ChildrenList: undefined;
@@ -52,6 +53,7 @@ const INTERESTS = [
 const AddEditChildScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
+  const { colors, isDark } = useTheme();
   const dispatch = useAppDispatch();
   const children = useAppSelector(selectAllChildren);
   const loading = useAppSelector(selectChildrenLoading);
@@ -298,8 +300,13 @@ const AddEditChildScreen: React.FC = () => {
       }
       
       navigation.goBack();
-    } catch (error) {
-      Alert.alert('Error', `Failed to ${isEdit ? 'update' : 'add'} child`);
+    } catch (error: any) {
+      // Extract user-friendly error message from API response
+      const errorMessage = error?.response?.data?.error
+        || error?.response?.data?.message
+        || error?.message
+        || `Failed to ${isEdit ? 'update' : 'add'} child`;
+      Alert.alert('Unable to Save', errorMessage);
     }
   };
 
@@ -361,11 +368,20 @@ const AddEditChildScreen: React.FC = () => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Name</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
                 value={name}
                 onChangeText={setName}
                 placeholder="Enter child's name"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
+                selectionColor={colors.primary}
               />
             </View>
 
@@ -422,13 +438,23 @@ const AddEditChildScreen: React.FC = () => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Allergies (optional)</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
                 value={allergies}
                 onChangeText={setAllergies}
                 placeholder="Enter allergies separated by commas"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={2}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
+                selectionColor={colors.primary}
               />
             </View>
 
@@ -436,13 +462,23 @@ const AddEditChildScreen: React.FC = () => {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Medical Information (optional)</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
                 value={medicalInfo}
                 onChangeText={setMedicalInfo}
                 placeholder="Any important medical information"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={3}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
+                selectionColor={colors.primary}
               />
             </View>
           </View>

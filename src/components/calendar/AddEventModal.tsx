@@ -19,6 +19,7 @@ import { safeParseDateISO } from '../../utils/safeAccessors';
 import { ModernColors } from '../../theme/modernTheme';
 import { CHILD_COLORS } from '../../utils/calendarUtils';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
+import { useTheme } from '../../contexts/ThemeContext';
 import { EnhancedAddress } from '../../types/preferences';
 
 interface Child {
@@ -57,6 +58,7 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
   initialDate,
   initialChildId,
 }) => {
+  const { colors, isDark } = useTheme();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [locationAddress, setLocationAddress] = useState<EnhancedAddress | null>(null);
@@ -306,11 +308,20 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Title</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="Event title"
-                placeholderTextColor={ModernColors.textMuted}
+                placeholderTextColor={colors.textSecondary}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
+                selectionColor={colors.primary}
               />
             </View>
 
@@ -497,13 +508,23 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Notes (optional)</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                  },
+                ]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add notes"
-                placeholderTextColor={ModernColors.textMuted}
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={3}
+                keyboardAppearance={isDark ? 'dark' : 'light'}
+                selectionColor={colors.primary}
               />
             </View>
 

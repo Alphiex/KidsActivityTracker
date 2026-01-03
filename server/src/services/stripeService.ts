@@ -331,13 +331,25 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   const subscriptionId = session.subscription as string;
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
+  // Calculate period end - in newer Stripe API, these are on subscription items
+  // Try subscription level first, then fall back to items
+  let periodEndTimestamp = (subscription as any).current_period_end;
+  if (!periodEndTimestamp && subscription.items?.data?.[0]) {
+    periodEndTimestamp = (subscription.items.data[0] as any).current_period_end;
+  }
+  const currentPeriodEnd = periodEndTimestamp
+    ? new Date(periodEndTimestamp * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+
+  console.log(`[Stripe] Period end timestamp: ${periodEndTimestamp}, Date: ${currentPeriodEnd}`);
+
   // Update partner account
   await activatePartnerSubscription({
     partnerAccountId,
     tier,
     billingCycle,
     stripeSubscriptionId: subscriptionId,
-    currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+    currentPeriodEnd,
   });
 }
 
@@ -357,13 +369,22 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription): Prom
   const status = subscription.status;
   console.log(`[Stripe] Subscription update for ${partnerAccountId}: ${status}`);
 
+  // Calculate period end - in newer Stripe API, these are on subscription items
+  let periodEndTimestamp = (subscription as any).current_period_end;
+  if (!periodEndTimestamp && subscription.items?.data?.[0]) {
+    periodEndTimestamp = (subscription.items.data[0] as any).current_period_end;
+  }
+  const currentPeriodEnd = periodEndTimestamp
+    ? new Date(periodEndTimestamp * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
   if (status === 'active') {
     await activatePartnerSubscription({
       partnerAccountId,
       tier,
       billingCycle,
       stripeSubscriptionId: subscription.id,
-      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      currentPeriodEnd,
     });
   } else if (status === 'past_due') {
     await prisma.partnerAccount.update({

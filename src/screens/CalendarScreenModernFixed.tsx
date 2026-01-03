@@ -48,7 +48,7 @@ import ViewShot from 'react-native-view-shot';
 import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { detectRescheduleConflicts, suggestAlternativeTimes, TimeSlot } from '../utils/conflictDetection';
-import { parseTimeString, sortByTime } from '../utils/calendarUtils';
+import { parseTimeString, sortByTime, extractActivityTimes } from '../utils/calendarUtils';
 import ConflictWarning from '../components/ConflictWarning';
 import ChildColorLegend from '../components/calendar/ChildColorLegend';
 import calendarExportService from '../services/calendarExportService';
@@ -184,26 +184,43 @@ const CalendarScreenModernFixed = () => {
       console.log(`[CalendarScreen] Child ${child.name} (${child.id}) has ${childActivities.length} activities from Redux`);
 
       // Map Redux ChildActivity to the format expected by the calendar
-      const mappedActivities = childActivities.map((ca: any) => ({
-        id: ca.id,
-        childId: ca.childId,
-        activityId: ca.activityId,
-        status: ca.status,
-        notes: ca.notes,
-        rating: ca.rating,
-        registeredAt: ca.registeredAt,
-        completedAt: ca.completedAt,
-        createdAt: ca.createdAt,
-        updatedAt: ca.updatedAt,
-        // Include the full activity details if available
-        activity: ca.activity || {
-          id: ca.activityId,
-          name: `Activity ${ca.activityId}`,
-          description: 'Activity details unavailable',
-          location: 'TBD',
-          category: 'General',
-        },
-      }));
+      const mappedActivities = childActivities.map((ca: any) => {
+        // Extract the best available time from the activity data
+        const times = extractActivityTimes(ca);
+
+        // Debug logging for time extraction
+        if (ca.activity?.name) {
+          console.log(`[CalendarScreen] Activity "${ca.activity.name}": times=${times.startTime}-${times.endTime}, activity.startTime=${ca.activity?.startTime}, sessions=${ca.activity?.sessions?.length || 0}`);
+        }
+
+        return {
+          id: ca.id,
+          childId: ca.childId,
+          activityId: ca.activityId,
+          status: ca.status,
+          notes: ca.notes,
+          rating: ca.rating,
+          registeredAt: ca.registeredAt,
+          completedAt: ca.completedAt,
+          createdAt: ca.createdAt,
+          updatedAt: ca.updatedAt,
+          // Include time-related fields
+          scheduledDate: ca.scheduledDate,
+          startTime: times.startTime,
+          endTime: times.endTime,
+          recurring: ca.recurring,
+          recurrencePattern: ca.recurrencePattern,
+          recurrenceEnd: ca.recurrenceEnd,
+          // Include the full activity details if available
+          activity: ca.activity || {
+            id: ca.activityId,
+            name: `Activity ${ca.activityId}`,
+            description: 'Activity details unavailable',
+            location: 'TBD',
+            category: 'General',
+          },
+        };
+      });
 
       return {
         ...child,
@@ -283,7 +300,17 @@ const CalendarScreenModernFixed = () => {
       // Process shared children with their activities
       const processedShared = shared.map((sharedChild: any, index: number) => {
         const childId = sharedChild.childId || sharedChild.id;
-        const activities = sharedActivitiesMap.get(childId) || [];
+        const rawActivities = sharedActivitiesMap.get(childId) || [];
+
+        // Process activities to extract times
+        const activities = rawActivities.map((ca: any) => {
+          const times = extractActivityTimes(ca);
+          return {
+            ...ca,
+            startTime: times.startTime,
+            endTime: times.endTime,
+          };
+        });
 
         return {
           id: childId,
@@ -300,6 +327,16 @@ const CalendarScreenModernFixed = () => {
       for (const item of sharedChildrenActivities) {
         const existsInProcessed = processedShared.some(p => p.id === item.childId);
         if (!existsInProcessed && item.activities.length > 0) {
+          // Process activities to extract times
+          const processedActivities = item.activities.map((ca: any) => {
+            const times = extractActivityTimes(ca);
+            return {
+              ...ca,
+              startTime: times.startTime,
+              endTime: times.endTime,
+            };
+          });
+
           processedShared.push({
             id: item.childId,
             name: item.childName,
@@ -307,7 +344,7 @@ const CalendarScreenModernFixed = () => {
             isVisible: showSharedChildren,
             isShared: true,
             sharedBy: undefined,
-            activities: item.activities,
+            activities: processedActivities,
           });
         }
       }

@@ -16,14 +16,15 @@ import ScreenBackground from '../components/ScreenBackground';
 import TopTabNavigation from '../components/TopTabNavigation';
 
 const { height } = Dimensions.get('window');
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import childPreferencesService from '../services/childPreferencesService';
 import FavoritesService from '../services/favoritesService';
 import { Activity } from '../types';
-import { useAppSelector } from '../store';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
+import { useAppSelector, useAppDispatch } from '../store';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
 import { useTheme } from '../contexts/ThemeContext';
@@ -45,7 +46,28 @@ const SearchResultsScreen = () => {
   const route = useRoute<SearchResultsRouteProp>();
   const { filters, searchQuery } = route.params;
   const { colors, isDark } = useTheme();
-  
+  const dispatch = useAppDispatch();
+
+  // Ensure children are loaded into Redux on mount
+  useEffect(() => {
+    dispatch(fetchChildren());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Child filter state for icon colors
+  const children = useAppSelector(selectAllChildren);
+
+  // Refresh child favorites/watching data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
+    }, [children, dispatch])
+  );
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +81,6 @@ const SearchResultsScreen = () => {
   const favoritesService = FavoritesService.getInstance();
 
   // Child filter state for consistent filtering
-  const children = useAppSelector(selectAllChildren);
   const selectedChildIds = useAppSelector(selectSelectedChildIds);
   const filterMode = useAppSelector(selectFilterMode);
 

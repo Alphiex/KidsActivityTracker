@@ -19,9 +19,30 @@ const validateChild = [
 const handleValidationErrors = (req: Request, res: Response, next: any) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    // Create a user-friendly error message
+    const errorMessages = errors.array().map(err => {
+      if ('path' in err) {
+        switch (err.path) {
+          case 'name':
+            return "Please enter your child's name";
+          case 'dateOfBirth':
+            return "Please select your child's date of birth";
+          case 'gender':
+            return 'Please select a valid gender option';
+          case 'interests':
+            return 'Interests should be a list';
+          default:
+            return err.msg;
+        }
+      }
+      return err.msg;
+    });
+
     return res.status(400).json({
       success: false,
-      errors: errors.array()
+      error: errorMessages[0], // Primary error message for display
+      errors: errorMessages,   // All errors for debugging
+      message: errorMessages.join('. ')
     });
   }
   next();
