@@ -28,7 +28,6 @@ import ChildDetailScreen from '../screens/ChildDetailScreen';
 import ShareChildScreen from '../screens/ShareChildScreen';
 import ProfileScreen from '../screens/ProfileScreenModern';
 import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenModern';
-import FilterScreen from '../screens/FilterScreen';
 import ActivityListScreen from '../screens/ActivityListScreen';
 import NewActivitiesScreen from '../screens/NewActivitiesScreen';
 import OnboardingNavigator from './OnboardingNavigator';
@@ -36,15 +35,10 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import CityBrowseScreen from '../screens/CityBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreenModern';
-import RecommendationsScreen from '../screens/RecommendationsScreen';
 import NavigationErrorBoundary from '../components/NavigationErrorBoundary';
 import SharingManagementScreen from '../screens/SharingManagementScreen';
-import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import RecommendedActivitiesScreen from '../screens/RecommendedActivitiesScreen';
-import AllActivityTypesScreen from '../screens/AllActivityTypesScreen';
-import AllAgeGroupsScreen from '../screens/AllAgeGroupsScreen';
 import ActivityTypeDetailScreen from '../screens/ActivityTypeDetailScreen';
-import CategoryDetailScreen from '../screens/CategoryDetailScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SharedActivitiesScreen from '../screens/SharedActivitiesScreen';
 import CalendarScreenModern from '../screens/CalendarScreenModernFixed';
@@ -93,11 +87,7 @@ const HomeStack = () => (
     <Stack.Screen name="NewActivities" component={NewActivitiesScreen} />
     <Stack.Screen name="CityBrowse" component={CityBrowseScreen} />
     <Stack.Screen name="LocationBrowse" component={LocationBrowseScreen} />
-    <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
-    <Stack.Screen name="AllActivityTypes" component={AllActivityTypesScreen} />
-    <Stack.Screen name="AllAgeGroups" component={AllAgeGroupsScreen} />
     <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
-    <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
     <Stack.Screen name="RecommendedActivities" component={RecommendedActivitiesScreen} />
     <Stack.Screen name="UnifiedResults" component={UnifiedResultsScreen} />
     <Stack.Screen name="SponsoredPartners" component={SponsoredPartnersScreen} />
@@ -110,18 +100,6 @@ const HomeStack = () => (
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
     <Stack.Screen name="ChildPreferences" component={ChildPreferencesScreen} />
-  </Stack.Navigator>
-);
-
-const SearchStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="SearchMain" component={SearchScreen} />
-    <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
-    <Stack.Screen name="Filter" component={FilterScreen as any} />
-    <Stack.Screen name="ActivityList" component={ActivityListScreen} />
-    <Stack.Screen name="ActivityTypeDetail" component={ActivityTypeDetailScreen} />
-    <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
-    <Stack.Screen name="AIRecommendations" component={AIRecommendationsScreen} />
   </Stack.Navigator>
 );
 
@@ -556,7 +534,6 @@ const RootNavigator = () => {
           ) : (
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} />
-              <Stack.Screen name="Recommendations" component={RecommendationsScreen} />
               <Stack.Screen
                 name="Paywall"
                 component={PaywallScreen}
