@@ -14,7 +14,7 @@ interface ScreenBackgroundProps {
 const ScreenBackground: React.FC<ScreenBackgroundProps> = ({ children, style }) => {
   return (
     <LinearGradient
-      colors={['#FFFFFF', '#FFF5F8', '#FFE5EC', '#FFFFFF']}
+      colors={['#FFFFFF', '#FFF5F8', '#FFE5EC', '#E8F4FF']}
       locations={[0, 0.3, 0.6, 1]}
       start={{ x: 0, y: 0 }}
       end={{ x: 0.5, y: 1 }}
