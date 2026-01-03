@@ -20,7 +20,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
+import { fetchChildren } from '../store/slices/childrenSlice';
 import childrenService from '../services/childrenService';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { EnhancedAddress } from '../types/preferences';
@@ -81,6 +82,7 @@ interface SharedChild {
 const FriendsAndFamilyScreenModern: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<FriendsAndFamilyRouteParams, 'FriendsAndFamily'>>();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const [children, setChildren] = useState<Child[]>([]);
   const [sharedChildren, setSharedChildren] = useState<SharedChild[]>([]);
@@ -398,6 +400,8 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
               await childrenService.createChild(childData);
             }
             await loadChildren();
+            // Also update Redux store so other screens get the updated data
+            dispatch(fetchChildren());
             setShowAddChildModal(false);
             setEditingChild(null);
           } catch (error) {

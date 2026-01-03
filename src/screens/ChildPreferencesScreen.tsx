@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 250,
+    paddingBottom: 80,
   },
   header: {
     paddingHorizontal: 20,
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   sectionsContainer: {
     marginTop: 20,
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: 16,
   },
   sectionContainer: {
     backgroundColor: '#FFFFFF',
