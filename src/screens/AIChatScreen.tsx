@@ -153,61 +153,94 @@ const formatActivityTime = (activity: any): string | null => {
 };
 
 /**
- * Generate personalized prompts based on user data
+ * Generate personalized prompts based on children's data and preferences
  */
 const generatePersonalizedPrompts = (
-  children: Array<{ name: string; dateOfBirth: string }>,
+  children: Array<{ name: string; dateOfBirth: string; preferences?: { preferredActivityTypes?: string[] } }>,
   locationName: string | undefined,
-  favoriteTypes: string[]
+  _favoriteTypes: string[]
 ): string[] => {
   const prompts: string[] = [];
 
-  // Get children's ages
-  const childrenAges = children.map(c => ({
+  // Get children's data with ages and preferences
+  const childrenData = children.map(c => ({
     name: c.name,
-    age: calculateAge(c.dateOfBirth)
+    age: calculateAge(c.dateOfBirth),
+    activityTypes: c.preferences?.preferredActivityTypes || []
   }));
 
-  // Location-based prompts
-  const locationPrefix = locationName ? `in ${locationName}` : 'near me';
+  // Location-based suffix
+  const locationSuffix = locationName ? ` in ${locationName}` : '';
 
-  // Age-specific prompts based on children
-  if (childrenAges.length > 0) {
-    const youngestChild = childrenAges.reduce((min, c) => c.age < min.age ? c : min, childrenAges[0]);
-    const oldestChild = childrenAges.reduce((max, c) => c.age > max.age ? c : max, childrenAges[0]);
+  if (childrenData.length === 0) {
+    // Default prompts if no children
+    return [
+      `What kids activities are available${locationSuffix}?`,
+      `Find weekend activities for families`,
+      `What's new this week near me?`,
+      `What activities have spots available?`
+    ];
+  }
 
-    if (youngestChild.age <= 3) {
-      prompts.push(`What toddler activities are available ${locationPrefix}?`);
-    } else if (youngestChild.age <= 6) {
-      prompts.push(`What activities are good for preschoolers ${locationPrefix}?`);
-    } else if (youngestChild.age <= 12) {
-      prompts.push(`Find activities for kids ages ${youngestChild.age}-${oldestChild.age} ${locationPrefix}`);
+  // Single child - personalized prompts using their name and preferences
+  if (childrenData.length === 1) {
+    const child = childrenData[0];
+
+    // Activity type prompt if they have preferences
+    if (child.activityTypes.length > 0) {
+      const activityType = child.activityTypes[0].toLowerCase();
+      prompts.push(`Find ${activityType} classes for ${child.name}${locationSuffix}`);
     } else {
-      prompts.push(`What teen activities are available ${locationPrefix}?`);
+      prompts.push(`What activities would ${child.name} enjoy?`);
     }
 
-    // Child name specific prompt
-    if (childrenAges.length === 1) {
-      prompts.push(`What weekend activities would ${childrenAges[0].name} enjoy?`);
+    // Age-appropriate prompt
+    if (child.age <= 3) {
+      prompts.push(`Find toddler programs for ${child.name}`);
+    } else if (child.age <= 6) {
+      prompts.push(`What preschool activities are good for ${child.name}?`);
+    } else {
+      prompts.push(`Find weekend activities for ${child.name}`);
+    }
+
+    // Time-based prompt
+    prompts.push(`What's available for ${child.name} this week?`);
+
+    // Availability prompt
+    prompts.push(`Find activities with spots open for ${child.name}`);
+  }
+  // Multiple children - mix of individual and group prompts
+  else {
+    const childNames = childrenData.map(c => c.name);
+    const firstChild = childrenData[0];
+    const secondChild = childrenData[1];
+
+    // Sibling activity prompt
+    if (childrenData.length === 2) {
+      prompts.push(`Find activities ${childNames[0]} and ${childNames[1]} can do together`);
     } else {
       prompts.push(`Find activities all my kids can do together`);
     }
-  } else {
-    // Default if no children
-    prompts.push(`What kids activities are available ${locationPrefix}?`);
-    prompts.push(`Find weekend activities for families ${locationPrefix}`);
-  }
 
-  // Favorite activity type prompts
-  if (favoriteTypes.length > 0) {
-    const topType = favoriteTypes[0];
-    prompts.push(`Find more ${topType.toLowerCase()} classes ${locationPrefix}`);
-  } else {
-    prompts.push(`What's new this week ${locationPrefix}?`);
-  }
+    // Individual child prompt with their preference
+    if (firstChild.activityTypes.length > 0) {
+      const activityType = firstChild.activityTypes[0].toLowerCase();
+      prompts.push(`Find ${activityType} for ${firstChild.name}${locationSuffix}`);
+    } else {
+      prompts.push(`What would ${firstChild.name} enjoy this weekend?`);
+    }
 
-  // General helpful prompt
-  prompts.push(`What activities have spots available this month?`);
+    // Second child prompt
+    if (secondChild.activityTypes.length > 0) {
+      const activityType = secondChild.activityTypes[0].toLowerCase();
+      prompts.push(`Find ${activityType} classes for ${secondChild.name}`);
+    } else {
+      prompts.push(`What activities are good for ${secondChild.name}?`);
+    }
+
+    // Availability prompt
+    prompts.push(`What has spots available for my kids?`);
+  }
 
   return prompts.slice(0, 4); // Limit to 4 prompts
 };

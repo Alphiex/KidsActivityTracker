@@ -193,6 +193,8 @@ export interface ChildAvailabilitySlots {
 export interface PlannerConstraints {
   /** End date for multi-week planning (ISO string, e.g., '2026-08-31') */
   end_date?: string;
+  /** Explicit list of child IDs to plan for */
+  child_ids?: string[];
   /** Maximum activities to schedule per child */
   max_activities_per_child?: number;
   /** Avoid scheduling activities back-to-back */

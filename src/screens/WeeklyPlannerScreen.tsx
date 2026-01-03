@@ -463,6 +463,7 @@ const WeeklyPlannerScreen = () => {
 
       const result = await aiService.planWeek(toISODateString(startDate), {
         end_date: toISODateString(endDate),
+        child_ids: children.map(c => c.id), // Explicitly include all children
         max_activities_per_child: maxActivitiesPerChild,
         avoid_back_to_back: avoidBackToBack,
         schedule_siblings_together: scheduleSiblingsTogether,
@@ -1308,78 +1309,132 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
-   * Render chat panel modal
+   * Render chat panel modal - 60% height with activity preview
    */
-  const renderChatPanel = () => (
-    <Modal
-      visible={showChat}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={closeChat}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.chatContainer}
+  const renderChatPanel = () => {
+    // Get current activity being discussed
+    const currentActivity = activeChatContext?.currentActivityId
+      ? activityDetails[activeChatContext.currentActivityId]
+      : null;
+    const currentEntry = activeChatContext && schedule
+      ? schedule.entries[activeChatContext.day]?.[activeChatContext.entryIndex]
+      : null;
+
+    return (
+      <Modal
+        visible={showChat}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeChat}
       >
-        <SafeAreaView style={styles.chatContainer}>
-          {/* Chat Header */}
-          <View style={styles.chatHeader}>
-            <View style={styles.chatHeaderContent}>
-              <Text style={styles.chatHeaderTitle}>
-                Refining activity for {activeChatContext?.childName || 'your child'}
-              </Text>
-              <Text style={styles.chatHeaderSubtitle}>
-                {activeChatContext?.day} • Tell me what you'd prefer
-              </Text>
+        <View style={styles.chatModalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.chatModalContainer}
+          >
+            {/* Drag handle */}
+            <View style={styles.chatDragHandle}>
+              <View style={styles.chatDragHandleBar} />
             </View>
-            <TouchableOpacity onPress={closeChat} style={styles.chatCloseButton}>
-              <Icon name="close" size={24} color={ModernColors.text} />
-            </TouchableOpacity>
-          </View>
 
-          {/* Chat Messages */}
-          <FlatList
-            ref={chatScrollRef}
-            data={chatMessages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderChatMessage}
-            contentContainerStyle={styles.chatMessagesList}
-            onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
-          />
-
-          {/* Loading indicator */}
-          {isChatLoading && (
-            <View style={styles.chatLoadingContainer}>
-              <ActivityIndicator size="small" color={ModernColors.primary} />
-              <Text style={styles.chatLoadingText}>Finding alternatives...</Text>
+            {/* Chat Header */}
+            <View style={styles.chatHeader}>
+              <View style={styles.chatHeaderContent}>
+                <Text style={styles.chatHeaderTitle}>
+                  Suggest Alternative for {activeChatContext?.childName || 'your child'}
+                </Text>
+                <Text style={styles.chatHeaderSubtitle}>
+                  {activeChatContext?.day} • Tell me what you'd prefer
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeChat} style={styles.chatCloseButton}>
+                <Icon name="close" size={24} color={ModernColors.text} />
+              </TouchableOpacity>
             </View>
-          )}
 
-          {/* Quick responses (shown when no custom input is active) */}
-          {!showOtherInput && !isChatLoading && (
-            <View style={styles.quickResponsesContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {QUICK_RESPONSES.map((response, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={styles.quickResponseChip}
-                    onPress={() => handleQuickResponse(response)}
-                  >
-                    <Text style={styles.quickResponseText}>{response.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+            {/* Current Activity Preview */}
+            {(currentActivity || currentEntry) && (
+              <View style={styles.chatCurrentActivity}>
+                <Text style={styles.chatCurrentActivityLabel}>Current Activity:</Text>
+                <View style={styles.chatCurrentActivityCard}>
+                  <View style={styles.chatCurrentActivityInfo}>
+                    <Text style={styles.chatCurrentActivityName} numberOfLines={2}>
+                      {currentActivity?.name || currentEntry?.activity_name || 'Unknown Activity'}
+                    </Text>
+                    <View style={styles.chatCurrentActivityMeta}>
+                      {(currentActivity?.location || currentEntry?.location) && (
+                        <View style={styles.chatActivityRow}>
+                          <Icon name="map-marker" size={12} color={ModernColors.textSecondary} />
+                          <Text style={styles.chatActivityDetail} numberOfLines={1}>
+                            {typeof currentActivity?.location === 'string'
+                              ? currentActivity.location
+                              : currentActivity?.location?.name || currentEntry?.location}
+                          </Text>
+                        </View>
+                      )}
+                      {currentEntry?.time && (
+                        <View style={styles.chatActivityRow}>
+                          <Icon name="clock-outline" size={12} color={ModernColors.textSecondary} />
+                          <Text style={styles.chatActivityDetail}>{currentEntry.time}</Text>
+                        </View>
+                      )}
+                      {currentActivity?.cost !== undefined && (
+                        <View style={styles.chatActivityRow}>
+                          <Icon name="currency-usd" size={12} color={ModernColors.textSecondary} />
+                          <Text style={styles.chatActivityDetail}>
+                            {currentActivity.cost === 0 ? 'Free' : `$${currentActivity.cost}`}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
 
-          {/* Text input (shown when "Other..." is selected or after quick response) */}
-          {showOtherInput && (
+            {/* Chat Messages */}
+            <FlatList
+              ref={chatScrollRef}
+              data={chatMessages}
+              keyExtractor={(item) => item.id}
+              renderItem={renderChatMessage}
+              style={styles.chatMessageList}
+              contentContainerStyle={styles.chatMessagesList}
+              onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
+            />
+
+            {/* Loading indicator */}
+            {isChatLoading && (
+              <View style={styles.chatLoadingContainer}>
+                <ActivityIndicator size="small" color={ModernColors.primary} />
+                <Text style={styles.chatLoadingText}>Finding alternatives...</Text>
+              </View>
+            )}
+
+            {/* Quick responses - always visible */}
+            {!isChatLoading && (
+              <View style={styles.quickResponsesContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickResponsesScroll}>
+                  {QUICK_RESPONSES.filter(r => r.value !== null).map((response, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.quickResponseChip}
+                      onPress={() => handleQuickResponse(response)}
+                    >
+                      <Text style={styles.quickResponseText}>{response.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Text input - always visible */}
             <View style={styles.chatInputContainer}>
               <TextInput
                 style={styles.chatInput}
                 value={chatInputText}
                 onChangeText={setChatInputText}
-                placeholder="Tell me what you're looking for..."
+                placeholder="Type what you're looking for..."
                 placeholderTextColor={ModernColors.textSecondary}
                 multiline
                 maxLength={500}
@@ -1392,16 +1447,16 @@ const WeeklyPlannerScreen = () => {
                 <Icon name="send" size={20} color={chatInputText.trim() ? '#FFFFFF' : ModernColors.textSecondary} />
               </TouchableOpacity>
             </View>
-          )}
 
-          {/* Skip button */}
-          <TouchableOpacity style={styles.chatSkipButton} onPress={closeChat}>
-            <Text style={styles.chatSkipText}>Skip this time slot</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
+            {/* Skip button */}
+            <TouchableOpacity style={styles.chatSkipButton} onPress={closeChat}>
+              <Text style={styles.chatSkipText}>Skip this time slot</Text>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    );
+  };
 
   /**
    * Render first-time explanation modal
@@ -3629,7 +3684,30 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  // Chat Panel Styles
+  // Chat Panel Styles - 60% height modal
+  chatModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  chatModalContainer: {
+    height: '60%',
+    backgroundColor: ModernColors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  chatDragHandle: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: ModernColors.surface,
+  },
+  chatDragHandleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: ModernColors.border,
+    borderRadius: 2,
+  },
   chatContainer: {
     flex: 1,
     backgroundColor: ModernColors.background,
@@ -3659,6 +3737,44 @@ const styles = StyleSheet.create({
   },
   chatCloseButton: {
     padding: 8,
+  },
+  chatCurrentActivity: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: ModernColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.border,
+  },
+  chatCurrentActivityLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: ModernColors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  chatCurrentActivityCard: {
+    flexDirection: 'row',
+    backgroundColor: ModernColors.background,
+    borderRadius: ModernBorderRadius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+  },
+  chatCurrentActivityInfo: {
+    flex: 1,
+  },
+  chatCurrentActivityName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: ModernColors.text,
+    marginBottom: 6,
+  },
+  chatCurrentActivityMeta: {
+    gap: 4,
+  },
+  chatMessageList: {
+    flex: 1,
   },
   chatMessagesList: {
     padding: 16,
@@ -3775,11 +3891,14 @@ const styles = StyleSheet.create({
     color: ModernColors.textSecondary,
   },
   quickResponsesContainer: {
-    paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: ModernColors.border,
     backgroundColor: ModernColors.surface,
+  },
+  quickResponsesScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
   },
   quickResponseChip: {
     backgroundColor: ModernColors.primaryLight + '20',
