@@ -282,7 +282,7 @@ const MainTabs = () => {
       name="FiltersTab"
       component={HomeStack}
       options={{
-        tabBarLabel: 'Child Preferences',
+        tabBarLabel: 'Preferences',
         tabBarIcon: ({ color, size, focused }) => (
           <Icon
             name="account-cog"

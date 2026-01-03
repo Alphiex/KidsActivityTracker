@@ -5,8 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../store';
 import {
   selectAllChildren,
@@ -60,6 +62,7 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
   onSelectionChange,
 }) => {
   const dispatch = useAppDispatch();
+  const navigation = useNavigation<any>();
   const colors = defaultColors;
 
   const children = useAppSelector(selectAllChildren);
@@ -111,15 +114,25 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
   // Handle filter mode toggle
   const handleModeToggle = useCallback(() => {
     if (!isPremium) {
-      // Show premium upsell - could navigate to subscription screen
-      console.log('[ChildFilterSelector] AND mode requires premium');
+      // Show premium upsell with explanation
+      Alert.alert(
+        'Find Activities for All Kids Together',
+        'With Premium, you can switch to "Together" mode to find activities that work for ALL your children at once - perfect for family outings and sibling activities!\n\nCurrently showing activities for any selected child.',
+        [
+          { text: 'Maybe Later', style: 'cancel' },
+          {
+            text: 'Upgrade to Premium',
+            onPress: () => navigation.navigate('Subscription'),
+          },
+        ]
+      );
       return;
     }
 
     const newMode: ChildFilterMode = filterMode === 'or' ? 'and' : 'or';
     dispatch(setFilterMode(newMode));
     onSelectionChange?.(selectedChildIds, newMode);
-  }, [dispatch, filterMode, isPremium, selectedChildIds, onSelectionChange]);
+  }, [dispatch, filterMode, isPremium, selectedChildIds, onSelectionChange, navigation]);
 
   // Render child chip
   const renderChildChip = useCallback((child: ChildWithPreferences) => {
@@ -230,8 +243,8 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
         {/* Child Chips */}
         {children.map(renderChildChip)}
 
-        {/* Filter Mode Toggle */}
-        {showModeToggle && children.length > 1 && (
+        {/* Filter Mode Toggle - Premium feature for "Together" mode */}
+        {showModeToggle && children.length > 1 && isPremium && (
           <TouchableOpacity
             style={[
               styles.modeToggle,
@@ -240,34 +253,24 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
                 backgroundColor: filterMode === 'and' ? colors.primary : colors.surface,
                 borderColor: filterMode === 'and' ? colors.primary : colors.border,
               },
-              !isPremium && { opacity: 0.6 },
             ]}
             onPress={handleModeToggle}
             activeOpacity={0.7}
           >
             <Icon
-              name={filterMode === 'or' ? 'set-merge' : 'set-center'}
-              size={compact ? 14 : 18}
+              name={filterMode === 'or' ? 'account-multiple' : 'account-group'}
+              size={compact ? 16 : 18}
               color={filterMode === 'and' ? colors.background : colors.text}
             />
-            {!compact && (
-              <Text
-                style={[
-                  styles.modeText,
-                  { color: filterMode === 'and' ? colors.background : colors.text },
-                ]}
-              >
-                {filterMode === 'or' ? 'Any' : 'Together'}
-              </Text>
-            )}
-            {!isPremium && (
-              <Icon
-                name="crown"
-                size={12}
-                color={colors.warning}
-                style={styles.premiumIcon}
-              />
-            )}
+            <Text
+              style={[
+                styles.modeText,
+                compact && styles.modeTextCompact,
+                { color: filterMode === 'and' ? colors.background : colors.text },
+              ]}
+            >
+              {filterMode === 'or' ? 'Any' : 'Together'}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -366,16 +369,17 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   modeToggleCompact: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     marginLeft: 4,
+    gap: 4,
   },
   modeText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  premiumIcon: {
-    marginLeft: 2,
+  modeTextCompact: {
+    fontSize: 12,
   },
   modeDescription: {
     fontSize: 12,
