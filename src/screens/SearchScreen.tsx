@@ -39,19 +39,11 @@ import {
 import { ModernColors } from '../theme/modernTheme';
 import ScreenBackground from '../components/ScreenBackground';
 import ChildFilterSelector from '../components/ChildFilterSelector';
-
-const DAYS_OF_WEEK = [
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-];
-
-const PREDEFINED_TIMES = [
-  { label: 'Before School', value: 'before-school', timeRange: '6:00 AM - 8:00 AM' },
-  { label: 'After School', value: 'after-school', timeRange: '3:00 PM - 6:00 PM' },
-  { label: 'Morning', value: 'morning', timeRange: '8:00 AM - 12:00 PM' },
-  { label: 'Day', value: 'day', timeRange: '9:00 AM - 5:00 PM' },
-  { label: 'Evening', value: 'evening', timeRange: '6:00 PM - 9:00 PM' },
-  { label: 'Night', value: 'night', timeRange: '7:00 PM - 10:00 PM' }
-];
+import DayTimeGridSelector, {
+  DayTimeSlots,
+  DAYS_OF_WEEK,
+  createDefaultDayTimeSlots,
+} from '../components/DayTimeGridSelector';
 
 interface ExpandableSection {
   id: string;
@@ -118,13 +110,9 @@ const SearchScreen = () => {
 
   // Search state
   const [searchText, setSearchText] = useState('');
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [dayTimeSlots, setDayTimeSlots] = useState<DayTimeSlots>(createDefaultDayTimeSlots());
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>([]);
   const [selectedSubtypes, setSelectedSubtypes] = useState<string[]>([]);
-  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
-  const [useCustomTimeRange, setUseCustomTimeRange] = useState(false);
-  const [startTime, setStartTime] = useState(6);
-  const [endTime, setEndTime] = useState(22);
   const [minCost, setMinCost] = useState(0);
   const [maxCost, setMaxCost] = useState(500);
   const [isUnlimitedCost, setIsUnlimitedCost] = useState(true);
@@ -151,8 +139,7 @@ const SearchScreen = () => {
     { id: 'where', title: 'Where?', icon: 'map-marker', expanded: false },
     { id: 'distance', title: 'Distance', icon: 'map-marker-distance', expanded: false },
     { id: 'cost', title: 'Cost?', icon: 'currency-usd', expanded: false },
-    { id: 'days', title: 'Day of the Week?', icon: 'calendar-week', expanded: false },
-    { id: 'time', title: 'Time?', icon: 'clock-outline', expanded: false },
+    { id: 'when', title: 'When?', icon: 'calendar-clock', expanded: false },
   ]);
 
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -235,9 +222,18 @@ const SearchScreen = () => {
       setSelectedActivityTypes(Array.from(allActivityTypes));
     }
 
-    // Apply days (union of all selected children)
+    // Apply days to dayTimeSlots (union of all selected children)
     if (allDays.size > 0) {
-      setSelectedDays(Array.from(allDays));
+      const newSlots: DayTimeSlots = {};
+      DAYS_OF_WEEK.forEach(day => {
+        const isSelected = allDays.has(day);
+        newSlots[day] = {
+          morning: isSelected,
+          afternoon: isSelected,
+          evening: isSelected,
+        };
+      });
+      setDayTimeSlots(newSlots);
     }
 
     // Apply price range based on mode
@@ -310,14 +306,6 @@ const SearchScreen = () => {
     ));
   };
 
-  const toggleDay = (day: string) => {
-    setSelectedDays(prev =>
-      prev.includes(day)
-        ? prev.filter(d => d !== day)
-        : [...prev, day]
-    );
-  };
-
   const toggleActivityType = (activityTypeCode: string) => {
     const activityType = activityTypes.find(t => t.code === activityTypeCode);
     const subtypeCodes = activityType?.subtypes?.map(s => s.code) || [];
@@ -360,17 +348,6 @@ const SearchScreen = () => {
     );
   };
 
-  const toggleTime = (timeValue: string) => {
-    setSelectedTimes(prev =>
-      prev.includes(timeValue)
-        ? prev.filter(t => t !== timeValue)
-        : [...prev, timeValue]
-    );
-    if (!useCustomTimeRange) {
-      setUseCustomTimeRange(false);
-    }
-  };
-
   const formatTime = (hour: number) => {
     const period = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
@@ -379,13 +356,9 @@ const SearchScreen = () => {
 
   const clearAllFilters = () => {
     setSearchText('');
-    setSelectedDays([]);
+    setDayTimeSlots(createDefaultDayTimeSlots());
     setSelectedActivityTypes([]);
     setSelectedSubtypes([]);
-    setSelectedTimes([]);
-    setUseCustomTimeRange(false);
-    setStartTime(6);
-    setEndTime(22);
     setMinCost(0);
     setMaxCost(500);
     setIsUnlimitedCost(true);
@@ -400,13 +373,32 @@ const SearchScreen = () => {
     PreferencesService.getInstance().clearActiveFilters();
   };
 
+  // Convert dayTimeSlots to daysOfWeek array (days with any time slot selected)
+  const getSelectedDaysFromSlots = useCallback((): string[] => {
+    return DAYS_OF_WEEK.filter(day => {
+      const slots = dayTimeSlots[day];
+      return slots && (slots.morning || slots.afternoon || slots.evening);
+    });
+  }, [dayTimeSlots]);
+
+  // Check if all slots are selected (no filtering needed)
+  const areAllSlotsSelected = useCallback((): boolean => {
+    return DAYS_OF_WEEK.every(day => {
+      const slots = dayTimeSlots[day];
+      return slots && slots.morning && slots.afternoon && slots.evening;
+    });
+  }, [dayTimeSlots]);
+
   const handleSearch = async () => {
     // Use selected cities for location filtering
     const allLocations = selectedCities.filter(Boolean);
 
+    // Get selected days from day/time grid (only filter if not all selected)
+    const selectedDays = areAllSlotsSelected() ? undefined : getSelectedDaysFromSlots();
+
     const searchParams: ActivitySearchParams = {
       search: searchText || undefined,
-      daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
+      daysOfWeek: selectedDays?.length ? selectedDays : undefined,
       activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
       costMin: minCost > 0 ? minCost : undefined,
       costMax: !isUnlimitedCost ? maxCost : undefined,
@@ -429,7 +421,7 @@ const SearchScreen = () => {
       costMin: minCost > 0 ? minCost : undefined,
       costMax: !isUnlimitedCost ? maxCost : undefined,
       locations: allLocations.length > 0 ? allLocations : undefined,
-      daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
+      daysOfWeek: selectedDays?.length ? selectedDays : undefined,
       hideFullActivities: true,
     });
 
@@ -457,9 +449,12 @@ const SearchScreen = () => {
     // Use selected cities for location filtering
     const allLocations = selectedCities.filter(Boolean);
 
+    // Get selected days from day/time grid (only filter if not all selected)
+    const selectedDays = areAllSlotsSelected() ? undefined : getSelectedDaysFromSlots();
+
     const filters = {
       search: searchText || undefined,
-      daysOfWeek: selectedDays.length > 0 ? selectedDays : undefined,
+      daysOfWeek: selectedDays?.length ? selectedDays : undefined,
       activityTypes: selectedActivityTypes.length > 0 ? selectedActivityTypes : undefined,
       costMin: minCost > 0 ? minCost : undefined,
       costMax: !isUnlimitedCost ? maxCost : undefined,
@@ -471,7 +466,7 @@ const SearchScreen = () => {
 
     const searchIntent = aiService.buildSearchIntent({
       ...filters,
-      dayOfWeek: selectedDays,
+      dayOfWeek: selectedDays || [],
       category: selectedActivityTypes[0],
     });
 
@@ -507,16 +502,12 @@ const SearchScreen = () => {
         if (minCost === 0 && !isUnlimitedCost) return `Under $${maxCost}`;
         if (isUnlimitedCost) return `$${minCost}+`;
         return `$${minCost} - $${maxCost}`;
-      case 'days':
-        return selectedDays.length > 0 ? `${selectedDays.length} days` : 'Any day';
-      case 'time':
-        if (useCustomTimeRange) {
-          return `${formatTime(startTime)} - ${formatTime(endTime)}`;
-        }
-        if (selectedTimes.length > 0) {
-          return `${selectedTimes.length} selected`;
-        }
-        return 'Any time';
+      case 'when':
+        if (areAllSlotsSelected()) return 'Anytime';
+        const selectedDays = getSelectedDaysFromSlots();
+        if (selectedDays.length === 0) return 'None selected';
+        if (selectedDays.length === 7) return 'All days';
+        return `${selectedDays.length} days`;
       default:
         return '';
     }
@@ -537,10 +528,8 @@ const SearchScreen = () => {
         return renderDistanceContent();
       case 'cost':
         return renderCostContent();
-      case 'days':
-        return renderDaysContent();
-      case 'time':
-        return renderTimeContent();
+      case 'when':
+        return renderWhenContent();
       default:
         return null;
     }
@@ -859,110 +848,13 @@ const SearchScreen = () => {
     </View>
   );
 
-  const renderDaysContent = () => (
+  const renderWhenContent = () => (
     <View style={styles.sectionContentInner}>
-      <View style={styles.chipsContainer}>
-        {DAYS_OF_WEEK.map(day => (
-          <TouchableOpacity
-            key={day}
-            style={[
-              styles.chip,
-              selectedDays.includes(day) && styles.chipSelected
-            ]}
-            onPress={() => toggleDay(day)}
-          >
-            <Text style={[
-              styles.chipText,
-              selectedDays.includes(day) && styles.chipTextSelected
-            ]}>
-              {day.substring(0, 3)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderTimeContent = () => (
-    <View style={styles.sectionContentInner}>
-      <View style={styles.predefinedTimesContainer}>
-        {PREDEFINED_TIMES.map(timeOption => (
-          <TouchableOpacity
-            key={timeOption.value}
-            style={[
-              styles.timeButton,
-              selectedTimes.includes(timeOption.value) && styles.timeButtonSelected,
-              useCustomTimeRange && styles.timeButtonDisabled
-            ]}
-            onPress={() => {
-              if (!useCustomTimeRange) {
-                toggleTime(timeOption.value);
-              }
-            }}
-            disabled={useCustomTimeRange}
-          >
-            <Text style={[
-              styles.timeButtonText,
-              selectedTimes.includes(timeOption.value) && styles.timeButtonTextSelected,
-              useCustomTimeRange && styles.timeButtonTextDisabled
-            ]}>
-              {timeOption.label}
-            </Text>
-            <Text style={[
-              styles.timeRangeText,
-              selectedTimes.includes(timeOption.value) && styles.timeRangeTextSelected,
-              useCustomTimeRange && styles.timeRangeTextDisabled
-            ]}>
-              {timeOption.timeRange}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity
-        style={[styles.chip, useCustomTimeRange && styles.chipSelected]}
-        onPress={() => {
-          setUseCustomTimeRange(!useCustomTimeRange);
-          if (!useCustomTimeRange) {
-            setSelectedTimes([]);
-          }
-        }}
-      >
-        <Text style={[styles.chipText, useCustomTimeRange && styles.chipTextSelected]}>
-          Custom Time Range
-        </Text>
-      </TouchableOpacity>
-
-      {useCustomTimeRange && (
-        <View style={styles.customTimeContainer}>
-          <View style={styles.rangeHeader}>
-            <Text style={styles.rangeLabel}>Start: {formatTime(startTime)}</Text>
-            <Text style={styles.rangeLabel}>End: {formatTime(endTime)}</Text>
-          </View>
-
-          <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={23}
-            step={1}
-            value={startTime}
-            onValueChange={setStartTime}
-            minimumTrackTintColor="#E8638B"
-            maximumTrackTintColor="#DDDDDD"
-          />
-
-          <Slider
-            style={styles.slider}
-            minimumValue={startTime + 1}
-            maximumValue={23}
-            step={1}
-            value={endTime}
-            onValueChange={setEndTime}
-            minimumTrackTintColor="#E8638B"
-            maximumTrackTintColor="#DDDDDD"
-          />
-        </View>
-      )}
+      <DayTimeGridSelector
+        selectedSlots={dayTimeSlots}
+        onChange={setDayTimeSlots}
+        compact={false}
+      />
     </View>
   );
 
