@@ -33,6 +33,7 @@ import {
 } from '../store/slices/childrenSlice';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
+import { ActivityCardCompact } from '../components/ActivityCardCompact';
 import { useTheme } from '../contexts/ThemeContext';
 import { aiRobotImage } from '../assets/images';
 import useSubscription from '../hooks/useSubscription';
@@ -573,86 +574,13 @@ const AIChatScreen = () => {
                   </TouchableOpacity>
                 )}
               </View>
-              {item.activities!.slice(0, 3).map((activity: any, index: number) => {
-                // Format cost - show "Free" for 0 or null, otherwise format as currency
-                const cost = activity.price ?? activity.cost;
-                const costDisplay = cost === null || cost === undefined || cost === 0 || cost === 'Contact for price'
-                  ? 'Free'
-                  : typeof cost === 'number'
-                    ? `$${cost.toFixed(0)}`
-                    : cost;
-
-                // Get days of week - check multiple sources
-                const daysOfWeek = extractDaysOfWeek(activity);
-
-                // Get time - check multiple field names
-                const timeText = activity.startTime
-                  ? `${activity.startTime}${activity.endTime ? ` - ${activity.endTime}` : ''}`
-                  : formatActivityTime(activity);
-
-                // Get spots - check multiple field names
-                const spotsDisplay = activity.spotsText
-                  || (activity.spotsAvailable !== null && activity.spotsAvailable !== undefined
-                    ? `${activity.spotsAvailable} spots`
-                    : null);
-
-                return (
-                  <TouchableOpacity
-                    key={activity.id || index}
-                    style={styles.activityCard}
-                    onPress={() => handleActivityPress(activity)}
-                  >
-                    <View style={styles.activityCardContent}>
-                      {/* Activity Name */}
-                      <Text style={styles.activityName} numberOfLines={2}>
-                        {activity.name}
-                      </Text>
-
-                      {/* Location */}
-                      {(activity.location || activity.locationName) && (
-                        <View style={styles.activityLocationRow}>
-                          <Icon name="map-marker" size={12} color="#E8638B" />
-                          <Text style={styles.activityLocation} numberOfLines={1}>
-                            {activity.locationName || activity.location}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Days of Week & Time */}
-                      {(daysOfWeek || timeText) && (
-                        <View style={styles.activityDaysRow}>
-                          <Icon name="calendar-week" size={12} color="#E8638B" />
-                          <Text style={styles.activityDaysText} numberOfLines={1}>
-                            {daysOfWeek}{daysOfWeek && timeText ? ' • ' : ''}{timeText || ''}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Bottom row: Spots, Cost, Distance */}
-                      <View style={styles.activityBottomRow}>
-                        {spotsDisplay && (
-                          <View style={styles.spotsBadge}>
-                            <Icon name="account-group-outline" size={10} color="#6B7280" />
-                            <Text style={styles.spotsText}>{spotsDisplay}</Text>
-                          </View>
-                        )}
-                        <View style={[styles.costBadge, costDisplay === 'Free' && styles.costBadgeFree]}>
-                          <Text style={[styles.costText, costDisplay === 'Free' && styles.costTextFree]}>
-                            {costDisplay}
-                          </Text>
-                        </View>
-                        {activity.distanceText && (
-                          <View style={styles.distanceBadge}>
-                            <Icon name="map-marker-outline" size={10} color="#4F46E5" />
-                            <Text style={styles.distanceText}>{activity.distanceText}</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                    <Icon name="chevron-right" size={20} color="#E8638B" style={styles.activityChevron} />
-                  </TouchableOpacity>
-                );
-              })}
+              {item.activities!.slice(0, 3).map((activity: any, index: number) => (
+                <ActivityCardCompact
+                  key={activity.id || index}
+                  activity={activity}
+                  onPress={() => handleActivityPress(activity)}
+                />
+              ))}
               {item.activities!.length > 3 && (
                 <TouchableOpacity
                   style={styles.viewMoreButton}

@@ -57,18 +57,25 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
 
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadActivityTypes = async () => {
+      setLoadError(null);
       try {
         // Pass false to NOT apply global filters - we want ALL activity types for preferences
         const types = await activityService.getActivityTypesWithCounts(false);
         console.log('[ChildActivitiesStep] Loaded activity types:', types?.length || 0);
-        const sortedTypes = types.sort((a: ActivityType, b: ActivityType) => (b.activityCount || 0) - (a.activityCount || 0));
+        if (!types || types.length === 0) {
+          console.warn('[ChildActivitiesStep] No activity types returned from API');
+          setLoadError('No activity types available');
+        }
+        const sortedTypes = (types || []).sort((a: ActivityType, b: ActivityType) => (b.activityCount || 0) - (a.activityCount || 0));
         setActivityTypes(sortedTypes);
       } catch (error) {
         console.error('[ChildActivitiesStep] Error loading activity types:', error);
+        setLoadError('Failed to load activity types');
       } finally {
         setIsLoading(false);
       }
@@ -142,6 +149,31 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#E8638B" />
         <Text style={styles.loadingText}>Loading activity types...</Text>
+      </View>
+    );
+  }
+
+  if (loadError && activityTypes.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Icon name="alert-circle-outline" size={48} color="#9CA3AF" />
+        <Text style={styles.loadingText}>{loadError}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            setIsLoading(true);
+            setLoadError(null);
+            activityService.getActivityTypesWithCounts(false).then(types => {
+              setActivityTypes((types || []).sort((a: ActivityType, b: ActivityType) => (b.activityCount || 0) - (a.activityCount || 0)));
+              setIsLoading(false);
+            }).catch(() => {
+              setLoadError('Failed to load activity types');
+              setIsLoading(false);
+            });
+          }}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -413,6 +445,18 @@ const styles = StyleSheet.create({
   selectionText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#E8638B',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

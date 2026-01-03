@@ -695,33 +695,33 @@ const ChildPreferencesScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      {/* Save Button */}
-      {hasChanges && (
-        <View style={styles.saveButtonContainer}>
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={handleSave}
-            activeOpacity={0.8}
-            disabled={isSaving}
+      {/* Save Button - Always visible, disabled when no changes */}
+      <View style={styles.saveButtonContainer}>
+        <TouchableOpacity
+          style={[styles.saveButton, !hasChanges && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          activeOpacity={0.8}
+          disabled={isSaving || !hasChanges}
+        >
+          <LinearGradient
+            colors={isSaving || !hasChanges ? ['#9CA3AF', '#6B7280'] : [ModernColors.primary, '#D53F8C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.saveButtonGradient}
           >
-            <LinearGradient
-              colors={isSaving ? ['#9CA3AF', '#6B7280'] : [ModernColors.primary, '#D53F8C']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.saveButtonGradient}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Icon name="content-save" size={20} color="#FFFFFF" style={styles.saveIcon} />
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      )}
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Icon name="content-save" size={20} color="#FFFFFF" style={styles.saveIcon} />
+                <Text style={styles.saveButtonText}>
+                  {hasChanges ? 'Save Changes' : 'No Changes'}
+                </Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -1054,6 +1054,9 @@ const styles = StyleSheet.create({
   saveButton: {
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   saveButtonGradient: {
     height: 52,

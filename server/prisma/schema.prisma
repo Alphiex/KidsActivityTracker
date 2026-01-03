@@ -341,6 +341,7 @@ model ChildPreferences {
   // Schedule preferences
   daysOfWeek             String[]  @default(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
   timePreferences        Json      @default("{\"morning\": true, \"afternoon\": true, \"evening\": true}")
+  dayTimeSlots           Json?     // Granular day+time selection: { "Monday": { morning: true, afternoon: true, evening: true }, ... }
 
   // Budget preferences
   priceRangeMin          Float     @default(0)

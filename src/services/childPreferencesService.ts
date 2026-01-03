@@ -102,7 +102,7 @@ class ChildPreferencesService {
   async getChildPreferences(childId: string): Promise<ChildPreferences> {
     try {
       const response = await apiClient.get<{ success: boolean; preferences: ChildPreferences }>(
-        `/api/children/${childId}/preferences`
+        `/api/v1/children/${childId}/preferences`
       );
 
       if (response?.preferences) {
@@ -126,7 +126,7 @@ class ChildPreferencesService {
   ): Promise<ChildPreferences> {
     try {
       const response = await apiClient.put<{ success: boolean; preferences: ChildPreferences }>(
-        `/api/children/${childId}/preferences`,
+        `/api/v1/children/${childId}/preferences`,
         updates
       );
 
@@ -148,7 +148,7 @@ class ChildPreferencesService {
   async copyPreferences(sourceChildId: string, targetChildId: string): Promise<ChildPreferences> {
     try {
       const response = await apiClient.post<{ success: boolean; preferences: ChildPreferences }>(
-        `/api/children/${targetChildId}/preferences/copy/${sourceChildId}`
+        `/api/v1/children/${targetChildId}/preferences/copy/${sourceChildId}`
       );
 
       if (response?.preferences) {
@@ -170,7 +170,7 @@ class ChildPreferencesService {
   async initializeFromUserPreferences(childId: string): Promise<ChildPreferences> {
     try {
       const response = await apiClient.post<{ success: boolean; preferences: ChildPreferences }>(
-        `/api/children/${childId}/preferences/initialize`
+        `/api/v1/children/${childId}/preferences/initialize`
       );
 
       if (response?.preferences) {
@@ -202,7 +202,7 @@ class ChildPreferencesService {
         initialized: number;
         skipped: number;
         errors?: string[];
-      }>('/api/children/preferences/initialize-all');
+      }>('/api/v1/children/preferences/initialize-all');
 
       // Clear cache to force refresh
       this.preferencesCache.clear();

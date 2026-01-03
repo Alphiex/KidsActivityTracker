@@ -821,6 +821,7 @@ router.put('/:childId/preferences', verifyToken, async (req: Request, res: Respo
     // Schedule preferences
     if (req.body.daysOfWeek !== undefined) updateData.daysOfWeek = req.body.daysOfWeek;
     if (req.body.timePreferences !== undefined) updateData.timePreferences = req.body.timePreferences;
+    if (req.body.dayTimeSlots !== undefined) updateData.dayTimeSlots = req.body.dayTimeSlots;
 
     // Budget preferences
     if (req.body.priceRangeMin !== undefined) updateData.priceRangeMin = req.body.priceRangeMin;
