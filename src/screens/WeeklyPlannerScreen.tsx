@@ -24,6 +24,7 @@ import { Calendar } from 'react-native-calendars';
 import aiService from '../services/aiService';
 import ActivityService from '../services/activityService';
 import childrenService, { ChildActivity } from '../services/childrenService';
+import PreferencesService from '../services/preferencesService';
 import { WeeklySchedule, ScheduleEntry } from '../types/ai';
 import { Activity } from '../types';
 
@@ -175,18 +176,26 @@ function getEndOfWeek(startDate: Date): Date {
 }
 
 /**
- * Get summer date range (July 1 - August 31 of current/next year)
+ * Get summer date range from preferences (default: June 28 - September 1)
  */
 function getSummerDateRange(): { start: Date; end: Date } {
-  const today = new Date();
-  let year = today.getFullYear();
-  // If it's already past August, use next year's summer
-  if (today.getMonth() > 7) {
-    year += 1;
-  }
+  const prefsService = PreferencesService.getInstance();
+  const breaks = prefsService.getSchoolBreakDates();
   return {
-    start: new Date(year, 6, 1), // July 1
-    end: new Date(year, 7, 31),  // August 31
+    start: new Date(breaks.summerStart),
+    end: new Date(breaks.summerEnd),
+  };
+}
+
+/**
+ * Get spring break date range from preferences (default: March 10-21)
+ */
+function getSpringBreakDateRange(): { start: Date; end: Date } {
+  const prefsService = PreferencesService.getInstance();
+  const breaks = prefsService.getSchoolBreakDates();
+  return {
+    start: new Date(breaks.springBreakStart),
+    end: new Date(breaks.springBreakEnd),
   };
 }
 
@@ -211,7 +220,7 @@ function getWeekStartInRange(rangeStart: Date, weekIndex: number): Date {
 /**
  * Date range preset type
  */
-type DateRangePreset = 'this-week' | 'summer' | 'custom';
+type DateRangePreset = 'this-week' | 'summer' | 'spring-break' | 'custom';
 
 /**
  * Format date for display
@@ -261,7 +270,7 @@ const WeeklyPlannerScreen = () => {
   const [allowGaps, setAllowGaps] = useState(true);
 
   // Configuration state - Other settings
-  const [maxActivitiesPerChild, setMaxActivitiesPerChild] = useState(5);
+  const [maxActivitiesPerChild, setMaxActivitiesPerChild] = useState(2);
   const [avoidBackToBack, setAvoidBackToBack] = useState(true);
   const [scheduleSiblingsTogether, setScheduleSiblingsTogether] = useState(false);
   const [childAvailability, setChildAvailability] = useState<ChildAvailability[]>([]);
@@ -417,6 +426,10 @@ const WeeklyPlannerScreen = () => {
       const summer = getSummerDateRange();
       setStartDate(summer.start);
       setEndDate(summer.end);
+    } else if (preset === 'spring-break') {
+      const springBreak = getSpringBreakDateRange();
+      setStartDate(springBreak.start);
+      setEndDate(springBreak.end);
     }
     // 'custom' keeps current dates
   }, []);
@@ -1052,12 +1065,88 @@ const WeeklyPlannerScreen = () => {
   };
 
   /**
-   * Render date picker modal
+   * Render date range picker modal - allows selecting both start and end dates
    */
   const renderDatePicker = () => {
-    const isStartMode = datePickerMode === 'start';
-    const currentDate = isStartMode ? startDate : endDate;
-    const minDate = isStartMode ? undefined : toISODateString(startDate);
+    // Track which date we're currently selecting (start or end)
+    const [selectingDate, setSelectingDate] = React.useState<'start' | 'end'>('start');
+    // Temp dates while editing
+    const [tempStartDate, setTempStartDate] = React.useState(startDate);
+    const [tempEndDate, setTempEndDate] = React.useState(endDate);
+
+    // Reset temp dates when modal opens
+    React.useEffect(() => {
+      if (showDatePicker) {
+        setTempStartDate(startDate);
+        setTempEndDate(endDate);
+        setSelectingDate('start');
+      }
+    }, [showDatePicker]);
+
+    // Generate marked dates for the range
+    const getMarkedDates = () => {
+      const marked: Record<string, any> = {};
+      const start = new Date(tempStartDate);
+      const end = new Date(tempEndDate);
+
+      // Ensure start is before end for marking
+      const rangeStart = start <= end ? start : end;
+      const rangeEnd = start <= end ? end : start;
+
+      // Mark all dates in range
+      const current = new Date(rangeStart);
+      while (current <= rangeEnd) {
+        const dateStr = toISODateString(current);
+        const isStart = dateStr === toISODateString(rangeStart);
+        const isEnd = dateStr === toISODateString(rangeEnd);
+
+        marked[dateStr] = {
+          startingDay: isStart,
+          endingDay: isEnd,
+          color: isStart || isEnd ? ModernColors.primary : ModernColors.primary + '30',
+          textColor: isStart || isEnd ? '#FFFFFF' : ModernColors.text,
+        };
+        current.setDate(current.getDate() + 1);
+      }
+
+      return marked;
+    };
+
+    const handleDayPress = (day: any) => {
+      const selected = new Date(day.dateString);
+
+      if (selectingDate === 'start') {
+        setTempStartDate(selected);
+        // Auto-advance to end date selection
+        setSelectingDate('end');
+        // If new start is after current end, reset end to same day
+        if (selected > tempEndDate) {
+          setTempEndDate(selected);
+        }
+      } else {
+        // Selecting end date
+        if (selected >= tempStartDate) {
+          setTempEndDate(selected);
+        } else {
+          // User selected date before start - swap them
+          setTempEndDate(tempStartDate);
+          setTempStartDate(selected);
+        }
+      }
+    };
+
+    const handleApply = () => {
+      // Ensure start is before end
+      if (tempStartDate <= tempEndDate) {
+        setStartDate(tempStartDate);
+        setEndDate(tempEndDate);
+      } else {
+        setStartDate(tempEndDate);
+        setEndDate(tempStartDate);
+      }
+      setDateRangePreset('custom');
+      setShowDatePicker(false);
+    };
 
     return (
       <Modal
@@ -1068,58 +1157,86 @@ const WeeklyPlannerScreen = () => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              Select {isStartMode ? 'Start' : 'End'} Date
-            </Text>
+            <Text style={styles.modalTitle}>Select Date Range</Text>
             <TouchableOpacity onPress={() => setShowDatePicker(false)}>
               <Icon name="close" size={24} color={ModernColors.text} />
             </TouchableOpacity>
           </View>
 
+          {/* Date selection tabs */}
+          <View style={styles.datePickerTabs}>
+            <TouchableOpacity
+              style={[
+                styles.datePickerTab,
+                selectingDate === 'start' && styles.datePickerTabActive,
+              ]}
+              onPress={() => setSelectingDate('start')}
+            >
+              <Text style={styles.datePickerTabLabel}>Start Date</Text>
+              <Text
+                style={[
+                  styles.datePickerTabValue,
+                  selectingDate === 'start' && styles.datePickerTabValueActive,
+                ]}
+              >
+                {formatDate(tempStartDate)}
+              </Text>
+            </TouchableOpacity>
+
+            <Icon name="arrow-right" size={20} color={ModernColors.textMuted} />
+
+            <TouchableOpacity
+              style={[
+                styles.datePickerTab,
+                selectingDate === 'end' && styles.datePickerTabActive,
+              ]}
+              onPress={() => setSelectingDate('end')}
+            >
+              <Text style={styles.datePickerTabLabel}>End Date</Text>
+              <Text
+                style={[
+                  styles.datePickerTabValue,
+                  selectingDate === 'end' && styles.datePickerTabValueActive,
+                ]}
+              >
+                {formatDate(tempEndDate)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.datePickerHint}>
-            {isStartMode
-              ? 'Choose when your planning period begins'
-              : 'Choose when your planning period ends'}
+            {selectingDate === 'start'
+              ? 'Tap to select when your planning period begins'
+              : 'Tap to select when your planning period ends'}
           </Text>
 
           <Calendar
-            current={toISODateString(currentDate)}
-            minDate={minDate}
-            onDayPress={(day: any) => {
-              const selected = new Date(day.dateString);
-              if (isStartMode) {
-                setStartDate(selected);
-                // If new start is after current end, adjust end date
-                if (selected > endDate) {
-                  setEndDate(getEndOfWeek(selected));
-                }
-              } else {
-                setEndDate(selected);
-              }
-              setDateRangePreset('custom');
-              setShowDatePicker(false);
-            }}
-            markedDates={{
-              [toISODateString(startDate)]: {
-                selected: isStartMode,
-                startingDay: true,
-                color: ModernColors.primary,
-                textColor: '#FFFFFF',
-              },
-              [toISODateString(endDate)]: {
-                selected: !isStartMode,
-                endingDay: true,
-                color: ModernColors.primary,
-                textColor: '#FFFFFF',
-              },
-            }}
+            current={toISODateString(selectingDate === 'start' ? tempStartDate : tempEndDate)}
+            onDayPress={handleDayPress}
+            markedDates={getMarkedDates()}
             markingType="period"
             theme={{
               selectedDayBackgroundColor: ModernColors.primary,
               todayTextColor: ModernColors.primary,
               arrowColor: ModernColors.primary,
+              textDayFontWeight: '500',
+              textMonthFontWeight: '600',
             }}
           />
+
+          {/* Duration preview */}
+          <View style={styles.datePickerDuration}>
+            <Icon name="clock-outline" size={16} color={ModernColors.textSecondary} />
+            <Text style={styles.datePickerDurationText}>
+              {getWeeksBetween(tempStartDate, tempEndDate)} week
+              {getWeeksBetween(tempStartDate, tempEndDate) !== 1 ? 's' : ''} selected
+            </Text>
+          </View>
+
+          {/* Apply button */}
+          <TouchableOpacity style={styles.datePickerApplyButton} onPress={handleApply}>
+            <Text style={styles.datePickerApplyButtonText}>Apply Dates</Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </Modal>
     );
@@ -1806,33 +1923,54 @@ const WeeklyPlannerScreen = () => {
   const renderSummary = () => {
     if (!schedule) return null;
 
-    const approvedCount = Object.values(entryApprovals).filter(s => s === 'approved').length;
-
     return (
       <View style={styles.summarySection}>
-        <View style={styles.summaryCard}>
-          <Icon name="calendar-check" size={24} color={ModernColors.success} />
-          <View>
-            <Text style={styles.summaryValue}>{schedule.total_activities}</Text>
-            <Text style={styles.summaryLabel}>Activities</Text>
+        {/* Stats row */}
+        <View style={styles.summaryStatsRow}>
+          <View style={styles.summaryStatItem}>
+            <Icon name="calendar-multiple" size={20} color={ModernColors.primary} />
+            <Text style={styles.summaryStatValue}>{schedule.total_activities}</Text>
+            <Text style={styles.summaryStatLabel}>Activities</Text>
           </View>
-        </View>
-        <View style={styles.summaryCard}>
-          <Icon name="check-circle" size={24} color={ModernColors.success} />
-          <View>
-            <Text style={styles.summaryValue}>{approvedCount}</Text>
-            <Text style={styles.summaryLabel}>Approved</Text>
-          </View>
-        </View>
-        {schedule.total_cost !== undefined && (
-          <View style={styles.summaryCard}>
-            <Icon name="currency-usd" size={24} color={ModernColors.warning} />
-            <View>
-              <Text style={styles.summaryValue}>${schedule.total_cost}</Text>
-              <Text style={styles.summaryLabel}>Est. Cost</Text>
+          {schedule.total_cost !== undefined && schedule.total_cost > 0 && (
+            <View style={styles.summaryStatItem}>
+              <Icon name="currency-usd" size={20} color={ModernColors.warning} />
+              <Text style={styles.summaryStatValue}>${schedule.total_cost}</Text>
+              <Text style={styles.summaryStatLabel}>Est. Cost</Text>
             </View>
+          )}
+          <View style={styles.summaryStatItem}>
+            <Icon name="account-group" size={20} color={ModernColors.secondary} />
+            <Text style={styles.summaryStatValue}>{childIdsInSchedule.length}</Text>
+            <Text style={styles.summaryStatLabel}>{childIdsInSchedule.length === 1 ? 'Child' : 'Children'}</Text>
           </View>
-        )}
+        </View>
+
+        {/* Action buttons row */}
+        <View style={styles.summaryActionsRow}>
+          <TouchableOpacity
+            style={styles.summaryCancelButton}
+            onPress={clearSchedule}
+          >
+            <Icon name="close" size={18} color={ModernColors.textSecondary} />
+            <Text style={styles.summaryCancelText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.summaryApplyButton}
+            onPress={addApprovedToCalendar}
+          >
+            <LinearGradient
+              colors={ModernColors.primaryGradient as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.summaryApplyGradient}
+            >
+              <Icon name="calendar-check" size={20} color="#FFFFFF" />
+              <Text style={styles.summaryApplyText}>Apply Schedule</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -1861,92 +1999,140 @@ const WeeklyPlannerScreen = () => {
       <View style={styles.configSection}>
         <Text style={styles.configSectionTitle}>Planning Period</Text>
 
-        {/* Quick presets */}
-        <View style={styles.presetRow}>
-          <TouchableOpacity
-            style={[
-              styles.presetButton,
-              dateRangePreset === 'this-week' && styles.presetButtonActive,
-            ]}
-            onPress={() => applyDatePreset('this-week')}
+        {/* Quick presets - modern pill selector */}
+        <View style={styles.presetContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.presetScrollContent}
           >
-            <Text
+            <TouchableOpacity
               style={[
-                styles.presetButtonText,
-                dateRangePreset === 'this-week' && styles.presetButtonTextActive,
+                styles.presetChip,
+                dateRangePreset === 'this-week' && styles.presetChipActive,
               ]}
+              onPress={() => applyDatePreset('this-week')}
             >
-              This Week
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.presetButton,
-              dateRangePreset === 'summer' && styles.presetButtonActive,
-            ]}
-            onPress={() => applyDatePreset('summer')}
-          >
-            <Text
+              <Icon
+                name="calendar-week"
+                size={16}
+                color={dateRangePreset === 'this-week' ? '#FFF' : ModernColors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.presetChipText,
+                  dateRangePreset === 'this-week' && styles.presetChipTextActive,
+                ]}
+              >
+                This Week
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[
-                styles.presetButtonText,
-                dateRangePreset === 'summer' && styles.presetButtonTextActive,
+                styles.presetChip,
+                dateRangePreset === 'spring-break' && styles.presetChipActive,
               ]}
+              onPress={() => applyDatePreset('spring-break')}
             >
-              Summer (Jul-Aug)
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.presetButton,
-              dateRangePreset === 'custom' && styles.presetButtonActive,
-            ]}
-            onPress={() => {
-              setDateRangePreset('custom');
-              openDatePicker('start');
-            }}
-          >
-            <Text
+              <Icon
+                name="flower-tulip"
+                size={16}
+                color={dateRangePreset === 'spring-break' ? '#FFF' : ModernColors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.presetChipText,
+                  dateRangePreset === 'spring-break' && styles.presetChipTextActive,
+                ]}
+              >
+                Spring Break
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[
-                styles.presetButtonText,
-                dateRangePreset === 'custom' && styles.presetButtonTextActive,
+                styles.presetChip,
+                dateRangePreset === 'summer' && styles.presetChipActive,
               ]}
+              onPress={() => applyDatePreset('summer')}
             >
-              Custom
-            </Text>
-          </TouchableOpacity>
+              <Icon
+                name="white-balance-sunny"
+                size={16}
+                color={dateRangePreset === 'summer' ? '#FFF' : ModernColors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.presetChipText,
+                  dateRangePreset === 'summer' && styles.presetChipTextActive,
+                ]}
+              >
+                Summer
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.presetChip,
+                dateRangePreset === 'custom' && styles.presetChipActive,
+              ]}
+              onPress={() => {
+                setDateRangePreset('custom');
+                setShowDatePicker(true);
+              }}
+            >
+              <Icon
+                name="calendar-edit"
+                size={16}
+                color={dateRangePreset === 'custom' ? '#FFF' : ModernColors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.presetChipText,
+                  dateRangePreset === 'custom' && styles.presetChipTextActive,
+                ]}
+              >
+                Custom
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
-        {/* Date range display */}
-        <View style={styles.dateRangeContainer}>
-          <TouchableOpacity
-            style={styles.dateRangeButton}
-            onPress={() => openDatePicker('start')}
-          >
-            <Icon name="calendar-start" size={18} color={ModernColors.primary} />
-            <View style={styles.dateRangeButtonText}>
-              <Text style={styles.dateRangeLabel}>Start</Text>
-              <Text style={styles.dateRangeValue}>{formatDate(startDate)}</Text>
+        {/* Date range card - tap to edit */}
+        <TouchableOpacity
+          style={styles.dateRangeCard}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.dateRangeCardContent}>
+            <View style={styles.dateRangeItem}>
+              <Text style={styles.dateRangeLabelSmall}>FROM</Text>
+              <Text style={styles.dateRangeValueLarge}>{formatDate(startDate)}</Text>
             </View>
-          </TouchableOpacity>
 
-          <Icon name="arrow-right" size={20} color={ModernColors.textMuted} />
-
-          <TouchableOpacity
-            style={styles.dateRangeButton}
-            onPress={() => openDatePicker('end')}
-          >
-            <Icon name="calendar-end" size={18} color={ModernColors.primary} />
-            <View style={styles.dateRangeButtonText}>
-              <Text style={styles.dateRangeLabel}>End</Text>
-              <Text style={styles.dateRangeValue}>{formatDate(endDate)}</Text>
+            <View style={styles.dateRangeArrow}>
+              <Icon name="arrow-right" size={18} color={ModernColors.primary} />
             </View>
-          </TouchableOpacity>
-        </View>
 
-        {/* Duration indicator */}
-        <Text style={styles.durationText}>
-          {totalWeeks} week{totalWeeks !== 1 ? 's' : ''} total
-        </Text>
+            <View style={styles.dateRangeItem}>
+              <Text style={styles.dateRangeLabelSmall}>TO</Text>
+              <Text style={styles.dateRangeValueLarge}>{formatDate(endDate)}</Text>
+            </View>
+
+            <View style={styles.dateRangeEditIcon}>
+              <Icon name="pencil" size={16} color={ModernColors.textMuted} />
+            </View>
+          </View>
+
+          <View style={styles.dateRangeDuration}>
+            <Icon name="clock-outline" size={14} color={ModernColors.textSecondary} />
+            <Text style={styles.dateRangeDurationText}>
+              {totalWeeks} week{totalWeeks !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
       </View>
 
       {/* Children availability */}
@@ -2254,29 +2440,7 @@ const WeeklyPlannerScreen = () => {
     );
   };
 
-  /**
-   * Render legend
-   */
-  const renderLegend = () => {
-    if (!schedule || childIdsInSchedule.length === 0) return null;
-
-    return (
-      <View style={styles.legendSection}>
-        <Text style={styles.legendTitle}>Children</Text>
-        <View style={styles.legendItems}>
-          {childIdsInSchedule.map(childId => {
-            const { name, color } = getChildInfo(childId);
-            return (
-              <View key={childId} style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: color }]} />
-                <Text style={styles.legendText}>{name}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-    );
-  };
+  // Legend removed - child info is already shown on each activity card
 
   return (
     <ScreenBackground>
@@ -2346,16 +2510,13 @@ const WeeklyPlannerScreen = () => {
               </View>
             </ScrollView>
 
-            {renderLegend()}
-
-            {/* Spacing for action bar */}
-            <View style={{ height: 100 }} />
+            {/* Spacing for bottom */}
+            <View style={{ height: 40 }} />
           </ScrollView>
         )}
       </Animated.View>
 
-      {/* Action bar */}
-      {renderActionBar()}
+      {/* Bottom action bar removed - actions moved to summary */}
 
       {/* Modals */}
       {renderDatePicker()}
@@ -2537,74 +2698,153 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
   },
 
-  // Date range presets
-  presetRow: {
-    flexDirection: 'row',
+  // Date range presets - modern chip design
+  presetContainer: {
+    marginBottom: 16,
+  },
+  presetScrollContent: {
+    paddingHorizontal: 0,
     gap: 8,
-    marginBottom: 12,
   },
-  presetButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: ModernColors.surface,
-    borderRadius: ModernBorderRadius.md,
-    borderWidth: 1,
-    borderColor: ModernColors.border,
+  presetChip: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: ModernColors.surface,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: ModernColors.border,
+    gap: 6,
   },
-  presetButtonActive: {
-    backgroundColor: ModernColors.primary + '15',
+  presetChipActive: {
+    backgroundColor: ModernColors.primary,
     borderColor: ModernColors.primary,
   },
-  presetButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
+  presetChipText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: ModernColors.textSecondary,
   },
-  presetButtonTextActive: {
-    color: ModernColors.primary,
+  presetChipTextActive: {
+    color: '#FFFFFF',
   },
 
-  // Date range display
-  dateRangeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  dateRangeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
+  // Date range card
+  dateRangeCard: {
     backgroundColor: ModernColors.surface,
     borderRadius: ModernBorderRadius.lg,
     borderWidth: 1,
     borderColor: ModernColors.border,
-    gap: 10,
+    padding: 16,
   },
-  dateRangeButtonText: {
+  dateRangeCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dateRangeItem: {
     flex: 1,
   },
-  dateRangeLabel: {
+  dateRangeLabelSmall: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: ModernColors.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  dateRangeValueLarge: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: ModernColors.text,
+  },
+  dateRangeArrow: {
+    paddingHorizontal: 8,
+  },
+  dateRangeEditIcon: {
+    padding: 8,
+    backgroundColor: ModernColors.background,
+    borderRadius: 8,
+  },
+  dateRangeDuration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+  },
+  dateRangeDurationText: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+  },
+
+  // Date picker modal styles
+  datePickerTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  datePickerTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    borderWidth: 2,
+    borderColor: ModernColors.border,
+  },
+  datePickerTabActive: {
+    borderColor: ModernColors.primary,
+    backgroundColor: ModernColors.primary + '10',
+  },
+  datePickerTabLabel: {
     fontSize: 11,
     fontWeight: '500',
     color: ModernColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 4,
   },
-  dateRangeValue: {
-    fontSize: 15,
-    fontWeight: '600',
+  datePickerTabValue: {
+    fontSize: 16,
+    fontWeight: '700',
     color: ModernColors.text,
-    marginTop: 2,
   },
-  durationText: {
-    fontSize: 13,
+  datePickerTabValueActive: {
+    color: ModernColors.primary,
+  },
+  datePickerDuration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    marginHorizontal: 16,
+  },
+  datePickerDurationText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: ModernColors.textSecondary,
-    textAlign: 'center',
-    marginTop: 10,
+  },
+  datePickerApplyButton: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    paddingVertical: 16,
+    backgroundColor: ModernColors.primary,
+    borderRadius: ModernBorderRadius.lg,
+    alignItems: 'center',
+  },
+  datePickerApplyButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Setting label container
@@ -2751,29 +2991,67 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summarySection: {
-    flexDirection: 'row',
     padding: 16,
-    gap: 12,
-  },
-  summaryCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
     backgroundColor: ModernColors.surface,
-    borderRadius: ModernBorderRadius.lg,
-    borderWidth: 1,
-    borderColor: ModernColors.border,
-    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: ModernColors.border,
   },
-  summaryValue: {
-    fontSize: 18,
+  summaryStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  summaryStatItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  summaryStatValue: {
+    fontSize: 20,
     fontWeight: '700',
     color: ModernColors.text,
   },
-  summaryLabel: {
+  summaryStatLabel: {
     fontSize: 11,
     color: ModernColors.textSecondary,
+  },
+  summaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  summaryCancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: ModernColors.background,
+    borderRadius: ModernBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    gap: 6,
+  },
+  summaryCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.textSecondary,
+  },
+  summaryApplyButton: {
+    flex: 1,
+    borderRadius: ModernBorderRadius.lg,
+    overflow: 'hidden',
+  },
+  summaryApplyGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  summaryApplyText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Conflicts

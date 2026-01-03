@@ -369,6 +369,51 @@ class PreferencesService {
     this.savePreferences();
   }
 
+  // School break date preferences (for Weekly Planner)
+  // Returns default Canadian school break dates if not customized
+  getSchoolBreakDates(): {
+    summerStart: string;
+    summerEnd: string;
+    springBreakStart: string;
+    springBreakEnd: string;
+  } {
+    const now = new Date();
+    const year = now.getFullYear();
+    // Use next year for summer if we're past September
+    const summerYear = now.getMonth() > 7 ? year + 1 : year;
+    // Use next year for spring break if we're past March
+    const springYear = now.getMonth() > 2 ? year + 1 : year;
+
+    const defaults = {
+      summerStart: `${summerYear}-06-28`,   // June 28
+      summerEnd: `${summerYear}-09-01`,     // September 1
+      springBreakStart: `${springYear}-03-10`, // March 10
+      springBreakEnd: `${springYear}-03-21`,   // March 21
+    };
+
+    const custom = this.preferences?.schoolBreaks;
+    return {
+      summerStart: custom?.summerStart || defaults.summerStart,
+      summerEnd: custom?.summerEnd || defaults.summerEnd,
+      springBreakStart: custom?.springBreakStart || defaults.springBreakStart,
+      springBreakEnd: custom?.springBreakEnd || defaults.springBreakEnd,
+    };
+  }
+
+  setSchoolBreakDates(breaks: {
+    summerStart?: string;
+    summerEnd?: string;
+    springBreakStart?: string;
+    springBreakEnd?: string;
+  }) {
+    if (!this.preferences) return;
+    this.preferences.schoolBreaks = {
+      ...this.preferences.schoolBreaks,
+      ...breaks,
+    };
+    this.savePreferences();
+  }
+
   // Mark onboarding complete
   completeOnboarding() {
     this.preferences!.hasCompletedOnboarding = true;

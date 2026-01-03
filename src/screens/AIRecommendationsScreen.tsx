@@ -398,6 +398,7 @@ const AIRecommendationsScreen = () => {
         source={source}
         onPress={() => handleActivityPress(rec.activity_id)}
         showExplanation={true}
+        children={selectedChildren}
         containerStyle={{
           width: '100%',
           marginBottom: 16,

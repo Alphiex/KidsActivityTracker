@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -10,6 +10,9 @@ import { getActivityImageByKey } from '../../assets/images';
 import { getActivityImageKey } from '../../utils/activityHelpers';
 import { formatActivityPrice } from '../../utils/formatters';
 import { Colors, Theme } from '../../theme';
+import { ChildWithPreferences } from '../../store/slices/childrenSlice';
+import { getChildColor } from '../../theme/childColors';
+import { ChildAvatar } from '../children';
 
 interface AIRecommendationCardProps {
   recommendation: AIRecommendation;
@@ -18,6 +21,7 @@ interface AIRecommendationCardProps {
   onPress?: () => void;
   showExplanation?: boolean;
   containerStyle?: any;
+  children?: ChildWithPreferences[];
 }
 
 /**
@@ -31,8 +35,29 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   onPress,
   showExplanation = true,
   containerStyle,
+  children: childrenProp,
 }) => {
   const { colors, isDark } = useTheme();
+
+  // Calculate which children this activity is great for
+  const matchingChildren = useMemo(() => {
+    if (!childrenProp || childrenProp.length === 0) return [];
+
+    const activityAgeMin = activity.ageRange?.min ?? activity.ageMin ?? 0;
+    const activityAgeMax = activity.ageRange?.max ?? activity.ageMax ?? 18;
+
+    return childrenProp.filter(child => {
+      if (!child.dateOfBirth) return false;
+      const birthDate = new Date(child.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age >= activityAgeMin && age <= activityAgeMax;
+    });
+  }, [childrenProp, activity]);
 
   // Format fit score as label
   const fitScoreLabel = recommendation.fit_score >= 90
@@ -361,6 +386,27 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
         )}
       </View>
 
+      {/* Great For Section - shows which children this activity suits */}
+      {matchingChildren.length > 0 && (
+        <View style={[styles.greatForSection, { borderTopColor: colors.border }]}>
+          <Text style={[styles.greatForLabel, { color: colors.textSecondary }]}>Great for:</Text>
+          <View style={styles.greatForChildren}>
+            {matchingChildren.map(child => {
+              const color = getChildColor(child.colorId);
+              return (
+                <View
+                  key={child.id}
+                  style={[styles.greatForBadge, { backgroundColor: color.hex + '25', borderColor: color.hex }]}
+                >
+                  <ChildAvatar child={child} size={20} showBorder={false} />
+                  <Text style={[styles.greatForName, { color: color.hex }]}>{child.name}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
       {/* Why This Is Great Section */}
       {showExplanation && recommendation.why && recommendation.why.length > 0 && (
         <View style={[styles.whySection, { borderTopColor: colors.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#F0FDF4' }]}>
@@ -598,6 +644,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: Colors.success,
+  },
+  greatForSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  greatForLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  greatForChildren: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    flex: 1,
+  },
+  greatForBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  greatForName: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   whySection: {
     padding: 12,

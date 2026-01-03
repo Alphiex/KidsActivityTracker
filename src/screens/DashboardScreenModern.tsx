@@ -29,6 +29,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import TrialCountdownBanner from '../components/TrialCountdownBanner';
 import ScreenBackground from '../components/ScreenBackground';
 import ChildFilterSelector from '../components/ChildFilterSelector';
+import { ChildAvatar } from '../components/children';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode } from '../store/slices/childrenSlice';
@@ -144,20 +145,24 @@ const DashboardScreenModern = () => {
     // The useEffect watching selectedChildIds/filterMode will trigger the reload
   }, []);
 
-  // Get children that match an activity based on age
+  // Get children that match an activity based on age (only from selected children)
   const getMatchingChildren = useCallback((activity: Activity) => {
-    if (children.length === 0) return [];
+    if (children.length === 0 || selectedChildIds.length === 0) return [];
+
+    // Only consider selected children
+    const selectedChildren = children.filter(c => selectedChildIds.includes(c.id));
+    if (selectedChildren.length === 0) return [];
 
     // Get activity age range
     const activityAgeMin = activity.ageRange?.min ?? activity.ageMin ?? 0;
     const activityAgeMax = activity.ageRange?.max ?? activity.ageMax ?? 18;
 
-    return children.filter(child => {
+    return selectedChildren.filter(child => {
       if (!child.dateOfBirth) return false;
       const childAge = calculateAge(child.dateOfBirth);
       return childAge >= activityAgeMin && childAge <= activityAgeMax;
     });
-  }, [children, calculateAge]);
+  }, [children, selectedChildIds, calculateAge]);
 
   // Shuffle array using Fisher-Yates algorithm for randomization
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -1344,7 +1349,35 @@ const DashboardScreenModern = () => {
             >
               <View style={styles.aiBannerTextContainer}>
                 <Text style={styles.aiBannerTitle}>AI Recommendations</Text>
-                <Text style={styles.aiBannerSubtitle}>Get personalized activity suggestions</Text>
+                {(() => {
+                  const selectedChildren = children.filter(c => selectedChildIds.includes(c.id));
+                  if (selectedChildren.length > 0) {
+                    return (
+                      <View style={styles.aiBannerChildrenRow}>
+                        <Text style={styles.aiBannerSubtitle}>Personalized for </Text>
+                        <View style={styles.aiBannerAvatars}>
+                          {selectedChildren.slice(0, 3).map((child, index) => (
+                            <View key={child.id} style={[styles.aiBannerAvatarWrapper, index > 0 && { marginLeft: -8 }]}>
+                              <ChildAvatar child={child} size={24} showBorder={true} borderWidth={2} />
+                            </View>
+                          ))}
+                          {selectedChildren.length > 3 && (
+                            <View style={styles.aiBannerMoreBadge}>
+                              <Text style={styles.aiBannerMoreText}>+{selectedChildren.length - 3}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {filterMode === 'and' && selectedChildren.length > 1 && (
+                          <View style={styles.aiBannerTogetherBadge}>
+                            <Icon name="account-group" size={14} color="#FFFFFF" />
+                            <Text style={styles.aiBannerTogetherText}>Together</Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  }
+                  return <Text style={styles.aiBannerSubtitle}>Get personalized activity suggestions</Text>;
+                })()}
               </View>
               <Icon name="chevron-right" size={22} color="#FFFFFF" />
             </LinearGradient>
@@ -1697,6 +1730,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
+  },
+  aiBannerChildrenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  aiBannerAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 2,
+  },
+  aiBannerAvatarWrapper: {
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 14,
+  },
+  aiBannerMoreBadge: {
+    marginLeft: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  aiBannerMoreText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  aiBannerTogetherBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginLeft: 8,
+    gap: 4,
+  },
+  aiBannerTogetherText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   aiRobotImageOverlay: {
     position: 'absolute',

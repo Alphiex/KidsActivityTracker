@@ -179,7 +179,16 @@ export interface UserPreferences {
     end?: string;  // Optional end date (ISO string)
   };
   dateMatchMode: 'partial' | 'full'; // 'partial' = overlap, 'full' = completely within range
-  
+
+  // School break date preferences (for Weekly Planner)
+  // Custom dates override defaults. Dates are ISO strings (YYYY-MM-DD).
+  schoolBreaks?: {
+    summerStart?: string;  // Default: June 28
+    summerEnd?: string;    // Default: September 1
+    springBreakStart?: string;  // Default: March 10
+    springBreakEnd?: string;    // Default: March 21
+  };
+
   // Onboarding
   hasCompletedOnboarding: boolean;
   createdAt: string;
