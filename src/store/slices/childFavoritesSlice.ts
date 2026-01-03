@@ -446,4 +446,37 @@ export const selectUniqueFavoritedActivities = (selectedChildIds: string[]) => (
   return activities;
 };
 
+// Child assignment type with full details
+export interface ChildAssignment {
+  childId: string;
+  name: string;
+  colorId: number;
+}
+
+// Get children (with full details including colorId) who have favorited an activity
+export const selectChildrenWhoFavoritedWithDetails = (activityId: string) => (state: RootState): ChildAssignment[] => {
+  const favorites = state.childFavorites.favorites.filter(f => f.activityId === activityId);
+  const children = state.children.children;
+
+  return favorites
+    .map(f => {
+      const child = children.find(c => c.id === f.childId);
+      return child ? { childId: child.id, name: child.name, colorId: child.colorId || 1 } : null;
+    })
+    .filter((c): c is ChildAssignment => c !== null);
+};
+
+// Get children (with full details including colorId) who are on waitlist for an activity
+export const selectChildrenOnWaitlistWithDetails = (activityId: string) => (state: RootState): ChildAssignment[] => {
+  const waitlist = state.childFavorites.waitlist.filter(w => w.activityId === activityId);
+  const children = state.children.children;
+
+  return waitlist
+    .map(w => {
+      const child = children.find(c => c.id === w.childId);
+      return child ? { childId: child.id, name: child.name, colorId: child.colorId || 1 } : null;
+    })
+    .filter((c): c is ChildAssignment => c !== null);
+};
+
 export default childFavoritesSlice.reducer;
