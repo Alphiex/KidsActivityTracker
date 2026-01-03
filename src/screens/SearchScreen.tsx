@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -27,16 +27,18 @@ import { getActivityTypeIcon } from '../utils/activityTypeIcons';
 import { aiRobotImage } from '../assets/images';
 import LinearGradient from 'react-native-linear-gradient';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
-import { HierarchicalSelect, buildHierarchyFromAPI } from '../components/HierarchicalSelect';
-import { HierarchicalProvince, EnhancedAddress } from '../types/preferences';
+import { EnhancedAddress } from '../types/preferences';
 import { useAppSelector } from '../store';
-import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
-import { ChildAvatar } from '../components/children';
-import { getChildColor } from '../theme/childColors';
+import {
+  selectAllChildren,
+  ChildWithPreferences,
+  ChildFilterMode,
+  selectSelectedChildIds,
+  selectFilterMode,
+} from '../store/slices/childrenSlice';
 import { ModernColors } from '../theme/modernTheme';
 import ScreenBackground from '../components/ScreenBackground';
 import ChildFilterSelector from '../components/ChildFilterSelector';
-import { ChildFilterMode, selectSelectedChildIds, selectFilterMode } from '../store/slices/childrenSlice';
 
 const DAYS_OF_WEEK = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -139,10 +141,6 @@ const SearchScreen = () => {
   const [expandedActivityTypes, setExpandedActivityTypes] = useState<Set<string>>(new Set());
 
   // Location data
-  const [hierarchyData, setHierarchyData] = useState<HierarchicalProvince[]>([]);
-  const [selectedLocationIds, setSelectedLocationIds] = useState<Set<string>>(new Set());
-  const [locationsLoading, setLocationsLoading] = useState(true);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [searchedLocation, setSearchedLocation] = useState<EnhancedAddress | null>(null);
 
   // UI state - sections in same order as FiltersScreen (excludes 'what' which is always visible)
@@ -151,7 +149,7 @@ const SearchScreen = () => {
     { id: 'environment', title: 'Indoor or Outdoor?', icon: 'weather-sunny', expanded: false },
     { id: 'age', title: 'Age Range?', icon: 'account-child', expanded: false },
     { id: 'where', title: 'Where?', icon: 'map-marker', expanded: false },
-    { id: 'distance', title: 'How Far?', icon: 'map-marker-radius', expanded: false },
+    { id: 'distance', title: 'Distance', icon: 'map-marker-distance', expanded: false },
     { id: 'cost', title: 'Cost?', icon: 'currency-usd', expanded: false },
     { id: 'days', title: 'Day of the Week?', icon: 'calendar-week', expanded: false },
     { id: 'time', title: 'Time?', icon: 'clock-outline', expanded: false },
@@ -169,36 +167,12 @@ const SearchScreen = () => {
     }).start();
 
     loadActivityTypes();
-    loadLocations();
 
     // Load preferences from selected children on mount
     if (selectedChildren.length > 0) {
       loadChildrenPreferencesAsFilters(selectedChildren, filterMode);
     }
   }, []);
-
-  const loadLocations = async () => {
-    try {
-      setLocationsLoading(true);
-      const [citiesData, locationsData] = await Promise.all([
-        activityService.getCities(),
-        activityService.getLocations(),
-      ]);
-
-      if (locationsData && locationsData.length > 0) {
-        const hierarchy = buildHierarchyFromAPI(citiesData || [], locationsData);
-        setHierarchyData(hierarchy);
-      }
-    } catch (error) {
-      console.error('Error loading locations:', error);
-    } finally {
-      setLocationsLoading(false);
-    }
-  };
-
-  const handleLocationSelectionChange = (newSelection: Set<string>) => {
-    setSelectedLocationIds(newSelection);
-  };
 
   const handleLocationAutocompleteSelect = (address: EnhancedAddress | null) => {
     setSearchedLocation(address);
@@ -227,13 +201,12 @@ const SearchScreen = () => {
   const loadChildrenPreferencesAsFilters = (children: ChildWithPreferences[], mode: ChildFilterMode) => {
     if (children.length === 0) return;
 
-    // Collect all activity types from selected children
+    // Collect preferences from selected children
     const allActivityTypes = new Set<string>();
     const allDays = new Set<string>();
     const prices: { min: number; max: number }[] = [];
     const environments: ('all' | 'indoor' | 'outdoor')[] = [];
     const distances: number[] = [];
-    const ages: number[] = [];
 
     children.forEach(child => {
       const prefs = child.preferences;
@@ -254,9 +227,6 @@ const SearchScreen = () => {
       }
       if (prefs?.distanceRadiusKm) {
         distances.push(prefs.distanceRadiusKm);
-      }
-      if (child.dateOfBirth) {
-        ages.push(calculateAge(child.dateOfBirth));
       }
     });
 
@@ -296,29 +266,7 @@ const SearchScreen = () => {
       setDistanceEnabled(true);
     }
 
-    // Apply age range based on mode
-    if (ages.length > 0) {
-      if (mode === 'and') {
-        // Together mode: age range that covers ALL children
-        setMinAge(Math.max(0, Math.min(...ages) - 1));
-        setMaxAge(Math.min(18, Math.max(...ages) + 2));
-      } else {
-        // Any mode: expand range
-        setMinAge(Math.max(0, Math.min(...ages) - 1));
-        setMaxAge(Math.min(18, Math.max(...ages) + 2));
-      }
-    }
-  };
-
-  const calculateAge = (dateOfBirth: string): number => {
-    const dob = new Date(dateOfBirth);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--;
-    }
-    return Math.max(0, age);
+    // Age range defaults to 0-18 (all ages) - don't override from child preferences
   };
 
   const loadActivityTypes = async () => {
@@ -442,9 +390,7 @@ const SearchScreen = () => {
     setMaxCost(500);
     setIsUnlimitedCost(false);
     setSelectedCities([]);
-    setSelectedLocationIds(new Set());
     setSearchedLocation(null);
-    setShowLocationPicker(false);
     setMinAge(0);
     setMaxAge(18);
     setEnvironmentFilter('all');
@@ -455,12 +401,8 @@ const SearchScreen = () => {
   };
 
   const handleSearch = async () => {
-    // Merge selected cities and location IDs into a single locations array
-    // Backend handles both UUIDs (location IDs) and city names automatically
-    const allLocations = [
-      ...selectedCities,
-      ...Array.from(selectedLocationIds)
-    ].filter(Boolean);
+    // Use selected cities for location filtering
+    const allLocations = selectedCities.filter(Boolean);
 
     const searchParams: ActivitySearchParams = {
       search: searchText || undefined,
@@ -512,11 +454,8 @@ const SearchScreen = () => {
       return;
     }
 
-    // Merge selected cities and location IDs into a single locations array
-    const allLocations = [
-      ...selectedCities,
-      ...Array.from(selectedLocationIds)
-    ].filter(Boolean);
+    // Use selected cities for location filtering
+    const allLocations = selectedCities.filter(Boolean);
 
     const filters = {
       search: searchText || undefined,
@@ -556,15 +495,8 @@ const SearchScreen = () => {
         if (minAge === 0 && maxAge === 18) return 'All ages';
         return `${minAge} - ${maxAge} years`;
       case 'where':
-        const totalLocations = selectedCities.length + selectedLocationIds.size;
-        if (totalLocations > 0) {
-          if (selectedCities.length > 0 && selectedLocationIds.size > 0) {
-            return `${selectedCities.length} cities, ${selectedLocationIds.size} locations`;
-          } else if (selectedCities.length > 0) {
-            return selectedCities.length <= 2 ? selectedCities.join(', ') : `${selectedCities.length} cities`;
-          } else {
-            return `${selectedLocationIds.size} locations`;
-          }
+        if (selectedCities.length > 0) {
+          return selectedCities.length <= 2 ? selectedCities.join(', ') : `${selectedCities.length} cities`;
         }
         return 'Anywhere';
       case 'distance':
@@ -723,35 +655,39 @@ const SearchScreen = () => {
       );
     }
 
-    const environmentOptions = [
-      { value: 'all', label: 'All Activities', description: 'Show both indoor and outdoor activities', icon: 'earth' },
-      { value: 'indoor', label: 'Indoor Only', description: 'Swimming pools, gyms, studios, rinks', icon: 'home-roof' },
-      { value: 'outdoor', label: 'Outdoor Only', description: 'Parks, fields, nature, adventure', icon: 'pine-tree' },
+    const environmentOptions: { value: 'all' | 'indoor' | 'outdoor'; label: string; icon: string }[] = [
+      { value: 'all', label: 'All', icon: 'checkbox-marked-circle-outline' },
+      { value: 'indoor', label: 'Indoor', icon: 'home' },
+      { value: 'outdoor', label: 'Outdoor', icon: 'tree' },
     ];
 
     return (
       <View style={styles.sectionContentInner}>
-        {environmentOptions.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.optionCard,
-              environmentFilter === option.value && styles.optionCardSelected
-            ]}
-            onPress={() => setEnvironmentFilter(option.value as 'all' | 'indoor' | 'outdoor')}
-          >
-            <View style={styles.optionCardContent}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon name={option.icon} size={20} color={environmentFilter === option.value ? '#E8638B' : '#6B7280'} style={{ marginRight: 10 }} />
-                <Text style={styles.optionTitle}>{option.label}</Text>
-              </View>
-              <Text style={styles.optionDescription}>{option.description}</Text>
-            </View>
-            <View style={[styles.radio, environmentFilter === option.value && styles.radioActive]}>
-              {environmentFilter === option.value && <View style={styles.radioInner} />}
-            </View>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.environmentContainer}>
+          {environmentOptions.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.environmentOption,
+                environmentFilter === option.value && styles.environmentOptionSelected,
+              ]}
+              onPress={() => setEnvironmentFilter(option.value)}
+              activeOpacity={0.7}
+            >
+              <Icon
+                name={option.icon}
+                size={24}
+                color={environmentFilter === option.value ? ModernColors.primary : ModernColors.textSecondary}
+              />
+              <Text style={[
+                styles.environmentLabel,
+                environmentFilter === option.value && styles.environmentLabelSelected,
+              ]}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     );
   };
@@ -823,41 +759,12 @@ const SearchScreen = () => {
           </View>
         </View>
       )}
-
-      {/* Divider */}
-      <View style={styles.locationDivider}>
-        <View style={styles.locationDividerLine} />
-        <Text style={styles.locationDividerText}>OR</Text>
-        <View style={styles.locationDividerLine} />
-      </View>
-
-      {/* Hierarchical Location Selection */}
-      <TouchableOpacity
-        style={styles.locationExpandButton}
-        onPress={() => setShowLocationPicker(!showLocationPicker)}
-      >
-        <Icon name="format-list-bulleted" size={20} color="#E8638B" />
-        <Text style={styles.locationExpandText}>
-          Browse by Province & City ({selectedLocationIds.size > 0 ? `${selectedLocationIds.size} selected` : 'None selected'})
-        </Text>
-        <Icon name={showLocationPicker ? 'chevron-up' : 'chevron-down'} size={20} color="#6B7280" />
-      </TouchableOpacity>
-
-      {showLocationPicker && (
-        <View style={{ maxHeight: 300, marginTop: 12 }}>
-          <HierarchicalSelect
-            hierarchy={hierarchyData}
-            selectedLocationIds={selectedLocationIds}
-            onSelectionChange={handleLocationSelectionChange}
-            loading={locationsLoading}
-            searchPlaceholder="Search provinces, cities, locations..."
-          />
-        </View>
-      )}
     </View>
   );
 
   const renderDistanceContent = () => {
+    const DISTANCE_OPTIONS = [5, 10, 25, 50, 100];
+
     // Gate for non-premium users
     if (!hasAdvancedFilters) {
       return (
@@ -879,34 +786,32 @@ const SearchScreen = () => {
 
     return (
       <View style={styles.sectionContentInner}>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Enable Distance Filter</Text>
-          <Switch
-            value={distanceEnabled}
-            onValueChange={setDistanceEnabled}
-            trackColor={{ false: '#D1D5DB', true: '#F9A8D4' }}
-            thumbColor={distanceEnabled ? '#E8638B' : '#F3F4F6'}
-          />
+        <View style={styles.distanceChips}>
+          {DISTANCE_OPTIONS.map((distance) => (
+            <TouchableOpacity
+              key={distance}
+              style={[
+                styles.distanceChip,
+                distanceRadius === distance && styles.distanceChipSelected,
+              ]}
+              onPress={() => {
+                setDistanceRadius(distance);
+                setDistanceEnabled(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.distanceChipText,
+                distanceRadius === distance && styles.distanceChipTextSelected,
+              ]}>
+                {distance} km
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-
-        {distanceEnabled && (
-          <>
-            <View style={styles.rangeHeader}>
-              <Text style={styles.rangeLabel}>Search Radius</Text>
-              <Text style={styles.rangeValue}>{distanceRadius} km</Text>
-            </View>
-            <Slider
-              style={styles.slider}
-              minimumValue={5}
-              maximumValue={100}
-              step={5}
-              value={distanceRadius}
-              onValueChange={setDistanceRadius}
-              minimumTrackTintColor="#E8638B"
-              maximumTrackTintColor="#DDDDDD"
-            />
-          </>
-        )}
+        <Text style={styles.distanceNote}>
+          Activities within {distanceRadius} km of your location
+        </Text>
       </View>
     );
   };
@@ -1118,15 +1023,6 @@ const SearchScreen = () => {
               showModeToggle={true}
               onSelectionChange={handleChildFilterChange}
             />
-            {selectedChildren.length > 0 && (
-              <Text style={styles.childPreferencesInfo}>
-                {filterMode === 'and'
-                  ? `Finding activities for all ${selectedChildren.length} children together`
-                  : selectedChildren.length === children.length
-                    ? 'Using preferences from all children'
-                    : `Using preferences from ${selectedChildren.map(c => c.name).join(', ')}`}
-              </Text>
-            )}
           </View>
         )}
 
@@ -1158,50 +1054,52 @@ const SearchScreen = () => {
           </View>
         </ScrollView>
 
-        {/* Bottom Actions */}
+        {/* Bottom Actions - Compact layout */}
         <View style={styles.bottomActions}>
-          {/* Search Button */}
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch} activeOpacity={0.8}>
-            <LinearGradient
-              colors={[ModernColors.primary, '#D53F8C']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.searchButtonGradient}
-            >
-              <Icon name={returnToMap ? 'filter-check' : 'magnify'} size={20} color="#FFFFFF" />
-              <Text style={styles.searchButtonText}>{returnToMap ? 'Apply Filters' : 'Search'}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* AI Match Button - Hidden when filtering for map */}
-          {!returnToMap && (
-            <TouchableOpacity
-              onPress={handleAISearch}
-              style={styles.aiMatchContainer}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={isPremium ? ['#FFB5C5', '#E8638B', '#D53F8C'] : ['#D1D5DB', '#9CA3AF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.aiMatchButtonGradient}
+          <View style={styles.buttonRow}>
+            {/* AI Match Button - Hidden when filtering for map */}
+            {!returnToMap && (
+              <TouchableOpacity
+                onPress={handleAISearch}
+                style={styles.aiMatchContainer}
+                activeOpacity={0.8}
               >
-                <Image
-                  source={aiRobotImage}
-                  style={styles.robotImageInline}
-                  resizeMode="contain"
-                />
-                <Text style={styles.aiMatchText}>AI Match</Text>
-                {!isPremium && (
-                  <Icon name="lock" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
-                )}
+                <LinearGradient
+                  colors={isPremium ? ['#FFB5C5', '#E8638B'] : ['#D1D5DB', '#9CA3AF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.aiMatchButtonGradient}
+                >
+                  <Image
+                    source={aiRobotImage}
+                    style={styles.robotImageInline}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.aiMatchText}>AI Match</Text>
+                  {!isPremium && (
+                    <Icon name="lock" size={12} color="#FFFFFF" />
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {/* Search Button */}
+            <TouchableOpacity style={[styles.searchButton, returnToMap && { flex: 1 }]} onPress={handleSearch} activeOpacity={0.8}>
+              <LinearGradient
+                colors={[ModernColors.primary, '#D53F8C']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.searchButtonGradient}
+              >
+                <Icon name={returnToMap ? 'filter-check' : 'magnify'} size={18} color="#FFFFFF" />
+                <Text style={styles.searchButtonText}>{returnToMap ? 'Apply' : 'Search'}</Text>
               </LinearGradient>
             </TouchableOpacity>
-          )}
+          </View>
 
-          {/* Clear All Button */}
+          {/* Clear All - small text link */}
           <TouchableOpacity style={styles.clearButton} onPress={clearAllFilters}>
-            <Text style={styles.clearButtonText}>Clear All Filters</Text>
+            <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
         </View>
         </SafeAreaView>
@@ -1247,48 +1145,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   childSelectorContainer: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-  },
-  childSelectorLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 10,
-  },
-  childSelectorScroll: {
-    gap: 10,
-    paddingRight: 20,
-  },
-  childChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 8,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    gap: 8,
+    borderRadius: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
-  childChipSelected: {
-    backgroundColor: ModernColors.primary + '10',
-  },
-  childChipName: {
-    fontSize: 14,
+  childSelectorLabel: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-  },
-  childPreferencesInfo: {
-    fontSize: 13,
-    color: ModernColors.primary,
-    marginTop: 8,
-    fontStyle: 'italic',
+    marginBottom: 4,
   },
   scrollContent: {
     flex: 1,
@@ -1533,53 +1405,65 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: '#FFFFFF',
   },
-  // Option cards (environment)
-  optionCard: {
+  // Environment options (horizontal cards)
+  environmentContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 10,
+    gap: 12,
   },
-  optionCardSelected: {
-    borderColor: ModernColors.primary,
-    backgroundColor: ModernColors.primary + '10',
-  },
-  optionCardContent: {
+  environmentOption: {
     flex: 1,
-  },
-  optionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222222',
-  },
-  optionDescription: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-    marginLeft: 30,
-  },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  radioActive: {
+  environmentOptionSelected: {
+    backgroundColor: ModernColors.primary + '10',
     borderColor: ModernColors.primary,
   },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  environmentLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ModernColors.textSecondary,
+    marginTop: 8,
+  },
+  environmentLabelSelected: {
+    color: ModernColors.primary,
+  },
+  // Distance chips
+  distanceChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  distanceChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  distanceChipSelected: {
     backgroundColor: ModernColors.primary,
+    borderColor: ModernColors.primary,
+  },
+  distanceChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  distanceChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  distanceNote: {
+    fontSize: 13,
+    color: ModernColors.textSecondary,
+    textAlign: 'center',
+    marginTop: 12,
   },
   // Range sliders
   rangeHeader: {
@@ -1680,67 +1564,66 @@ const styles = StyleSheet.create({
   customTimeContainer: {
     marginTop: 16,
   },
-  // Bottom actions - vertically stacked
+  // Bottom actions - compact horizontal layout
   bottomActions: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    gap: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
   searchButton: {
-    borderRadius: 12,
+    flex: 1,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   searchButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    gap: 8,
-    shadowColor: ModernColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    height: 44,
+    gap: 6,
   },
   searchButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   aiMatchContainer: {
-    borderRadius: 12,
+    flex: 1,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   aiMatchButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    gap: 8,
-    paddingHorizontal: 16,
+    height: 44,
+    gap: 6,
   },
   aiMatchText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   robotImageInline: {
-    width: 32,
-    height: 32,
+    width: 24,
+    height: 24,
   },
   clearButton: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   clearButtonText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '500',
     color: ModernColors.textSecondary,
-    textDecorationLine: 'underline',
   },
 });
 

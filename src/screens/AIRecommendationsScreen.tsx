@@ -21,6 +21,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import aiService from '../services/aiService';
 import PreferencesService from '../services/preferencesService';
 import locationService from '../services/locationService';
+import childPreferencesService from '../services/childPreferencesService';
 import { useAppSelector } from '../store';
 import {
   selectAllChildren,
@@ -74,7 +75,6 @@ const AIRecommendationsScreen = () => {
   const [response, setResponse] = useState<AIRecommendationResponse | null>(null);
   const [activities, setActivities] = useState<Map<string, Activity>>(new Map());
   const [source, setSource] = useState<AISourceType>('heuristic');
-  const [userLocation, setUserLocation] = useState<{ city?: string; latitude?: number; longitude?: number } | null>(null);
 
   // Get params from route - use useMemo to prevent new object references on every render
   const searchIntent = route.params?.search_intent || 'Find the best activities for my family';
@@ -121,7 +121,11 @@ const AIRecommendationsScreen = () => {
       if (!isRefresh) setLoading(true);
       setError(null);
 
-      // Get user preferences for family context
+      // Get merged child preferences (combines all selected children's preferences)
+      const childIds = selectedChildIds?.length > 0 ? selectedChildIds : children.map(c => c.id);
+      const mergedChildPrefs = childPreferencesService.getMergedPreferences(childIds, filterMode || 'or');
+
+      // Get user preferences as fallback
       const preferencesService = PreferencesService.getInstance();
       const preferences = preferencesService.getPreferences();
 
@@ -139,36 +143,33 @@ const AIRecommendationsScreen = () => {
         console.warn('[AIRecommendationsScreen] Could not get location:', locError);
       }
 
-      // Store location for display
-      setUserLocation({
-        ...locationData,
-        city: preferences.preferredLocation,
-      });
-
       // Use children's age range if available, otherwise fall back to preferences
       const ageMin = childrenAgeRange?.min ?? preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min;
       const ageMax = childrenAgeRange?.max ?? preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max;
 
-      // Merge user preferences with route filters
+      // Get distance radius from child preferences (default 25km)
+      const radiusKm = mergedChildPrefs?.distanceRadiusKm ?? 25;
+
+      // Merge child preferences with route filters
       const enrichedFilters = {
         ...filters,
         // Add age range from children or preferences
         ageMin: filters.ageMin ?? ageMin,
         ageMax: filters.ageMax ?? ageMax,
-        // Add location from preferences if available
-        city: filters.city ?? preferences.preferredLocation,
-        // Add GPS coordinates if available (for 20km radius filtering)
+        // Add location from child preferences or user preferences
+        city: filters.city ?? mergedChildPrefs?.city ?? preferences.preferredLocation,
+        // Add GPS coordinates if available with child's preferred radius
         ...(locationData.latitude && locationData.longitude ? {
           latitude: locationData.latitude,
           longitude: locationData.longitude,
-          radiusKm: 20, // Default 20km radius for AI recommendations
+          radiusKm: radiusKm,
         } : {}),
-        // Add preferred activity types if not specified
-        activityTypes: filters.activityTypes ?? preferences.preferredActivityTypes,
-        // Add day preferences - only if user has specific preferences set
-        dayOfWeek: filters.dayOfWeek ?? (preferences.daysOfWeek?.length < 7 ? preferences.daysOfWeek : undefined),
-        // Add price preferences
-        costMax: filters.costMax ?? preferences.priceRange?.max,
+        // Add preferred activity types from child preferences
+        activityTypes: filters.activityTypes ?? mergedChildPrefs?.activityTypes ?? preferences.preferredActivityTypes,
+        // Add day preferences from child preferences
+        dayOfWeek: filters.dayOfWeek ?? mergedChildPrefs?.daysOfWeek,
+        // Add price preferences from child preferences
+        costMax: filters.costMax ?? mergedChildPrefs?.maxPrice ?? preferences.priceRange?.max,
       };
 
       console.log('[AIRecommendationsScreen] Enriched filters with preferences:', enrichedFilters);
@@ -288,94 +289,15 @@ const AIRecommendationsScreen = () => {
     </View>
   );
   
-  // Render search context (what we're searching for)
-  const renderSearchContext = () => {
-    // Get user preferences to show family context
-    const preferencesService = PreferencesService.getInstance();
-    const preferences = preferencesService.getPreferences();
-
-    // Build context from preferences and filters
-    const contextItems: string[] = [];
-
-    // Age range - prefer children's ages, then preferences, then filters
-    if (childrenAgeRange) {
-      // Show children's names if available
-      const childNames = children.slice(0, 2).map(c => c.name).join(', ');
-      if (childNames) {
-        contextItems.push(`For ${childNames}${children.length > 2 ? ` +${children.length - 2}` : ''}`);
-      }
-      if (childrenAgeRange.min === childrenAgeRange.max) {
-        contextItems.push(`Age ${childrenAgeRange.min}`);
-      } else {
-        contextItems.push(`Ages ${childrenAgeRange.min}-${childrenAgeRange.max}`);
-      }
-    } else {
-      // Fall back to preferences
-      const ageMin = preferences.ageRanges?.[0]?.min ?? preferences.ageRange?.min ?? filters.ageMin;
-      const ageMax = preferences.ageRanges?.[0]?.max ?? preferences.ageRange?.max ?? filters.ageMax;
-      if (ageMin !== undefined && ageMax !== undefined && !(ageMin === 0 && ageMax === 18)) {
-        if (ageMin === ageMax) {
-          contextItems.push(`Age ${ageMin}`);
-        } else {
-          contextItems.push(`Ages ${ageMin}-${ageMax}`);
-        }
-      }
-    }
-
-    // Preferred activity types
-    if (preferences.preferredActivityTypes?.length > 0) {
-      const typeLabel = preferences.preferredActivityTypes.slice(0, 2).join(', ');
-      contextItems.push(typeLabel);
-    } else if (filters.categories || filters.category) {
-      const cat = filters.categories?.split(',')[0] || filters.category;
-      if (cat) contextItems.push(cat);
-    }
-
-    // Days of week - only show if not all days selected
-    const days = filters.dayOfWeek || (preferences.daysOfWeek?.length < 7 ? preferences.daysOfWeek : null);
-    if (days && days.length > 0 && days.length < 7) {
-      if (days.length === 2 && days.includes('Saturday') && days.includes('Sunday')) {
-        contextItems.push('Weekends');
-      } else if (days.length <= 2) {
-        contextItems.push(days.join(', '));
-      } else {
-        contextItems.push(`${days.length} days/week`);
-      }
-    }
-
-    // Location - show city from preferences or GPS
-    const location = userLocation?.city || preferences.preferredLocation || filters.location || filters.city;
-    if (location) {
-      contextItems.push(location);
-    }
-
-    // Show 20km radius indicator if using GPS
-    if (userLocation?.latitude && userLocation?.longitude) {
-      contextItems.push('Within 20km');
-    }
+  // Render results count header
+  const renderResultsHeader = () => {
+    if (!response?.recommendations?.length) return null;
 
     return (
-      <View style={[styles.contextBanner, { backgroundColor: colors.primary + '08' }]}>
-        <View style={styles.contextHeader}>
-          <Icon name="auto-fix" size={20} color={colors.primary} />
-          <Text style={[styles.contextTitle, { color: colors.text }]}>
-            Personalized for you
-          </Text>
-        </View>
-        {contextItems.length > 0 && (
-          <View style={styles.contextTags}>
-            {contextItems.map((item, index) => (
-              <View key={index} style={[styles.contextTag, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={[styles.contextTagText, { color: colors.primary }]}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        {response?.recommendations?.length ? (
-          <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
-            Found {response.recommendations.length} great matches
-          </Text>
-        ) : null}
+      <View style={styles.resultsHeader}>
+        <Text style={[styles.resultsCount, { color: colors.textSecondary }]}>
+          Found {response.recommendations.length} great {response.recommendations.length === 1 ? 'match' : 'matches'}
+        </Text>
       </View>
     );
   };
@@ -456,7 +378,7 @@ const AIRecommendationsScreen = () => {
               renderItem={renderRecommendationItem}
               keyExtractor={(item) => item.activity_id}
               contentContainerStyle={styles.listContent}
-              ListHeaderComponent={renderSearchContext}
+              ListHeaderComponent={renderResultsHeader}
               ListEmptyComponent={renderEmptyState}
               refreshControl={
                 <RefreshControl
@@ -529,39 +451,12 @@ const styles = StyleSheet.create({
   columnWrapper: {
     justifyContent: 'flex-start',
   },
-  contextBanner: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
+  resultsHeader: {
+    marginBottom: 12,
   },
-  contextHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  contextTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  contextTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  contextTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  contextTagText: {
-    fontSize: 13,
+  resultsCount: {
+    fontSize: 14,
     fontWeight: '500',
-  },
-  resultCount: {
-    fontSize: 13,
-    marginTop: 4,
   },
   recommendationsList: {
     gap: 0, // Cards have their own margins
