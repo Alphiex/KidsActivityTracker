@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,56 +7,50 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
-  TextInput,
+  SafeAreaView,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { 
+import {
   fetchChildActivityHistory,
-  updateActivityStatus,
-  unlinkActivity,
   selectChildActivitiesLoading,
-  ActivityStatus,
 } from '../../store/slices/childActivitiesSlice';
 import { ChildActivity } from '../../services/childActivityService';
+import ScreenBackground from '../../components/ScreenBackground';
+import ActivityCard from '../../components/ActivityCard';
+import { ChildAvatar } from '../../components/children';
+import { selectChildById } from '../../store/slices/childrenSlice';
+import { Colors, Theme } from '../../theme';
+import { Activity } from '../../types';
 
-type FilterStatus = ActivityStatus | 'all';
+type TabType = 'upcoming' | 'current' | 'past';
 
 const ChildActivityHistoryScreen = () => {
   const route = useRoute();
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const loading = useAppSelector(selectChildActivitiesLoading);
-  
+
   const { childId, childName } = route.params as { childId: string; childName: string };
-  
+  const child = useAppSelector(selectChildById(childId));
+
   const [activities, setActivities] = useState<ChildActivity[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-  const [selectedActivity, setSelectedActivity] = useState<ChildActivity | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editNotes, setEditNotes] = useState('');
-  const [editRating, setEditRating] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('upcoming');
+
+  const loadActivityHistory = useCallback(async () => {
+    try {
+      const result = await dispatch(fetchChildActivityHistory({ childId })).unwrap();
+      setActivities(result);
+    } catch (error) {
+      console.error('Failed to load activity history:', error);
+    }
+  }, [childId, dispatch]);
 
   useEffect(() => {
     loadActivityHistory();
-  }, [childId, filterStatus]);
-
-  const loadActivityHistory = async () => {
-    try {
-      const filters: any = { childId };
-      if (filterStatus !== 'all') {
-        filters.status = filterStatus;
-      }
-      
-      const result = await dispatch(fetchChildActivityHistory(filters)).unwrap();
-      setActivities(result);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load activity history');
-    }
-  };
+  }, [loadActivityHistory]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -64,575 +58,405 @@ const ChildActivityHistoryScreen = () => {
     setRefreshing(false);
   };
 
-  const handleStatusChange = async (activity: ChildActivity, newStatus: ActivityStatus) => {
-    try {
-      await dispatch(updateActivityStatus({
-        childId: activity.childId,
-        activityId: activity.activityId,
-        input: { status: newStatus },
-      })).unwrap();
-      
-      await loadActivityHistory();
-      Alert.alert('Success', 'Activity status updated');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update activity status');
+  // Categorize activities based on their dates relative to today
+  const categorizedActivities = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcoming: ChildActivity[] = [];
+    const current: ChildActivity[] = [];
+    const past: ChildActivity[] = [];
+
+    activities.forEach(item => {
+      if (!item.activity) return;
+
+      const activity = item.activity;
+
+      // Get start and end dates from various possible sources
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      // Try dateRange first
+      if (activity.dateRange) {
+        if (activity.dateRange.start) {
+          startDate = new Date(activity.dateRange.start);
+        }
+        if (activity.dateRange.end) {
+          endDate = new Date(activity.dateRange.end);
+        }
+      }
+
+      // Fallback to startDate/endDate fields
+      if (!startDate && activity.startDate) {
+        startDate = new Date(activity.startDate);
+      }
+      if (!endDate && activity.endDate) {
+        endDate = new Date(activity.endDate);
+      }
+
+      // Reset time for comparison
+      if (startDate) startDate.setHours(0, 0, 0, 0);
+      if (endDate) endDate.setHours(0, 0, 0, 0);
+
+      // Categorize based on dates
+      if (startDate && endDate) {
+        if (endDate < today) {
+          // Activity has ended
+          past.push(item);
+        } else if (startDate <= today && endDate >= today) {
+          // Activity is ongoing
+          current.push(item);
+        } else if (startDate > today) {
+          // Activity hasn't started yet
+          upcoming.push(item);
+        }
+      } else if (startDate) {
+        // Only start date available
+        if (startDate > today) {
+          upcoming.push(item);
+        } else {
+          current.push(item);
+        }
+      } else if (endDate) {
+        // Only end date available
+        if (endDate < today) {
+          past.push(item);
+        } else {
+          current.push(item);
+        }
+      } else {
+        // No dates - put in upcoming by default
+        upcoming.push(item);
+      }
+    });
+
+    // Sort activities by date
+    const sortByStartDate = (a: ChildActivity, b: ChildActivity) => {
+      const aDate = a.activity?.dateRange?.start || a.activity?.startDate;
+      const bDate = b.activity?.dateRange?.start || b.activity?.startDate;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    };
+
+    upcoming.sort(sortByStartDate);
+    current.sort(sortByStartDate);
+    past.sort((a, b) => -sortByStartDate(a, b)); // Reverse for past (most recent first)
+
+    return { upcoming, current, past };
+  }, [activities]);
+
+  const getTabActivities = () => {
+    switch (activeTab) {
+      case 'upcoming':
+        return categorizedActivities.upcoming;
+      case 'current':
+        return categorizedActivities.current;
+      case 'past':
+        return categorizedActivities.past;
+      default:
+        return [];
     }
   };
 
-  const handleEditActivity = (activity: ChildActivity) => {
-    setSelectedActivity(activity);
-    setEditNotes(activity.notes || '');
-    setEditRating(activity.rating || null);
-    setShowEditModal(true);
+  const tabs: { key: TabType; label: string; icon: string; count: number }[] = [
+    { key: 'upcoming', label: 'Upcoming', icon: 'calendar-clock', count: categorizedActivities.upcoming.length },
+    { key: 'current', label: 'In Progress', icon: 'play-circle', count: categorizedActivities.current.length },
+    { key: 'past', label: 'Completed', icon: 'check-circle', count: categorizedActivities.past.length },
+  ];
+
+  const handleActivityPress = (activity: Activity) => {
+    navigation.navigate('ActivityDetail', { activity });
   };
 
-  const handleSaveEdit = async () => {
-    if (!selectedActivity) return;
+  const renderEmptyState = () => {
+    const emptyMessages = {
+      upcoming: {
+        icon: 'calendar-plus',
+        title: 'No upcoming activities',
+        subtitle: 'Activities you add to the calendar will appear here',
+      },
+      current: {
+        icon: 'play-circle-outline',
+        title: 'No activities in progress',
+        subtitle: 'Activities happening now will appear here',
+      },
+      past: {
+        icon: 'history',
+        title: 'No past activities',
+        subtitle: 'Completed activities will appear here',
+      },
+    };
 
-    try {
-      await dispatch(updateActivityStatus({
-        childId: selectedActivity.childId,
-        activityId: selectedActivity.activityId,
-        input: {
-          status: selectedActivity.status,
-          notes: editNotes,
-          rating: editRating || undefined,
-        },
-      })).unwrap();
-      
-      setShowEditModal(false);
-      await loadActivityHistory();
-      Alert.alert('Success', 'Activity updated');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update activity');
-    }
-  };
+    const message = emptyMessages[activeTab];
 
-  const handleRemoveActivity = async (activity: ChildActivity) => {
-    Alert.alert(
-      'Remove Activity',
-      'Are you sure you want to remove this activity from the child\'s history?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await dispatch(unlinkActivity({
-                childId: activity.childId,
-                activityId: activity.activityId,
-              })).unwrap();
-              
-              await loadActivityHistory();
-              Alert.alert('Success', 'Activity removed');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove activity');
-            }
-          },
-        },
-      ]
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconContainer}>
+          <Icon name={message.icon} size={64} color={Colors.primary} />
+        </View>
+        <Text style={styles.emptyText}>{message.title}</Text>
+        <Text style={styles.emptySubtext}>{message.subtitle}</Text>
+      </View>
     );
   };
 
-  const getStatusColor = (status: ActivityStatus) => {
-    switch (status) {
-      case 'planned': return '#FFA500';
-      case 'in_progress': return '#4CAF50';
-      case 'completed': return '#2196F3';
-      default: return '#666';
-    }
-  };
+  const tabActivities = getTabActivities();
 
-  const getStatusIcon = (status: ActivityStatus) => {
-    switch (status) {
-      case 'planned': return 'schedule';
-      case 'in_progress': return 'play-circle-outline';
-      case 'completed': return 'done-all';
-      default: return 'help-outline';
-    }
-  };
+  return (
+    <ScreenBackground>
+      <SafeAreaView style={styles.container}>
+        {/* Header with child info */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-left" size={24} color={Colors.text.primary} />
+          </TouchableOpacity>
 
-  const formatDate = (date: Date | string | null) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const filterOptions: { value: FilterStatus; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'planned', label: 'Planned' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-  ];
-
-  const renderActivityCard = (item: ChildActivity) => {
-    const activity = item.activity;
-    if (!activity) return null;
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        style={styles.activityCard}
-        onPress={() => navigation.navigate('ActivityDetail', { activity })}
-      >
-        <View style={styles.activityHeader}>
-          <View style={styles.activityInfo}>
-            <Text style={styles.activityName}>{activity.name}</Text>
-            <View style={styles.statusBadge}>
-              <Icon
-                name={getStatusIcon(item.status)}
-                size={16}
-                color={getStatusColor(item.status)}
+          <View style={styles.headerContent}>
+            {child && (
+              <ChildAvatar
+                child={child}
+                size={40}
+                style={styles.headerAvatar}
               />
-              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            )}
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>{childName}'s Activities</Text>
+              <Text style={styles.headerSubtitle}>
+                {activities.length} {activities.length === 1 ? 'activity' : 'activities'} on calendar
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.moreButton}
-            onPress={() => handleEditActivity(item)}
-          >
-            <Icon name="more-vert" size={24} color="#666" />
-          </TouchableOpacity>
         </View>
 
-        <View style={styles.activityDetails}>
-          <View style={styles.detailRow}>
-            <Icon name="calendar-today" size={16} color="#666" />
-            <Text style={styles.detailText}>
-              {activity.dateRange 
-                ? `${formatDate(activity.dateRange.start)} - ${formatDate(activity.dateRange.end)}`
-                : 'Date TBD'}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Icon name="location-on" size={16} color="#666" />
-            <Text style={styles.detailText}>
-              {typeof activity.location === 'string'
-                ? activity.location
-                : (activity.location as any)?.name || 'Location TBD'}
-            </Text>
-          </View>
-          {item.rating && (
-            <View style={styles.detailRow}>
-              <Icon name="star" size={16} color="#FFD700" />
-              <Text style={styles.detailText}>Rating: {item.rating}/5</Text>
-            </View>
-          )}
-        </View>
-
-        {item.notes && (
-          <View style={styles.notesSection}>
-            <Text style={styles.notesLabel}>Notes:</Text>
-            <Text style={styles.notesText}>{item.notes}</Text>
-          </View>
-        )}
-
-        <View style={styles.activityActions}>
-          {item.status === 'planned' && (
+        {/* Tab Bar */}
+        <View style={styles.tabContainer}>
+          {tabs.map((tab) => (
             <TouchableOpacity
-              style={[styles.actionButton, styles.registerButton]}
-              onPress={() => handleStatusChange(item, 'in_progress')}
-            >
-              <Icon name="play-circle-outline" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Start</Text>
-            </TouchableOpacity>
-          )}
-          {item.status === 'in_progress' && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.completeButton]}
-              onPress={() => handleStatusChange(item, 'completed')}
-            >
-              <Icon name="done-all" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Mark Complete</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.removeButton]}
-            onPress={() => handleRemoveActivity(item)}
-          >
-            <Icon name="delete-outline" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Remove</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{childName}'s Activities</Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {filterOptions.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.filterChip,
-              filterStatus === option.value && styles.filterChipActive,
-            ]}
-            onPress={() => setFilterStatus(option.value)}
-          >
-            <Text
+              key={tab.key}
               style={[
-                styles.filterChipText,
-                filterStatus === option.value && styles.filterChipTextActive,
+                styles.tab,
+                activeTab === tab.key && styles.tabActive,
               ]}
+              onPress={() => setActiveTab(tab.key)}
             >
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {loading && activities.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-          </View>
-        ) : activities.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Icon name="history" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No activities found</Text>
-            <Text style={styles.emptySubtext}>
-              {filterStatus === 'all' 
-                ? 'Start by registering your child for activities'
-                : `No ${filterStatus} activities`}
-            </Text>
-          </View>
-        ) : (
-          activities.map(renderActivityCard)
-        )}
-      </ScrollView>
-
-      {/* Edit Modal */}
-      {showEditModal && selectedActivity && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Activity</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <Icon name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              <Text style={styles.inputLabel}>Notes</Text>
-              <TextInput
-                style={styles.notesInput}
-                value={editNotes}
-                onChangeText={setEditNotes}
-                placeholder="Add notes about this activity..."
-                multiline
-                numberOfLines={4}
+              <Icon
+                name={tab.icon}
+                size={18}
+                color={activeTab === tab.key ? Colors.white : Colors.textSecondary}
               />
-
-              {selectedActivity.status === 'completed' && (
-                <>
-                  <Text style={styles.inputLabel}>Rating</Text>
-                  <View style={styles.ratingContainer}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <TouchableOpacity
-                        key={star}
-                        onPress={() => setEditRating(star)}
-                      >
-                        <Icon
-                          name={star <= (editRating || 0) ? 'star' : 'star-border'}
-                          size={32}
-                          color="#FFD700"
-                        />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.key && styles.tabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+              {tab.count > 0 && (
+                <View style={[
+                  styles.tabBadge,
+                  activeTab === tab.key && styles.tabBadgeActive,
+                ]}>
+                  <Text style={[
+                    styles.tabBadgeText,
+                    activeTab === tab.key && styles.tabBadgeTextActive,
+                  ]}>
+                    {tab.count}
+                  </Text>
+                </View>
               )}
-            </View>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowEditModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveEdit}
-              >
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            </TouchableOpacity>
+          ))}
         </View>
-      )}
-    </View>
+
+        {/* Content */}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {loading && activities.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading activities...</Text>
+            </View>
+          ) : tabActivities.length === 0 ? (
+            renderEmptyState()
+          ) : (
+            <>
+              {tabActivities.map((item) => {
+                if (!item.activity) return null;
+                // Cast to Activity type for ActivityCard compatibility
+                const activity = item.activity as unknown as Activity;
+                return (
+                  <ActivityCard
+                    key={item.id}
+                    activity={activity}
+                    onPress={() => handleActivityPress(activity)}
+                    containerStyle={styles.activityCard}
+                    imageHeight={160}
+                  />
+                );
+              })}
+              <View style={styles.bottomSpacer} />
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#fff',
-    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  backButton: {
+    padding: Theme.spacing.xs,
+    marginRight: Theme.spacing.sm,
+  },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerAvatar: {
+    marginRight: Theme.spacing.sm,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    gap: Theme.spacing.xs,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Theme.spacing.sm,
+    paddingHorizontal: Theme.spacing.xs,
+    borderRadius: Theme.borderRadius.lg,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    gap: 4,
+  },
+  tabActive: {
+    backgroundColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.textSecondary,
   },
-  filterContainer: {
-    backgroundColor: '#fff',
-    maxHeight: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  tabTextActive: {
+    color: Colors.white,
   },
-  filterContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
   },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    marginRight: 8,
+  tabBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
-  filterChipActive: {
-    backgroundColor: '#4CAF50',
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
   },
-  filterChipText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  filterChipTextActive: {
-    color: '#fff',
-    fontWeight: '500',
+  tabBadgeTextActive: {
+    color: Colors.white,
   },
   content: {
     flex: 1,
-    padding: 16,
+  },
+  contentContainer: {
+    padding: Theme.spacing.md,
+    paddingBottom: Theme.spacing.xxl,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingVertical: 80,
+  },
+  loadingText: {
+    marginTop: Theme.spacing.md,
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingVertical: 80,
+    paddingHorizontal: Theme.spacing.xl,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.lg,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '500',
-    color: '#666',
-    marginTop: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: Theme.spacing.xs,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   activityCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: Theme.spacing.md,
   },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  activityInfo: {
-    flex: 1,
-  },
-  activityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  moreButton: {
-    padding: 4,
-  },
-  activityDetails: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  notesSection: {
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  notesLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  activityActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 4,
-  },
-  registerButton: {
-    backgroundColor: '#4CAF50',
-  },
-  completeButton: {
-    backgroundColor: '#2196F3',
-  },
-  removeButton: {
-    backgroundColor: '#F44336',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    width: '90%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  modalBody: {
-    padding: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-  },
-  notesInput: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  saveButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#4CAF50',
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+  bottomSpacer: {
+    height: Theme.spacing.xl,
   },
 });
 

@@ -39,6 +39,8 @@ model Activity {
   registrationUrl        String?
   courseId               String?
   isActive               Boolean                @default(true)
+  isCustomEvent          Boolean                @default(false)
+  createdByUserId        String?
   lastSeenAt             DateTime               @default(now())
   rawData                Json?
   createdAt              DateTime               @default(now())

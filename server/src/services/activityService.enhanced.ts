@@ -27,6 +27,10 @@ interface SearchParams {
   hideClosedOrFull?: boolean; // Hide activities that are closed OR full
   hasCoordinates?: boolean; // Only return activities with lat/lng for map view
   environmentFilter?: 'indoor' | 'outdoor' | 'all'; // Filter by indoor/outdoor
+  // Geographic filtering - bounding box based on user location and radius
+  userLat?: number; // User's latitude for distance filtering
+  userLon?: number; // User's longitude for distance filtering
+  radiusKm?: number; // Search radius in kilometers
   limit?: number;
   offset?: number;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt' | 'distance' | 'availability';
@@ -72,6 +76,10 @@ export class EnhancedActivityService {
       hideClosedOrFull = false,
       hasCoordinates = false,
       environmentFilter,
+      // Geographic filtering
+      userLat,
+      userLon,
+      radiusKm,
       limit = 50,
       offset = 0,
       sortBy = 'availability', // Default to availability-first random ordering
@@ -93,6 +101,9 @@ export class EnhancedActivityService {
       hideClosedActivities,
       hideFullActivities,
       hideClosedOrFull,
+      userLat,
+      userLon,
+      radiusKm,
       limit,
       offset,
       search,
@@ -508,18 +519,24 @@ export class EnhancedActivityService {
       where.providerId = providerId;
     }
 
-    // Apply global filters using shared utility
+    // Apply global filters using shared utility (includes distance filtering)
     console.log('🔧 [ActivityService] Global filter params:', {
       hideClosedActivities,
       hideFullActivities,
       hideClosedOrFull,
+      userLat,
+      userLon,
+      radiusKm,
       types: { hideClosedActivities: typeof hideClosedActivities, hideFullActivities: typeof hideFullActivities, hideClosedOrFull: typeof hideClosedOrFull }
     });
 
     const finalWhere = buildActivityWhereClause(where, {
       hideClosedActivities,
       hideFullActivities,
-      hideClosedOrFull
+      hideClosedOrFull,
+      userLat,
+      userLon,
+      radiusKm,
     });
     
     console.log('🔧 [ActivityService] buildActivityWhereClause result:', JSON.stringify(finalWhere, null, 2));

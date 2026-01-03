@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   Animated,
@@ -144,36 +144,54 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
   };
 
   const handleToggleChild = async (child: Child) => {
+    console.log('[ChildAssignmentSheet] handleToggleChild called for:', child.name, 'actionType:', actionType);
+    console.log('[ChildAssignmentSheet] child.id:', child.id, 'activity.id:', activity.id);
     const isAssigned = assignedChildIds.includes(child.id);
+    console.log('[ChildAssignmentSheet] isAssigned:', isAssigned, 'assignedChildIds:', assignedChildIds);
     setLoadingChildId(child.id);
 
     try {
       if (actionType === 'favorite') {
         if (isAssigned) {
+          console.log('[ChildAssignmentSheet] Removing favorite...');
           await dispatch(removeChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Remove favorite SUCCESS');
         } else {
+          console.log('[ChildAssignmentSheet] Adding favorite...');
           await dispatch(addChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Add favorite SUCCESS');
         }
       } else if (actionType === 'watching') {
         if (isAssigned) {
+          console.log('[ChildAssignmentSheet] Leaving waitlist...');
           await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Leave waitlist SUCCESS');
         } else {
+          console.log('[ChildAssignmentSheet] Joining waitlist...');
           await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Join waitlist SUCCESS');
         }
       } else if (actionType === 'calendar') {
         if (isAssigned) {
+          console.log('[ChildAssignmentSheet] Unlinking activity...');
           await dispatch(unlinkActivity({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Unlink SUCCESS');
         } else {
+          console.log('[ChildAssignmentSheet] Linking activity...');
           await dispatch(linkActivity({
             childId: child.id,
             activityId: activity.id,
             status: 'planned',
           })).unwrap();
+          console.log('[ChildAssignmentSheet] Link SUCCESS');
         }
       }
+      console.log('[ChildAssignmentSheet] Calling onSuccess');
       onSuccess?.(child.id, child.name, !isAssigned);
-    } catch (error) {
-      console.error(`Failed to toggle ${actionType}:`, error);
+    } catch (error: any) {
+      console.error(`[ChildAssignmentSheet] Failed to toggle ${actionType}:`, error);
+      console.error('[ChildAssignmentSheet] Error message:', error?.message);
+      console.error('[ChildAssignmentSheet] Error response:', error?.response?.data);
     } finally {
       setLoadingChildId(null);
     }
@@ -192,18 +210,20 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <Animated.View
-              style={[
-                styles.container,
-                {
-                  backgroundColor: colors.surface,
-                  transform: [{ translateY: slideAnim }],
-                }
-              ]}
-            >
+      <Pressable
+        style={styles.overlay}
+        onPress={onClose}
+      >
+        <Pressable style={{ width: '100%' }} onPress={() => {}}>
+          <Animated.View
+            style={[
+              styles.container,
+              {
+                backgroundColor: colors.surface,
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+          >
               {/* Drag handle */}
               <View style={styles.dragHandleContainer}>
                 <View style={[styles.dragHandle, { backgroundColor: colors.border }]} />
@@ -230,7 +250,7 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
               {hasChildren ? (
                 <>
                   <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    Select child:
+                    Select children (tap to toggle):
                   </Text>
 
                   <ScrollView style={styles.childrenList} showsVerticalScrollIndicator={false}>
@@ -332,10 +352,9 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
                   </TouchableOpacity>
                 </View>
               )}
-            </Animated.View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+          </Animated.View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };

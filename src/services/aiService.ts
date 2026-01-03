@@ -358,6 +358,13 @@ class AIService {
     time_slot: string;
     excluded_activity_ids: string[];
     week_start: string;
+    feedback?: string;
+    current_activity_name?: string;
+    feedback_history?: Array<{
+      activity_id: string;
+      activity_name?: string;
+      feedback: string;
+    }>;
   }): Promise<{
     success: boolean;
     alternative: ScheduleEntry | null;

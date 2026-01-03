@@ -658,18 +658,37 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           {/* Calendar button with child color indicator */}
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => {
-              // If no children, prompt to add one (handled by modal)
-              // If 1 child, we could auto-add, but calendar has more options
-              // So always show the modal for calendar
+            onPress={async () => {
+              console.log('[ActivityCard] Calendar pressed! children.length:', children.length);
+
+              // PRIORITY: If we have children, use child-based logic
               if (children.length === 1) {
-                // Auto-handle for single child via modal (existing behavior)
-                setShowCalendarModal(true);
-              } else {
-                // For multiple children, use the new sheet
+                // Single child - auto-assign
+                console.log('[ActivityCard] Single child, auto-assigning calendar');
+                const child = children[0];
+                const isCurrentlyOnCalendar = calendarChildren.some(c => c.childId === child.id);
+                try {
+                  if (isCurrentlyOnCalendar) {
+                    await dispatch(unlinkActivity({ childId: child.id, activityId: activity.id })).unwrap();
+                  } else {
+                    await dispatch(linkActivity({ childId: child.id, activityId: activity.id, status: 'planned' })).unwrap();
+                  }
+                } catch (error) {
+                  console.error('Failed to toggle calendar:', error);
+                }
+                return;
+              }
+
+              if (children.length > 1) {
+                // Multiple children - show selection sheet
+                console.log('[ActivityCard] Multiple children, showing sheet for calendar');
                 setCurrentAction('calendar');
                 setShowChildSheet(true);
+                return;
               }
+
+              // No children - show modal to prompt adding a child
+              setShowCalendarModal(true);
             }}
           >
             <Icon

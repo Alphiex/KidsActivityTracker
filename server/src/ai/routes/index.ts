@@ -31,6 +31,10 @@ router.use('/explain', explainRouter);
 router.use('/plan-week', planRouter);
 router.use('/chat', chatRouter);
 
+// Mount planRouter at root to expose /find-alternative endpoint
+// This creates POST /api/v1/ai/find-alternative
+router.use('/', planRouter);
+
 // Future routes will be added here:
 // router.use('/enhance', enhanceRouter);
 // router.use('/reviews', reviewsRouter);

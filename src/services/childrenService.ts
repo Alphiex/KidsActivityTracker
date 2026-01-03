@@ -130,7 +130,7 @@ class ChildrenService {
 
   async getChildren(): Promise<Child[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; children: Child[] }>('/api/children');
+      const response = await apiClient.get<{ success: boolean; children: Child[] }>('/api/v1/children');
       return Array.isArray(response?.children) ? response.children : [];
     } catch (error) {
       console.error('Error fetching children:', error);
@@ -140,7 +140,7 @@ class ChildrenService {
 
   async getChild(id: string): Promise<Child | null> {
     try {
-      const response = await apiClient.get<{ success: boolean; child: Child }>(`/api/children/${id}`);
+      const response = await apiClient.get<{ success: boolean; child: Child }>(`/api/v1/children/${id}`);
       return response?.child ?? null;
     } catch (error) {
       console.error('Error fetching child:', error);
@@ -151,7 +151,7 @@ class ChildrenService {
   async createChild(childData: ChildFormData): Promise<Child | null> {
     try {
       console.log('Creating child with data:', JSON.stringify(childData, null, 2));
-      const response = await apiClient.post<{ success: boolean; child: Child }>('/api/children', childData);
+      const response = await apiClient.post<{ success: boolean; child: Child }>('/api/v1/children', childData);
       console.log('Create child response:', JSON.stringify(response, null, 2));
       return response?.child ?? null;
     } catch (error: any) {
@@ -167,7 +167,7 @@ class ChildrenService {
 
   async updateChild(id: string, childData: Partial<ChildFormData>): Promise<Child> {
     try {
-      const response = await apiClient.patch<{ success: boolean; child: Child }>(`/api/children/${id}`, childData);
+      const response = await apiClient.patch<{ success: boolean; child: Child }>(`/api/v1/children/${id}`, childData);
       return response.child;
     } catch (error) {
       console.error('Error updating child:', error);
@@ -177,7 +177,7 @@ class ChildrenService {
 
   async deleteChild(id: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/children/${id}`);
+      await apiClient.delete(`/api/v1/children/${id}`);
     } catch (error) {
       console.error('Error deleting child:', error);
       throw error;
@@ -194,7 +194,7 @@ class ChildrenService {
       } as any);
 
       const response = await apiClient.post<{ avatarUrl: string }>(
-        `/children/${childId}/avatar`,
+        `/api/v1/children/${childId}/avatar`,
         formData,
         {
           headers: {
@@ -212,7 +212,7 @@ class ChildrenService {
   async getChildActivities(childId: string): Promise<ChildActivitiesResponse> {
     try {
       const response = await apiClient.get<ChildActivitiesResponse>(
-        `/children/${childId}/activities`
+        `/api/v1/children/${childId}/activities`
       );
       return response;
     } catch (error) {
@@ -224,7 +224,7 @@ class ChildrenService {
   async getAgeAppropriateActivities(childId: string): Promise<Activity[]> {
     try {
       const response = await apiClient.get<Activity[]>(
-        `/children/${childId}/recommendations`
+        `/api/v1/children/${childId}/recommendations`
       );
       return response;
     } catch (error) {
@@ -293,6 +293,71 @@ class ChildrenService {
   }
 
   // Child Activity Management
+
+  // Create a custom event for a child
+  async createCustomEvent(
+    childId: string,
+    eventData: {
+      title: string;
+      description?: string;
+      scheduledDate: Date;
+      startTime?: string;
+      endTime?: string;
+      location?: string;
+      locationData?: {
+        latitude?: number;
+        longitude?: number;
+        formattedAddress?: string;
+      };
+      recurring?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+      recurrenceEndDate?: Date;
+    }
+  ): Promise<{ activity: Activity; childActivities: ChildActivity[]; eventsCreated: number }> {
+    try {
+      const response = await apiClient.post<{
+        success: boolean;
+        activity: Activity;
+        childActivities: any[];
+        eventsCreated: number;
+      }>(
+        `/api/v1/children/${childId}/custom-events`,
+        {
+          ...eventData,
+          scheduledDate: eventData.scheduledDate.toISOString(),
+          recurrenceEndDate: eventData.recurrenceEndDate?.toISOString(),
+        }
+      );
+
+      // Update local cache with new activities
+      await this.waitForInit();
+      for (const ca of response.childActivities) {
+        const childActivity: ChildActivity = {
+          id: safeString(ca.id, `${childId}-${response.activity.id}-${Date.now()}`),
+          childId: safeString(ca.childId, childId),
+          activityId: safeString(ca.activityId, response.activity.id),
+          status: ca.status || 'planned',
+          addedAt: safeParseDate(ca.createdAt) || new Date(),
+          scheduledDate: safeParseDate(ca.scheduledDate) || undefined,
+          startTime: ca.startTime,
+          endTime: ca.endTime,
+          notes: ca.notes,
+          activity: ca.activity || response.activity,
+        };
+        this.childActivities.push(childActivity);
+      }
+      await this.saveLocalData();
+
+      return {
+        activity: response.activity,
+        childActivities: response.childActivities,
+        eventsCreated: response.eventsCreated,
+      };
+    } catch (error) {
+      console.error('Error creating custom event:', error);
+      throw error;
+    }
+  }
+
   async addActivityToChild(
     childId: string,
     activityId: string,
@@ -303,7 +368,7 @@ class ChildrenService {
   ): Promise<ChildActivity> {
     try {
       const response = await apiClient.post<{ success: boolean; childActivity: any }>(
-        `/api/children/${childId}/activities`,
+        `/api/v1/children/${childId}/activities`,
         {
           activityId,
           status,
@@ -358,7 +423,7 @@ class ChildrenService {
       if (!activity) return null;
 
       const response = await apiClient.patch<{ success: boolean; childActivity: any }>(
-        `/api/children/${activity.childId}/activities/${childActivityId}`,
+        `/api/v1/children/${activity.childId}/activities/${childActivityId}`,
         {
           status,
           notes,
@@ -396,7 +461,7 @@ class ChildrenService {
   async getChildActivitiesList(childId: string, status?: ChildActivity['status']): Promise<ChildActivity[]> {
     try {
       const response = await apiClient.get<{ success: boolean; activities: any[] }>(
-        `/api/children/${childId}/activities${status ? `?status=${status}` : ''}`
+        `/api/v1/children/${childId}/activities${status ? `?status=${status}` : ''}`
       );
 
       console.log('=== API RESPONSE ===');
@@ -466,7 +531,7 @@ class ChildrenService {
   async isActivityAssignedToAnyChild(activityId: string): Promise<boolean> {
     try {
       const response = await apiClient.get<{ success: boolean; isAssigned: boolean }>(
-        `/api/children/activities/${activityId}/assigned`
+        `/api/v1/children/activities/${activityId}/assigned`
       );
       return response.isAssigned;
     } catch (error) {
@@ -504,7 +569,7 @@ class ChildrenService {
   // Sharing Methods
   async shareChildWithUser(childId: string, email: string, permission: 'view' | 'full'): Promise<void> {
     try {
-      const response = await apiClient.post<any>('/api/children/share', {
+      const response = await apiClient.post<any>('/api/v1/children/share', {
         childId,
         email,
         permission,
@@ -518,7 +583,7 @@ class ChildrenService {
 
   async getSharedUsers(childId: string): Promise<any[]> {
     try {
-      const response = await apiClient.get<any>(`/api/children/${childId}/shared`);
+      const response = await apiClient.get<any>(`/api/v1/children/${childId}/shared`);
       return response.data;
     } catch (error) {
       console.error('Error fetching shared users:', error);
@@ -529,7 +594,7 @@ class ChildrenService {
 
   async revokeChildAccess(childId: string, userId: string): Promise<void> {
     try {
-      const response = await apiClient.delete<any>(`/api/children/${childId}/shared/${userId}`);
+      const response = await apiClient.delete<any>(`/api/v1/children/${childId}/shared/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error revoking access:', error);
@@ -539,7 +604,7 @@ class ChildrenService {
 
   async removeActivityFromChild(childId: string, scheduleId: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/children/${childId}/activities/${scheduleId}`);
+      await apiClient.delete(`/api/v1/children/${childId}/activities/${scheduleId}`);
       // Update local cache
       this.childActivities = this.childActivities.filter(
         ca => !(ca.childId === childId && ca.id === scheduleId)
@@ -573,7 +638,7 @@ class ChildrenService {
       }
 
       const response = await apiClient.put<{ success: boolean; activity: any }>(
-        `/api/children/${activity.childId}/activities/${activityId}`,
+        `/api/v1/children/${activity.childId}/activities/${activityId}`,
         updates
       );
 
@@ -615,7 +680,7 @@ class ChildrenService {
 
   async getSharedChildren(): Promise<SharedChild[]> {
     try {
-      const response = await apiClient.get<any>('/api/children/shared-with-me');
+      const response = await apiClient.get<any>('/api/v1/children/shared-with-me');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching shared children:', error);
@@ -637,7 +702,7 @@ class ChildrenService {
       params.append('startDate', startDate.toISOString());
       params.append('endDate', endDate.toISOString());
 
-      const response = await apiClient.get<{ success: boolean; activities: any[] }>(`/api/children/activities/all?${params.toString()}`);
+      const response = await apiClient.get<{ success: boolean; activities: any[] }>(`/api/v1/children/activities/all?${params.toString()}`);
 
       if (response?.success && Array.isArray(response.activities)) {
         const activities: ChildActivity[] = safeMap(response.activities, (ca: any) => ({

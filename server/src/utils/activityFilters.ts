@@ -164,11 +164,11 @@ export function buildActivityWhereClause(
   }
 
   // Day of week filtering
-  // Activities have daysOfWeek as an array field
+  // Activities have dayOfWeek as an array field
   if (filters.daysOfWeek && filters.daysOfWeek.length > 0 && filters.daysOfWeek.length < 7) {
     // Filter for activities that run on any of the selected days
     andConditions.push({
-      daysOfWeek: {
+      dayOfWeek: {
         hasSome: filters.daysOfWeek
       }
     });

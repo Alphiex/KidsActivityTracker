@@ -404,6 +404,58 @@ router.post('/bulk', verifyToken, async (req: Request, res: Response) => {
 
 // ============= Child Activity Management =============
 
+// Create custom event for child
+router.post('/:childId/custom-events', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { childId } = req.params;
+    const {
+      title,
+      description,
+      scheduledDate,
+      startTime,
+      endTime,
+      location,
+      locationData,
+      recurring,
+      recurrenceEndDate,
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Event title is required'
+      });
+    }
+
+    const result = await childrenService.createCustomEvent(
+      childId,
+      req.user!.id,
+      {
+        title,
+        description,
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : new Date(),
+        startTime,
+        endTime,
+        location,
+        locationData,
+        recurring,
+        recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : undefined,
+      }
+    );
+
+    res.status(201).json({
+      success: true,
+      ...result
+    });
+  } catch (error: any) {
+    console.error('Error creating custom event:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Add activity to child's calendar
 router.post('/:childId/activities', verifyToken, async (req: Request, res: Response) => {
   try {

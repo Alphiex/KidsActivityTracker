@@ -99,13 +99,11 @@ const ChildSetupWizardScreen: React.FC = () => {
   const [locationData, setLocationData] = useState<ChildLocationData>(() => {
     if (editingChild?.preferences) {
       return {
-        locationSource: editingChild.preferences.locationSource as 'gps' | 'saved_address',
         savedAddress: editingChild.preferences.savedAddress as EnhancedAddress | null,
         distanceRadiusKm: editingChild.preferences.distanceRadiusKm ?? 25,
       };
     }
     return {
-      locationSource: 'gps',
       savedAddress: null,
       distanceRadiusKm: 25,
     };
@@ -231,10 +229,9 @@ const ChildSetupWizardScreen: React.FC = () => {
       await dispatch(updateChildPreferences({
         childId,
         updates: {
-          locationSource: locationData.locationSource,
           savedAddress: locationData.savedAddress ?? undefined,
           distanceRadiusKm: locationData.distanceRadiusKm,
-          distanceFilterEnabled: locationData.locationSource === 'gps' || !!locationData.savedAddress,
+          distanceFilterEnabled: !!locationData.savedAddress,
           preferredActivityTypes: activitiesData.preferredActivityTypes,
         },
       })).unwrap();

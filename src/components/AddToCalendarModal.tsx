@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -118,10 +118,9 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={{ width: '100%', alignItems: 'center' }} onPress={() => {}}>
+          <View style={[styles.container, { backgroundColor: colors.surface }]}>
               {/* Header */}
               <View style={styles.header}>
                 <View style={[styles.iconContainer, { backgroundColor: Colors.primary + '20' }]}>
@@ -241,9 +240,8 @@ const AddToCalendarModal: React.FC<AddToCalendarModalProps> = ({
                 </TouchableOpacity>
               )}
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };

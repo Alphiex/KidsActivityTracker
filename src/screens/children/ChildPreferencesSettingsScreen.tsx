@@ -62,13 +62,11 @@ const ChildPreferencesSettingsScreen: React.FC = () => {
   const [locationData, setLocationData] = useState<ChildLocationData>(() => {
     if (child?.preferences) {
       return {
-        locationSource: child.preferences.locationSource as 'gps' | 'saved_address',
         savedAddress: child.preferences.savedAddress as EnhancedAddress | null,
         distanceRadiusKm: child.preferences.distanceRadiusKm ?? 25,
       };
     }
     return {
-      locationSource: 'gps',
       savedAddress: null,
       distanceRadiusKm: 25,
     };
@@ -116,10 +114,9 @@ const ChildPreferencesSettingsScreen: React.FC = () => {
       await dispatch(updateChildPreferences({
         childId,
         updates: {
-          locationSource: locationData.locationSource,
           savedAddress: locationData.savedAddress ?? undefined,
           distanceRadiusKm: locationData.distanceRadiusKm,
-          distanceFilterEnabled: locationData.locationSource === 'gps' || !!locationData.savedAddress,
+          distanceFilterEnabled: !!locationData.savedAddress,
           preferredActivityTypes: activitiesData.preferredActivityTypes,
         },
       })).unwrap();
@@ -154,11 +151,8 @@ const ChildPreferencesSettingsScreen: React.FC = () => {
   }
 
   const getLocationSummary = (): string => {
-    if (locationData.locationSource === 'gps') {
-      return `Using GPS location (${locationData.distanceRadiusKm} km radius)`;
-    }
     if (locationData.savedAddress) {
-      return `${locationData.savedAddress.city || 'Custom address'} (${locationData.distanceRadiusKm} km radius)`;
+      return `${locationData.savedAddress.city || locationData.savedAddress.formattedAddress || 'Custom address'} (${locationData.distanceRadiusKm} km radius)`;
     }
     return 'Not set';
   };

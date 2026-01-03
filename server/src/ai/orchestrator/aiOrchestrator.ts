@@ -217,6 +217,222 @@ export class AIOrchestrator {
   }
 
   /**
+   * Find an alternative activity for a schedule slot
+   * Used when user declines a planned activity and wants something different
+   */
+  async findAlternativeActivity(params: {
+    child_id: string;
+    day: string;
+    time_slot: string;
+    excluded_activity_ids: string[];
+    week_start: string;
+    feedback?: string;
+    current_activity_name?: string;
+    feedback_history?: Array<{
+      activity_id: string;
+      activity_name?: string;
+      feedback: string;
+    }>;
+    user_id: string;
+  }): Promise<{
+    success: boolean;
+    alternative: {
+      child_id: string;
+      child_name?: string;
+      activity_id: string;
+      activity_name: string;
+      day: string;
+      time: string;
+      location: string;
+      duration_minutes?: number;
+    } | null;
+    error?: string;
+  }> {
+    try {
+      console.log('[AIOrchestrator] Finding alternative activity:', {
+        child_id: params.child_id,
+        day: params.day,
+        time_slot: params.time_slot,
+        excluded_count: params.excluded_activity_ids.length,
+        feedback: params.feedback,
+      });
+
+      // Get child info
+      const child = await this.prisma.child.findFirst({
+        where: { id: params.child_id, userId: params.user_id },
+        include: { preferences: true }
+      });
+
+      if (!child) {
+        return { success: false, alternative: null, error: 'Child not found' };
+      }
+
+      // Calculate child's age
+      const birthDate = new Date(child.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      // Get child's location from preferences
+      const prefs = child.preferences;
+      const savedAddress = prefs?.savedAddress as { latitude?: number; longitude?: number } | null;
+      const latitude = savedAddress?.latitude ?? null;
+      const longitude = savedAddress?.longitude ?? null;
+      const radiusKm = prefs?.distanceRadiusKm ?? 25;
+
+      // Build search filters - keep them relaxed to get more results
+      const filters: any = {
+        ageMin: Math.max(0, age - 2),  // Slightly wider age range
+        ageMax: Math.min(18, age + 2),
+        limit: 50,  // Get more candidates
+        hideClosedOrFull: true,
+      };
+
+      // Add location filter if available
+      if (latitude && longitude) {
+        filters.latitude = latitude;
+        filters.longitude = longitude;
+        filters.radiusKm = Math.max(radiusKm, 30);  // At least 30km radius
+      }
+
+      // Note: Don't filter by dayOfWeek - many activities run multiple days
+      // and we want variety in suggestions
+
+      // Add preferred activity types if available (but not required)
+      if (prefs?.preferredActivityTypes && prefs.preferredActivityTypes.length > 0) {
+        // Don't add this filter to get more variety
+        // filters.activityTypes = prefs.preferredActivityTypes;
+      }
+
+      // Add gender filter based on child (this one is important)
+      if (child.gender) {
+        filters.gender = child.gender;
+      }
+
+      console.log('[AIOrchestrator] Searching with filters:', JSON.stringify(filters));
+
+      // Search for activities
+      const result = await this.activityService.searchActivities(filters);
+      let activities = result.activities || [];
+
+      console.log('[AIOrchestrator] Found', activities.length, 'activities before exclusion');
+
+      // Filter out excluded activities
+      const excludedSet = new Set(params.excluded_activity_ids);
+      activities = activities.filter(a => !excludedSet.has(a.id));
+
+      if (activities.length === 0) {
+        return {
+          success: false,
+          alternative: null,
+          error: 'No suitable alternatives found'
+        };
+      }
+
+      // Combine all feedback: current message + history of why activities were declined
+      const allFeedback: string[] = [];
+      if (params.feedback) {
+        allFeedback.push(params.feedback);
+      }
+      if (params.feedback_history && params.feedback_history.length > 0) {
+        for (const hist of params.feedback_history) {
+          if (hist.feedback && hist.feedback !== 'declined without specific feedback') {
+            allFeedback.push(hist.feedback);
+          }
+        }
+      }
+
+      // Extract preferences from all feedback
+      const combinedFeedback = allFeedback.join(' ').toLowerCase();
+
+      // Positive preferences (what user wants)
+      const wantsOutdoor = combinedFeedback.includes('outdoor') || combinedFeedback.includes('outside');
+      const wantsIndoor = combinedFeedback.includes('indoor') || combinedFeedback.includes('inside');
+      const wantsFree = combinedFeedback.includes('free') || combinedFeedback.includes('no cost') || combinedFeedback.includes('cheap');
+      const wantsCreative = combinedFeedback.includes('art') || combinedFeedback.includes('creative') || combinedFeedback.includes('craft') || combinedFeedback.includes('music');
+      const wantsSport = combinedFeedback.includes('sport') || combinedFeedback.includes('athletic') || combinedFeedback.includes('physical') || combinedFeedback.includes('active');
+      const wantsSwimming = combinedFeedback.includes('swim') || combinedFeedback.includes('pool') || combinedFeedback.includes('water');
+      const wantsDance = combinedFeedback.includes('dance') || combinedFeedback.includes('ballet');
+      const wantsMartialArts = combinedFeedback.includes('martial') || combinedFeedback.includes('karate') || combinedFeedback.includes('taekwondo');
+      const wantsSocial = combinedFeedback.includes('social') || combinedFeedback.includes('friends') || combinedFeedback.includes('group');
+
+      // Negative preferences (what user doesn't want - from reasons for declining)
+      const avoidsTooFar = combinedFeedback.includes('too far') || combinedFeedback.includes('distance');
+      const avoidsTooExpensive = combinedFeedback.includes('expensive') || combinedFeedback.includes('too much') || combinedFeedback.includes('cost');
+      const avoidsSport = combinedFeedback.includes("don't like sport") || combinedFeedback.includes("not sporty");
+      const avoidsTooLong = combinedFeedback.includes('too long') || combinedFeedback.includes('shorter');
+
+      console.log('[AIOrchestrator] Extracted preferences from feedback:', {
+        feedbackCount: allFeedback.length,
+        wantsOutdoor, wantsIndoor, wantsFree, wantsCreative, wantsSport,
+        avoidsTooFar, avoidsTooExpensive
+      });
+
+      // Score activities based on all feedback
+      activities = activities.map(a => {
+        let score = 0;
+        const name = a.name?.toLowerCase() || '';
+        const type = a.activityType?.name?.toLowerCase() || '';
+
+        // Positive scoring (what user wants)
+        if (wantsOutdoor && (a.isOutdoor || name.includes('outdoor'))) score += 15;
+        if (wantsIndoor && a.isIndoor) score += 15;
+        if (wantsFree && (a.cost === 0 || a.cost === null)) score += 15;
+        if (wantsCreative && (type.includes('art') || type.includes('creative') || type.includes('craft') || type.includes('music'))) score += 15;
+        if (wantsSport && (type.includes('sport') || type.includes('gym') || type.includes('athletic'))) score += 15;
+        if (wantsSwimming && (type.includes('swim') || type.includes('aquatic'))) score += 15;
+        if (wantsDance && type.includes('dance')) score += 15;
+        if (wantsMartialArts && type.includes('martial')) score += 15;
+        if (wantsSocial && (name.includes('group') || name.includes('team') || name.includes('class'))) score += 10;
+
+        // Negative scoring (what user is avoiding)
+        if (avoidsTooExpensive && a.cost && a.cost > 50) score -= 20;
+        if (avoidsSport && (type.includes('sport') || type.includes('athletic'))) score -= 20;
+        if (avoidsTooLong && a.durationMinutes && a.durationMinutes > 90) score -= 10;
+
+        return { ...a, feedbackScore: score };
+      }).sort((a, b) => (b as any).feedbackScore - (a as any).feedbackScore);
+
+      // Pick the best match
+      const bestMatch = activities[0];
+
+      // Map time slot to display time
+      const timeDisplay = params.time_slot === 'morning' ? '9:00 AM' :
+                         params.time_slot === 'afternoon' ? '1:00 PM' :
+                         params.time_slot === 'evening' ? '5:00 PM' : params.time_slot;
+
+      const alternative = {
+        child_id: params.child_id,
+        child_name: child.name,
+        activity_id: bestMatch.id,
+        activity_name: bestMatch.name,
+        day: params.day,
+        time: timeDisplay,
+        location: bestMatch.location?.city || bestMatch.location?.address || 'Location TBD',
+        duration_minutes: bestMatch.durationMinutes || 60,
+      };
+
+      console.log('[AIOrchestrator] Found alternative:', alternative.activity_name);
+
+      return {
+        success: true,
+        alternative,
+      };
+
+    } catch (error: any) {
+      console.error('[AIOrchestrator] Error finding alternative:', error);
+      return {
+        success: false,
+        alternative: null,
+        error: 'Failed to find alternative activity'
+      };
+    }
+  }
+
+  /**
    * Generate weekly schedule for family
    */
   async planWeek(

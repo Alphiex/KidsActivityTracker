@@ -697,21 +697,35 @@ const CalendarScreenModernFixed = () => {
 
   const handleSaveCustomEvent = async (event: CustomEvent) => {
     try {
-      // Create a custom activity via the API
+      // Create a custom event via the API
       const scheduledDate = new Date(format(event.date, 'yyyy-MM-dd'));
       const startTimeStr = format(event.startTime, 'h:mm a').toLowerCase();
       const endTimeStr = format(event.endTime, 'h:mm a').toLowerCase();
 
-      const response = await childrenService.addActivityToChild(
+      const result = await childrenService.createCustomEvent(
         event.childId,
-        'custom-' + Date.now(), // Temporary activity ID for custom events
-        'planned',
-        scheduledDate,
-        startTimeStr,
-        endTimeStr
+        {
+          title: event.title,
+          description: event.description,
+          scheduledDate,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          location: event.location,
+          locationData: event.locationAddress ? {
+            latitude: event.locationAddress.latitude,
+            longitude: event.locationAddress.longitude,
+            formattedAddress: event.locationAddress.formattedAddress,
+          } : undefined,
+          recurring: event.recurring === 'none' ? undefined : event.recurring,
+          recurrenceEndDate: event.recurring && event.recurring !== 'none' ? event.recurrenceEndDate : undefined,
+        }
       );
 
-      Alert.alert('Success', 'Event added to calendar');
+      if (result.eventsCreated > 1) {
+        Alert.alert('Success', `Created ${result.eventsCreated} recurring events`);
+      } else {
+        Alert.alert('Success', 'Event added to calendar');
+      }
       loadData(); // Refresh calendar
     } catch (error) {
       console.error('[Calendar] Failed to save custom event:', error);

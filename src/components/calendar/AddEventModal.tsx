@@ -10,13 +10,16 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import { format, addDays, addWeeks, addMonths } from 'date-fns';
 import { safeParseDateISO } from '../../utils/safeAccessors';
 import { ModernColors } from '../../theme/modernTheme';
 import { CHILD_COLORS } from '../../utils/calendarUtils';
+import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
+import { EnhancedAddress } from '../../types/preferences';
 
 interface Child {
   id: string;
@@ -30,6 +33,7 @@ interface AddEventModalProps {
   onSave: (event: CustomEvent) => Promise<void>;
   children: Child[];
   initialDate?: string;
+  initialChildId?: string;
 }
 
 export interface CustomEvent {
@@ -39,6 +43,7 @@ export interface CustomEvent {
   startTime: Date;
   endTime: Date;
   location: string;
+  locationAddress?: EnhancedAddress | null;
   childId: string;
   recurring?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
   recurrenceEndDate?: Date;
@@ -50,10 +55,11 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
   onSave,
   children,
   initialDate,
+  initialChildId,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
+  const [locationAddress, setLocationAddress] = useState<EnhancedAddress | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string>('');
   const [date, setDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
@@ -73,8 +79,8 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
     if (visible) {
       setTitle('');
       setDescription('');
-      setLocation('');
-      setSelectedChildId(children[0]?.id || '');
+      setLocationAddress(null);
+      setSelectedChildId(initialChildId || children[0]?.id || '');
       setRecurring('none');
 
       if (initialDate) {
@@ -99,7 +105,7 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
       recEnd.setMonth(recEnd.getMonth() + 1);
       setRecurrenceEndDate(recEnd);
     }
-  }, [visible, initialDate, children]);
+  }, [visible, initialDate, initialChildId, children]);
 
   const handleSave = async () => {
     // Validation
@@ -126,7 +132,8 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
         date,
         startTime,
         endTime,
-        location: location.trim(),
+        location: locationAddress?.formattedAddress || '',
+        locationAddress,
         childId: selectedChildId,
         recurring: recurring !== 'none' ? recurring : undefined,
         recurrenceEndDate: recurring !== 'none' ? recurrenceEndDate : undefined,
@@ -139,6 +146,49 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
     }
   };
 
+  const handleExportToCalendar = (calendarType: 'apple' | 'google') => {
+    if (!title.trim()) {
+      Alert.alert('Required', 'Please enter an event title first.');
+      return;
+    }
+
+    const startDateTime = new Date(date);
+    startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+
+    const endDateTime = new Date(date);
+    endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+    const location = locationAddress?.formattedAddress || '';
+
+    if (calendarType === 'google') {
+      // Google Calendar URL format
+      const startStr = format(startDateTime, "yyyyMMdd'T'HHmmss");
+      const endStr = format(endDateTime, "yyyyMMdd'T'HHmmss");
+      const googleUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startStr}/${endStr}&details=${encodeURIComponent(description)}&location=${encodeURIComponent(location)}`;
+      Linking.openURL(googleUrl);
+    } else {
+      // Apple Calendar - use calendar:// scheme
+      // Format: calendar://addEvent?title=X&startDate=X&endDate=X&notes=X&location=X
+      const startStr = startDateTime.toISOString();
+      const endStr = endDateTime.toISOString();
+      const appleUrl = `calshow:${startDateTime.getTime() / 1000}`;
+
+      // Try to open Calendar app - Note: iOS doesn't have a direct "add event" URL scheme
+      // We'll show instructions instead
+      Alert.alert(
+        'Add to Apple Calendar',
+        'To add this event to Apple Calendar:\n\n1. Open the Calendar app\n2. Tap + to add a new event\n3. Enter the event details\n\nWould you like to open Calendar now?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Calendar',
+            onPress: () => Linking.openURL('calshow:')
+          }
+        ]
+      );
+    }
+  };
+
   const recurringOptions = [
     { value: 'none', label: 'Does not repeat' },
     { value: 'daily', label: 'Daily' },
@@ -146,6 +196,77 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
     { value: 'biweekly', label: 'Every 2 weeks' },
     { value: 'monthly', label: 'Monthly' },
   ];
+
+  // Calculate how many events will be created
+  const getRecurrenceCount = () => {
+    if (recurring === 'none') return 1;
+
+    let count = 0;
+    let currentDate = new Date(date);
+    const endDate = new Date(recurrenceEndDate);
+
+    while (currentDate <= endDate && count < 100) {
+      count++;
+      switch (recurring) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'biweekly':
+          currentDate = addWeeks(currentDate, 2);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+      }
+    }
+
+    return count;
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
+  const handleStartTimeChange = (event: any, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartTimePicker(false);
+    }
+    if (selectedTime) {
+      setStartTime(selectedTime);
+      // Auto-adjust end time if it's now before start time
+      if (selectedTime >= endTime) {
+        const newEndTime = new Date(selectedTime);
+        newEndTime.setHours(newEndTime.getHours() + 1);
+        setEndTime(newEndTime);
+      }
+    }
+  };
+
+  const handleEndTimeChange = (event: any, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndTimePicker(false);
+    }
+    if (selectedTime) {
+      setEndTime(selectedTime);
+    }
+  };
+
+  const handleRecurrenceEndChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowRecurrenceEndPicker(false);
+    }
+    if (selectedDate) {
+      setRecurrenceEndDate(selectedDate);
+    }
+  };
 
   return (
     <Modal
@@ -176,7 +297,11 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Title */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Title</Text>
@@ -238,18 +363,36 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
                   {format(date, 'EEEE, MMMM d, yyyy')}
                 </Text>
               </TouchableOpacity>
-              {showDatePicker && (
+            </View>
+
+            {/* iOS inline date picker */}
+            {showDatePicker && Platform.OS === 'ios' && (
+              <View style={styles.inlinePicker}>
                 <DateTimePicker
                   value={date}
                   mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === 'ios');
-                    if (selectedDate) setDate(selectedDate);
-                  }}
+                  display="spinner"
+                  onChange={handleDateChange}
+                  textColor={ModernColors.text}
                 />
-              )}
-            </View>
+                <TouchableOpacity
+                  style={styles.pickerDoneButton}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Android date picker */}
+            {showDatePicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
 
             {/* Time */}
             <View style={styles.timeRow}>
@@ -264,17 +407,6 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
                     {format(startTime, 'h:mm a')}
                   </Text>
                 </TouchableOpacity>
-                {showStartTimePicker && (
-                  <DateTimePicker
-                    value={startTime}
-                    mode="time"
-                    display="default"
-                    onChange={(event, selectedTime) => {
-                      setShowStartTimePicker(Platform.OS === 'ios');
-                      if (selectedTime) setStartTime(selectedTime);
-                    }}
-                  />
-                )}
               </View>
 
               <View style={[styles.inputGroup, styles.timeInput]}>
@@ -288,29 +420,76 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
                     {format(endTime, 'h:mm a')}
                   </Text>
                 </TouchableOpacity>
-                {showEndTimePicker && (
-                  <DateTimePicker
-                    value={endTime}
-                    mode="time"
-                    display="default"
-                    onChange={(event, selectedTime) => {
-                      setShowEndTimePicker(Platform.OS === 'ios');
-                      if (selectedTime) setEndTime(selectedTime);
-                    }}
-                  />
-                )}
               </View>
             </View>
 
-            {/* Location */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Location (optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={location}
-                onChangeText={setLocation}
-                placeholder="Add location"
-                placeholderTextColor={ModernColors.textMuted}
+            {/* iOS inline start time picker */}
+            {showStartTimePicker && Platform.OS === 'ios' && (
+              <View style={styles.inlinePicker}>
+                <DateTimePicker
+                  value={startTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={handleStartTimeChange}
+                  textColor={ModernColors.text}
+                />
+                <TouchableOpacity
+                  style={styles.pickerDoneButton}
+                  onPress={() => setShowStartTimePicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Android start time picker */}
+            {showStartTimePicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={startTime}
+                mode="time"
+                display="default"
+                onChange={handleStartTimeChange}
+              />
+            )}
+
+            {/* iOS inline end time picker */}
+            {showEndTimePicker && Platform.OS === 'ios' && (
+              <View style={styles.inlinePicker}>
+                <DateTimePicker
+                  value={endTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={handleEndTimeChange}
+                  textColor={ModernColors.text}
+                />
+                <TouchableOpacity
+                  style={styles.pickerDoneButton}
+                  onPress={() => setShowEndTimePicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Android end time picker */}
+            {showEndTimePicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={endTime}
+                mode="time"
+                display="default"
+                onChange={handleEndTimeChange}
+              />
+            )}
+
+            {/* Location with Google Places */}
+            <View style={[styles.inputGroup, { zIndex: 1000 }]}>
+              <AddressAutocomplete
+                label="Location (optional)"
+                value={locationAddress}
+                onAddressSelect={setLocationAddress}
+                placeholder="Search for a location..."
+                showFallbackOption={true}
+                containerStyle={{ marginBottom: 0 }}
               />
             </View>
 
@@ -367,20 +546,63 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
                     {format(recurrenceEndDate, 'MMMM d, yyyy')}
                   </Text>
                 </TouchableOpacity>
-                {showRecurrenceEndPicker && (
-                  <DateTimePicker
-                    value={recurrenceEndDate}
-                    mode="date"
-                    display="default"
-                    minimumDate={date}
-                    onChange={(event, selectedDate) => {
-                      setShowRecurrenceEndPicker(Platform.OS === 'ios');
-                      if (selectedDate) setRecurrenceEndDate(selectedDate);
-                    }}
-                  />
-                )}
+                <Text style={styles.recurrenceInfo}>
+                  This will create {getRecurrenceCount()} event{getRecurrenceCount() !== 1 ? 's' : ''}
+                </Text>
               </View>
             )}
+
+            {/* iOS inline recurrence end picker */}
+            {showRecurrenceEndPicker && Platform.OS === 'ios' && (
+              <View style={styles.inlinePicker}>
+                <DateTimePicker
+                  value={recurrenceEndDate}
+                  mode="date"
+                  display="spinner"
+                  minimumDate={date}
+                  onChange={handleRecurrenceEndChange}
+                  textColor={ModernColors.text}
+                />
+                <TouchableOpacity
+                  style={styles.pickerDoneButton}
+                  onPress={() => setShowRecurrenceEndPicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Android recurrence end picker */}
+            {showRecurrenceEndPicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={recurrenceEndDate}
+                mode="date"
+                display="default"
+                minimumDate={date}
+                onChange={handleRecurrenceEndChange}
+              />
+            )}
+
+            {/* Export to Calendar */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Export to External Calendar</Text>
+              <View style={styles.exportButtons}>
+                <TouchableOpacity
+                  style={styles.exportButton}
+                  onPress={() => handleExportToCalendar('apple')}
+                >
+                  <Icon name="apple" size={20} color={ModernColors.text} />
+                  <Text style={styles.exportButtonText}>Apple Calendar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.exportButton}
+                  onPress={() => handleExportToCalendar('google')}
+                >
+                  <Icon name="google" size={20} color="#4285F4" />
+                  <Text style={styles.exportButtonText}>Google Calendar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             {/* Spacer for keyboard */}
             <View style={{ height: 100 }} />
@@ -503,6 +725,23 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
     marginLeft: 10,
   },
+  inlinePicker: {
+    backgroundColor: ModernColors.cardBackground,
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  pickerDoneButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+  },
+  pickerDoneText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ModernColors.primary,
+  },
   timeRow: {
     flexDirection: 'row',
     gap: 16,
@@ -533,6 +772,33 @@ const styles = StyleSheet.create({
   },
   recurringTextSelected: {
     color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  recurrenceInfo: {
+    fontSize: 12,
+    color: ModernColors.textMuted,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  exportButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  exportButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ModernColors.cardBackground,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: ModernColors.border,
+    gap: 8,
+  },
+  exportButtonText: {
+    fontSize: 14,
+    color: ModernColors.text,
     fontWeight: '500',
   },
 });

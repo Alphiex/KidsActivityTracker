@@ -59,13 +59,16 @@ export class ChildrenService {
   }
 
   /**
-   * Get all children for a user
+   * Get all children for a user (includes preferences with location data)
    */
   async getChildrenByUserId(userId: string, includeInactive = false): Promise<ChildWithAge[]> {
     const children = await prisma.child.findMany({
       where: {
         userId,
         ...(includeInactive ? {} : { isActive: true })
+      },
+      include: {
+        preferences: true // Include preferences for location data (savedAddress)
       },
       orderBy: {
         dateOfBirth: 'asc'
@@ -389,6 +392,117 @@ export class ChildrenService {
         prisma.child.create({ data: childData })
       )
     );
+  }
+
+  /**
+   * Create a custom event for a child
+   * Creates a custom Activity and links it to the child via ChildActivity
+   */
+  async createCustomEvent(
+    childId: string,
+    userId: string,
+    eventData: {
+      title: string;
+      description?: string;
+      scheduledDate: Date;
+      startTime?: string;
+      endTime?: string;
+      location?: string;
+      locationData?: {
+        latitude?: number;
+        longitude?: number;
+        formattedAddress?: string;
+      };
+      recurring?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+      recurrenceEndDate?: Date;
+    }
+  ) {
+    // Verify child ownership
+    const child = await prisma.child.findFirst({
+      where: { id: childId, userId }
+    });
+
+    if (!child) {
+      throw new Error('Child not found or access denied');
+    }
+
+    // Create a custom activity
+    const customActivity = await prisma.activity.create({
+      data: {
+        name: eventData.title,
+        description: eventData.description || '',
+        providerId: 'custom',
+        externalId: `custom-${userId}-${Date.now()}`,
+        category: 'Custom Event',
+        isCustomEvent: true,
+        createdByUserId: userId,
+        dateStart: eventData.scheduledDate,
+        dateEnd: eventData.scheduledDate,
+        startTime: eventData.startTime,
+        endTime: eventData.endTime,
+        isActive: true,
+      }
+    });
+
+    // Generate dates for recurring events
+    const eventDates: Date[] = [eventData.scheduledDate];
+
+    if (eventData.recurring && eventData.recurrenceEndDate) {
+      let currentDate = new Date(eventData.scheduledDate);
+      const endDate = new Date(eventData.recurrenceEndDate);
+
+      while (currentDate < endDate) {
+        switch (eventData.recurring) {
+          case 'daily':
+            currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
+            break;
+          case 'weekly':
+            currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            break;
+          case 'biweekly':
+            currentDate = new Date(currentDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+            break;
+          case 'monthly':
+            currentDate = new Date(currentDate);
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            break;
+        }
+
+        if (currentDate <= endDate) {
+          eventDates.push(new Date(currentDate));
+        }
+      }
+    }
+
+    // Create ChildActivity entries for each date
+    const childActivities = await Promise.all(
+      eventDates.map((date, index) =>
+        prisma.childActivity.create({
+          data: {
+            childId,
+            activityId: customActivity.id,
+            status: 'planned',
+            scheduledDate: date,
+            startTime: eventData.startTime,
+            endTime: eventData.endTime,
+            notes: eventData.description,
+            recurring: eventData.recurring ? true : false,
+            recurrencePattern: eventData.recurring,
+            recurrenceEnd: eventData.recurrenceEndDate,
+          },
+          include: {
+            activity: true,
+            child: true
+          }
+        })
+      )
+    );
+
+    return {
+      activity: customActivity,
+      childActivities,
+      eventsCreated: childActivities.length
+    };
   }
 
   /**

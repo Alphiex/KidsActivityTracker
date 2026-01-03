@@ -117,10 +117,18 @@ const childActivitiesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Link activity
-      .addCase(linkActivity.pending, (state) => {
+      // Link activity - optimistic update
+      .addCase(linkActivity.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        // Optimistic update - add to activityChildren immediately
+        const { childId, activityId } = action.meta.arg;
+        if (!state.activityChildren[activityId]) {
+          state.activityChildren[activityId] = [];
+        }
+        if (!state.activityChildren[activityId].includes(childId)) {
+          state.activityChildren[activityId].push(childId);
+        }
       })
       .addCase(linkActivity.fulfilled, (state, action) => {
         state.loading = false;
@@ -143,6 +151,13 @@ const childActivitiesSlice = createSlice({
       .addCase(linkActivity.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to link activity';
+        // Revert optimistic update
+        const { childId, activityId } = action.meta.arg;
+        if (state.activityChildren[activityId]) {
+          state.activityChildren[activityId] = state.activityChildren[activityId].filter(
+            id => id !== childId
+          );
+        }
       })
       
       // Update activity status
@@ -168,10 +183,17 @@ const childActivitiesSlice = createSlice({
         state.error = action.error.message || 'Failed to update activity status';
       })
       
-      // Unlink activity
-      .addCase(unlinkActivity.pending, (state) => {
+      // Unlink activity - optimistic update
+      .addCase(unlinkActivity.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        // Optimistic update - remove from activityChildren immediately
+        const { childId, activityId } = action.meta.arg;
+        if (state.activityChildren[activityId]) {
+          state.activityChildren[activityId] = state.activityChildren[activityId].filter(
+            id => id !== childId
+          );
+        }
       })
       .addCase(unlinkActivity.fulfilled, (state, action) => {
         state.loading = false;
@@ -194,6 +216,14 @@ const childActivitiesSlice = createSlice({
       .addCase(unlinkActivity.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to unlink activity';
+        // Revert optimistic update - add child back
+        const { childId, activityId } = action.meta.arg;
+        if (!state.activityChildren[activityId]) {
+          state.activityChildren[activityId] = [];
+        }
+        if (!state.activityChildren[activityId].includes(childId)) {
+          state.activityChildren[activityId].push(childId);
+        }
       })
       
       // Fetch child activities

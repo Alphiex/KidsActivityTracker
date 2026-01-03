@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,40 +9,24 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  SectionList,
-  Image,
-  Share,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import childrenService, { ChildActivity } from '../services/childrenService';
+import { format } from 'date-fns';
+import childrenService, { ChildActivity as ChildActivityType } from '../services/childrenService';
 import { Child } from '../store/slices/childrenSlice';
-import activityService from '../services/activityService';
-import FavoritesService from '../services/favoritesService';
 import { Activity } from '../types';
-import { getActivityImageKey } from '../utils/activityHelpers';
-import { getActivityImageByKey } from '../assets/images';
+import { Colors, Theme } from '../theme';
+import ScreenBackground from '../components/ScreenBackground';
+import ActivityCard from '../components/ActivityCard';
+import { ChildAvatar } from '../components/children';
+import AddEventModal, { CustomEvent } from '../components/calendar/AddEventModal';
+import { CHILD_COLORS } from '../utils/calendarUtils';
 
-// Airbnb-style colors
-const ModernColors = {
-  primary: '#E8638B',
-  secondary: '#00A699',
-  text: '#222222',
-  textLight: '#717171',
-  background: '#FFFFFF',
-  backgroundLight: '#F7F7F7',
-  border: '#DDDDDD',
-  borderLight: '#EBEBEB',
-  success: '#008A05',
-  warning: '#FFA500',
-  error: '#C13515',
-  info: '#428BCA',
-};
-
-type ActivityStatus = 'planned' | 'in_progress' | 'completed' | 'all';
+type TabType = 'upcoming' | 'current' | 'past';
 
 interface ActivityWithChild extends Activity {
-  childActivity?: ChildActivity;
+  childActivity?: ChildActivityType;
 }
 
 const ChildDetailScreen: React.FC = () => {
@@ -58,6 +42,11 @@ const ChildDetailScreen: React.FC = () => {
   const isShared = params?.isShared ?? false;
 
   const [child, setChild] = useState<Child | null>(null);
+  const [activities, setActivities] = useState<ActivityWithChild[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('upcoming');
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
 
   // Validate required params
   useEffect(() => {
@@ -66,51 +55,53 @@ const ChildDetailScreen: React.FC = () => {
       navigation.goBack();
     }
   }, [childId, navigation]);
-  const [activities, setActivities] = useState<ActivityWithChild[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<ActivityStatus>('all');
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const favoritesService = FavoritesService.getInstance();
 
-  useEffect(() => {
-    loadChildAndActivities();
+  const loadActivities = useCallback(async () => {
+    try {
+      // Get child activities with full activity details from API
+      const response = await childrenService.getChildActivitiesList(childId);
+
+      // Deduplicate activities by childActivity.id (not activity.id)
+      const seenChildActivityIds = new Set<string>();
+      const activitiesWithDetails: ActivityWithChild[] = [];
+
+      for (const ca of response) {
+        // Skip if we've already seen this childActivity
+        if (seenChildActivityIds.has(ca.id)) {
+          continue;
+        }
+        seenChildActivityIds.add(ca.id);
+
+        // If we have activity data from the ChildActivity relation, use it
+        if (ca.activity) {
+          activitiesWithDetails.push({
+            ...ca.activity,
+            childActivity: ca,
+          } as ActivityWithChild);
+        } else {
+          // Fallback: create minimal activity object from childActivity data
+          activitiesWithDetails.push({
+            id: ca.activityId,
+            name: `Activity ${ca.activityId}`,
+            category: 'General',
+            childActivity: ca,
+          } as ActivityWithChild);
+        }
+      }
+
+      setActivities(activitiesWithDetails);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      setActivities([]);
+    }
   }, [childId]);
 
-  // Load favorites when activities change
-  useEffect(() => {
-    const loadFavorites = () => {
-      const favoriteIds = new Set<string>();
-      activities.forEach(activity => {
-        if (favoritesService.isFavorite(activity.id)) {
-          favoriteIds.add(activity.id);
-        }
-      });
-      setFavorites(favoriteIds);
-    };
-    loadFavorites();
-  }, [activities]);
-
-  const handleToggleFavorite = (activity: ActivityWithChild) => {
-    favoritesService.toggleFavorite(activity as Activity);
-    setFavorites(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(activity.id)) {
-        newSet.delete(activity.id);
-      } else {
-        newSet.add(activity.id);
-      }
-      return newSet;
-    });
-  };
-
-  const loadChildAndActivities = async () => {
+  const loadChildAndActivities = useCallback(async () => {
     setLoading(true);
     try {
       // Load child details
       const childData = await childrenService.getChild(childId);
       setChild(childData);
-
       // Load child activities
       await loadActivities();
     } catch (error) {
@@ -127,142 +118,125 @@ const ChildDetailScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [childId, childName, loadActivities]);
 
-  const loadActivities = async () => {
-    try {
-      // Get child activities with full activity details from API
-      const response = await childrenService.getChildActivitiesList(childId);
-
-      // Deduplicate activities by childActivity.id (not activity.id)
-      const seenChildActivityIds = new Set<string>();
-      const activitiesWithDetails: ActivityWithChild[] = [];
-
-      for (const ca of response) {
-        // Skip if we've already seen this childActivity
-        if (seenChildActivityIds.has(ca.id)) {
-          continue;
-        }
-        seenChildActivityIds.add(ca.id);
-
-        // Log raw data for first activity
-        if (activitiesWithDetails.length === 0) {
-          console.log('=== FIRST CHILD ACTIVITY ===');
-          console.log('Full object:', JSON.stringify(ca, null, 2));
-        }
-
-        // If we have activity data from the ChildActivity relation, use it
-        if (ca.activity) {
-          console.log('Activity data found:', {
-            name: ca.activity.name,
-            id: ca.activity.id,
-            hasLocation: !!ca.activity.location,
-            hasSessions: !!(ca.activity as any).sessions
-          });
-
-          activitiesWithDetails.push({
-            ...ca.activity,
-            childActivity: ca,
-          } as ActivityWithChild);
-        } else {
-          console.log('NO ACTIVITY DATA - using fallback');
-          // Fallback: create minimal activity object from childActivity data
-          activitiesWithDetails.push({
-            id: ca.activityId,
-            name: `Activity ${ca.activityId}`,
-            category: 'General',
-            childActivity: ca,
-          } as ActivityWithChild);
-        }
-      }
-
-      // Sort by start date (newest to oldest)
-      activitiesWithDetails.sort((a, b) => {
-        const dateA = a.childActivity?.scheduledDate ? new Date(a.childActivity.scheduledDate).getTime() :
-                     (a as any).dateStart ? new Date((a as any).dateStart).getTime() : 0;
-        const dateB = b.childActivity?.scheduledDate ? new Date(b.childActivity.scheduledDate).getTime() :
-                     (b as any).dateStart ? new Date((b as any).dateStart).getTime() : 0;
-        return dateB - dateA; // Newest first
-      });
-
-      setActivities(activitiesWithDetails);
-    } catch (error) {
-      console.error('Error loading activities:', error);
-      setActivities([]);
-    }
-  };
+  useEffect(() => {
+    loadChildAndActivities();
+  }, [loadChildAndActivities]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadActivities();
     setRefreshing(false);
-  }, [childId]);
+  }, [loadActivities]);
 
-  const getFilteredActivities = () => {
-    if (filter === 'all') return activities;
-    return activities.filter(a => a.childActivity?.status === filter);
-  };
+  // Categorize activities based on their dates relative to today
+  const categorizedActivities = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const groupActivitiesByStatus = () => {
-    const grouped = {
-      current: [] as ActivityWithChild[],
-      upcoming: [] as ActivityWithChild[],
-      completed: [] as ActivityWithChild[],
-    };
+    const upcoming: ActivityWithChild[] = [];
+    const current: ActivityWithChild[] = [];
+    const past: ActivityWithChild[] = [];
 
-    activities.forEach(activity => {
-      const status = activity.childActivity?.status;
-      if (status === 'completed') {
-        grouped.completed.push(activity);
-      } else if (status === 'in_progress') {
-        grouped.current.push(activity);
+    activities.forEach(item => {
+      // Get start and end dates from various possible sources
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      // Try dateRange first
+      if (item.dateRange) {
+        if (item.dateRange.start) {
+          startDate = new Date(item.dateRange.start);
+        }
+        if (item.dateRange.end) {
+          endDate = new Date(item.dateRange.end);
+        }
+      }
+
+      // Fallback to startDate/endDate fields
+      if (!startDate && item.startDate) {
+        startDate = new Date(item.startDate);
+      }
+      if (!endDate && item.endDate) {
+        endDate = new Date(item.endDate);
+      }
+
+      // Fallback to dateStart/dateEnd (legacy)
+      if (!startDate && (item as any).dateStart) {
+        startDate = new Date((item as any).dateStart);
+      }
+      if (!endDate && (item as any).dateEnd) {
+        endDate = new Date((item as any).dateEnd);
+      }
+
+      // Reset time for comparison
+      if (startDate) startDate.setHours(0, 0, 0, 0);
+      if (endDate) endDate.setHours(0, 0, 0, 0);
+
+      // Categorize based on dates
+      if (startDate && endDate) {
+        if (endDate < today) {
+          past.push(item);
+        } else if (startDate <= today && endDate >= today) {
+          current.push(item);
+        } else if (startDate > today) {
+          upcoming.push(item);
+        }
+      } else if (startDate) {
+        if (startDate > today) {
+          upcoming.push(item);
+        } else {
+          current.push(item);
+        }
+      } else if (endDate) {
+        if (endDate < today) {
+          past.push(item);
+        } else {
+          current.push(item);
+        }
       } else {
-        grouped.upcoming.push(activity);
+        // No dates - put in upcoming by default
+        upcoming.push(item);
       }
     });
 
-    const sections = [];
-    if (filter === 'all' || filter === 'in_progress') {
-      if (grouped.current.length > 0) {
-        sections.push({ title: 'Current Activities', data: grouped.current });
-      }
-    }
-    if (filter === 'all' || filter === 'planned') {
-      if (grouped.upcoming.length > 0) {
-        sections.push({ title: 'Upcoming Activities', data: grouped.upcoming });
-      }
-    }
-    if (filter === 'all' || filter === 'completed') {
-      if (grouped.completed.length > 0) {
-        sections.push({ title: 'Completed Activities', data: grouped.completed });
-      }
-    }
+    // Sort activities by date
+    const sortByStartDate = (a: ActivityWithChild, b: ActivityWithChild) => {
+      const aDate = a.dateRange?.start || a.startDate || (a as any).dateStart;
+      const bDate = b.dateRange?.start || b.startDate || (b as any).dateStart;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    };
 
-    return sections;
+    upcoming.sort(sortByStartDate);
+    current.sort(sortByStartDate);
+    past.sort((a, b) => -sortByStartDate(a, b)); // Reverse for past (most recent first)
+
+    return { upcoming, current, past };
+  }, [activities]);
+
+  const getTabActivities = () => {
+    switch (activeTab) {
+      case 'upcoming':
+        return categorizedActivities.upcoming;
+      case 'current':
+        return categorizedActivities.current;
+      case 'past':
+        return categorizedActivities.past;
+      default:
+        return [];
+    }
   };
 
-  const handleRemoveActivity = (activityId: string) => {
-    Alert.alert(
-      'Remove Activity',
-      'Are you sure you want to remove this activity from this child?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const childActivity = activities.find(a => a.id === activityId)?.childActivity;
-            if (childActivity && childId) {
-              await childrenService.removeActivityFromChild(childId, childActivity.id);
-              await loadActivities();
-            }
-          },
-        },
-      ]
-    );
-  };
+  const tabs: { key: TabType; label: string; icon: string; count: number }[] = [
+    { key: 'upcoming', label: 'Upcoming', icon: 'calendar-clock', count: categorizedActivities.upcoming.length },
+    { key: 'current', label: 'In Progress', icon: 'play-circle', count: categorizedActivities.current.length },
+    { key: 'past', label: 'Completed', icon: 'check-circle', count: categorizedActivities.past.length },
+  ];
 
-  const handleActivityPress = (activity: ActivityWithChild) => {
+  const handleActivityPress = (activity: Activity) => {
     navigation.navigate('ActivityDetail' as never, {
       activity: activity,
       childId,
@@ -270,472 +244,443 @@ const ChildDetailScreen: React.FC = () => {
     } as never);
   };
 
-  const handleUpdateStatus = async (activity: ActivityWithChild, newStatus: ChildActivity['status']) => {
-    if (activity.childActivity) {
-      await childrenService.updateActivityStatus(activity.childActivity.id, newStatus);
-      await loadActivities();
-    }
-  };
-
-  const renderActivity = ({ item }: { item: ActivityWithChild }) => {
-    const status = item.childActivity?.status || 'planned';
-    const statusColors = {
-      planned: ModernColors.info,
-      in_progress: ModernColors.warning,
-      completed: ModernColors.success,
-    };
-
-    // Extract activity details
-    const activityName = item.name || `Activity ${item.id}`;
-    const startTime = item.childActivity?.startTime || (item as any).startTime;
-    const endTime = item.childActivity?.endTime || (item as any).endTime;
-    const location = (item as any).location?.name || (item as any).location || 'Location TBA';
-
-    // Get date and day of week - prioritize activity dateStart/dateEnd
-    let dateInfo = '';
-    let dayOfWeek = '';
-
-    // First check for activity's dateStart and dateEnd
-    if ((item as any).dateStart && (item as any).dateEnd) {
-      const startDate = new Date((item as any).dateStart);
-      const endDate = new Date((item as any).dateEnd);
-      dateInfo = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-      // Get day of week from first session or activity schedule
-      if ((item as any).schedule) {
-        dayOfWeek = (item as any).schedule;
-      } else if ((item as any).sessions && (item as any).sessions.length > 0) {
-        dayOfWeek = (item as any).sessions[0].dayOfWeek || '';
-      }
-    } else if ((item as any).sessions && (item as any).sessions.length > 0) {
-      // Fallback to sessions
-      const session = (item as any).sessions[0];
-      dayOfWeek = session.dayOfWeek || '';
-      if (session.date) {
-        const date = new Date(session.date);
-        dateInfo = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      }
-    } else if (item.childActivity?.scheduledDate) {
-      // Last resort: use scheduled date from childActivity
-      const date = new Date(item.childActivity.scheduledDate);
-      dateInfo = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-    }
-
-    // Get activity image - fallback to category if activityType not available
-    const activityTypeName = (item as any).activityType?.name || item.category || (item as any).category || 'general';
-    const subcategory = (item as any).activitySubtype?.name || (item as any).subcategory;
-
-    // Log for debugging
-    console.log('Activity image lookup:', {
-      activityName,
-      activityTypeName,
-      subcategory,
-      hasActivityType: !!(item as any).activityType,
-      category: item.category
-    });
-
-    const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
-    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
-
-    const handleShare = async () => {
-      try {
-        const message = `Check out this activity: ${activityName}${location ? ` at ${location}` : ''}`;
-
-        await Share.share({
-          message,
-          title: activityName,
-        });
-      } catch (error) {
-        console.error('Error sharing activity:', error);
-      }
-    };
-
-    return (
-      <TouchableOpacity
-        style={styles.activityCard}
-        onPress={() => handleActivityPress(item)}
-        activeOpacity={0.9}
-      >
-        {/* Image Container */}
-        <View style={styles.imageContainer}>
-          <Image source={imageSource} style={styles.activityImage} resizeMode="cover" />
-
-          {/* Status Badge Overlay */}
-          <View style={[styles.statusBadge, { backgroundColor: statusColors[status] }]}>
-            <Text style={styles.statusBadgeText}>
-              {status.replace('_', ' ').toUpperCase()}
-            </Text>
-          </View>
-
-          {/* Action buttons row - favorites, share, calendar */}
-          <View style={[
-            styles.actionButtonsRow,
-            favorites.has(item.id) && styles.actionButtonsRowActive
-          ]}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleToggleFavorite(item)}
-            >
-              <Icon
-                name={favorites.has(item.id) ? 'heart' : 'heart-outline'}
-                size={16}
-                color={favorites.has(item.id) ? ModernColors.primary : '#FFF'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-              <Icon name="share-variant" size={16} color={favorites.has(item.id) ? '#666' : '#FFF'} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Icon name="calendar-plus" size={16} color={favorites.has(item.id) ? '#666' : '#FFF'} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Delete Button - Bottom Right */}
-          {!isShared && (
-            <TouchableOpacity
-              style={styles.deleteButtonOverlay}
-              onPress={() => handleRemoveActivity(item.id)}
-            >
-              <Icon name="trash-can-outline" size={20} color="#FFF" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Activity Info */}
-        <View style={styles.activityInfo}>
-          <Text style={styles.activityTitle} numberOfLines={2}>{activityName}</Text>
-
-          {(dateInfo || dayOfWeek) && (
-            <View style={styles.infoRow}>
-              <Icon name="calendar" size={14} color={ModernColors.textLight} />
-              <Text style={styles.infoText} numberOfLines={1}>
-                {dayOfWeek}{dayOfWeek && dateInfo && ' • '}{dateInfo}
-              </Text>
-            </View>
-          )}
-
-          {(startTime || endTime) && (
-            <View style={styles.infoRow}>
-              <Icon name="clock-outline" size={14} color={ModernColors.textLight} />
-              <Text style={styles.infoText} numberOfLines={1}>
-                {startTime}{endTime && ` - ${endTime}`}
-              </Text>
-            </View>
-          )}
-
-          {location && (
-            <View style={styles.infoRow}>
-              <Icon name="map-marker" size={14} color={ModernColors.textLight} />
-              <Text style={styles.infoText} numberOfLines={1}>{location}</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+  const handleRemoveActivity = (item: ActivityWithChild) => {
+    Alert.alert(
+      'Remove Activity',
+      `Remove "${item.name}" from ${childName}'s calendar?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (item.childActivity) {
+                await childrenService.removeActivityFromChild(childId, item.childActivity.id);
+                await loadActivities();
+              }
+            } catch (error) {
+              console.error('Error removing activity:', error);
+              Alert.alert('Error', 'Failed to remove activity');
+            }
+          },
+        },
+      ]
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Icon name="calendar-blank" size={64} color={ModernColors.borderLight} />
-      <Text style={styles.emptyTitle}>No activities yet</Text>
-      <Text style={styles.emptySubtitle}>
-        Activities linked to {childName} will appear here
-      </Text>
-      {!isShared && (
-        <TouchableOpacity
-          style={styles.addActivityButton}
-          onPress={() => navigation.navigate('Search' as never)}
-        >
-          <Text style={styles.addActivityButtonText}>Browse Activities</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  const handleSaveCustomEvent = async (event: CustomEvent) => {
+    try {
+      const scheduledDate = new Date(format(event.date, 'yyyy-MM-dd'));
+      const startTimeStr = format(event.startTime, 'h:mm a').toLowerCase();
+      const endTimeStr = format(event.endTime, 'h:mm a').toLowerCase();
+
+      const result = await childrenService.createCustomEvent(
+        event.childId,
+        {
+          title: event.title,
+          description: event.description,
+          scheduledDate,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          location: event.location,
+          locationData: event.locationAddress ? {
+            latitude: event.locationAddress.latitude,
+            longitude: event.locationAddress.longitude,
+            formattedAddress: event.locationAddress.formattedAddress,
+          } : undefined,
+          recurring: event.recurring === 'none' ? undefined : event.recurring,
+          recurrenceEndDate: event.recurring && event.recurring !== 'none' ? event.recurrenceEndDate : undefined,
+        }
+      );
+
+      if (result.eventsCreated > 1) {
+        Alert.alert('Success', `Created ${result.eventsCreated} recurring events`);
+      } else {
+        Alert.alert('Success', 'Event added to calendar');
+      }
+      await loadActivities();
+    } catch (error) {
+      console.error('Error saving custom event:', error);
+      throw error;
+    }
+  };
+
+  const renderEmptyState = () => {
+    const emptyMessages = {
+      upcoming: {
+        icon: 'calendar-plus',
+        title: 'No upcoming activities',
+        subtitle: `Activities you add to ${childName}'s calendar will appear here`,
+      },
+      current: {
+        icon: 'play-circle-outline',
+        title: 'No activities in progress',
+        subtitle: 'Activities happening now will appear here',
+      },
+      past: {
+        icon: 'history',
+        title: 'No past activities',
+        subtitle: 'Completed activities will appear here',
+      },
+    };
+
+    const message = emptyMessages[activeTab];
+
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconContainer}>
+          <Icon name={message.icon} size={64} color={Colors.primary} />
+        </View>
+        <Text style={styles.emptyText}>{message.title}</Text>
+        <Text style={styles.emptySubtext}>{message.subtitle}</Text>
+      </View>
+    );
+  };
 
   const age = child?.dateOfBirth
     ? childrenService.calculateAge(child.dateOfBirth)
     : null;
 
+  const tabActivities = getTabActivities();
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={24} color={ModernColors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{childName}</Text>
-          {age !== null && (
-            <Text style={styles.headerSubtitle}>{age} years old</Text>
+    <ScreenBackground>
+      <SafeAreaView style={styles.container}>
+        {/* Header with child info */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-left" size={24} color={Colors.text.primary} />
+          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            {child && (
+              <ChildAvatar
+                name={child.name}
+                avatarUrl={child.avatar}
+                size={40}
+                style={styles.headerAvatar}
+              />
+            )}
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>{childName}'s Activities</Text>
+              <Text style={styles.headerSubtitle}>
+                {age !== null ? `${age} years old • ` : ''}
+                {activities.length} {activities.length === 1 ? 'activity' : 'activities'}
+              </Text>
+            </View>
+          </View>
+
+          {!isShared && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => navigation.navigate('EditChild' as never, { childId } as never)}
+            >
+              <Icon name="pencil" size={20} color={Colors.text.primary} />
+            </TouchableOpacity>
           )}
         </View>
+
+        {/* Tab Bar */}
+        <View style={styles.tabContainer}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tab,
+                activeTab === tab.key && styles.tabActive,
+              ]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Icon
+                name={tab.icon}
+                size={18}
+                color={activeTab === tab.key ? Colors.white : Colors.text.secondary}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.key && styles.tabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+              {tab.count > 0 && (
+                <View style={[
+                  styles.tabBadge,
+                  activeTab === tab.key && styles.tabBadgeActive,
+                ]}>
+                  <Text style={[
+                    styles.tabBadgeText,
+                    activeTab === tab.key && styles.tabBadgeTextActive,
+                  ]}>
+                    {tab.count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Content */}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading activities...</Text>
+            </View>
+          ) : tabActivities.length === 0 ? (
+            renderEmptyState()
+          ) : (
+            <>
+              {tabActivities.map((item) => {
+                // Cast to Activity type for ActivityCard compatibility
+                const activity = item as unknown as Activity;
+                return (
+                  <View key={item.childActivity?.id || item.id} style={styles.activityCardWrapper}>
+                    <ActivityCard
+                      activity={activity}
+                      onPress={() => handleActivityPress(activity)}
+                      containerStyle={styles.activityCard}
+                      imageHeight={160}
+                    />
+                    {/* Delete button */}
+                    {!isShared && (
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleRemoveActivity(item)}
+                      >
+                        <Icon name="trash-can-outline" size={18} color={Colors.white} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+              <View style={styles.bottomSpacer} />
+            </>
+          )}
+        </ScrollView>
+
+        {/* Floating Action Button for adding events */}
         {!isShared && (
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => navigation.navigate('EditChild' as never, { childId } as never)}
+            style={styles.fab}
+            onPress={() => setShowAddEventModal(true)}
+            activeOpacity={0.8}
           >
-            <Icon name="pencil" size={20} color={ModernColors.text} />
+            <Icon name="plus" size={28} color={Colors.white} />
           </TouchableOpacity>
         )}
-      </View>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        {(['all', 'planned', 'in_progress', 'completed'] as ActivityStatus[]).map((status) => (
-          <TouchableOpacity
-            key={status}
-            style={[styles.filterTab, filter === status && styles.filterTabActive]}
-            onPress={() => setFilter(status)}
-          >
-            <Text style={[styles.filterTabText, filter === status && styles.filterTabTextActive]}>
-              {status === 'all' ? 'All' : status === 'in_progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Activities List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ModernColors.primary} />
-        </View>
-      ) : (
-        <SectionList
-          sections={groupActivitiesByStatus()}
-          keyExtractor={(item) => item.id}
-          renderItem={renderActivity}
-          renderSectionHeader={({ section: { title } }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{title}</Text>
-            </View>
-          )}
-          ListEmptyComponent={renderEmptyState}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-          }
-          contentContainerStyle={styles.listContent}
-          stickySectionHeadersEnabled={false}
+        {/* Add Event Modal */}
+        <AddEventModal
+          visible={showAddEventModal}
+          onClose={() => setShowAddEventModal(false)}
+          onSave={handleSaveCustomEvent}
+          children={child ? [{
+            id: childId,
+            name: childName,
+            color: (child as any).color || CHILD_COLORS[0],
+          }] : []}
+          initialChildId={childId}
         />
-      )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ModernColors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderBottomWidth: 1,
-    borderBottomColor: ModernColors.borderLight,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
   backButton: {
-    padding: 5,
+    padding: Theme.spacing.xs,
+    marginRight: Theme.spacing.sm,
   },
-  headerTitleContainer: {
+  headerContent: {
     flex: 1,
-    marginLeft: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerAvatar: {
+    marginRight: Theme.spacing.sm,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: ModernColors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: ModernColors.textLight,
+    fontSize: 13,
+    color: Colors.text.secondary,
     marginTop: 2,
   },
   editButton: {
-    padding: 8,
+    padding: Theme.spacing.xs,
   },
-  filterContainer: {
+  tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-    backgroundColor: ModernColors.borderLight,
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    gap: Theme.spacing.xs,
   },
-  filterTab: {
+  tab: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: ModernColors.background,
+    justifyContent: 'center',
+    paddingVertical: Theme.spacing.sm,
+    paddingHorizontal: Theme.spacing.xs,
+    borderRadius: Theme.borderRadius.lg,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    gap: 4,
   },
-  filterTabActive: {
-    backgroundColor: ModernColors.primary,
+  tabActive: {
+    backgroundColor: Colors.primary,
   },
-  filterTabText: {
+  tabText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: ModernColors.text,
+    fontWeight: '600',
+    color: Colors.text.secondary,
   },
-  filterTabTextActive: {
-    color: '#FFFFFF',
+  tabTextActive: {
+    color: Colors.white,
+  },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  tabBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.text.secondary,
+  },
+  tabBadgeTextActive: {
+    color: Colors.white,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: Theme.spacing.md,
+    paddingBottom: Theme.spacing.xxl,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 80,
   },
-  listContent: {
-    flexGrow: 1,
+  loadingText: {
+    marginTop: Theme.spacing.md,
+    fontSize: 14,
+    color: Colors.text.secondary,
   },
-  sectionHeader: {
-    backgroundColor: ModernColors.backgroundLight,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: Theme.spacing.xl,
   },
-  sectionTitle: {
-    fontSize: 16,
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.lg,
+  },
+  emptyText: {
+    fontSize: 18,
     fontWeight: '600',
-    color: ModernColors.text,
+    color: Colors.text.primary,
+    marginBottom: Theme.spacing.xs,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  activityCardWrapper: {
+    position: 'relative',
+    marginBottom: Theme.spacing.md,
   },
   activityCard: {
-    backgroundColor: ModernColors.background,
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    overflow: 'hidden',
+    marginBottom: 0,
   },
-  imageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 200,
-  },
-  activityImage: {
-    width: '100%',
-    height: '100%',
-  },
-  statusBadge: {
+  deleteButton: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    top: Theme.spacing.sm,
+    left: Theme.spacing.sm,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(220, 53, 69, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
-  statusBadgeText: {
-    fontSize: 11,
-    color: ModernColors.background,
-    fontWeight: '600',
+  bottomSpacer: {
+    height: Theme.spacing.xl + 80, // Extra space for FAB
   },
-  activityInfo: {
-    padding: 16,
-  },
-  activityTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: ModernColors.text,
-    marginBottom: 10,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  infoText: {
-    fontSize: 13,
-    color: ModernColors.textLight,
-    marginLeft: 6,
-    flex: 1,
-  },
-  actionButtonsRow: {
+  fab: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 14,
-    padding: 3,
-  },
-  actionButtonsRowActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-  },
-  actionButton: {
-    padding: 5,
-    marginHorizontal: 1,
-  },
-  deleteButtonOverlay: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(220, 53, 69, 0.9)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: Theme.spacing.xl,
+    right: Theme.spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  notesContainer: {
-    marginHorizontal: 20,
-    marginTop: -8,
-    marginBottom: 8,
-    padding: 12,
-    backgroundColor: ModernColors.backgroundLight,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    borderTopWidth: 1,
-    borderTopColor: ModernColors.borderLight,
-  },
-  notesLabel: {
-    fontSize: 12,
-    color: ModernColors.textLight,
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 14,
-    color: ModernColors.text,
-    lineHeight: 20,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: ModernColors.text,
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: ModernColors.textLight,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  addActivityButton: {
-    backgroundColor: ModernColors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 24,
-  },
-  addActivityButtonText: {
-    color: ModernColors.background,
-    fontSize: 16,
-    fontWeight: '600',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
 });
 

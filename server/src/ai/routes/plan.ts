@@ -126,4 +126,67 @@ router.post('/', verifyToken, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/v1/ai/find-alternative
+ *
+ * Find an alternative activity based on user feedback.
+ * Used when user declines a planned activity and wants something different.
+ */
+router.post('/find-alternative', verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        alternative: null,
+        error: 'Authentication required'
+      });
+    }
+
+    const {
+      child_id,
+      day,
+      time_slot,
+      excluded_activity_ids,
+      week_start,
+      feedback,
+      current_activity_name,
+      feedback_history
+    } = req.body;
+
+    // Validate required fields
+    if (!child_id || !day) {
+      return res.status(400).json({
+        success: false,
+        alternative: null,
+        error: 'child_id and day are required'
+      });
+    }
+
+    const orchestrator = getAIOrchestrator();
+    const result = await orchestrator.findAlternativeActivity({
+      child_id,
+      day,
+      time_slot: time_slot || 'morning',
+      excluded_activity_ids: excluded_activity_ids || [],
+      week_start: week_start || new Date().toISOString().split('T')[0],
+      feedback,
+      current_activity_name,
+      feedback_history: feedback_history || [],
+      user_id: userId,
+    });
+
+    return res.json(result);
+
+  } catch (error: any) {
+    console.error('[Find Alternative Route] Error:', error);
+    return res.status(500).json({
+      success: false,
+      alternative: null,
+      error: 'Failed to find alternative activity'
+    });
+  }
+});
+
 export default router;

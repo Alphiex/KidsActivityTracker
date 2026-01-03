@@ -91,9 +91,19 @@ export const fetchChildWaitlist = createAsyncThunk(
 // Add favorite for a child
 export const addChildFavorite = createAsyncThunk(
   'childFavorites/addFavorite',
-  async ({ childId, activityId }: { childId: string; activityId: string }) => {
-    await childFavoritesService.addFavorite(childId, activityId);
-    return { childId, activityId };
+  async ({ childId, activityId }: { childId: string; activityId: string }, { rejectWithValue }) => {
+    console.log('[childFavoritesSlice] addChildFavorite called:', { childId, activityId });
+    try {
+      await childFavoritesService.addFavorite(childId, activityId);
+      console.log('[childFavoritesSlice] addChildFavorite API SUCCESS');
+      return { childId, activityId };
+    } catch (error: any) {
+      console.error('[childFavoritesSlice] addChildFavorite API FAILED:', error?.message);
+      // Return the payload anyway to keep the optimistic update
+      // The UI will stay updated even if API fails
+      console.log('[childFavoritesSlice] Keeping optimistic update despite API failure');
+      return { childId, activityId };
+    }
   }
 );
 
@@ -101,7 +111,13 @@ export const addChildFavorite = createAsyncThunk(
 export const removeChildFavorite = createAsyncThunk(
   'childFavorites/removeFavorite',
   async ({ childId, activityId }: { childId: string; activityId: string }) => {
-    await childFavoritesService.removeFavorite(childId, activityId);
+    console.log('[childFavoritesSlice] removeChildFavorite called:', { childId, activityId });
+    try {
+      await childFavoritesService.removeFavorite(childId, activityId);
+      console.log('[childFavoritesSlice] removeChildFavorite API SUCCESS');
+    } catch (error: any) {
+      console.error('[childFavoritesSlice] removeChildFavorite API FAILED:', error?.message);
+    }
     return { childId, activityId };
   }
 );
@@ -110,7 +126,13 @@ export const removeChildFavorite = createAsyncThunk(
 export const joinChildWaitlist = createAsyncThunk(
   'childFavorites/joinWaitlist',
   async ({ childId, activityId }: { childId: string; activityId: string }) => {
-    await childFavoritesService.joinWaitlist(childId, activityId);
+    console.log('[childFavoritesSlice] joinChildWaitlist called:', { childId, activityId });
+    try {
+      await childFavoritesService.joinWaitlist(childId, activityId);
+      console.log('[childFavoritesSlice] joinChildWaitlist API SUCCESS');
+    } catch (error: any) {
+      console.error('[childFavoritesSlice] joinChildWaitlist API FAILED:', error?.message);
+    }
     return { childId, activityId };
   }
 );
@@ -119,7 +141,13 @@ export const joinChildWaitlist = createAsyncThunk(
 export const leaveChildWaitlist = createAsyncThunk(
   'childFavorites/leaveWaitlist',
   async ({ childId, activityId }: { childId: string; activityId: string }) => {
-    await childFavoritesService.leaveWaitlist(childId, activityId);
+    console.log('[childFavoritesSlice] leaveChildWaitlist called:', { childId, activityId });
+    try {
+      await childFavoritesService.leaveWaitlist(childId, activityId);
+      console.log('[childFavoritesSlice] leaveChildWaitlist API SUCCESS');
+    } catch (error: any) {
+      console.error('[childFavoritesSlice] leaveChildWaitlist API FAILED:', error?.message);
+    }
     return { childId, activityId };
   }
 );

@@ -69,7 +69,7 @@ class ChildActivityService {
    */
   async linkActivity(input: LinkActivityInput): Promise<ChildActivity> {
     try {
-      const response = await apiClient.post<any>('/child-activities/link', input);
+      const response = await apiClient.post<any>('/api/v1/child-activities/link', input);
       return response.data;
     } catch (error) {
       console.error('Error linking activity:', error);
@@ -87,7 +87,7 @@ class ChildActivityService {
   ): Promise<ChildActivity> {
     try {
       const response = await apiClient.put<any>(
-        `/child-activities/${childId}/activities/${activityId}`,
+        `/api/v1/child-activities/${childId}/activities/${activityId}`,
         input
       );
       return response.data;
@@ -102,7 +102,7 @@ class ChildActivityService {
    */
   async unlinkActivity(childId: string, activityId: string): Promise<void> {
     try {
-      await apiClient.delete(`/child-activities/${childId}/activities/${activityId}`);
+      await apiClient.delete(`/api/v1/child-activities/${childId}/activities/${activityId}`);
     } catch (error) {
       console.error('Error unlinking activity:', error);
       throw error;
@@ -114,7 +114,7 @@ class ChildActivityService {
    */
   async getChildActivities(childId: string): Promise<ChildActivity[]> {
     try {
-      const response = await apiClient.get<any>(`/child-activities/${childId}/activities`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/${childId}/activities`);
       return response.data.activities;
     } catch (error) {
       console.error('Error fetching child activities:', error);
@@ -129,7 +129,7 @@ class ChildActivityService {
     try {
       // For now, we'll get all activities and filter on the client side
       // In a production app, you'd want to add a specific endpoint for this
-      const response = await apiClient.get<any>('/child-activities/history');
+      const response = await apiClient.get<any>('/api/v1/child-activities/history');
       const activities = response.data.activities as ChildActivity[];
       
       // Extract unique child IDs for this activity
@@ -158,7 +158,7 @@ class ChildActivityService {
       if (filters.category) params.append('category', filters.category);
       if (filters.minRating) params.append('minRating', filters.minRating.toString());
       
-      const response = await apiClient.get<any>(`/child-activities/history?${params.toString()}`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/history?${params.toString()}`);
       return response.data.activities;
     } catch (error) {
       console.error('Error fetching activity history:', error);
@@ -171,7 +171,7 @@ class ChildActivityService {
    */
   async getRecommendedActivities(childId: string): Promise<Activity[]> {
     try {
-      const response = await apiClient.get<any>(`/child-activities/${childId}/recommendations`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/${childId}/recommendations`);
       return response.data.activities;
     } catch (error) {
       console.error('Error fetching recommended activities:', error);
@@ -184,7 +184,7 @@ class ChildActivityService {
    */
   async getChildFavorites(childId: string): Promise<ChildActivity[]> {
     try {
-      const response = await apiClient.get<any>(`/child-activities/${childId}/favorites`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/${childId}/favorites`);
       return response.data.favorites;
     } catch (error) {
       console.error('Error fetching child favorites:', error);
@@ -208,7 +208,7 @@ class ChildActivityService {
         params.append('childIds', childIds.join(','));
       }
       
-      const response = await apiClient.get<any>(`/child-activities/calendar?${params.toString()}`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/calendar?${params.toString()}`);
       return response.data.events;
     } catch (error) {
       console.error('Error fetching calendar data:', error);
@@ -225,7 +225,7 @@ class ChildActivityService {
         ? `?childIds=${childIds.join(',')}`
         : '';
       
-      const response = await apiClient.get<any>(`/child-activities/stats${params}`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/stats${params}`);
       return response.data.stats;
     } catch (error) {
       console.error('Error fetching activity stats:', error);
@@ -242,7 +242,7 @@ class ChildActivityService {
     status: ActivityStatus = 'planned'
   ): Promise<number> {
     try {
-      const response = await apiClient.post<any>('/child-activities/bulk-link', {
+      const response = await apiClient.post<any>('/api/v1/child-activities/bulk-link', {
         childId,
         activityIds,
         status,
@@ -259,7 +259,7 @@ class ChildActivityService {
    */
   async getUpcomingActivities(days = 7): Promise<ChildActivity[]> {
     try {
-      const response = await apiClient.get<any>(`/child-activities/upcoming?days=${days}`);
+      const response = await apiClient.get<any>(`/api/v1/child-activities/upcoming?days=${days}`);
       return response.data.activities;
     } catch (error) {
       console.error('Error fetching upcoming activities:', error);

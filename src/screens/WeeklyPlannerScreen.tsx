@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
-  RefreshControl,
   Modal,
   Animated,
   Image,
@@ -38,8 +37,9 @@ interface ExistingActivity {
   isExisting: true;
 }
 import { ModernColors, ModernShadows, ModernBorderRadius } from '../theme/modernTheme';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
+import { linkActivity } from '../store/slices/childActivitiesSlice';
 import ScreenBackground from '../components/ScreenBackground';
 import { aiRobotImage, getActivityImageByKey } from '../assets/images';
 import { OptimizedActivityImage } from '../components/OptimizedActivityImage';
@@ -112,9 +112,11 @@ interface ChatMessage {
 
 /**
  * Feedback history for AI context
+ * Tracks why user declined activities for smarter recommendations
  */
 interface FeedbackHistory {
   activityId: string;
+  activityName: string;
   feedback: string;
   timestamp: Date;
 }
@@ -255,11 +257,11 @@ const initializeAvailability = (children: ChildWithPreferences[]): ChildAvailabi
  */
 const WeeklyPlannerScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useAppDispatch();
   const children = useAppSelector(selectAllChildren);
 
   // Schedule state
   const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing] = useState(false);
   const [schedule, setSchedule] = useState<WeeklySchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -297,7 +299,6 @@ const WeeklyPlannerScreen = () => {
   const [chatInputText, setChatInputText] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [activeChatContext, setActiveChatContext] = useState<ChatContext | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [feedbackHistory, setFeedbackHistory] = useState<FeedbackHistory[]>([]);
   const [showChat, setShowChat] = useState(false);
   const [showOtherInput, setShowOtherInput] = useState(false);
@@ -477,7 +478,8 @@ const WeeklyPlannerScreen = () => {
         // Initialize all entries as pending
         const approvals: Record<string, ApprovalState> = {};
         Object.values(result.schedule.entries).flat().forEach((entry, idx) => {
-          const key = `${entry.child_id}-${entry.activity_id}-${entry.day}-${idx}`;
+          // Use :: as delimiter since UUIDs and dates contain dashes
+          const key = `${entry.child_id}::${entry.activity_id}::${entry.day}::${idx}`;
           approvals[key] = 'pending';
         });
         setEntryApprovals(approvals);
@@ -571,7 +573,8 @@ const WeeklyPlannerScreen = () => {
     return Object.entries(entryApprovals)
       .filter(([_, state]) => state === 'declined')
       .map(([key]) => {
-        const parts = key.split('-');
+        // Key format: childId::activityId::day::entryIndex
+        const parts = key.split('::');
         return parts.length >= 2 ? parts[1] : null;
       })
       .filter(Boolean) as string[];
@@ -632,9 +635,10 @@ const WeeklyPlannerScreen = () => {
     setChatInputText('');
     setShowOtherInput(false);
 
-    // Store feedback for future context
+    // Store feedback for future context (used by AI to understand preferences)
     setFeedbackHistory(prev => [...prev, {
       activityId: activeChatContext.currentActivityId,
+      activityName: activeChatContext.currentActivityName,
       feedback,
       timestamp: new Date(),
     }]);
@@ -646,13 +650,23 @@ const WeeklyPlannerScreen = () => {
       const excludedIds = getDeclinedActivityIds();
       excludedIds.push(activeChatContext.currentActivityId);
 
-      // Request AI to find alternative with feedback context
+      // Build feedback history for AI context (why user declined previous activities)
+      const historyForAI = feedbackHistory.map(h => ({
+        activity_id: h.activityId,
+        activity_name: h.activityName,
+        feedback: h.feedback,
+      }));
+
+      // Request AI to find alternative with full feedback context
       const result = await aiService.findAlternativeActivity({
         child_id: activeChatContext.childId,
         day: activeChatContext.day,
         time_slot: schedule?.entries[activeChatContext.day]?.[activeChatContext.entryIndex]?.time || 'morning',
         excluded_activity_ids: excludedIds,
         week_start: toISODateString(currentWeekStartDate),
+        feedback: feedback,
+        current_activity_name: activeChatContext.currentActivityName,
+        feedback_history: historyForAI,
       });
 
       if (result.success && result.alternative) {
@@ -701,7 +715,7 @@ const WeeklyPlannerScreen = () => {
     } finally {
       setIsChatLoading(false);
     }
-  }, [activeChatContext, schedule, currentWeekStartDate, getDeclinedActivityIds, activityService]);
+  }, [activeChatContext, schedule, currentWeekStartDate, getDeclinedActivityIds, activityService, feedbackHistory]);
 
   /**
    * Handle quick response selection
@@ -734,9 +748,9 @@ const WeeklyPlannerScreen = () => {
       return { ...prev, entries: newEntries };
     });
 
-    // Update approval state
-    const oldKey = `${activeChatContext.childId}-${activeChatContext.currentActivityId}-${activeChatContext.day}-${activeChatContext.entryIndex}`;
-    const newKey = `${suggestedActivity.child_id}-${suggestedActivity.activity_id}-${suggestedActivity.day}-${activeChatContext.entryIndex}`;
+    // Update approval state (using :: as delimiter)
+    const oldKey = `${activeChatContext.childId}::${activeChatContext.currentActivityId}::${activeChatContext.day}::${activeChatContext.entryIndex}`;
+    const newKey = `${suggestedActivity.child_id}::${suggestedActivity.activity_id}::${suggestedActivity.day}::${activeChatContext.entryIndex}`;
     setEntryApprovals(prev => {
       const updated = { ...prev };
       delete updated[oldKey];
@@ -764,6 +778,7 @@ const WeeklyPlannerScreen = () => {
     // Add to feedback history
     setFeedbackHistory(prev => [...prev, {
       activityId: suggestedActivity.activity_id,
+      activityName: suggestedActivity.activity_name,
       feedback: 'declined without specific feedback',
       timestamp: new Date(),
     }]);
@@ -808,55 +823,46 @@ const WeeklyPlannerScreen = () => {
   }, [openChatForActivity]);
 
   /**
-   * Add approved activities to calendar
+   * Add all non-deleted activities to calendar using Redux
+   * Adds both 'pending' and 'approved' entries (excludes 'declined')
    */
   const addApprovedToCalendar = async () => {
     if (!schedule) return;
 
-    const approvedEntries = Object.entries(entryApprovals)
-      .filter(([_, state]) => state === 'approved')
+    // Get all entries that haven't been declined (both pending and approved)
+    const entriesToAdd = Object.entries(entryApprovals)
+      .filter(([_, state]) => state !== 'declined')
       .map(([key]) => {
-        // Parse key: childId-activityId-day-entryIndex
-        const parts = key.split('-');
+        // Parse key: childId::activityId::day::entryIndex (using :: as delimiter)
+        const parts = key.split('::');
         const childId = parts[0];
         const activityId = parts[1];
-        const day = parts.slice(2, -1).join('-'); // Day might have dashes
-        return { childId, activityId, day };
+        return { childId, activityId };
       });
 
-    if (approvedEntries.length === 0) return;
+    if (entriesToAdd.length === 0) {
+      setError('No activities to add. All activities have been deleted.');
+      return;
+    }
 
     try {
-      // Add each approved activity to the child's calendar
-      for (const entry of approvedEntries) {
-        const scheduleEntry = Object.values(schedule.entries)
-          .flat()
-          .find(e => e.child_id === entry.childId && e.activity_id === entry.activityId);
-
-        if (scheduleEntry) {
-          // Calculate the scheduled date based on the day of week and current week start
-          const dayIndex = DAYS_OF_WEEK.indexOf(scheduleEntry.day);
-          const scheduledDate = new Date(currentWeekStartDate);
-          scheduledDate.setDate(scheduledDate.getDate() + dayIndex);
-
-          await childrenService.addActivityToChild(
-            entry.childId,
-            entry.activityId,
-            'planned',
-            scheduledDate,
-            scheduleEntry.time
-          );
-        }
+      // Add each activity to the child's calendar via Redux
+      for (const entry of entriesToAdd) {
+        await dispatch(linkActivity({
+          childId: entry.childId,
+          activityId: entry.activityId,
+          status: 'planned',
+        })).unwrap();
       }
 
       // Show success animation
-      setSuccessMessage(`Added ${approvedEntries.length} ${approvedEntries.length === 1 ? 'activity' : 'activities'} to calendar!`);
+      setSuccessMessage(`Added ${entriesToAdd.length} ${entriesToAdd.length === 1 ? 'activity' : 'activities'} to calendar!`);
       setShowSuccessModal(true);
 
-      // Auto-hide after 2 seconds
+      // Navigate to Calendar after delay
       setTimeout(() => {
         setShowSuccessModal(false);
-        clearSchedule();
+        navigation.navigate('Calendar' as never);
       }, 2000);
 
     } catch (err: any) {
@@ -886,10 +892,11 @@ const WeeklyPlannerScreen = () => {
 
       // For each declined entry, try to find an alternative
       for (const key of declinedKeys) {
-        const parts = key.split('-');
+        // Key format: childId::activityId::day::entryIndex
+        const parts = key.split('::');
         const childId = parts[0];
-        const day = parts.slice(2, -1).join('-');
-        const entryIndex = parseInt(parts[parts.length - 1], 10);
+        const day = parts[2]; // Day is a single part now (dates contain dashes but that's ok)
+        const entryIndex = parseInt(parts[3], 10);
 
         const dayEntries = schedule.entries[day] || [];
         const entry = dayEntries[entryIndex];
@@ -918,8 +925,8 @@ const WeeklyPlannerScreen = () => {
               return { ...prev, entries: newEntries };
             });
 
-            // Update approval state to pending for new entry
-            const newKey = `${result.alternative.child_id}-${result.alternative.activity_id}-${result.alternative.day}-${entryIndex}`;
+            // Update approval state to pending for new entry (using :: as delimiter)
+            const newKey = `${result.alternative.child_id}::${result.alternative.activity_id}::${result.alternative.day}::${entryIndex}`;
             setEntryApprovals(prev => {
               const updated = { ...prev };
               delete updated[key];
@@ -1563,7 +1570,8 @@ const WeeklyPlannerScreen = () => {
    */
   const renderScheduleEntry = (entry: ScheduleEntry, dayIndex: number, entryIndex: number) => {
     const { name: childName, color: childColor } = getChildInfo(entry.child_id);
-    const uniqueKey = `${entry.child_id}-${entry.activity_id}-${entry.day}-${entryIndex}`;
+    // Use :: as delimiter since UUIDs and dates contain dashes
+    const uniqueKey = `${entry.child_id}::${entry.activity_id}::${entry.day}::${entryIndex}`;
     const approvalState = entryApprovals[uniqueKey] || 'pending';
     const activity = activityDetails[entry.activity_id];
 
@@ -2017,7 +2025,7 @@ const WeeklyPlannerScreen = () => {
         <View style={styles.summaryActionsRow}>
           <TouchableOpacity
             style={styles.summaryCancelButton}
-            onPress={clearSchedule}
+            onPress={() => navigation.navigate('Calendar' as never)}
           >
             <Icon name="close" size={18} color={ModernColors.textSecondary} />
             <Text style={styles.summaryCancelText}>Cancel</Text>
@@ -2400,7 +2408,7 @@ const WeeklyPlannerScreen = () => {
         {/* Cancel button */}
         <TouchableOpacity
           style={styles.actionBarCancelButton}
-          onPress={clearSchedule}
+          onPress={() => navigation.navigate('MapSearch' as never)}
         >
           <Icon name="close" size={18} color={ModernColors.textSecondary} />
           <Text style={styles.actionBarCancelText}>Cancel</Text>
@@ -2525,20 +2533,7 @@ const WeeklyPlannerScreen = () => {
             </Text>
           )}
         </View>
-        {schedule && (
-          <TouchableOpacity
-            onPress={generateSchedule}
-            disabled={isLoading}
-            style={styles.headerButton}
-          >
-            <Icon
-              name="refresh"
-              size={24}
-              color={isLoading ? ModernColors.border : ModernColors.primary}
-            />
-          </TouchableOpacity>
-        )}
-        {!schedule && <View style={styles.headerButton} />}
+        <View style={styles.headerButton} />
       </View>
 
       {/* Content */}
@@ -2552,13 +2547,6 @@ const WeeklyPlannerScreen = () => {
         ) : (
           <ScrollView
             style={styles.scrollContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={generateSchedule}
-                tintColor={ModernColors.primary}
-              />
-            }
           >
             {/* Week navigator for multi-week plans */}
             {renderWeekNavigator()}
@@ -2610,9 +2598,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   headerButton: {
     width: 40,
@@ -3059,14 +3045,20 @@ const styles = StyleSheet.create({
   },
   summarySection: {
     padding: 16,
-    backgroundColor: ModernColors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
+    paddingBottom: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   summaryStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: ModernBorderRadius.lg,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: ModernColors.primaryLight + '40',
+    ...ModernShadows.sm,
   },
   summaryStatItem: {
     alignItems: 'center',
@@ -3165,25 +3157,29 @@ const styles = StyleSheet.create({
   },
   dayColumn: {
     width: 200,
-    marginRight: 16,
+    marginRight: 12,
   },
   dayHeader: {
-    padding: 12,
-    backgroundColor: ModernColors.surface,
-    borderRadius: ModernBorderRadius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: ModernBorderRadius.lg,
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: ModernColors.border,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: ModernColors.primaryLight + '50',
+    ...ModernShadows.sm,
   },
   dayHeaderToday: {
     backgroundColor: ModernColors.primary,
     borderColor: ModernColors.primary,
+    ...ModernShadows.md,
   },
   dayName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: ModernColors.text,
+    letterSpacing: 0.5,
   },
   dayNameToday: {
     color: '#FFFFFF',
@@ -4156,35 +4152,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: ModernColors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: ModernColors.border,
-    gap: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    gap: 20,
   },
   weekNavigatorButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: ModernColors.background,
-    borderWidth: 1,
-    borderColor: ModernColors.border,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: ModernColors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
+    ...ModernShadows.sm,
   },
   weekNavigatorButtonDisabled: {
     opacity: 0.4,
+    borderColor: ModernColors.border,
   },
   weekNavigatorText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: ModernColors.text,
   },
   weekNavigatorDates: {
     fontSize: 13,
-    color: ModernColors.textSecondary,
+    color: ModernColors.primary,
     marginTop: 2,
+    fontWeight: '500',
   },
 });
 

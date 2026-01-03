@@ -185,11 +185,11 @@ app.get('/health', (req, res) => {
 // Authentication routes
 app.use('/api/auth', authRoutes);
 
-// Children management routes
-app.use('/api/children', childrenRoutes);
+// Children management routes (v1 API)
+app.use('/api/v1/children', childrenRoutes);
 
-// Child activities routes
-app.use('/api/child-activities', childActivitiesRoutes);
+// Child activities routes (v1 API)
+app.use('/api/v1/child-activities', childActivitiesRoutes);
 
 // Activity sharing routes
 app.use('/api/invitations', invitationsRoutes);

@@ -34,8 +34,18 @@ import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode } from '../store/slices/childrenSlice';
 import { getChildColor } from '../theme/childColors';
-import { useAppSelector } from '../store';
+import { useAppSelector, useAppDispatch } from '../store';
 import AddToCalendarModal from '../components/AddToCalendarModal';
+import ChildAssignmentSheet, { ActionType } from '../components/ChildAssignmentSheet';
+import {
+  addChildFavorite,
+  removeChildFavorite,
+  joinChildWaitlist,
+  leaveChildWaitlist,
+  selectChildrenWhoFavoritedWithDetails,
+  selectChildrenOnWaitlistWithDetails,
+} from '../store/slices/childFavoritesSlice';
+import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
@@ -61,7 +71,10 @@ const DashboardScreenModern = () => {
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [waitlistAvailableCount, setWaitlistAvailableCount] = useState(0);
   const [calendarModalActivity, setCalendarModalActivity] = useState<Activity | null>(null);
+  const [childSheetActivity, setChildSheetActivity] = useState<Activity | null>(null);
+  const [childSheetAction, setChildSheetAction] = useState<ActionType>('favorite');
   const [scrollY] = useState(new Animated.Value(0));
+  const dispatch = useAppDispatch();
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
   const waitlistService = WaitlistService.getInstance();
@@ -1079,56 +1092,126 @@ const DashboardScreenModern = () => {
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={(e) => {
+              onPress={async (e) => {
                 e.stopPropagation();
-                toggleFavorite(activity);
+                // Use child-based logic if we have children
+                if (children.length === 1) {
+                  // Auto-assign to single child
+                  const child = children[0];
+                  const isCurrentlyFavorited = isFavorite;
+                  try {
+                    if (isCurrentlyFavorited) {
+                      await dispatch(removeChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
+                    } else {
+                      if (!canAddFavorite) {
+                        onFavoriteLimitReached();
+                        return;
+                      }
+                      await dispatch(addChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
+                    }
+                    // Update local favorite state
+                    setFavoriteIds(prev => {
+                      const newSet = new Set(prev);
+                      if (isCurrentlyFavorited) {
+                        newSet.delete(activity.id);
+                      } else {
+                        newSet.add(activity.id);
+                      }
+                      return newSet;
+                    });
+                  } catch (error) {
+                    console.error('Failed to toggle favorite:', error);
+                  }
+                } else if (children.length > 1) {
+                  // Show child selection sheet
+                  setChildSheetActivity(activity);
+                  setChildSheetAction('favorite');
+                } else {
+                  // No children - use legacy behavior
+                  toggleFavorite(activity);
+                }
               }}
             >
               <Icon
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={16}
-                color={isFavorite ? "#E8638B" : "#FFF"}
+                color={isFavorite ? (children.length > 0 ? getChildColor(children[0].colorId || 1).hex : "#E8638B") : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={async (e) => {
                 e.stopPropagation();
-                if (!isOnWaitlist && !canAddToWaitlist) {
-                  onWaitlistLimitReached();
-                  return;
-                }
-                // Optimistic update for immediate UI feedback
-                if (isOnWaitlist) {
-                  setWaitlistIds(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(activity.id);
-                    return newSet;
-                  });
+                // Use child-based logic if we have children
+                if (children.length === 1) {
+                  // Auto-assign to single child
+                  const child = children[0];
+                  const isCurrentlyWatching = isOnWaitlist;
+                  try {
+                    if (isCurrentlyWatching) {
+                      await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                    } else {
+                      if (!canAddToWaitlist) {
+                        onWaitlistLimitReached();
+                        return;
+                      }
+                      await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                    }
+                    // Update local waitlist state
+                    setWaitlistIds(prev => {
+                      const newSet = new Set(prev);
+                      if (isCurrentlyWatching) {
+                        newSet.delete(activity.id);
+                      } else {
+                        newSet.add(activity.id);
+                      }
+                      return newSet;
+                    });
+                  } catch (error) {
+                    console.error('Failed to toggle waitlist:', error);
+                  }
+                } else if (children.length > 1) {
+                  // Show child selection sheet
+                  setChildSheetActivity(activity);
+                  setChildSheetAction('watching');
                 } else {
-                  setWaitlistIds(prev => new Set([...prev, activity.id]));
-                }
-                const result = await waitlistService.toggleWaitlist(activity);
-                // Revert if failed
-                if (!result.success) {
+                  // No children - use legacy behavior
+                  if (!isOnWaitlist && !canAddToWaitlist) {
+                    onWaitlistLimitReached();
+                    return;
+                  }
+                  // Optimistic update for immediate UI feedback
                   if (isOnWaitlist) {
-                    setWaitlistIds(prev => new Set([...prev, activity.id]));
-                  } else {
                     setWaitlistIds(prev => {
                       const newSet = new Set(prev);
                       newSet.delete(activity.id);
                       return newSet;
                     });
+                  } else {
+                    setWaitlistIds(prev => new Set([...prev, activity.id]));
                   }
+                  const result = await waitlistService.toggleWaitlist(activity);
+                  // Revert if failed
+                  if (!result.success) {
+                    if (isOnWaitlist) {
+                      setWaitlistIds(prev => new Set([...prev, activity.id]));
+                    } else {
+                      setWaitlistIds(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(activity.id);
+                        return newSet;
+                      });
+                    }
+                  }
+                  syncWaitlistCount();
+                  loadWaitlistCount();
                 }
-                syncWaitlistCount();
-                loadWaitlistCount();
               }}
             >
               <Icon
                 name={isOnWaitlist ? "bell-ring" : "bell-outline"}
                 size={16}
-                color={isOnWaitlist ? "#FFB800" : "#FFF"}
+                color={isOnWaitlist ? (children.length > 0 ? getChildColor(children[0].colorId || 1).hex : "#FFB800") : "#FFF"}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
@@ -1138,13 +1221,20 @@ const DashboardScreenModern = () => {
               style={styles.actionButton}
               onPress={(e) => {
                 e.stopPropagation();
-                setCalendarModalActivity(activity);
+                if (children.length <= 1) {
+                  // Single child or no children - use existing modal
+                  setCalendarModalActivity(activity);
+                } else {
+                  // Multiple children - show selection sheet
+                  setChildSheetActivity(activity);
+                  setChildSheetAction('calendar');
+                }
               }}
             >
               <Icon
                 name={isOnCalendar ? "calendar-check" : "calendar-plus"}
                 size={16}
-                color={isOnCalendar ? "#4ECDC4" : "#FFF"}
+                color={isOnCalendar ? (children.length > 0 ? getChildColor(children[0].colorId || 1).hex : "#4ECDC4") : "#FFF"}
               />
             </TouchableOpacity>
           </View>
@@ -1628,6 +1718,37 @@ const DashboardScreenModern = () => {
           visible={!!calendarModalActivity}
           activity={calendarModalActivity}
           onClose={() => setCalendarModalActivity(null)}
+        />
+      )}
+
+      {/* Child Assignment Sheet - for favorite/watching/calendar with multiple children */}
+      {childSheetActivity && (
+        <ChildAssignmentSheet
+          visible={!!childSheetActivity}
+          actionType={childSheetAction}
+          activity={childSheetActivity}
+          onClose={() => setChildSheetActivity(null)}
+          onSuccess={(childId, childName, added) => {
+            // Update local state based on action type
+            if (childSheetAction === 'favorite') {
+              setFavoriteIds(prev => {
+                const newSet = new Set(prev);
+                if (added) {
+                  newSet.add(childSheetActivity.id);
+                }
+                // Don't remove - might still be favorited by other children
+                return newSet;
+              });
+            } else if (childSheetAction === 'watching') {
+              setWaitlistIds(prev => {
+                const newSet = new Set(prev);
+                if (added) {
+                  newSet.add(childSheetActivity.id);
+                }
+                return newSet;
+              });
+            }
+          }}
         />
       )}
       </SafeAreaView>
