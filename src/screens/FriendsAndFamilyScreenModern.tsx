@@ -134,8 +134,10 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadChildren();
+    // Also refresh Redux store
+    dispatch(fetchChildren());
     setRefreshing(false);
-  }, []);
+  }, [dispatch]);
 
   const handleAddChild = () => {
     setEditingChild(null);
@@ -160,6 +162,8 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
             try {
               await childrenService.deleteChild(childId);
               await loadChildren();
+              // Also update Redux store
+              dispatch(fetchChildren());
             } catch (error) {
               Alert.alert('Error', 'Failed to delete child profile');
             }
