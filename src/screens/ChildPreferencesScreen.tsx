@@ -1016,11 +1016,11 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 32,
     paddingTop: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,

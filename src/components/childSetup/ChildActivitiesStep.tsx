@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   typeCard: {
-    width: (screenWidth - 80) / 3, // Account for padding and gaps
+    width: (screenWidth - 112) / 3, // Account for container padding (64) and gaps (24) with buffer
     aspectRatio: 1,
     backgroundColor: '#F8F9FA',
     borderRadius: 16,
