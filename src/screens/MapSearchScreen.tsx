@@ -808,6 +808,59 @@ const MapSearchScreen = () => {
     updateVisibleActivities(newRegion);
   }, [updateVisibleActivities]);
 
+  // Place search handlers
+  const handlePlaceSearchChange = useCallback(async (text: string) => {
+    setPlaceSearchQuery(text);
+    if (text.length < 2) {
+      setPlacePredictions([]);
+      return;
+    }
+
+    try {
+      const results = await GooglePlacesSDK.fetchPredictions(text, {
+        countries: ['ca', 'us'],
+      });
+      setPlacePredictions(results || []);
+    } catch (error) {
+      if (__DEV__) console.error('[MapSearch] Error fetching place predictions:', error);
+      setPlacePredictions([]);
+    }
+  }, []);
+
+  const handleSelectPlace = useCallback(async (prediction: any) => {
+    try {
+      Keyboard.dismiss();
+      setShowPlaceSearch(false);
+      setPlacePredictions([]);
+      setPlaceSearchQuery(prediction.primaryText || prediction.description || '');
+
+      // Get place details with coordinates
+      const details = await GooglePlacesSDK.fetchPlaceDetails(prediction.placeId);
+
+      if (details?.coordinate) {
+        const newRegion: Region = {
+          latitude: details.coordinate.latitude,
+          longitude: details.coordinate.longitude,
+          latitudeDelta: 0.05, // City-level zoom
+          longitudeDelta: 0.05,
+        };
+
+        mapRef.current?.animateToRegion(newRegion, 500);
+
+        // Load activities for the new region
+        loadActivitiesForRegion(newRegion);
+      }
+    } catch (error) {
+      if (__DEV__) console.error('[MapSearch] Error selecting place:', error);
+    }
+  }, [loadActivitiesForRegion]);
+
+  const clearPlaceSearch = useCallback(() => {
+    setPlaceSearchQuery('');
+    setPlacePredictions([]);
+    setShowPlaceSearch(false);
+  }, []);
+
   // Favorites and waitlist services for action buttons
   const favoritesService = FavoritesService.getInstance();
   const waitlistService = WaitlistService.getInstance();
@@ -1108,6 +1161,7 @@ const MapSearchScreen = () => {
           rotateEnabled={false}
           onRegionChangeComplete={handleRegionChange}
         >
+          {/* Activity cluster markers */}
           {clusters.map((cluster) => (
             <ClusterMarker
               key={cluster.id}
@@ -1118,6 +1172,24 @@ const MapSearchScreen = () => {
               isSelected={cluster.activities.some(a => a.id === selectedActivityId)}
             />
           ))}
+
+          {/* Child home location markers */}
+          {children
+            .filter(child => child.locationDetails?.latitude && child.locationDetails?.longitude)
+            .map(child => (
+              <Marker
+                key={`child-home-${child.id}`}
+                coordinate={{
+                  latitude: child.locationDetails!.latitude!,
+                  longitude: child.locationDetails!.longitude!,
+                }}
+                anchor={{ x: 0.5, y: 1 }}
+              >
+                <View style={styles.childMarkerContainer}>
+                  <ChildAvatar child={child} size={36} showBorder={true} />
+                </View>
+              </Marker>
+            ))}
         </MapView>
 
         {/* Loading indicator - subtle, doesn't block the map */}

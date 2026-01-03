@@ -87,11 +87,24 @@ class DatabaseActivityMapper {
     // Find the best matching type and subtype
     const typeMapping = this.findBestTypeMatch(searchText, name, subcategory);
 
+    // Get activity type name for indoor/outdoor detection
+    let activityTypeName = null;
+    if (typeMapping.typeId) {
+      const typeRecord = Array.from(this.typesCache.values()).find(t => t.id === typeMapping.typeId);
+      if (typeRecord) {
+        activityTypeName = typeRecord.name;
+      }
+    }
+
+    // Detect indoor/outdoor environment
+    const isIndoor = this.detectIndoorOutdoor(scrapedActivity, activityTypeName);
+
     return {
       activityTypeId: typeMapping.typeId,
       activitySubtypeId: typeMapping.subtypeId,
       requiresParent: parentInfo.requiresParent,
-      parentInvolvement: parentInfo.parentInvolvement
+      parentInvolvement: parentInfo.parentInvolvement,
+      isIndoor: isIndoor
     };
   }
 
