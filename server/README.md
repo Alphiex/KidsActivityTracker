@@ -2,17 +2,19 @@
 
 ## Overview
 
-Node.js/Express backend API server for the Kids Activity Tracker mobile app. Provides REST APIs for activity management, user authentication, and automated web scraping from recreation centers across BC.
+Node.js/Express backend API server for the Kids Activity Tracker mobile app. Provides REST APIs for activity management, user authentication, AI-powered recommendations, and automated web scraping from recreation centers across Canada.
 
 ## Tech Stack
 
 - **Runtime**: Node.js 20.x
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: PostgreSQL 15 with Prisma ORM
 - **Deployment**: Google Cloud Run
 - **Scraping**: Puppeteer with stealth plugins
+- **AI**: OpenAI GPT-4o, LangGraph orchestration
 - **Authentication**: JWT tokens
-- **Caching**: Redis for session management
+- **Geocoding**: Google Maps API
+- **Payments**: Stripe (partners), RevenueCat (consumers)
 
 ## Quick Start
 
@@ -25,7 +27,7 @@ npx prisma generate
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env with your credentials
 
 # Run database migrations
 npm run migrate:dev
@@ -43,33 +45,52 @@ npm start
 ```
 server/
 ├── src/                   # TypeScript source code
-│   ├── api/              # API routes
-│   ├── config/           # Configuration
+│   ├── ai/               # AI features
+│   │   ├── graph/        # LangGraph nodes
+│   │   ├── orchestrator/ # AI orchestration
+│   │   └── routes/       # AI API routes
+│   ├── routes/           # API route handlers
+│   ├── services/         # Business logic services
 │   ├── middleware/       # Express middleware
-│   ├── services/         # Business logic
-│   ├── utils/            # Utilities & filters
 │   └── server.ts         # Main server file
 ├── prisma/               # Database ORM
-│   ├── schema.prisma     # Database schema
+│   ├── schema.prisma     # Database schema (40+ tables)
 │   └── migrations/       # Migration history
-├── scripts/              # Maintenance scripts
+├── generated/            # Generated Prisma client
 ├── scrapers/             # Web scraping modules
+│   ├── base/             # BaseScraper class with geocoding
+│   ├── platforms/        # Platform-specific scrapers
+│   ├── configs/          # Provider JSON configs
+│   ├── scripts/          # Scraper utility scripts
+│   └── validation/       # Claude Vision validation
+├── scripts/              # Maintenance scripts
 └── Dockerfile            # Container configuration
 ```
 
 ## API Endpoints
 
 ### Activities
-- `GET /api/v1/activities` - List activities with filters
-  - Query params: `limit`, `offset`, `location`, `ageMin`, `ageMax`, `hideClosedOrFull`
+- `GET /api/v1/activities` - Search with filters (age, cost, type, location, date, etc.)
+- `GET /api/v1/activities/bounds` - Geographic search within map viewport
 - `GET /api/v1/activities/:id` - Get activity details
 - `GET /api/v1/activities/stats/summary` - Activity statistics
 
-### Filters & Search
-- `hideClosedOrFull=true` - Hide activities that are closed OR have no spots (default: true)
-- `location=North Vancouver` - Filter by location
-- `ageMin=5&ageMax=10` - Age range filtering
-- `activityType=Swimming` - Filter by activity type
+### Children
+- `GET /api/v1/children` - List user's children
+- `POST /api/v1/children` - Create child
+- `PUT /api/v1/children/:id` - Update child
+- `DELETE /api/v1/children/:id` - Delete child
+- `GET /api/v1/children/:id/activities` - Child's activities
+- `POST /api/v1/children/:id/activities` - Add activity to child
+- `PUT /api/v1/children/:id/activities/:activityId` - Update activity status
+- `GET /api/v1/children/:id/favorites` - Child's favorites
+- `POST /api/v1/children/:id/custom-events` - Create custom event
+
+### AI Features
+- `POST /api/v1/ai/recommendations` - Personalized activity recommendations
+- `POST /api/v1/ai/chat` - Conversational AI assistant
+- `POST /api/v1/ai/plan-week` - Weekly schedule generation
+- `GET /api/v1/ai/chat/quota` - Check user's AI quota
 
 ### Reference Data
 - `GET /api/v1/locations` - List all locations
@@ -77,26 +98,36 @@ server/
 - `GET /api/v1/activity-types` - List activity types
 - `GET /api/v1/categories` - List categories
 
-### User Features
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/v1/users/:id/favorites` - User favorites
-- `POST /api/v1/favorites` - Add/remove favorite
+### Partners & Sponsorship
+- `GET /api/v1/partners/sponsored` - Sponsored activities
+- `POST /api/v1/partners/impressions` - Track ad impressions
+- `POST /api/v1/partners/clicks` - Track ad clicks
 
-### AI Features
-- `POST /api/v1/ai/recommendations` - AI-powered activity recommendations
-- `POST /api/v1/ai/chat` - Conversational AI assistant
-- `GET /api/v1/ai/chat/quota` - Check user's AI quota
-- `DELETE /api/v1/ai/chat/:conversationId` - End conversation
+## Key Statistics
+
+| Metric | Value |
+|--------|-------|
+| Activities | 126,000+ |
+| Locations | 4,900+ |
+| Providers | 85 |
+| Cities | 80 |
+| Provinces | 11 |
+| Geocoded Activities | 99.3% |
+| Geocoded Locations | 95.9% |
 
 ## Key Features
 
-### Global Activity Filters
-The API implements smart filtering to improve UX:
+### Geographic Search
+The `/api/v1/activities/bounds` endpoint supports map viewport filtering:
 ```typescript
-// Hide closed or full activities (OR condition)
+// Query by map bounds
+GET /api/v1/activities/bounds?minLat=49.2&maxLat=49.4&minLng=-123.2&maxLng=-123.0
+```
+
+### Activity Status Filtering
+```typescript
+// Hide closed or full activities
 if (filters.hideClosedOrFull) {
-  // Using De Morgan's Law: NOT (A OR B) = NOT A AND NOT B
   where.AND = [
     { registrationStatus: { not: 'Closed' } },
     { spotsAvailable: { gt: 0 } }
@@ -104,156 +135,166 @@ if (filters.hideClosedOrFull) {
 }
 ```
 
-### Database Schema
-
-Key tables:
-- `activities` - Main activity records (112,000+ entries)
-- `providers` - Activity providers (79 across Canada)
-- `locations` - Physical locations (3,980+)
-- `activity_types` - Categories and subcategories
-- `users` - User accounts with preferences
-- `favorites` - User saved activities
-
-### Canonical Activity Type Names
-Use these exact names in database and scrapers:
-- `Swimming & Aquatics` (not "Swimming")
-- `Gymnastics & Movement`
-- `Special Needs Programs` (not "Special Needs")
-- `Multi-Sport`
-- `Language & Culture`
-
-### AI Recommendation Prompt
-The AI generates child-focused benefit explanations (not search criteria matching):
+### Child Activity States
 ```typescript
-// Example "why" reasons:
-"why": [
-  "Builds confidence and teamwork skills",
-  "Great for developing coordination at this age",
-  "Fun way to stay active and make friends"
-]
+type ActivityStatus =
+  | 'interested'  // Saved/favorited
+  | 'enrolled'    // Currently participating
+  | 'completed'   // Finished
+  | 'dropped'     // Withdrew
+  | 'watching';   // Monitoring for availability
 ```
-Prompt file: `src/ai/prompts/recommendations.ts`
+
+### Geocoding Integration
+New locations are automatically geocoded during scraping:
+```javascript
+// In BaseScraper.js
+await this.geocodeNewLocations(createdLocations);
+```
+
+### AI Architecture (LangGraph)
+```
+Request → AI Orchestrator → LangGraph State Machine
+                              ├── parseQueryNode
+                              ├── fetchCandidatesNode
+                              ├── rankActivitiesNode
+                              ├── generateExplanationsNode
+                              └── plannerNode (weekly planning)
+```
 
 ## Deployment
 
 ### Google Cloud Run
 
 ```bash
-# Build and deploy (from server directory)
+# Deploy API
+./scripts/deployment/deploy-api.sh
+
+# Or manually:
 gcloud run deploy kids-activity-api \
   --source . \
   --region=us-central1 \
   --project=kids-activity-tracker-2024 \
   --allow-unauthenticated
-
-# Current production URL (MUST BE PRESERVED!)
-# https://kids-activity-api-4ev6yi22va-uc.a.run.app
 ```
 
-⚠️ **CRITICAL WARNING**:
-- Cloud Run URLs change when services are deleted/recreated
-- This breaks ALL deployed mobile clients
-- Solution: Use custom domain mapping or never delete the service
-- If URL changes, you must update `src/config/api.ts` and rebuild all apps
+**Production URL**: `https://kids-activity-api-4ev6yi22va-uc.a.run.app`
+
+⚠️ **CRITICAL**: Cloud Run URLs change on service deletion. Never delete the service.
 
 ### Environment Variables
 
 ```env
 # Database
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
-DIRECT_URL=postgresql://user:pass@host:5432/dbname
 
 # Server
 NODE_ENV=production
 PORT=8080
 
+# AI
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Geocoding
+GOOGLE_MAPS_API_KEY=AIza...
+
+# Payments
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
 # Security
-JWT_SECRET=your-secret-key-here
+JWT_SECRET=your-secret-key
 CORS_ORIGIN=*
-
-# Optional
-REDIS_URL=redis://localhost:6379
-LOG_LEVEL=info
 ```
 
-## Maintenance & Scripts
+## Scraper System
 
-### CLI Commands
+### Platforms Supported
+- PerfectMind (Vancouver, North Vancouver, etc.)
+- ActiveNetwork (Toronto, Ottawa, etc.)
+- Amilia (Calgary, Edmonton)
+- IC3 (Various cities)
+- CivicRec (Various cities)
+- Custom scrapers for specific providers
+
+### Running Scrapers
+
 ```bash
-node cli.js scrape        # Run NVRC scraper
-node cli.js migrate       # Run database migrations
-node cli.js backup-db     # Backup database
+# Run specific provider
+node scrapers/scripts/runScraper.js --provider=vancouver
+
+# Run all scrapers
+node scrapers/scripts/runAllScrapers.js
+
+# Validate scraper output
+node scrapers/scripts/runValidation.js --provider=vancouver --sample=5
+
+# Backfill geocoding
+node scrapers/scripts/geocodeLocations.js --limit=1000
 ```
 
-### Utility Scripts
+### Schedule Configuration
+Each provider has a JSON config with schedule settings:
+```json
+{
+  "schedule": {
+    "frequency": "daily",
+    "times": ["06:00", "18:00"],
+    "tier": "critical"
+  }
+}
+```
+
+## Maintenance Scripts
+
 ```bash
-node scripts/check-activities.js    # Verify data integrity
-node scripts/fix-costs.js           # Fix activity pricing
-node scripts/test-filters.js        # Test filter logic
+# Fix city/province data
+node scripts/maintenance/fix-city-provinces.js
+
+# Normalize locations
+node scripts/maintenance/normalize-locations.js
+
+# Database check
+node scripts/database/check-database.js
 ```
 
-## Security Considerations
+## Security
 
-1. **Helmet.js**: Disabled due to iOS compatibility issues
+1. **Authentication**: JWT tokens with 15-min access / 7-day refresh
 2. **Rate Limiting**: 100 requests per 15 minutes per IP
 3. **SQL Injection**: Protected via Prisma parameterized queries
-4. **XSS Prevention**: Input sanitization on all endpoints
-5. **Authentication**: JWT tokens with 7-day expiry
-6. **HTTPS**: Enforced in production via Cloud Run
+4. **Input Validation**: express-validator on all endpoints
+5. **HTTPS**: Enforced via Cloud Run
+6. **API Keys**: Stored in environment variables (gitignored)
 
-## Performance Optimizations
+## Performance
 
-- Database indexes on frequently queried fields
-- Pagination with limit/offset
-- Prisma query optimization with `select` fields
-- Connection pooling for database
+- Database indexes on frequently queried columns
+- Pagination with configurable limit/offset
+- 99.3% of activities pre-geocoded for fast map queries
+- Connection pooling via Prisma
 - Gzip compression enabled
-
-## Lessons Learned
-
-### Deployment Issues
-1. **URL Stability**: Cloud Run URLs change on service recreation - devastating for mobile apps
-2. **CORS Headers**: Helmet security headers break iOS apps - configure carefully
-3. **Database Connections**: Use connection pooling to avoid exhausting connections
-
-### Filter Logic
-1. **OR Conditions**: Require AND logic in SQL (De Morgan's Law)
-2. **Null Handling**: Must check for null values in filter conditions
-3. **Default Values**: Set sensible defaults (hideClosedOrFull=true)
-
-### Best Practices
-1. Always backup database before migrations
-2. Test filters with production data locally
-3. Monitor Cloud Run logs for errors
-4. Keep API backwards compatible
-5. Document all breaking changes
+- Response caching for static data
 
 ## Troubleshooting
 
-### Common Issues
-
-#### No activities returned
+### No activities returned
 ```sql
--- Check database
-SELECT COUNT(*) FROM activities WHERE "isActive" = true;
-SELECT COUNT(*) FROM activities WHERE "registrationStatus" != 'Closed';
+SELECT COUNT(*) FROM "Activity" WHERE "isActive" = true;
+SELECT COUNT(*) FROM "Activity" WHERE "registrationStatus" != 'Closed';
 ```
 
-#### iOS "cannot parse response"
-- Check Helmet configuration
-- Verify CORS headers
-- Ensure Content-Type is application/json
-
-#### Database connection errors
+### Database connection errors
 ```bash
 # Check connection
 psql $DATABASE_URL -c "SELECT 1"
 
-# Check Cloud SQL proxy
-gcloud sql instances describe kids-activity-db
+# Check Cloud SQL
+gcloud sql instances describe kids-activity-db-dev
 ```
 
-#### API deployment failures
+### API deployment failures
 ```bash
 # Check logs
 gcloud run services logs read kids-activity-api --limit=50
@@ -262,24 +303,26 @@ gcloud run services logs read kids-activity-api --limit=50
 gcloud run services describe kids-activity-api --region=us-central1
 ```
 
-## Development Tips
+## Development
 
-- Use `npm run dev` for hot reload during development
-- Test with Postman/Insomnia for API debugging
-- Use Prisma Studio for database inspection: `npx prisma studio`
-- Check TypeScript errors: `npm run typecheck`
-- Format code: `npm run format`
+```bash
+# Hot reload development
+npm run dev
 
-## Future Improvements
+# Type checking
+npm run typecheck
 
-- [ ] GraphQL API endpoint
-- [ ] WebSocket for real-time updates
-- [ ] Redis caching for popular queries
-- [ ] Elasticsearch for advanced search
-- [ ] API versioning strategy
-- [ ] OpenAPI/Swagger documentation
+# Linting
+npm run lint
+
+# Prisma Studio (database GUI)
+npx prisma studio
+
+# Format code
+npm run format
+```
 
 ---
 
 **Last Updated**: January 2026
-**Maintained By**: Development Team
+**Version**: 6.0

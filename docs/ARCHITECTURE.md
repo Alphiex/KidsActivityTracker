@@ -31,7 +31,7 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │   │
 │  │  │   Express   │  │ Auth/Rate   │  │  Activity Service   │  │   │
 │  │  │   Router    │──│  Limiting   │──│  Child Service      │  │   │
-│  │  │             │  │  Middleware │  │  AI Recommendations │  │   │
+│  │  │             │  │  Middleware │  │  AI Orchestrator    │  │   │
 │  │  └─────────────┘  └─────────────┘  └──────────┬──────────┘  │   │
 │  └───────────────────────────────────────────────┼──────────────┘   │
 │                                                  │                   │
@@ -40,8 +40,8 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  ┌─────────────────────────────────────────────────────────┐ │   │
 │  │  │              PostgreSQL 15 Database                     │ │   │
 │  │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │ │   │
-│  │  │  │Activities│ │  Users   │ │ Children │ │ Providers │  │ │   │
-│  │  │  │(117,700+)│ │          │ │          │ │   (80)    │  │ │   │
+│  │  │  │Activities│ │  Users   │ │ Children │ │ Locations │  │ │   │
+│  │  │  │(126,000+)│ │          │ │          │ │ (4,900+)  │  │ │   │
 │  │  │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │ │   │
 │  │  └─────────────────────────────────────────────────────────┘ │   │
 │  └──────────────────────────────────────────────────────────────┘   │
@@ -54,7 +54,7 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  ┌───────────────────────────▼──────────────────────────────────┐  │
 │  │                    CLOUD RUN JOBS                             │  │
 │  │  ┌─────────────────────────────────────────────────────────┐ │  │
-│  │  │              Scraper Job (Puppeteer/Cheerio)            │ │  │
+│  │  │     Scraper Job (Puppeteer/Cheerio + Geocoding)         │ │  │
 │  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │ │  │
 │  │  │  │ Perfect │ │ Active  │ │ Amilia  │ │  IC3    │ ...   │ │  │
 │  │  │  │  Mind   │ │ Network │ │         │ │         │       │ │  │
@@ -65,6 +65,14 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  │          Claude Vision Validation System                 │ │  │
 │  │  │     (Screenshot capture → Visual extraction → Compare)  │ │  │
 │  │  └─────────────────────────────────────────────────────────┘ │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                   EXTERNAL APIS                               │  │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐             │  │
+│  │  │ OpenAI  │ │ Anthropic│ │ Google  │ │  Stripe │             │  │
+│  │  │ GPT-4   │ │ Claude  │ │ Maps    │ │         │             │  │
+│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘             │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
                               │
@@ -96,28 +104,32 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  ┌───────▼────────────▼───────────▼──────────────▼──────────┐  │
 │  │                      Redux Store                          │  │
 │  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────┐  │  │
-│  │  │Activities│ │ Children│  │  Auth   │  │Subscription │  │  │
+│  │  │Activities│ │ Children│  │  Auth   │  │ChildFavorites│ │  │
 │  │  │  Slice  │  │  Slice  │  │  Slice  │  │    Slice    │  │  │
 │  │  └─────────┘  └─────────┘  └─────────┘  └─────────────┘  │  │
+│  │  ┌─────────────────┐  ┌─────────────────────────────────┐ │  │
+│  │  │ChildActivities │  │      Subscription Slice         │ │  │
+│  │  │     Slice       │  │                                 │ │  │
+│  │  └─────────────────┘  └─────────────────────────────────┘ │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                   │
 │  ┌───────────────────────────▼───────────────────────────────┐  │
 │  │                     Services Layer                         │  │
 │  │  ┌───────────┐  ┌───────────┐  ┌───────────────────────┐  │  │
-│  │  │    API    │  │RevenueCat │  │     Preferences       │  │  │
+│  │  │    API    │  │    AI     │  │     Preferences       │  │  │
 │  │  │  Service  │  │  Service  │  │       Service         │  │  │
 │  │  └─────┬─────┘  └───────────┘  └───────────────────────┘  │  │
+│  │  ┌───────────────────────────────────────────────────────┐  │  │
+│  │  │ Child Services (Preferences, Favorites, Activities)   │  │  │
+│  │  └───────────────────────────────────────────────────────┘  │  │
 │  │  ┌───────────────────────────────────────────────────────┐  │  │
 │  │  │   Location Service (GPS, Geocoding, Distance Calc)    │  │  │
 │  │  └───────────────────────────────────────────────────────┘  │  │
 │  │  ┌───────────────────────────────────────────────────────┐  │  │
-│  │  │        Favorites Service (MMKV + API sync)            │  │  │
+│  │  │   Notification Service (FCM + Watching Alerts)        │  │  │
 │  │  └───────────────────────────────────────────────────────┘  │  │
 │  │  ┌───────────────────────────────────────────────────────┐  │  │
-│  │  │    Waitlist Service (Watch for spots, purge closed)   │  │  │
-│  │  └───────────────────────────────────────────────────────┘  │  │
-│  │  ┌───────────────────────────────────────────────────────┐  │  │
-│  │  │    Push Notification Service (FCM + Notifee)          │  │  │
+│  │  │        RevenueCat Service (Subscriptions)             │  │  │
 │  │  └───────────────────────────────────────────────────────┘  │  │
 │  └────────┼──────────────────────────────────────────────────┘  │
 │           │                                                      │
@@ -143,19 +155,24 @@ This document describes the technical architecture of the Kids Activity Tracker 
 │  │  ┌────────────────────────▼────────────────────────────┐  │  │
 │  │  │                    Route Groups                      │  │  │
 │  │  │ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────────────┐ │  │  │
-│  │  │ │ /auth  │ │/activit│ │/subscr │ │   /sponsored   │ │  │  │
-│  │  │ │        │ │  ies   │ │ iption │ │   /partners    │ │  │  │
+│  │  │ │ /auth  │ │/activit│ │/children│ │  /ai           │ │  │  │
+│  │  │ │        │ │  ies   │ │         │ │  (recommend,   │ │  │  │
+│  │  │ │        │ │        │ │         │ │   chat, plan)  │ │  │  │
+│  │  │ └───┬────┘ └────┬───┘ └────┬────┘ └───────┬────────┘ │  │  │
+│  │  │ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────────────┐ │  │  │
+│  │  │ │/subscr │ │/partner│ │/notifi │ │   /sponsored   │ │  │  │
+│  │  │ │ iption │ │   s    │ │ cations│ │                │ │  │  │
 │  │  │ └───┬────┘ └────┬───┘ └───┬────┘ └───────┬────────┘ │  │  │
 │  │  └─────┼───────────┼─────────┼──────────────┼──────────┘  │  │
 │  │        │           │         │              │              │  │
 │  │  ┌─────▼───────────▼─────────▼──────────────▼──────────┐  │  │
 │  │  │                   Services                           │  │  │
-│  │  │  authService │ activityService │ subscriptionService │  │  │
+│  │  │  activityService │ childrenService │ aiOrchestrator │  │  │
 │  │  └─────────────────────────┬───────────────────────────┘  │  │
 │  │                            │                               │  │
 │  │  ┌─────────────────────────▼───────────────────────────┐  │  │
-│  │  │                  AI Module                           │  │  │
-│  │  │  ActivityChatService │ TopicGuard │ QuotaService    │  │  │
+│  │  │              AI Module (LangGraph)                   │  │  │
+│  │  │  parseQueryNode │ fetchCandidatesNode │ plannerNode │  │  │
 │  │  └─────────────────────────┬───────────────────────────┘  │  │
 │  │                            │                               │  │
 │  │  ┌─────────────────────────▼───────────────────────────┐  │  │
@@ -166,6 +183,58 @@ This document describes the technical architecture of the Kids Activity Tracker 
 └───────────────────────────────┼──────────────────────────────────┘
                                 ▼
                         PostgreSQL Database
+```
+
+### AI Architecture (LangGraph)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     AI ORCHESTRATOR                              │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                   LangGraph State Machine                   │ │
+│  │                                                             │ │
+│  │   START                                                     │ │
+│  │     │                                                       │ │
+│  │     ▼                                                       │ │
+│  │  ┌─────────────────┐                                       │ │
+│  │  │ parseQueryNode  │ ← Extract intent, filters, entities   │ │
+│  │  └────────┬────────┘                                       │ │
+│  │           │                                                 │ │
+│  │           ▼                                                 │ │
+│  │  ┌─────────────────┐                                       │ │
+│  │  │fetchCandidatesNode│ ← Query activities with filters     │ │
+│  │  └────────┬────────┘                                       │ │
+│  │           │                                                 │ │
+│  │           ▼                                                 │ │
+│  │  ┌─────────────────┐                                       │ │
+│  │  │rankActivitiesNode│ ← Score & rank by child preferences  │ │
+│  │  └────────┬────────┘                                       │ │
+│  │           │                                                 │ │
+│  │           ▼                                                 │ │
+│  │  ┌─────────────────┐                                       │ │
+│  │  │generateExplanationsNode│ ← "Great for your child..."   │ │
+│  │  └────────┬────────┘                                       │ │
+│  │           │                                                 │ │
+│  │           ▼                                                 │ │
+│  │        END                                                  │ │
+│  │                                                             │ │
+│  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │ │
+│  │                                                             │ │
+│  │  Weekly Planner Branch:                                     │ │
+│  │     │                                                       │ │
+│  │     ▼                                                       │ │
+│  │  ┌─────────────────┐                                       │ │
+│  │  │  plannerNode    │ ← Per-child availability, conflicts   │ │
+│  │  └─────────────────┘                                       │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│  External APIs:                                                  │
+│  ┌─────────┐  ┌─────────┐                                      │
+│  │ OpenAI  │  │Anthropic│ (for scraper validation)             │
+│  │ GPT-4o  │  │ Claude  │                                      │
+│  └─────────┘  └─────────┘                                      │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Navigation Architecture
@@ -189,27 +258,70 @@ App.tsx
 │   └── MainTabs
 │       ├── Explore (HomeStack)
 │       │   ├── DashboardScreenModern
-│       │   ├── Search & Filters
+│       │   ├── SearchScreen
+│       │   ├── MapSearchScreen (geographic browsing)
 │       │   ├── CalendarScreenModernFixed
+│       │   ├── WeeklyPlannerScreen (AI scheduling)
+│       │   ├── AIRecommendationsScreen
+│       │   ├── AIChatScreen
 │       │   ├── ActivityList
-│       │   ├── ActivityDetail
-│       │   ├── FeaturedPartnersScreen
-│       │   ├── CityBrowse
-│       │   └── LocationBrowse
+│       │   └── ActivityDetailScreen
 │       ├── My Collection (FavoritesStack)
-│       │   ├── Favourites Tab
-│       │   ├── Watching Tab
-│       │   └── Waiting List Tab
+│       │   ├── Favourites Tab (per-child favorites)
+│       │   ├── Watching Tab (monitoring for spots)
+│       │   └── Enrolled Tab (current activities)
 │       ├── Friends & Family (FriendsStack)
 │       │   ├── Children Management
-│       │   ├── ChildDetailScreen
-│       │   ├── Sharing
+│       │   ├── ChildDetailScreen (with tabs: Upcoming, Past, Dropped)
+│       │   ├── AddEditChildScreen
 │       │   └── Activity History
 │       └── Profile (ProfileStack)
 │           ├── Settings
 │           ├── SubscriptionScreen
 │           ├── Preferences
 │           └── Account
+```
+
+### Child Management Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CHILD DATA MODEL                              │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                      Child                               │    │
+│  │  ┌─────────────────────────────────────────────────────┐│    │
+│  │  │ Profile: name, dateOfBirth, gender, photo           ││    │
+│  │  │ Location: savedAddress, latitude, longitude         ││    │
+│  │  └─────────────────────────────────────────────────────┘│    │
+│  │                         │                                │    │
+│  │           ┌─────────────┼─────────────┐                 │    │
+│  │           ▼             ▼             ▼                 │    │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────┐   │    │
+│  │  │ Preferences │ │  Favorites  │ │ChildActivities  │   │    │
+│  │  │             │ │  (starred)  │ │                 │   │    │
+│  │  │ activityTypes│ │             │ │ status:         │   │    │
+│  │  │ daysOfWeek  │ │             │ │ - interested    │   │    │
+│  │  │ distanceKm  │ │             │ │ - enrolled      │   │    │
+│  │  │ priceRange  │ │             │ │ - completed     │   │    │
+│  │  │ environment │ │             │ │ - dropped       │   │    │
+│  │  └─────────────┘ └─────────────┘ │ - watching      │   │    │
+│  │                                   └─────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                   Custom Events                          │    │
+│  │  (Family-created activities not from scrapers)          │    │
+│  │  title, description, startDate, endDate, recurring      │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+
+Child Selection Modes:
+┌────────────────────────────────────────────────────────────────┐
+│ Manual Mode: User explicitly selects children for filtering    │
+│ Auto Mode: System determines based on activity age requirements│
+│ Filter Mode: OR (any child matches) vs AND (all children match)│
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### Deep Linking Architecture
@@ -309,6 +421,105 @@ User Search
 └──────────────────┘
 ```
 
+### Map View Flow
+
+```
+User opens Map
+    │
+    ▼
+┌──────────────────┐
+│ Mobile App       │
+│ Get viewport     │
+│ bounds           │
+└────────┬─────────┘
+         │ GET /api/v1/activities/bounds
+         │ ?minLat=49.2&maxLat=49.4
+         │ &minLng=-123.2&maxLng=-123.0
+         ▼
+┌──────────────────┐
+│ API Server       │
+│ Query activities │
+│ with coordinates │
+│ within bounds    │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ PostgreSQL       │
+│ Filter by lat/lng│
+│ (99.3% geocoded) │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│ Mobile App       │
+│ Render markers   │
+│ on MapView       │
+└──────────────────┘
+```
+
+### AI Recommendations Flow
+
+```
+User opens AI Recommendations
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│          Load Family Context               │
+│  • Selected children                       │
+│  • Child preferences (merged)              │
+│  • Filter mode (OR/AND)                    │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│        AI Orchestrator (LangGraph)         │
+│  • parseQueryNode: Extract search intent   │
+│  • fetchCandidatesNode: Query activities   │
+│  • rankActivitiesNode: Score by match      │
+│  • generateExplanationsNode: Benefits      │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│       Response                             │
+│  • recommendations: [activity + score]     │
+│  • explanations: "Great for your child..." │
+│  • match quality: Excellent/Great/Good     │
+└───────────────────────────────────────────┘
+```
+
+### Weekly Planner Flow
+
+```
+User selects week + child availability
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│        Availability Grid                   │
+│  Per child: 7 days × 3 time slots          │
+│  (morning, afternoon, evening)             │
+└───────────────────┬───────────────────────┘
+        │ POST /api/v1/ai/plan-week
+        ▼
+┌───────────────────────────────────────────┐
+│        Planner Node                        │
+│  • Match activities to available slots     │
+│  • Consider sibling grouping preference    │
+│  • Detect conflicts                        │
+│  • Generate optimized schedule             │
+└───────────────────┬───────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────┐
+│       Response                             │
+│  • Per-child schedules                     │
+│  • Suggested activities per slot           │
+│  • Conflict warnings                       │
+│  • User can approve/reject, bulk add       │
+└───────────────────────────────────────────┘
+```
+
 ### Subscription Flow
 
 ```
@@ -347,69 +558,6 @@ User taps Subscribe
 └──────────────────┘
 ```
 
-### AI Chat Flow
-
-```
-User Message ("skating for my 3-year-old near me")
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│          Topic Guard Chain                │
-│  • Classify: activity_search (allowed)    │
-│  • Extract: age=3, activityType=skating   │
-│  • Detect: isFollowUp=false               │
-└───────────────────┬───────────────────────┘
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│        Context Builder                     │
-│  • Load family context from DB             │
-│  • Create virtual child if no children     │
-│  • Apply location fallback (Vancouver)     │
-└───────────────────┬───────────────────────┘
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│       Activity Chat Service                │
-│  • Load/create conversation state          │
-│  • Merge extracted params into conversation│
-│  • Format system prompt with context       │
-│  • Execute LangChain agent with tools      │
-└───────────────────┬───────────────────────┘
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│       LangChain Tools                      │
-│  • search_activities (with distance calc)  │
-│  • get_child_context                       │
-│  • get_activity_details                    │
-│  • compare_activities                      │
-└───────────────────┬───────────────────────┘
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│       Store Search Parameters              │
-│  • Save lastSearchFilters for follow-ups   │
-│  • Update extractedActivityType            │
-└───────────────────┬───────────────────────┘
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│       Response                             │
-│  • conversationId                          │
-│  • text: "Found 8 skating activities..."   │
-│  • activities: [sorted by distance]        │
-│  • followUpPrompts: ["Show more", ...]     │
-│  • turnsRemaining: 4                       │
-└───────────────────────────────────────────┘
-```
-
-**Conversation Memory**:
-- Parameters accumulated across turns: age, city, activity type, search filters
-- Follow-up queries ("search again") reuse previous parameters
-- Virtual child profiles created from extracted age when no children registered
-- Location defaults to Vancouver when unavailable
-
 ### Scraper Data Flow
 
 ```
@@ -426,9 +574,12 @@ Cloud Run Job Start
 │  3. Navigate to recreation website        │
 │  4. Extract activity data                 │
 │  5. Transform & normalize                 │
-│  6. Upsert to database                    │
-│  7. Deactivate stale records              │
-│  8. Record metrics                        │
+│  6. Create/update locations               │
+│  7. Geocode new locations (Google Maps)   │
+│  8. Upsert activities to database         │
+│  9. Propagate coordinates to activities   │
+│  10. Deactivate stale records             │
+│  11. Record metrics                       │
 └───────────────────────────────────────────┘
         │
         ▼
@@ -442,130 +593,42 @@ Cloud Run Job Start
 └───────────────────────────────────────────┘
         │
         ▼
-Database Updated (117,700+ activities)
+Database Updated (126,000+ activities, 99.3% geocoded)
 ```
 
-### Email Notification Flow
+### Watching/Notification Flow
 
 ```
+User marks activity as "Watching"
+        │
+        ▼
+┌──────────────────┐
+│ ChildActivity    │
+│ status: watching │
+└────────┬─────────┘
+         │
+         ▼
 ┌───────────────────────────────────────────┐
-│         NOTIFICATION TRIGGERS             │
-│                                           │
-│  ┌─────────────┐    ┌─────────────────┐  │
-│  │Daily Digest │    │  Post-Scraper   │  │
-│  │ (7 AM PST)  │    │     Alerts      │  │
-│  └──────┬──────┘    └────────┬────────┘  │
-│         │                    │           │
-│  ┌──────┴──────┐    ┌───────┴────────┐  │
-│  │Weekly Digest│    │ Activity Change │  │
-│  │(Sun 9 AM)   │    │   Detection     │  │
-│  └──────┬──────┘    └───────┬────────┘  │
-└─────────┼───────────────────┼────────────┘
-          │                   │
-          ▼                   ▼
-┌───────────────────────────────────────────┐
-│         NOTIFICATION SERVICE              │
-│                                           │
-│  1. Match activities to user preferences  │
-│  2. Check deduplication (24h window)      │
-│  3. Validate quiet hours                  │
-│  4. Generate unsubscribe tokens           │
-│  5. Build HTML email from template        │
-│  6. Send via Nodemailer/SMTP              │
-│  7. Log notification to database          │
-└───────────────────────────┬───────────────┘
-                            │
-          ┌─────────────────┼─────────────────┐
-          ▼                 ▼                 ▼
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│   Daily     │   │  Capacity   │   │    Price    │
-│   Digest    │   │    Alert    │   │    Drop     │
-│   Email     │   │   Email     │   │   Email     │
-└─────────────┘   └─────────────┘   └─────────────┘
-```
-
-**Notification Types**:
-| Type | Trigger | Frequency |
-|------|---------|-----------|
-| Daily Digest | Cron (7 AM PST) | Max 1/day per user |
-| Weekly Digest | Cron (Sun 9 AM PST) | Max 1/week per user |
-| Capacity Alert | Post-scraper | Max 1/4h per activity |
-| Price Drop | Post-scraper | Max 1/24h per activity |
-| Spots Available | Post-scraper | When activity becomes available |
-
-**Core Services**:
-- `NotificationService`: Orchestrates email sending, deduplication, token generation
-- `UserPreferenceMatcherService`: Matches activities to user preferences
-- `ActivitySnapshotService`: Detects price/capacity changes between scrapes
-
-### Push Notification Flow
-
-```
-┌───────────────────────────────────────────┐
-│         MOBILE APP STARTUP                │
-│                                           │
-│  1. Request notification permissions      │
-│  2. Get FCM token from Firebase           │
-│  3. Register token with backend API       │
-│  4. Set up message handlers               │
+│     Post-Scraper Processing               │
+│  • Compare old vs new spotsAvailable      │
+│  • If spots opened: trigger notification  │
 └───────────────────┬───────────────────────┘
-                    │
-                    ▼
+         │
+         ▼
 ┌───────────────────────────────────────────┐
-│           BACKEND API                     │
-│                                           │
-│  POST /api/push-tokens                    │
-│  - Store token in DevicePushToken table   │
-│  - Handle device switching users          │
-│  - Support multiple devices per user      │
+│     Notification Service                   │
+│  • Get users watching this activity        │
+│  • Send push notification via FCM          │
+│  • Send email notification                 │
 └───────────────────┬───────────────────────┘
-                    │
-                    ▼
-┌───────────────────────────────────────────┐
-│     NOTIFICATION TRIGGERS                 │
-│                                           │
-│  ┌────────────┐  ┌────────────────────┐  │
-│  │ Waitlist   │  │  Post-Scraper      │  │
-│  │ Available  │  │  Alerts            │  │
-│  └─────┬──────┘  └─────────┬──────────┘  │
-│        │                   │              │
-│        ▼                   ▼              │
-│  ┌────────────────────────────────────┐  │
-│  │    Firebase Admin SDK (Server)     │  │
-│  │    Send to FCM with user tokens    │  │
-│  └────────────────────────────────────┘  │
-└───────────────────┬───────────────────────┘
-                    │
-                    ▼
-┌───────────────────────────────────────────┐
-│     FIREBASE CLOUD MESSAGING (FCM)        │
-│                                           │
-│  - APNs for iOS devices                   │
-│  - Direct connection for Android          │
-└───────────────────┬───────────────────────┘
-                    │
-                    ▼
-┌───────────────────────────────────────────┐
-│         MOBILE APP RECEPTION              │
-│                                           │
-│  Foreground: Display via Notifee          │
-│  Background: System notification          │
-│  Quit state: Wake app on tap              │
-│                                           │
-│  Deep link to:                            │
-│  - Activity Detail (activityId)           │
-│  - Waiting List screen                    │
-│  - Custom screens (data.screen)           │
-└───────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│ User receives    │
+│ "Spots available │
+│ for [Activity]"  │
+└──────────────────┘
 ```
-
-**Push Notification Types**:
-| Type | Trigger | Deep Link |
-|------|---------|-----------|
-| spots_available | Waitlist activity gets spots | Activity Detail |
-| capacity_alert | Favorite activity getting full | Activity Detail |
-| price_drop | Activity price decreased | Activity Detail |
-| general | System announcements | Custom screen |
 
 ## Technology Stack
 
@@ -578,6 +641,7 @@ Database Updated (117,700+ activities)
 | Storage | MMKV | Encrypted persistence |
 | Navigation | React Navigation 7.x | Screen routing |
 | UI | Custom + MaterialCommunityIcons | Design system |
+| Maps | react-native-maps | Geographic display |
 | HTTP | Axios | API communication |
 | Forms | react-hook-form | Form handling |
 | Payments | RevenueCat | Subscription management |
@@ -595,8 +659,10 @@ Database Updated (117,700+ activities)
 | Validation | express-validator | Input validation |
 | Security | Helmet, CORS | HTTP security |
 | Docs | Swagger/OpenAPI | API documentation |
-| AI | OpenAI GPT-4o-mini, LangChain | Conversational assistant & tools |
+| AI | OpenAI GPT-4o, LangGraph | AI orchestration |
+| Geocoding | Google Maps API | Address to coordinates |
 | Push | firebase-admin | FCM server SDK |
+| Payments | Stripe | Partner payments |
 
 ### Database
 | Component | Technology | Purpose |
@@ -604,7 +670,7 @@ Database Updated (117,700+ activities)
 | Database | PostgreSQL 15 | Primary datastore |
 | Hosting | Cloud SQL | Managed service |
 | Migrations | Prisma Migrate | Schema versioning |
-| Tables | 35+ | Full schema |
+| Tables | 40+ | Full schema |
 
 ### Scraping
 | Component | Technology | Purpose |
@@ -614,6 +680,7 @@ Database Updated (117,700+ activities)
 | Scheduling | Cloud Scheduler | Tiered cron jobs |
 | Execution | Cloud Run Jobs | Serverless compute |
 | Validation | Claude Vision | Data verification |
+| Geocoding | Google Maps | Location coordinates |
 
 ## Performance Optimization
 
@@ -632,6 +699,7 @@ Database Updated (117,700+ activities)
 - **Connection Pooling**: Prisma default pool
 - **Query Optimization**: Selective includes
 - **Caching**: Response caching for static data
+- **Geocoding**: 99.3% of activities pre-geocoded
 
 ### Infrastructure
 - **Auto-scaling**: 0 to 100 instances on Cloud Run
@@ -687,6 +755,7 @@ Database Updated (117,700+ activities)
 | Scraper Success | > 99% |
 | App Launch Time | < 2s |
 | Search Results | < 500ms |
+| Geocoding Coverage | > 99% |
 
 ## Technology Decisions
 
@@ -702,6 +771,8 @@ Database Updated (117,700+ activities)
 | JWT | Stateless auth, mobile-friendly |
 | RevenueCat | Simplified subscription management, cross-platform |
 | Claude Vision | Accurate validation without brittle selectors |
+| LangGraph | Structured AI workflows, state management |
+| Google Maps Geocoding | Accurate coordinates, high coverage |
 
 ## Security Architecture
 
@@ -715,6 +786,7 @@ Database Updated (117,700+ activities)
 - HTTPS-only API communication
 - No PII in logs
 - Secure token storage
+- API keys in environment variables (gitignored)
 
 ### API Security
 - Helmet security headers
@@ -724,5 +796,5 @@ Database Updated (117,700+ activities)
 
 ---
 
-**Document Version**: 5.3
+**Document Version**: 6.0
 **Last Updated**: January 2026
