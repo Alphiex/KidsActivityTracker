@@ -55,7 +55,7 @@ const ChildAvatar: React.FC<ChildAvatarProps> = ({
 
   // Calculate border width based on size
   const borderWidthValue = propBorderWidth ?? Math.max(2, size * 0.06);
-  const innerSize = showBorder ? size - borderWidthValue * 2 - 4 : size;
+  const innerSize = showBorder ? size - borderWidthValue * 2 - 2 : size;
 
   // Get initials for fallback
   const initials = safeInitials(name, '?');
@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   avatarImage: {
-    width: '75%',
-    height: '75%',
+    width: '88%',
+    height: '88%',
   },
   emoji: {
     textAlign: 'center',
