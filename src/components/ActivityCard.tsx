@@ -88,7 +88,10 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   const { favoriteChildren, watchingChildren, calendarChildren } = useActivityChildStatus(activity.id);
 
   // Debug logging - remove after testing
-  console.log('[ActivityCard] children:', children.length, 'favoriteChildren:', favoriteChildren.length, 'activityId:', activity.id);
+  console.log('[ActivityCard DEBUG] activityId:', activity.id);
+  console.log('[ActivityCard DEBUG] all children:', children.map(c => ({ name: c.name, colorId: c.colorId })));
+  console.log('[ActivityCard DEBUG] favoriteChildren:', favoriteChildren);
+  console.log('[ActivityCard DEBUG] calendarChildren:', calendarChildren);
 
   // Use external state if provided, otherwise use Redux-based child favorites
   const isExternallyControlled = externalIsFavorite !== undefined;
@@ -498,17 +501,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <View style={[styles.sponsoredBadge, activity.featuredTier === 'gold' ? styles.sponsoredGold : activity.featuredTier === 'silver' ? styles.sponsoredSilver : styles.sponsoredBronze]}>
             <Icon name="star" size={12} color="#FFF" />
             <Text style={styles.sponsoredText}>Sponsored</Text>
-          </View>
-        )}
-        {isOnCalendar && !activity.isFeatured && (
-          <View style={styles.calendarBadge}>
-            <Icon name="calendar-check" size={12} color="#FFF" />
-            <Text style={styles.calendarBadgeText}>On Calendar</Text>
-          </View>
-        )}
-        {isOnCalendar && activity.isFeatured && (
-          <View style={styles.calendarBadgeSmall}>
-            <Icon name="calendar-check" size={14} color="#FFF" />
           </View>
         )}
         <View style={styles.imageOverlay}>

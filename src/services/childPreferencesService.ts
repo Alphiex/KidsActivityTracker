@@ -288,11 +288,21 @@ class ChildPreferencesService {
     const ageMin = Math.max(0, Math.min(...childAges) - 1);
     const ageMax = Math.min(18, Math.max(...childAges) + 1);
 
-    // Activity types: union of all
-    const allActivityTypes = new Set<string>();
-    childPreferences.forEach(p => {
-      p.preferredActivityTypes.forEach(t => allActivityTypes.add(t));
-    });
+    // Activity types: union of all, BUT if ANY child has empty array (meaning "all types"),
+    // return empty array to not filter by activity type
+    let allActivityTypes: string[] = [];
+    const anyChildHasNoTypePreference = childPreferences.some(
+      p => !p.preferredActivityTypes || p.preferredActivityTypes.length === 0
+    );
+    if (!anyChildHasNoTypePreference) {
+      // All children have specific preferences, so take the union
+      const typeSet = new Set<string>();
+      childPreferences.forEach(p => {
+        p.preferredActivityTypes.forEach(t => typeSet.add(t));
+      });
+      allActivityTypes = Array.from(typeSet);
+    }
+    // If any child has no preference, allActivityTypes stays empty (= show all types)
 
     // Excluded categories: intersection (only exclude if ALL children exclude)
     const excludedCounts = new Map<string, number>();
@@ -305,11 +315,21 @@ class ChildPreferencesService {
       .filter(([_, count]) => count === childPreferences.length)
       .map(([cat, _]) => cat);
 
-    // Days: union of all
-    const allDays = new Set<string>();
-    childPreferences.forEach(p => {
-      p.daysOfWeek.forEach(d => allDays.add(d));
-    });
+    // Days: union of all, BUT if ANY child has all 7 days or empty (meaning "any day"),
+    // return all days to not filter by day
+    const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    let allDays: string[] = ALL_DAYS;
+    const anyChildHasNoDayPreference = childPreferences.some(
+      p => !p.daysOfWeek || p.daysOfWeek.length === 0 || p.daysOfWeek.length >= 7
+    );
+    if (!anyChildHasNoDayPreference) {
+      // All children have specific day preferences, so take the union
+      const daySet = new Set<string>();
+      childPreferences.forEach(p => {
+        p.daysOfWeek.forEach(d => daySet.add(d));
+      });
+      allDays = Array.from(daySet);
+    }
 
     // Time preferences: any true = true
     const timePreferences: TimePreferences = {
@@ -344,9 +364,9 @@ class ChildPreferencesService {
     return {
       ageMin,
       ageMax,
-      activityTypes: Array.from(allActivityTypes),
+      activityTypes: allActivityTypes,
       excludedCategories,
-      daysOfWeek: Array.from(allDays),
+      daysOfWeek: allDays,
       timePreferences,
       priceRangeMin,
       priceRangeMax,

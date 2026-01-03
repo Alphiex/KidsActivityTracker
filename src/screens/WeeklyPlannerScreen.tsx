@@ -829,16 +829,35 @@ const WeeklyPlannerScreen = () => {
   const addApprovedToCalendar = async () => {
     if (!schedule) return;
 
-    // Get all entries that haven't been declined (both pending and approved)
-    const entriesToAdd = Object.entries(entryApprovals)
-      .filter(([_, state]) => state !== 'declined')
-      .map(([key]) => {
-        // Parse key: childId::activityId::day::entryIndex (using :: as delimiter)
-        const parts = key.split('::');
-        const childId = parts[0];
-        const activityId = parts[1];
-        return { childId, activityId };
+    // Build a set of declined entry keys for quick lookup
+    const declinedKeys = new Set(
+      Object.entries(entryApprovals)
+        .filter(([_, state]) => state === 'declined')
+        .map(([key]) => key)
+    );
+
+    // Iterate over schedule entries directly instead of parsing keys
+    // This avoids the UUID/date parsing issues with dash delimiters
+    const entriesToAdd: Array<{ childId: string; activityId: string }> = [];
+
+    Object.entries(schedule.entries).forEach(([day, dayEntries]) => {
+      dayEntries.forEach((entry, entryIndex) => {
+        // Try both old and new key formats to check if declined
+        const newKey = `${entry.child_id}::${entry.activity_id}::${day}::${entryIndex}`;
+        const oldKey = `${entry.child_id}-${entry.activity_id}-${day}-${entryIndex}`;
+
+        const isDeclined = declinedKeys.has(newKey) || declinedKeys.has(oldKey);
+
+        if (!isDeclined) {
+          entriesToAdd.push({
+            childId: entry.child_id,
+            activityId: entry.activity_id,
+          });
+        }
       });
+    });
+
+    console.log('[AddToCalendar] Entries to add:', entriesToAdd.length, entriesToAdd);
 
     if (entriesToAdd.length === 0) {
       setError('No activities to add. All activities have been deleted.');
@@ -847,16 +866,33 @@ const WeeklyPlannerScreen = () => {
 
     try {
       // Add each activity to the child's calendar via Redux
+      let addedCount = 0;
+      const errors: string[] = [];
+
       for (const entry of entriesToAdd) {
-        await dispatch(linkActivity({
-          childId: entry.childId,
-          activityId: entry.activityId,
-          status: 'planned',
-        })).unwrap();
+        try {
+          console.log('[AddToCalendar] Linking:', entry.childId, entry.activityId);
+          await dispatch(linkActivity({
+            childId: entry.childId,
+            activityId: entry.activityId,
+            status: 'planned',
+          })).unwrap();
+          addedCount++;
+        } catch (linkErr: any) {
+          const errMsg = linkErr?.message || String(linkErr);
+          console.error('[AddToCalendar] Failed to link:', entry.childId, entry.activityId, errMsg);
+          errors.push(errMsg);
+          // Continue with other entries even if one fails
+        }
+      }
+
+      if (addedCount === 0) {
+        setError(`Failed to add activities: ${errors[0] || 'Unknown error'}`);
+        return;
       }
 
       // Show success animation
-      setSuccessMessage(`Added ${entriesToAdd.length} ${entriesToAdd.length === 1 ? 'activity' : 'activities'} to calendar!`);
+      setSuccessMessage(`Added ${addedCount} ${addedCount === 1 ? 'activity' : 'activities'} to calendar!`);
       setShowSuccessModal(true);
 
       // Navigate to Calendar after delay
@@ -866,8 +902,8 @@ const WeeklyPlannerScreen = () => {
       }, 2000);
 
     } catch (err: any) {
-      console.error('Error adding to calendar:', err);
-      setError('Failed to add activities to calendar. Please try again.');
+      console.error('[AddToCalendar] Error:', err?.message || err);
+      setError(`Failed to add activities: ${err?.message || 'Unknown error'}`);
     }
   };
 

@@ -20,11 +20,11 @@ import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navig
 import GooglePlacesSDK, { PLACE_FIELDS } from 'react-native-google-places-sdk';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
-import ActivityService from '../services/activityService';
+import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
 import WaitlistService from '../services/waitlistService';
-import { revenueCatService } from '../services/revenueCatService';
+import childPreferencesService from '../services/childPreferencesService';
 import { ClusterMarker } from '../components/map';
 import ChildAvatar from '../components/children/ChildAvatar';
 import { Colors } from '../theme';
@@ -36,7 +36,7 @@ import UpgradePromptModal from '../components/UpgradePromptModal';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 import { formatActivityPrice } from '../utils/formatters';
 import { useAppSelector } from '../store';
-import { selectAllChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildWithPreferences } from '../store/slices/childrenSlice';
 import { geocodeAddress } from '../utils/geocoding';
 
 type MapSearchRouteProp = RouteProp<{
@@ -265,6 +265,67 @@ const MapSearchScreen = () => {
 
   // Get children from Redux to center map on their locations
   const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
+  // Get selected children for filtering
+  const selectedChildren = useMemo(() => {
+    if (selectedChildIds.length === 0) {
+      return children; // If none selected, use all children
+    }
+    return children.filter(c => selectedChildIds.includes(c.id));
+  }, [children, selectedChildIds]);
+
+  // Calculate child-based filters (age ranges, activity types, etc.)
+  const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
+    if (selectedChildren.length === 0) {
+      return undefined;
+    }
+
+    // Get preferences for selected children
+    const childPreferences = selectedChildren
+      .filter(c => c.preferences)
+      .map(c => c.preferences!);
+
+    // Calculate ages from birth dates
+    const today = new Date();
+    const childAges = selectedChildren.map(child => {
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    }).filter(age => age >= 0 && age <= 18);
+
+    const childGenders = selectedChildren.map(child => child.gender ?? null);
+
+    // Get merged filters using childPreferencesService
+    const mergedFilters = childPreferencesService.getMergedFilters(
+      childPreferences,
+      childAges,
+      childGenders,
+      filterMode
+    );
+
+    if (__DEV__) {
+      console.log('[MapSearch] Child-based filters:', {
+        selectedChildrenCount: selectedChildren.length,
+        selectedChildren: selectedChildren.map(c => ({ name: c.name, dob: c.dateOfBirth, hasPrefs: !!c.preferences })),
+        childPreferencesCount: childPreferences.length,
+        childAges,
+        calculatedAgeRange: `${mergedFilters.ageMin}-${mergedFilters.ageMax}`,
+        activityTypes: mergedFilters.activityTypes || [],
+        filterMode,
+      });
+    }
+
+    return {
+      filterMode,
+      mergedFilters,
+    };
+  }, [selectedChildren, filterMode]);
 
   // State
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
@@ -807,6 +868,9 @@ const MapSearchScreen = () => {
         }
       }
 
+      // Get child-based filters (age range, activity types, etc.)
+      const childFilters = getChildBasedFilters();
+
       // Apply global active filters (from FiltersScreen)
       const activeFilters = preferencesService.getActiveFilters();
       if (activeFilters && Object.keys(activeFilters).length > 0) {
@@ -821,7 +885,8 @@ const MapSearchScreen = () => {
 
       if (__DEV__) console.log('[MapSearch] Loading activities with filters:', filters);
 
-      const activities = await activityService.searchActivities(filters);
+      // Pass both API filters and child-based filters
+      const activities = await activityService.searchActivities(filters, childFilters);
       processAndSetActivities(activities);
 
       // Track the region we just fetched for
