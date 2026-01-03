@@ -967,6 +967,20 @@ const CalendarScreenModernFixed = () => {
   // Share calendar functionality (Feature 8)
   const calendarRef = useRef<ViewShot>(null);
 
+  // Week view scroll ref - to auto-scroll to 11am
+  const weekScrollRef = useRef<ScrollView>(null);
+
+  // Auto-scroll week view to 11am when switching to week mode
+  useEffect(() => {
+    if (viewMode === 'week' && weekScrollRef.current) {
+      // Each hour row is 60px, scroll to 11am (11 * 60 = 660) minus some padding
+      // Use setTimeout to ensure the ScrollView has rendered
+      setTimeout(() => {
+        weekScrollRef.current?.scrollTo({ y: 600, animated: false });
+      }, 100);
+    }
+  }, [viewMode]);
+
   const handleShareCalendar = async () => {
     try {
       if (calendarRef.current?.capture) {
@@ -1482,7 +1496,7 @@ const CalendarScreenModernFixed = () => {
           () => navigateWeek('next')
         )}
 
-        <ScrollView style={styles.weekVerticalScroll}>
+        <ScrollView ref={weekScrollRef} style={styles.weekVerticalScroll}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weekHorizontalScroll}>
             <View style={styles.weekGridContainer}>
               {/* Header row with day names and dates */}

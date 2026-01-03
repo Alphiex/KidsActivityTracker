@@ -12,7 +12,7 @@ import {
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
@@ -20,6 +20,7 @@ import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
 import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -36,6 +37,18 @@ const ActivityListScreen = () => {
     dispatch(fetchChildren());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refresh child favorites/watching data on screen focus for icon colors
+  useFocusEffect(
+    useCallback(() => {
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
+    }, [children, dispatch])
+  );
+
   const params = route.params as { category?: string; filters?: any; isActivityType?: boolean } | undefined;
   const category = params?.category ?? 'All';
   const filters = params?.filters;

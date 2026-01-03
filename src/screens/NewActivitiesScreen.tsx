@@ -7,7 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
@@ -15,6 +15,7 @@ import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
 import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import ActivityCard from '../components/ActivityCard';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
@@ -44,6 +45,17 @@ const NewActivitiesScreen = () => {
 
   // Child filter state for consistent filtering
   const children = useAppSelector(selectAllChildren);
+
+  // Refresh child favorites/watching data on screen focus for icon colors
+  useFocusEffect(
+    useCallback(() => {
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
+    }, [children, dispatch])
+  );
   const selectedChildIds = useAppSelector(selectSelectedChildIds);
   const filterMode = useAppSelector(selectFilterMode);
 

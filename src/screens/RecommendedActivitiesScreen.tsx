@@ -12,7 +12,7 @@ import {
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
@@ -25,6 +25,7 @@ import { Activity } from '../types';
 import { safeToISOString } from '../utils/safeAccessors';
 import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 
 const RecommendedActivitiesScreen = () => {
   const navigation = useNavigation();
@@ -49,6 +50,17 @@ const RecommendedActivitiesScreen = () => {
 
   // Get children from Redux
   const children = useAppSelector(selectAllChildren);
+
+  // Refresh child favorites/watching data on screen focus for icon colors
+  useFocusEffect(
+    useCallback(() => {
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
+    }, [children, dispatch])
+  );
   const selectedChildIds = useAppSelector(selectSelectedChildIds);
   const filterMode = useAppSelector(selectFilterMode);
 

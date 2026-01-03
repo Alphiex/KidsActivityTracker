@@ -23,6 +23,7 @@ import ActivityService, { ChildBasedFilterParams } from '../services/activitySer
 import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { ModernColors, ModernSpacing, ModernTypography, ModernBorderRadius, ModernShadows } from '../theme/modernTheme';
 import FavoritesService from '../services/favoritesService';
 import { useAppSelector, useAppDispatch } from '../store';
@@ -372,7 +373,13 @@ const UnifiedResultsScreenTest: React.FC = () => {
         loadActivities();
       }
       loadFavorites();
-    }, [type])
+      // Refresh child favorites/watching data for icon colors
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
+    }, [type, children.length, dispatch])
   );
 
   // Initial load
