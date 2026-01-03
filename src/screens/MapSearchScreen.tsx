@@ -17,7 +17,7 @@ import MapView, { Region, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
-import GooglePlacesSDK from 'react-native-google-places-sdk';
+import GooglePlacesSDK, { PLACE_FIELDS } from 'react-native-google-places-sdk';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityService from '../services/activityService';
@@ -279,6 +279,7 @@ const MapSearchScreen = () => {
   const lastFetchedRegion = useRef<Region | null>(null);
   const refetchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitializedRegion = useRef(false);
+  const hasCenteredOnChildren = useRef(false);
 
   // Search filters state (received from SearchScreen)
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
@@ -293,7 +294,7 @@ const MapSearchScreen = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Place search state
-  const [searchQuery, setPlaceSearchQuery] = useState('');
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [showPlaceSearch, setShowPlaceSearch] = useState(false);
   const [placePredictions, setPlacePredictions] = useState<any[]>([]);
 
@@ -335,51 +336,79 @@ const MapSearchScreen = () => {
   // Determine initial region based on priority: Children > GPS > preferences > Canada
   // Also loads activities for the determined region
   useEffect(() => {
-    // Only run once to prevent re-initialization on children updates
-    if (hasInitializedRegion.current) return;
+    if (__DEV__) {
+      console.log('[MapSearch] Children data:', {
+        count: children.length,
+        children: children.map(c => ({
+          id: c.id,
+          name: c.name,
+          location: c.location,
+          hasLocationDetails: !!c.locationDetails,
+          lat: c.locationDetails?.latitude,
+          lng: c.locationDetails?.longitude,
+        })),
+      });
+    }
 
-    const determineInitialRegion = async () => {
-      hasInitializedRegion.current = true;
+    // Check for children with location data
+    const childrenWithLocations = children
+      .filter(child =>
+        child.locationDetails?.latitude != null &&
+        child.locationDetails?.longitude != null
+      )
+      .map(child => ({
+        latitude: child.locationDetails!.latitude!,
+        longitude: child.locationDetails!.longitude!,
+      }));
 
-      // Priority 1: Check for children with location data
-      const childrenWithLocations = children
-        .filter(child =>
-          child.locationDetails?.latitude != null &&
-          child.locationDetails?.longitude != null
-        )
-        .map(child => ({
-          latitude: child.locationDetails!.latitude!,
-          longitude: child.locationDetails!.longitude!,
-        }));
+    if (__DEV__) {
+      console.log('[MapSearch] Children with valid locations:', childrenWithLocations.length);
+    }
 
-      if (childrenWithLocations.length > 0) {
-        const childrenRegion = calculateRegionFromCoordinates(childrenWithLocations);
-        if (childrenRegion) {
-          if (__DEV__) {
-            console.log('[MapSearch] Using children locations:', {
-              childCount: childrenWithLocations.length,
-              region: childrenRegion,
-            });
-          }
-          // Set region immediately for initial render
-          setInitialRegion(childrenRegion);
-          setRegion(childrenRegion);
-          setLocationLoaded(true);
+    // If children with locations exist and we haven't centered on them yet, do it now
+    if (childrenWithLocations.length > 0 && !hasCenteredOnChildren.current) {
+      const childrenRegion = calculateRegionFromCoordinates(childrenWithLocations);
+      if (childrenRegion) {
+        hasCenteredOnChildren.current = true;
+        hasInitializedRegion.current = true;
 
-          // Animate map to region
+        if (__DEV__) {
+          console.log('[MapSearch] Centering on children locations:', {
+            childCount: childrenWithLocations.length,
+            region: childrenRegion,
+          });
+        }
+
+        // Set region immediately for initial render
+        setInitialRegion(childrenRegion);
+        setRegion(childrenRegion);
+        setLocationLoaded(true);
+
+        // Animate map to region (slight delay to ensure map is ready)
+        setTimeout(() => {
           if (mapRef.current) {
             mapRef.current.animateToRegion(childrenRegion, 500);
           }
+        }, 100);
 
-          // Load activities asynchronously (don't wait)
-          loadActivities(childrenRegion);
-          return;
-        }
+        // Load activities for this region (use loadActivities directly to bypass checks)
+        loadActivities(childrenRegion);
+        lastFetchedRegion.current = childrenRegion;
+        return;
       }
+    }
 
+    // Only do fallback initialization once
+    if (hasInitializedRegion.current) return;
+    hasInitializedRegion.current = true;
+
+    const determineInitialRegion = async () => {
       // Priority 2: Try to get user's current GPS location
       Geolocation.getCurrentPosition(
         (position) => {
+          // Don't override if we've already centered on children
+          if (hasCenteredOnChildren.current) return;
+
           const userRegion: Region = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -398,8 +427,12 @@ const MapSearchScreen = () => {
 
           // Load activities asynchronously
           loadActivities(userRegion);
+          lastFetchedRegion.current = userRegion;
         },
         (error) => {
+          // Don't override if we've already centered on children
+          if (hasCenteredOnChildren.current) return;
+
           if (__DEV__) console.log('[MapSearch] GPS location error:', error.message);
 
           // Priority 3: Check for saved address in preferences
@@ -424,6 +457,7 @@ const MapSearchScreen = () => {
 
             // Load activities asynchronously
             loadActivities(prefRegion);
+            lastFetchedRegion.current = prefRegion;
           } else {
             // Priority 4: Default to Canada-wide view
             if (__DEV__) console.log('[MapSearch] Using Canada default region');
@@ -811,15 +845,19 @@ const MapSearchScreen = () => {
   // Place search handlers
   const handlePlaceSearchChange = useCallback(async (text: string) => {
     setPlaceSearchQuery(text);
+    if (__DEV__) console.log('[MapSearch] Place search text:', text);
+
     if (text.length < 2) {
       setPlacePredictions([]);
       return;
     }
 
     try {
+      if (__DEV__) console.log('[MapSearch] Fetching place predictions for:', text);
       const results = await GooglePlacesSDK.fetchPredictions(text, {
         countries: ['ca', 'us'],
       });
+      if (__DEV__) console.log('[MapSearch] Place predictions received:', results?.length || 0, results);
       setPlacePredictions(results || []);
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error fetching place predictions:', error);
@@ -834,26 +872,44 @@ const MapSearchScreen = () => {
       setPlacePredictions([]);
       setPlaceSearchQuery(prediction.primaryText || prediction.description || '');
 
-      // Get place details with coordinates
-      const details = await GooglePlacesSDK.fetchPlaceDetails(prediction.placeId);
+      // Get place details with coordinates using correct API
+      const place = await GooglePlacesSDK.fetchPlaceByID(prediction.placeID, [
+        PLACE_FIELDS.NAME,
+        PLACE_FIELDS.COORDINATE,
+      ]);
 
-      if (details?.coordinate) {
+      if (place?.coordinate) {
         const newRegion: Region = {
-          latitude: details.coordinate.latitude,
-          longitude: details.coordinate.longitude,
+          latitude: place.coordinate.latitude,
+          longitude: place.coordinate.longitude,
           latitudeDelta: 0.05, // City-level zoom
           longitudeDelta: 0.05,
         };
 
+        if (__DEV__) {
+          console.log('[MapSearch] Place selected, navigating to:', {
+            place: prediction.primaryText || prediction.description,
+            coordinate: place.coordinate,
+            newRegion,
+          });
+        }
+
+        // Update region state
+        setRegion(newRegion);
+
+        // Animate map to the new location
         mapRef.current?.animateToRegion(newRegion, 500);
 
-        // Load activities for the new region
-        loadActivitiesForRegion(newRegion);
+        // Load activities for the new region (bypass checks for explicit navigation)
+        loadActivities(newRegion);
+        lastFetchedRegion.current = newRegion;
+      } else {
+        if (__DEV__) console.warn('[MapSearch] No coordinates returned for place:', prediction, place);
       }
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error selecting place:', error);
     }
-  }, [loadActivitiesForRegion]);
+  }, []);
 
   const clearPlaceSearch = useCallback(() => {
     setPlaceSearchQuery('');
@@ -1158,12 +1214,12 @@ const MapSearchScreen = () => {
               style={styles.placeSearchInput}
               placeholder="Search for a place..."
               placeholderTextColor="#999"
-              value={searchQuery}
+              value={placeSearchQuery}
               onChangeText={handlePlaceSearchChange}
               onFocus={() => setShowPlaceSearch(true)}
               returnKeyType="search"
             />
-            {searchQuery.length > 0 && (
+            {placeSearchQuery.length > 0 && (
               <TouchableOpacity onPress={clearPlaceSearch} style={styles.clearSearchButton}>
                 <Icon name="close-circle" size={18} color="#999" />
               </TouchableOpacity>
@@ -1531,35 +1587,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  // Preferences toggle chip
-  preferencesChip: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  preferencesChipActive: {
-    backgroundColor: Colors.primary,
-  },
-  preferencesChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  preferencesChipTextActive: {
-    color: '#fff',
-  },
   // List section - 45% of screen
   listSection: {
     flex: 0.45,
@@ -1755,6 +1782,80 @@ const styles = StyleSheet.create({
     color: '#717171',
     textAlign: 'center',
     marginTop: 4,
+  },
+  // Place search styles
+  placeSearchContainer: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    zIndex: 100,
+  },
+  placeSearchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  placeSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    paddingVertical: 4,
+  },
+  clearSearchButton: {
+    padding: 4,
+  },
+  predictionsContainer: {
+    marginTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  predictionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    gap: 10,
+  },
+  predictionTextContainer: {
+    flex: 1,
+  },
+  predictionMainText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#222',
+  },
+  predictionSecondaryText: {
+    fontSize: 12,
+    color: '#717171',
+    marginTop: 2,
+  },
+  // Child marker styles
+  childMarkerContainer: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
 

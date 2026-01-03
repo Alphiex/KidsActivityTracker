@@ -11,6 +11,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '../store';
 import { loadAuthState } from '../store/slices/authSlice';
 import { fetchSubscription } from '../store/slices/subscriptionSlice';
+import { fetchChildren } from '../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWaitlist } from '../store/slices/childFavoritesSlice';
 import { appEventEmitter, APP_EVENTS } from '../utils/eventEmitter';
 import { pushNotificationService } from '../services/pushNotificationService';
 
@@ -430,9 +432,24 @@ const RootNavigator = () => {
       // Check Firebase authentication status
       const authResult = await dispatch(loadAuthState());
 
-      // If user is authenticated, subscription is already fetched by loadAuthState
+      // If user is authenticated, fetch essential data
       if (authResult.payload) {
         console.log('User authenticated via Firebase');
+
+        // Fetch children and their favorites/waitlists in parallel
+        try {
+          const childrenResult = await dispatch(fetchChildren());
+          if (childrenResult.payload && Array.isArray(childrenResult.payload)) {
+            const childIds = childrenResult.payload.map((c: any) => c.id);
+            if (childIds.length > 0) {
+              // Fetch favorites and waitlists for all children
+              dispatch(fetchChildFavorites(childIds));
+              dispatch(fetchChildWaitlist(childIds));
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching children:', error);
+        }
       }
 
       // Check onboarding status

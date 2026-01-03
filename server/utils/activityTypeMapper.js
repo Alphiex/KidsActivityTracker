@@ -314,8 +314,152 @@ async function mapActivityType(activity) {
     typeId = typeCache['other-activity'];
     subtypeId = subtypeCache['other'] || null;
   }
-  
-  return { activityTypeId: typeId, activitySubtypeId: subtypeId };
+
+  // Detect indoor/outdoor environment
+  const isIndoor = detectIndoorOutdoor(activity, searchText);
+
+  return { activityTypeId: typeId, activitySubtypeId: subtypeId, isIndoor };
 }
 
-module.exports = { mapActivityType, loadTypesCache };
+/**
+ * Detect if activity is indoor or outdoor
+ * @param {Object} activity - Activity data from scraper
+ * @param {string} searchText - Combined text for pattern matching
+ * @returns {boolean|null} true = indoor, false = outdoor, null = unknown/both
+ */
+function detectIndoorOutdoor(activity, searchText) {
+  const locationText = `${activity.locationName || ''} ${activity.fullAddress || ''} ${activity.location || ''}`.toLowerCase();
+  const fullSearchText = `${searchText} ${locationText}`;
+
+  // ============================================
+  // Priority 1: Explicit indoor/outdoor keywords
+  // ============================================
+  const indoorKeywords = [
+    'indoor', 'indoors', 'inside',
+    'indoor pool', 'indoor rink', 'indoor court',
+    'indoor soccer', 'indoor field'
+  ];
+
+  const outdoorKeywords = [
+    'outdoor', 'outdoors', 'outside',
+    'outdoor pool', 'outdoor rink', 'outdoor field',
+    'outdoor soccer', 'open air', 'beach soccer'
+  ];
+
+  // Check for explicit indoor keywords
+  for (const keyword of indoorKeywords) {
+    if (fullSearchText.includes(keyword)) {
+      return true; // Indoor
+    }
+  }
+
+  // Check for explicit outdoor keywords
+  for (const keyword of outdoorKeywords) {
+    if (fullSearchText.includes(keyword)) {
+      return false; // Outdoor
+    }
+  }
+
+  // ============================================
+  // Priority 2: Venue/location hints
+  // ============================================
+  const indoorVenues = [
+    'arena', 'gymnasium', 'gym', 'studio',
+    'community centre', 'community center', 'rec centre', 'rec center',
+    'recreation centre', 'recreation center', 'fitness centre', 'fitness center',
+    'aquatic centre', 'aquatic center', 'natatorium',
+    'mall', 'library', 'museum',
+    'church hall', 'multiplex', 'sportsplex',
+    'dance studio', 'martial arts', 'dojo',
+    'bowling', 'arcade'
+  ];
+
+  const outdoorVenues = [
+    'park', 'field', 'diamond', 'pitch',
+    'playground', 'trail', 'garden', 'farm',
+    'outdoor pool', 'beach', 'lake', 'river',
+    'golf course', 'ski hill', 'ski resort',
+    'campground', 'nature', 'forest', 'woods',
+    'skatepark'
+  ];
+
+  for (const venue of indoorVenues) {
+    if (fullSearchText.includes(venue)) {
+      // Double-check it's not "outdoor" + venue
+      if (!fullSearchText.includes('outdoor ' + venue) && !fullSearchText.includes('outside ' + venue)) {
+        return true; // Indoor
+      }
+    }
+  }
+
+  for (const venue of outdoorVenues) {
+    if (fullSearchText.includes(venue)) {
+      // Exclude cases like "indoor pool" when checking "pool"
+      if (!fullSearchText.includes('indoor ' + venue) && !fullSearchText.includes('inside ' + venue)) {
+        return false; // Outdoor
+      }
+    }
+  }
+
+  // ============================================
+  // Priority 3: Activity type defaults
+  // Some activities are almost always one or the other
+  // ============================================
+  const typicallyIndoor = [
+    /dance|ballet|jazz dance|hip hop|tap dance/i,
+    /gymnast|tumbl|trampoline/i,
+    /martial|karate|taekwondo|judo|kung fu|boxing|kickbox/i,
+    /music|piano|guitar|drum|violin|band|orchestra|choir|sing/i,
+    /art|paint|draw|pottery|craft|sculpt|ceramic/i,
+    /stem|coding|robot|science|engineering|computer|chess|lego/i,
+    /drama|theatre|theater|acting|improv/i,
+    /cook|culinary|baking|kitchen|chef/i,
+    /language|mandarin|chinese|french|spanish/i,
+    /badminton|squash|table tennis|racquetball/i,
+    /bowling/i,
+    /figure skat|ice skat/i,
+    /yoga|pilates|fitness|workout|exercise|zumba|spin/i
+  ];
+
+  const typicallyOutdoor = [
+    /outdoor|hiking|camping|nature|adventure/i,
+    /golf/i,
+    /ski|snowboard/i,
+    /skateboard|skatepark/i,
+    /baseball|softball/i,
+    /rugby|lacrosse/i,
+    /track|running|cross country|marathon/i,
+    /cycling|mountain biking/i,
+    /kayak|canoe|sail|rowing/i,
+    /fishing|archery/i
+  ];
+
+  // Check if activity matches typically indoor patterns
+  for (const pattern of typicallyIndoor) {
+    if (pattern.test(searchText)) {
+      return true;
+    }
+  }
+
+  // Check if activity matches typically outdoor patterns
+  for (const pattern of typicallyOutdoor) {
+    if (pattern.test(searchText)) {
+      return false;
+    }
+  }
+
+  // ============================================
+  // Return null for ambiguous activities
+  // These can be indoor OR outdoor depending on venue:
+  // - Swimming (indoor vs outdoor pool)
+  // - Soccer (indoor vs outdoor)
+  // - Basketball (indoor vs outdoor)
+  // - Tennis (indoor vs outdoor courts)
+  // - Volleyball (indoor vs beach)
+  // - Hockey (ice vs field/ball)
+  // - Camps (can be either)
+  // ============================================
+  return null;
+}
+
+module.exports = { mapActivityType, loadTypesCache, detectIndoorOutdoor };

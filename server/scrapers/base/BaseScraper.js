@@ -130,7 +130,7 @@ class BaseScraper {
     for (const activity of activities) {
       try {
         // Get activity type and subtype mappings
-        const { activityTypeId, activitySubtypeId } = await mapActivityType(activity);
+        const { activityTypeId, activitySubtypeId, isIndoor } = await mapActivityType(activity);
 
         // Find or create location if locationName is provided
         let locationId = activity.locationId;
@@ -153,12 +153,13 @@ class BaseScraper {
           }
         }
 
-        // Add type mappings and locationId to activity data and sanitize for database
+        // Add type mappings, locationId, and isIndoor to activity data and sanitize for database
         const activityWithTypes = this.sanitizeActivityData({
           ...activity,
           activityTypeId,
           activitySubtypeId,
-          locationId
+          locationId,
+          isIndoor
         });
 
         // Find existing activity
@@ -500,7 +501,7 @@ class BaseScraper {
       for (const activity of batch) {
         try {
           // Get activity type mapping (uses cached values)
-          const { activityTypeId, activitySubtypeId } = await mapActivityType(activity);
+          const { activityTypeId, activitySubtypeId, isIndoor } = await mapActivityType(activity);
 
           // Get location ID from cache
           let locationId = activity.locationId;
@@ -517,7 +518,8 @@ class BaseScraper {
             ...activity,
             activityTypeId,
             activitySubtypeId,
-            locationId
+            locationId,
+            isIndoor
           });
 
           // Check if activity exists
