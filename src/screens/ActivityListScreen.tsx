@@ -136,7 +136,6 @@ const ActivityListScreen = () => {
       
       // Apply additional filters if provided
       if (filters) {
-        console.log('ActivityListScreen: Applying filters from route params:', filters);
         searchParams = { ...searchParams, ...filters };
       }
       
@@ -147,8 +146,6 @@ const ActivityListScreen = () => {
       if (preferences.hideFullActivities) {
         searchParams.hideFullActivities = true;
       }
-
-      console.log('ActivityListScreen: Final searchParams being sent to API:', searchParams);
 
       // Child-based filters handle all filtering preferences (location, price, age, days, etc.)
       const childFilters = getChildBasedFilters();

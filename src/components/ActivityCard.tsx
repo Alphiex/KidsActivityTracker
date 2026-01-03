@@ -651,7 +651,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
               if (children.length > 1) {
                 // Multiple children - show selection sheet
-                console.log('[ActivityCard] Multiple children, showing sheet for calendar');
                 setCurrentAction('calendar');
                 setShowChildSheet(true);
                 return;

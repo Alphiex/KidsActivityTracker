@@ -1963,7 +1963,6 @@ const CalendarScreenModernFixed = () => {
       </ViewShot>
 
       {renderActivityModal()}
-      {renderFilterModal()}
 
       {/* Quick Add Modal */}
       <Modal
