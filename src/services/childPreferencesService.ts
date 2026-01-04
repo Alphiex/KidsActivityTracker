@@ -2,6 +2,30 @@ import apiClient from './apiClient';
 import { EnhancedAddress } from '../types/preferences';
 
 /**
+ * Helper to parse savedAddress which might be stored as a JSON string
+ */
+function parseSavedAddress(savedAddress: any): EnhancedAddress | undefined {
+  if (!savedAddress) return undefined;
+
+  // If it's already an object with coordinates, return as-is
+  if (typeof savedAddress === 'object' && savedAddress !== null) {
+    return savedAddress as EnhancedAddress;
+  }
+
+  // If it's a string, try to parse it as JSON
+  if (typeof savedAddress === 'string') {
+    try {
+      return JSON.parse(savedAddress) as EnhancedAddress;
+    } catch (e) {
+      console.warn('[ChildPreferencesService] Failed to parse savedAddress string:', e);
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Time preferences for activity scheduling
  */
 export interface TimePreferences {
@@ -347,14 +371,27 @@ class ChildPreferencesService {
     // Distance: maximum radius
     const distanceRadiusKm = Math.max(...childPreferences.map(p => p.distanceRadiusKm));
 
-    // Location: use first child's location
-    const firstWithLocation = childPreferences.find(p => p.savedAddress?.latitude);
-    const latitude = firstWithLocation?.savedAddress?.latitude;
-    const longitude = firstWithLocation?.savedAddress?.longitude;
-    // Also extract city/province for fallback filtering when no coordinates
-    const firstWithCity = childPreferences.find(p => p.savedAddress?.city);
-    const city = firstWithCity?.savedAddress?.city;
-    const province = firstWithCity?.savedAddress?.state; // state field holds province
+    // Location: use first child's location (parse savedAddress which might be a JSON string)
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    let city: string | undefined;
+    let province: string | undefined;
+
+    for (const pref of childPreferences) {
+      const addr = parseSavedAddress(pref.savedAddress);
+      if (addr) {
+        if (!latitude && addr.latitude && addr.longitude) {
+          latitude = addr.latitude;
+          longitude = addr.longitude;
+        }
+        if (!city && addr.city) {
+          city = addr.city;
+          province = addr.state; // state field holds province
+        }
+        // Stop if we have both coordinates and city
+        if (latitude && city) break;
+      }
+    }
 
     // Environment: 'all' if any child prefers 'all', otherwise union
     let environmentFilter: 'all' | 'indoor' | 'outdoor' = 'all';
@@ -437,14 +474,28 @@ class ChildPreferencesService {
     // Distance: minimum radius (must be reachable by all)
     const distanceRadiusKm = Math.min(...childPreferences.map(p => p.distanceRadiusKm));
 
-    // Location: use first child's location (in AND mode, activity must be within this distance for all)
-    const firstWithLocation = childPreferences.find(p => p.savedAddress?.latitude);
-    const latitude = firstWithLocation?.savedAddress?.latitude;
-    const longitude = firstWithLocation?.savedAddress?.longitude;
-    // Also extract city/province for fallback filtering when no coordinates
-    const firstWithCity = childPreferences.find(p => p.savedAddress?.city);
-    const city = firstWithCity?.savedAddress?.city;
-    const province = firstWithCity?.savedAddress?.state; // state field holds province
+    // Location: use first child's location (parse savedAddress which might be a JSON string)
+    // In AND mode, activity must be within this distance for all
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    let city: string | undefined;
+    let province: string | undefined;
+
+    for (const pref of childPreferences) {
+      const addr = parseSavedAddress(pref.savedAddress);
+      if (addr) {
+        if (!latitude && addr.latitude && addr.longitude) {
+          latitude = addr.latitude;
+          longitude = addr.longitude;
+        }
+        if (!city && addr.city) {
+          city = addr.city;
+          province = addr.state; // state field holds province
+        }
+        // Stop if we have both coordinates and city
+        if (latitude && city) break;
+      }
+    }
 
     // Environment: must match all (intersection)
     let environmentFilter: 'all' | 'indoor' | 'outdoor' = 'all';
