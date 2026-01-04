@@ -248,10 +248,14 @@ router.get('/bounds', optionalAuth, async (req: Request, res: Response) => {
     // 1 degree latitude ~ 111km
     const radiusKm = Math.max(latDiff * 111, lngDiff * 85) / 2 * 1.2; // 20% buffer
 
+    // For very wide viewports (country-level), skip the radius filter and just use bounds
+    // This allows the map to show activities across the entire visible area
+    const isWideViewport = latDiff > 20 || lngDiff > 30;
+
     const params = {
-      userLat: centerLat,
-      userLon: centerLng,
-      radiusKm: Math.min(radiusKm, 200), // Cap at 200km
+      userLat: isWideViewport ? undefined : centerLat,
+      userLon: isWideViewport ? undefined : centerLng,
+      radiusKm: isWideViewport ? undefined : Math.min(radiusKm, 500), // Increased cap to 500km
       hasCoordinates: true,
       activityType: activityType as string,
       activitySubtype: activitySubtype as string,
@@ -269,7 +273,7 @@ router.get('/bounds', optionalAuth, async (req: Request, res: Response) => {
       sortOrder: 'asc' as const,
     };
 
-    console.log('[Routes] Activities Bounds Request:', { bounds, params });
+    console.log('[Routes] Activities Bounds Request:', { bounds, isWideViewport, params });
 
     const result = await activityService.searchActivities(params);
 
