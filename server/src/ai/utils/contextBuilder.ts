@@ -199,7 +199,7 @@ export async function buildEnhancedFamilyContext(
     },
   });
 
-  // Get children with their activities AND child-specific preferences
+  // Get children with their activities, favorites, watching, waitlist, AND child-specific preferences
   const children = await prisma.child.findMany({
     where: {
       userId,
@@ -214,18 +214,48 @@ export async function buildEnhancedFamilyContext(
           },
         },
         orderBy: { createdAt: 'desc' },
-        take: 15,
+        take: 30, // Increased to capture more history
       },
       skillProgress: {
         select: { skillCategory: true, currentLevel: true },
       },
       // Include child-specific preferences
       preferences: true,
+      // Child-specific favorites
+      childFavorites: {
+        include: {
+          activity: {
+            select: { id: true, name: true, category: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      },
+      // Child-specific watching (monitoring for notifications)
+      childWatching: {
+        include: {
+          activity: {
+            select: { id: true, name: true, category: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
+      // Child-specific waitlist
+      childWaitlistEntries: {
+        include: {
+          activity: {
+            select: { id: true, name: true, category: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
     },
   });
 
-  // Get user favorites
-  const favorites = await prisma.favorite.findMany({
+  // Get user favorites as fallback (for backwards compatibility)
+  const userFavorites = await prisma.favorite.findMany({
     where: { userId },
     include: {
       activity: {
@@ -241,16 +271,18 @@ export async function buildEnhancedFamilyContext(
     const age = calculateAgeEnhanced(child.dateOfBirth);
     const childPrefs = child.preferences;
 
-    // Filter favorites by age match
-    const childFavorites = favorites.filter(f => {
-      const minAge = f.activity.ageMin ?? 0;
-      const maxAge = f.activity.ageMax ?? 99;
-      return age >= minAge && age <= maxAge;
-    });
+    // Use child-specific favorites, or fall back to user favorites filtered by age
+    const favorites = child.childFavorites?.length
+      ? child.childFavorites.map(f => ({ activity: f.activity }))
+      : userFavorites.filter(f => {
+          const minAge = f.activity.ageMin ?? 0;
+          const maxAge = f.activity.ageMax ?? 99;
+          return age >= minAge && age <= maxAge;
+        });
 
     // Compute category preferences from behavior + explicit preferences
     const categoryCount: Record<string, number> = {};
-    [...childFavorites.map(f => f.activity), ...child.childActivities.map(ca => ca.activity)]
+    [...favorites.map(f => f.activity), ...child.childActivities.map(ca => ca.activity)]
       .forEach(a => {
         if (a.category) {
           categoryCount[a.category] = (categoryCount[a.category] || 0) + 1;
@@ -271,11 +303,22 @@ export async function buildEnhancedFamilyContext(
       child_id: child.id,
       name: child.name,
       age,
+      gender: child.gender || undefined,
       interests: child.interests || [],
-      favorites: childFavorites.slice(0, 10).map(f => ({
+      favorites: favorites.slice(0, 15).map(f => ({
         activityName: f.activity.name,
         category: f.activity.category,
       })),
+      // Activities being watched for notifications (spots available, price changes)
+      watching: child.childWatching?.map(w => ({
+        activityName: w.activity.name,
+        category: w.activity.category,
+      })) || [],
+      // Activities on waitlist
+      waitlisted: child.childWaitlistEntries?.map(w => ({
+        activityName: w.activity.name,
+        category: w.activity.category,
+      })) || [],
       calendarActivities: child.childActivities.map(ca => ({
         name: ca.activity.name,
         category: ca.activity.category,

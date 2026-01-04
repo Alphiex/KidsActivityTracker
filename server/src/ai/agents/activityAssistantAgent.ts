@@ -61,8 +61,11 @@ export interface EnhancedChildProfile {
   child_id: string;
   name: string;
   age: number;
+  gender?: string; // 'male', 'female', or null
   interests?: string[];
   favorites?: { activityName: string; category: string }[];
+  watching?: { activityName: string; category: string }[]; // Activities being watched for notifications
+  waitlisted?: { activityName: string; category: string }[]; // Activities on waitlist
   calendarActivities?: { name: string; category: string; status: string }[];
   // Child-specific activity preferences (per-child settings)
   preferences?: ChildPreferencesData;
@@ -125,6 +128,8 @@ interface ConversationState {
 
 const AGENT_SYSTEM_PROMPT = `You are a friendly AI assistant for KidsActivityTracker, helping parents find activities for their children.
 
+IMPORTANT: You have complete information about the user's children below. DO NOT ask for information that is already provided in the FAMILY CONTEXT (such as ages, preferences, schedules, or location). Use this information to personalize your recommendations immediately.
+
 FAMILY CONTEXT:
 {family_context}
 
@@ -133,6 +138,14 @@ CONVERSATION PARAMETERS (accumulated from this conversation):
 
 CONVERSATION OVERRIDES (explicit user preferences detected in conversation):
 {conversation_overrides}
+
+USING FAMILY CONTEXT:
+- Children's ages are already known - use them for age-appropriate filtering without asking
+- Children's preferences (activity types, schedule, budget) are already configured - apply them automatically
+- Activity history shows what they've done before - use this to suggest variety or similar activities
+- Favorites and watching lists indicate interests - prioritize activities in those categories
+- Gender information helps filter gender-specific programs (boys/girls soccer, etc.)
+- If multiple children are mentioned, consider activities they can do together based on overlapping age ranges
 
 YOUR CAPABILITIES:
 1. Search for activities using the search_activities or enhanced_search tool
@@ -202,6 +215,7 @@ Guidelines:
 
 /**
  * Format family context for the system prompt
+ * Includes comprehensive child profiles, preferences, and activity history
  */
 function formatFamilyContext(ctx?: EnhancedFamilyContext): string {
   const parts: string[] = [];
@@ -219,17 +233,123 @@ function formatFamilyContext(ctx?: EnhancedFamilyContext): string {
     }
   }
 
-  // Children info
+  // Filter mode for multi-child
+  if (ctx?.filterMode) {
+    parts.push(`FILTER MODE: ${ctx.filterMode === 'or' ? 'Show activities suitable for ANY selected child' : 'Show activities ALL children can do together'}`);
+  }
+
+  // Children info - comprehensive profiles
   if (!ctx?.children?.length) {
     parts.push('CHILDREN: No children registered. Ask the user about their children first.');
   } else {
-    const childrenInfo = ctx.children.map(child => `
-- ${child.name} (age ${child.age})
-  Interests: ${child.interests?.join(', ') || 'Not specified'}
-  Favorites: ${child.favorites?.slice(0, 3).map(f => f.activityName).join(', ') || 'None yet'}
-  Preferred categories: ${child.computedPreferences?.preferredCategories?.join(', ') || 'Unknown'}
-`).join('\n');
-    parts.push('CHILDREN:' + childrenInfo);
+    const childrenInfo = ctx.children.map(child => {
+      const sections: string[] = [];
+
+      // Basic profile
+      const genderStr = child.gender ? `, ${child.gender}` : '';
+      sections.push(`- ${child.name} (age ${child.age}${genderStr})`);
+      if (child.interests?.length) {
+        sections.push(`  Interests: ${child.interests.join(', ')}`);
+      }
+
+      // Child-specific preferences (from their preferences settings)
+      if (child.preferences) {
+        const prefs = child.preferences;
+        const prefLines: string[] = [];
+
+        if (prefs.activityTypes?.length) {
+          prefLines.push(`Activity types: ${prefs.activityTypes.join(', ')}`);
+        }
+        if (prefs.daysOfWeek?.length && prefs.daysOfWeek.length < 7) {
+          prefLines.push(`Available days: ${prefs.daysOfWeek.join(', ')}`);
+        } else if (prefs.daysOfWeek?.length === 7) {
+          prefLines.push('Available days: Any day');
+        }
+        if (prefs.timePreferences) {
+          const times: string[] = [];
+          if (prefs.timePreferences.morning) times.push('morning');
+          if (prefs.timePreferences.afternoon) times.push('afternoon');
+          if (prefs.timePreferences.evening) times.push('evening');
+          if (times.length > 0 && times.length < 3) {
+            prefLines.push(`Preferred times: ${times.join(', ')}`);
+          }
+        }
+        if (prefs.budget && (prefs.budget.min > 0 || prefs.budget.max < 999999)) {
+          if (prefs.budget.max >= 999999) {
+            prefLines.push('Budget: No limit');
+          } else if (prefs.budget.min > 0) {
+            prefLines.push(`Budget: $${prefs.budget.min} - $${prefs.budget.max}`);
+          } else {
+            prefLines.push(`Budget: Up to $${prefs.budget.max}`);
+          }
+        }
+        if (prefs.distanceRadiusKm && prefs.distanceRadiusKm !== 25) {
+          prefLines.push(`Max distance: ${prefs.distanceRadiusKm}km`);
+        }
+        if (prefs.environmentFilter && prefs.environmentFilter !== 'all') {
+          prefLines.push(`Environment: ${prefs.environmentFilter} activities only`);
+        }
+        if (prefs.location?.city) {
+          prefLines.push(`Location: ${prefs.location.city}${prefs.location.state ? ', ' + prefs.location.state : ''}`);
+        }
+
+        if (prefLines.length > 0) {
+          sections.push(`  PREFERENCES:\n    ${prefLines.join('\n    ')}`);
+        }
+      }
+
+      // Activity history - grouped by status
+      if (child.calendarActivities?.length) {
+        const byStatus: Record<string, string[]> = {};
+        for (const act of child.calendarActivities) {
+          const status = act.status || 'unknown';
+          if (!byStatus[status]) byStatus[status] = [];
+          byStatus[status].push(act.name);
+        }
+
+        const historyLines: string[] = [];
+        if (byStatus['enrolled']?.length) {
+          historyLines.push(`Currently enrolled: ${byStatus['enrolled'].slice(0, 5).join(', ')}${byStatus['enrolled'].length > 5 ? ` (+${byStatus['enrolled'].length - 5} more)` : ''}`);
+        }
+        if (byStatus['watching']?.length) {
+          historyLines.push(`Watching/Waitlisted: ${byStatus['watching'].slice(0, 5).join(', ')}${byStatus['watching'].length > 5 ? ` (+${byStatus['watching'].length - 5} more)` : ''}`);
+        }
+        if (byStatus['completed']?.length) {
+          historyLines.push(`Completed: ${byStatus['completed'].slice(0, 5).join(', ')}${byStatus['completed'].length > 5 ? ` (+${byStatus['completed'].length - 5} more)` : ''}`);
+        }
+        if (byStatus['interested']?.length) {
+          historyLines.push(`Interested in: ${byStatus['interested'].slice(0, 5).join(', ')}${byStatus['interested'].length > 5 ? ` (+${byStatus['interested'].length - 5} more)` : ''}`);
+        }
+
+        if (historyLines.length > 0) {
+          sections.push(`  ACTIVITY HISTORY:\n    ${historyLines.join('\n    ')}`);
+        }
+      }
+
+      // Favorites
+      if (child.favorites?.length) {
+        sections.push(`  FAVORITES: ${child.favorites.slice(0, 8).map(f => f.activityName).join(', ')}${child.favorites.length > 8 ? ` (+${child.favorites.length - 8} more)` : ''}`);
+      }
+
+      // Watching (monitoring for spots/price changes)
+      if (child.watching?.length) {
+        sections.push(`  WATCHING: ${child.watching.slice(0, 5).map(w => w.activityName).join(', ')}${child.watching.length > 5 ? ` (+${child.watching.length - 5} more)` : ''}`);
+      }
+
+      // Waitlisted
+      if (child.waitlisted?.length) {
+        sections.push(`  WAITLISTED: ${child.waitlisted.slice(0, 5).map(w => w.activityName).join(', ')}${child.waitlisted.length > 5 ? ` (+${child.waitlisted.length - 5} more)` : ''}`);
+      }
+
+      // Computed preferences from behavior
+      if (child.computedPreferences?.preferredCategories?.length) {
+        sections.push(`  PREFERRED CATEGORIES (from history): ${child.computedPreferences.preferredCategories.join(', ')}`);
+      }
+
+      return sections.join('\n');
+    }).join('\n\n');
+
+    parts.push('CHILDREN PROFILES:\n' + childrenInfo);
   }
 
   return parts.join('\n\n');
