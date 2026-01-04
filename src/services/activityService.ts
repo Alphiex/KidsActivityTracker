@@ -156,10 +156,11 @@ class ActivityService {
   }
 
   /**
-   * Check if children are in different cities (requiring per-child location search)
+   * Check if children are in different cities AND have valid coordinates
+   * (requiring per-child location search)
    */
   private areChildrenInDifferentCities(children: ChildWithPreferences[]): boolean {
-    const cities = new Set<string>();
+    const cityCoordMap = new Map<string, boolean>(); // city -> has coordinates
 
     for (const child of children) {
       const savedAddress = child.preferences?.savedAddress;
@@ -170,14 +171,18 @@ class ActivityService {
           addr = JSON.parse(savedAddress);
         } catch (e) { /* ignore */ }
       }
+
       const city = (addr as any)?.city;
-      if (city) {
-        cities.add(city.toLowerCase().trim());
+      const hasCoords = !!(addr as any)?.latitude && !!(addr as any)?.longitude;
+
+      // Only count cities that have coordinates (needed for per-child search)
+      if (city && hasCoords) {
+        cityCoordMap.set(city.toLowerCase().trim(), true);
       }
     }
 
-    // More than one unique city means children are in different locations
-    return cities.size > 1;
+    // More than one unique city with coordinates means children are in different locations
+    return cityCoordMap.size > 1;
   }
 
   /**
@@ -755,7 +760,7 @@ class ActivityService {
         };
       }
 
-      // Check if we need per-child location search (children in different cities)
+      // Check if we need per-child location search (children in different cities with coordinates)
       if (childFilters?.usePerChildLocation && childFilters?.children && childFilters.children.length > 1) {
         const locationsAreDistinct = this.areChildrenInDifferentCities(childFilters.children);
 
@@ -772,14 +777,19 @@ class ActivityService {
             childFilters.mergedFilters?.distanceRadiusKm || 25
           );
 
-          return {
-            items: result.activities,
-            total: result.activities.length,
-            limit: params.limit || 50,
-            offset: params.offset || 0,
-            hasMore: false,
-            pages: 1
-          };
+          // Only use per-child results if we got activities; otherwise fall through to normal search
+          if (result.activities.length > 0) {
+            return {
+              items: result.activities,
+              total: result.activities.length,
+              limit: params.limit || 50,
+              offset: params.offset || 0,
+              hasMore: false,
+              pages: 1
+            };
+          } else {
+            console.log('📍 [searchActivitiesPaginated] Per-child search returned no results, falling through to normal search');
+          }
         }
       }
 
