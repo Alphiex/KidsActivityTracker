@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Image,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -55,7 +56,7 @@ const DashboardScreenModern = () => {
   const [typesLoading, setTypesLoading] = useState(true);
   const [ageGroupsLoading, setAgeGroupsLoading] = useState(true);
   const shimmerAnim = useRef(new Animated.Value(0)).current;
-  const [_reloading, setReloading] = useState(false); // Used to track reload state, may be used for refresh indicator
+  const [refreshing, setRefreshing] = useState(false); // Used for pull-to-refresh indicator
   const [recommendedActivities, setRecommendedActivities] = useState<Activity[]>([]);
   const [budgetFriendlyActivities, setBudgetFriendlyActivities] = useState<Activity[]>([]);
   const [newActivities, setNewActivities] = useState<Activity[]>([]);
@@ -307,7 +308,6 @@ const DashboardScreenModern = () => {
     const reloadActivities = async () => {
       console.log('[Dashboard] Reloading due to child selection change:', currentKey);
       isLoadingRef.current = true;
-      setReloading(true);
       try {
         await Promise.all([
           loadRecommendedActivities(),
@@ -316,7 +316,6 @@ const DashboardScreenModern = () => {
         ]);
       } finally {
         isLoadingRef.current = false;
-        setReloading(false);
       }
     };
 
@@ -335,7 +334,6 @@ const DashboardScreenModern = () => {
       const loadData = async () => {
         console.log('[Dashboard] Loading data on focus...');
         isLoadingRef.current = true;
-        setReloading(true);
 
         try {
           // Load all data in parallel
@@ -350,9 +348,6 @@ const DashboardScreenModern = () => {
         } catch (error) {
           console.error('[Dashboard] Error loading data:', error);
         } finally {
-          if (isMountedRef.current) {
-            setReloading(false);
-          }
           isLoadingRef.current = false;
           hasInitialLoadRef.current = true; // Mark initial load as complete
         }
@@ -427,7 +422,6 @@ const DashboardScreenModern = () => {
 
   const loadDashboardData = async () => {
     try {
-      setReloading(true);
       console.log('Starting to load dashboard data...');
 
       // Load all data in parallel
@@ -450,12 +444,37 @@ const DashboardScreenModern = () => {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-    } finally {
-      if (isMountedRef.current) {
-        setReloading(false);
-      }
     }
   };
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    console.log('[Dashboard] Pull-to-refresh triggered');
+    setRefreshing(true);
+    try {
+      // Refresh children data first
+      await dispatch(fetchChildren()).unwrap();
+
+      // Then refresh all dashboard data
+      await loadDashboardData();
+
+      // Also refresh favorites and waitlist
+      loadFavorites();
+      loadWaitlistCount();
+
+      // Refresh child favorites/watching data
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+        dispatch(fetchChildWaitlist(childIds));
+      }
+    } catch (error) {
+      console.error('[Dashboard] Refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, children]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRecommendedActivities = async () => {
     try {
@@ -892,6 +911,14 @@ const DashboardScreenModern = () => {
           { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#E8638B"
+            colors={['#E8638B']}
+          />
+        }
       >
         {/* Trial Countdown Banner - shown when user is trialing */}
         <TrialCountdownBanner
