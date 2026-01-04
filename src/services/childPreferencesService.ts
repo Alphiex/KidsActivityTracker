@@ -369,12 +369,12 @@ class ChildPreferencesService {
       evening: childPreferences.some(p => p.timePreferences?.evening),
     };
 
-    // Budget: full range
-    const priceRangeMin = Math.min(...childPreferences.map(p => p.priceRangeMin));
-    const priceRangeMax = Math.max(...childPreferences.map(p => p.priceRangeMax));
+    // Budget: full range (with fallbacks for undefined values)
+    const priceRangeMin = Math.min(...childPreferences.map(p => p.priceRangeMin ?? 0));
+    const priceRangeMax = Math.max(...childPreferences.map(p => p.priceRangeMax ?? 999999));
 
-    // Distance: maximum radius
-    const distanceRadiusKm = Math.max(...childPreferences.map(p => p.distanceRadiusKm));
+    // Distance: maximum radius (with fallback to 25km default)
+    const distanceRadiusKm = Math.max(...childPreferences.map(p => p.distanceRadiusKm ?? 25)) || 25;
 
     // Location: use first child's location (parse savedAddress which might be a JSON string)
     let latitude: number | undefined;
@@ -382,8 +382,21 @@ class ChildPreferencesService {
     let city: string | undefined;
     let province: string | undefined;
 
+    if (__DEV__) {
+      console.log('[ChildPrefs] mergeOrMode - Processing', childPreferences.length, 'preferences for location');
+    }
     for (const pref of childPreferences) {
       const addr = parseSavedAddress(pref.savedAddress);
+      if (__DEV__) {
+        console.log('[ChildPrefs] mergeOrMode - parseSavedAddress result:', {
+          inputType: typeof pref.savedAddress,
+          inputValue: pref.savedAddress,
+          parsedAddr: addr,
+          hasLatitude: !!addr?.latitude,
+          hasLongitude: !!addr?.longitude,
+          hasCity: !!addr?.city,
+        });
+      }
       if (addr) {
         if (!latitude && addr.latitude && addr.longitude) {
           latitude = addr.latitude;
@@ -396,6 +409,9 @@ class ChildPreferencesService {
         // Stop if we have both coordinates and city
         if (latitude && city) break;
       }
+    }
+    if (__DEV__) {
+      console.log('[ChildPrefs] mergeOrMode - Final location:', { latitude, longitude, city, province });
     }
 
     // Environment: 'all' if any child prefers 'all', otherwise union
@@ -442,13 +458,16 @@ class ChildPreferencesService {
     childAges: number[],
     childGenders: ('male' | 'female' | null)[]
   ): MergedChildFilters {
-    // Age range: must fit all children
+    // Age range: must fit ALL children together
+    // Activity's age range must span from youngest to oldest child
     // Guard against empty childAges array (Math.min/max on empty array returns Infinity/-Infinity)
     let ageMin = 0;
     let ageMax = 18;
     if (childAges.length > 0) {
-      ageMin = Math.max(...childAges) - 1; // Activity must accept oldest child
-      ageMax = Math.min(...childAges) + 1; // Activity must accept youngest child
+      // For "Together" mode, we need activities that accept ALL children
+      // Query: activity.ageMin <= youngest_child AND activity.ageMax >= oldest_child
+      ageMin = Math.max(0, Math.min(...childAges) - 1); // Must accept youngest child
+      ageMax = Math.min(18, Math.max(...childAges) + 1); // Must accept oldest child
     }
 
     // Activity types: intersection (common to all)
@@ -477,12 +496,12 @@ class ChildPreferencesService {
       evening: childPreferences.every(p => p.timePreferences?.evening),
     };
 
-    // Budget: intersection (range that works for all)
-    const priceRangeMin = Math.max(...childPreferences.map(p => p.priceRangeMin));
-    const priceRangeMax = Math.min(...childPreferences.map(p => p.priceRangeMax));
+    // Budget: intersection (range that works for all, with fallbacks)
+    const priceRangeMin = Math.max(...childPreferences.map(p => p.priceRangeMin ?? 0));
+    const priceRangeMax = Math.min(...childPreferences.map(p => p.priceRangeMax ?? 999999));
 
-    // Distance: minimum radius (must be reachable by all)
-    const distanceRadiusKm = Math.min(...childPreferences.map(p => p.distanceRadiusKm));
+    // Distance: minimum radius (must be reachable by all, with fallback to 25km)
+    const distanceRadiusKm = Math.min(...childPreferences.map(p => p.distanceRadiusKm ?? 25)) || 25;
 
     // Location: use first child's location (parse savedAddress which might be a JSON string)
     // In AND mode, activity must be within this distance for all

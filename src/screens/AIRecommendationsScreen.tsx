@@ -113,10 +113,11 @@ const AIRecommendationsScreen = () => {
         max: Math.min(18, Math.max(...ages) + 1),
       };
     } else {
-      // AND: narrow range to overlap (activities all children can do)
+      // AND (Together): activities must accept ALL children
+      // Activity's age range must span from youngest to oldest child
       return {
-        min: Math.max(...ages),
-        max: Math.min(...ages),
+        min: Math.max(0, Math.min(...ages) - 1), // Must accept youngest child
+        max: Math.min(18, Math.max(...ages) + 1), // Must accept oldest child
       };
     }
   }, [selectedChildren, filterMode]);

@@ -2,6 +2,7 @@ import { Child, Prisma } from '../../generated/prisma';
 import { prisma } from '../lib/prisma';
 import { calculateAge } from '../utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { geocodingService } from './geocodingService';
 
 export interface CreateChildInput {
   userId: string;
@@ -41,7 +42,37 @@ export class ChildrenService {
    * Create a new child profile
    */
   async createChild(data: CreateChildInput): Promise<Child> {
-    return await prisma.child.create({
+    // Geocode location if provided but missing coordinates
+    let locationDetails = data.locationDetails || {};
+    const hasCoordinates = locationDetails.latitude && locationDetails.longitude &&
+                          locationDetails.latitude !== 0 && locationDetails.longitude !== 0;
+
+    if (!hasCoordinates && (data.location || locationDetails.city || locationDetails.formattedAddress)) {
+      const addressToGeocode = locationDetails.formattedAddress || locationDetails.city || data.location || '';
+      console.log(`[ChildrenService] Geocoding location for new child: ${addressToGeocode}`);
+
+      const geocoded = await geocodingService.geocodeAddress(
+        addressToGeocode,
+        locationDetails.city,
+        locationDetails.state
+      );
+
+      if (geocoded) {
+        locationDetails = {
+          ...locationDetails,
+          latitude: geocoded.latitude,
+          longitude: geocoded.longitude,
+          formattedAddress: geocoded.formattedAddress,
+          placeId: geocoded.placeId,
+        };
+        console.log(`[ChildrenService] Geocoded: ${geocoded.latitude}, ${geocoded.longitude}`);
+      } else {
+        console.log(`[ChildrenService] Geocoding failed for: ${addressToGeocode}`);
+      }
+    }
+
+    // Create child with geocoded location
+    const child = await prisma.child.create({
       data: {
         userId: data.userId,
         name: data.name,
@@ -53,9 +84,31 @@ export class ChildrenService {
         interests: data.interests || [],
         notes: data.notes,
         location: data.location,
-        locationDetails: data.locationDetails,
+        locationDetails: locationDetails,
       }
     });
+
+    // Also create/update ChildPreferences with the savedAddress
+    // This ensures location filtering works from both Child.locationDetails and ChildPreferences.savedAddress
+    if (Object.keys(locationDetails).length > 0) {
+      await prisma.childPreferences.upsert({
+        where: { childId: child.id },
+        create: {
+          childId: child.id,
+          savedAddress: locationDetails,
+          locationSource: 'saved_address',
+          distanceFilterEnabled: true,
+        },
+        update: {
+          savedAddress: locationDetails,
+          locationSource: 'saved_address',
+          distanceFilterEnabled: true,
+        },
+      });
+      console.log(`[ChildrenService] Updated ChildPreferences.savedAddress for child ${child.id}`);
+    }
+
+    return child;
   }
 
   /**
@@ -120,18 +173,88 @@ export class ChildrenService {
             data: prefsData
           });
           console.log(`[ChildrenService] Auto-created preferences for child ${child.id}`);
-        } else if (!preferences.savedAddress && userPrefs?.savedAddress) {
-          // Backfill location for existing preferences that don't have it
-          preferences = await prisma.childPreferences.update({
-            where: { id: preferences.id },
-            data: {
-              savedAddress: userPrefs.savedAddress,
-              locationSource: userPrefs.locationSource || 'saved_address',
-              distanceFilterEnabled: userPrefs.distanceFilterEnabled ?? true,
-              distanceRadiusKm: userPrefs.distanceRadiusKm || 25
+        } else {
+          // Check if we need to backfill or geocode the savedAddress
+          // This runs if: savedAddress is empty OR savedAddress has city but no coordinates
+          const existingSavedAddr = preferences.savedAddress as any;
+          const needsBackfill = !existingSavedAddr;
+          const needsGeocoding = existingSavedAddr && existingSavedAddr.city &&
+                                (!existingSavedAddr.latitude || !existingSavedAddr.longitude ||
+                                 existingSavedAddr.latitude === 0 || existingSavedAddr.longitude === 0);
+
+          if (needsBackfill || needsGeocoding) {
+            // Backfill location for existing preferences that don't have it OR need geocoding
+            // Priority 1: Use child's locationDetails (and geocode if needed)
+            // Priority 2: Use existing savedAddress (and geocode if needed)
+            // Priority 3: Use user's savedAddress
+            const childLocDetails = child.locationDetails as any;
+            let locationToUse: any = null;
+
+            // Source for geocoding - prefer childLocDetails, then existing savedAddress
+            const sourceForGeocode = (childLocDetails && (childLocDetails.city || childLocDetails.formattedAddress))
+              ? childLocDetails
+              : existingSavedAddr;
+
+            if (sourceForGeocode && (sourceForGeocode.city || sourceForGeocode.formattedAddress)) {
+              // Check if we have valid coordinates
+              const hasCoords = sourceForGeocode.latitude && sourceForGeocode.longitude &&
+                              sourceForGeocode.latitude !== 0 && sourceForGeocode.longitude !== 0;
+
+              if (hasCoords) {
+                // Already has coordinates - use as-is
+                locationToUse = sourceForGeocode;
+                console.log(`[ChildrenService] Using existing location with coords for ${child.id}`);
+              } else {
+                // Geocode the location
+                const addressToGeocode = sourceForGeocode.formattedAddress || sourceForGeocode.city || child.location || '';
+                console.log(`[ChildrenService] Geocoding location for ${child.id}: ${addressToGeocode}`);
+
+                const geocoded = await geocodingService.geocodeAddress(
+                  addressToGeocode,
+                  sourceForGeocode.city,
+                  sourceForGeocode.state
+                );
+
+                if (geocoded) {
+                  locationToUse = {
+                    ...sourceForGeocode,
+                    latitude: geocoded.latitude,
+                    longitude: geocoded.longitude,
+                    formattedAddress: geocoded.formattedAddress,
+                    placeId: geocoded.placeId,
+                  };
+                  console.log(`[ChildrenService] Geocoded ${child.id}: ${geocoded.latitude}, ${geocoded.longitude}`);
+
+                  // Also update the child's locationDetails
+                  await prisma.child.update({
+                    where: { id: child.id },
+                    data: { locationDetails: locationToUse }
+                  });
+                } else {
+                  // Geocoding failed - still use city for fallback filtering
+                  locationToUse = sourceForGeocode;
+                  console.log(`[ChildrenService] Geocoding failed for ${child.id}, using city only`);
+                }
+              }
+            } else if (userPrefs?.savedAddress) {
+              // Fall back to user's preferences
+              locationToUse = userPrefs.savedAddress;
+              console.log(`[ChildrenService] Using user prefs location for ${child.id}`);
             }
-          });
-          console.log(`[ChildrenService] Backfilled location for child ${child.id}`);
+
+            if (locationToUse) {
+              preferences = await prisma.childPreferences.update({
+                where: { id: preferences.id },
+                data: {
+                  savedAddress: locationToUse,
+                  locationSource: 'saved_address',
+                  distanceFilterEnabled: true,
+                  distanceRadiusKm: preferences.distanceRadiusKm || userPrefs?.distanceRadiusKm || 25
+                }
+              });
+              console.log(`[ChildrenService] Updated location for child ${child.id} (backfill: ${needsBackfill}, geocoded: ${needsGeocoding})`);
+            }
+          }
         }
         return {
           ...child,
@@ -176,9 +299,60 @@ export class ChildrenService {
 
     if (!child) return null;
 
+    // Geocode location if provided but missing coordinates
+    let locationDetails = data.locationDetails;
+    if (locationDetails) {
+      const hasCoordinates = locationDetails.latitude && locationDetails.longitude &&
+                            locationDetails.latitude !== 0 && locationDetails.longitude !== 0;
+
+      if (!hasCoordinates && (data.location || locationDetails.city || locationDetails.formattedAddress)) {
+        const addressToGeocode = locationDetails.formattedAddress || locationDetails.city || data.location || '';
+        console.log(`[ChildrenService] Geocoding location for child update: ${addressToGeocode}`);
+
+        const geocoded = await geocodingService.geocodeAddress(
+          addressToGeocode,
+          locationDetails.city,
+          locationDetails.state
+        );
+
+        if (geocoded) {
+          locationDetails = {
+            ...locationDetails,
+            latitude: geocoded.latitude,
+            longitude: geocoded.longitude,
+            formattedAddress: geocoded.formattedAddress,
+            placeId: geocoded.placeId,
+          };
+          console.log(`[ChildrenService] Geocoded: ${geocoded.latitude}, ${geocoded.longitude}`);
+        } else {
+          console.log(`[ChildrenService] Geocoding failed for: ${addressToGeocode}`);
+        }
+      }
+
+      // Update ChildPreferences.savedAddress too
+      await prisma.childPreferences.upsert({
+        where: { childId },
+        create: {
+          childId,
+          savedAddress: locationDetails,
+          locationSource: 'saved_address',
+          distanceFilterEnabled: true,
+        },
+        update: {
+          savedAddress: locationDetails,
+          locationSource: 'saved_address',
+          distanceFilterEnabled: true,
+        },
+      });
+      console.log(`[ChildrenService] Updated ChildPreferences.savedAddress for child ${childId}`);
+    }
+
     return await prisma.child.update({
       where: { id: childId },
-      data
+      data: {
+        ...data,
+        locationDetails: locationDetails || data.locationDetails,
+      }
     });
   }
 

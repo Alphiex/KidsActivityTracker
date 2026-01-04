@@ -177,10 +177,11 @@ const DashboardScreenModern = () => {
         ageMax: Math.min(18, Math.max(...ages) + 1),
       };
     } else {
-      // AND mode: activities must fit all children (narrower range)
+      // AND mode (Together): activities must accept ALL children
+      // Activity's age range must span from youngest to oldest child
       return {
-        ageMin: Math.max(...ages),
-        ageMax: Math.min(...ages),
+        ageMin: Math.max(0, Math.min(...ages) - 1), // Must accept youngest child
+        ageMax: Math.min(18, Math.max(...ages) + 1), // Must accept oldest child
       };
     }
   }, [children, selectedChildIds, filterMode, calculateAge]);
@@ -235,10 +236,25 @@ const DashboardScreenModern = () => {
     if (__DEV__) {
       console.log('[Dashboard] Child-based filters:', {
         selectedChildrenCount: selectedChildren.length,
+        childPreferencesCount: childPreferences.length,
         childAges,
         calculatedAgeRange: `${mergedFilters.ageMin}-${mergedFilters.ageMax}`,
         activityTypes: mergedFilters.activityTypes?.length || 0,
+        hasLocation: !!(mergedFilters.latitude && mergedFilters.longitude),
+        latitude: mergedFilters.latitude,
+        longitude: mergedFilters.longitude,
+        city: mergedFilters.city,
+        distanceRadiusKm: mergedFilters.distanceRadiusKm,
         filterMode,
+      });
+      // Debug: Log each child's preferences
+      selectedChildren.forEach(child => {
+        console.log(`[Dashboard] Child ${child.name}:`, {
+          hasPreferences: !!child.preferences,
+          hasSavedAddress: !!(child.preferences?.savedAddress),
+          savedAddressType: typeof child.preferences?.savedAddress,
+          savedAddressKeys: child.preferences?.savedAddress ? Object.keys(child.preferences.savedAddress) : [],
+        });
       });
     }
 
@@ -445,58 +461,95 @@ const DashboardScreenModern = () => {
     try {
       setRecommendedLoading(true);
 
-      // Build filter params - child-based filters handle everything
-      const filterParams: any = {
+      // Build filter params with child-based filters
+      const filterParams: ActivitySearchParams = {
         limit: 6,
         offset: 0,
         hideFullActivities: true
       };
-
-      // Get child-based filters (includes age, activity types, price, location, days from child preferences)
       const childFilters = getChildBasedFilters();
+
       console.log('[Dashboard] Loading recommended with child filters:', childFilters?.mergedFilters ? 'yes' : 'no');
 
-      let response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
-      console.log('Recommended activities response:', {
-        total: response?.total,
-        itemsCount: response?.items?.length,
-        firstItem: response?.items?.[0]?.name
-      });
+      // Try activityService first (wrap in try-catch so errors don't skip fallback)
+      let response: any = null;
+      try {
+        response = await activityService.searchActivitiesPaginated(filterParams, childFilters);
+        console.log('[Dashboard] Recommended search result:', response?.items?.length, 'items');
+      } catch (serviceErr) {
+        console.log('[Dashboard] Service threw error:', serviceErr);
+        response = { items: [] };
+      }
 
-      // If no results with child filters, try a broader search (just child age, no other filters)
+      // Fallback: Direct fetch WITH child filters if service returned 0
       if (!response?.items || response.items.length === 0) {
-        console.log('No results with full filters, trying broader search...');
+        console.log('[Dashboard] Service returned 0, using direct fetch WITH filters...');
+        try {
+          // Build URL with child's location filters
+          const merged = childFilters?.mergedFilters;
+          let url = `${API_CONFIG.BASE_URL}/api/v1/activities?limit=6`;
 
-        // Fallback: no additional filters - just get recent activities (still apply child age filter)
-        const noFilterParams: ActivitySearchParams = {
-          limit: 6,
-          offset: 0,
-          hideFullActivities: true,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
-        };
-        response = await activityService.searchActivitiesPaginated(noFilterParams, childFilters);
-        console.log('Broader search result:', response?.items?.length, 'items');
+          // Add location filter - use coordinates if available, otherwise city
+          if (merged?.latitude && merged?.longitude) {
+            url += `&userLat=${merged.latitude}&userLon=${merged.longitude}&radiusKm=${merged.distanceRadiusKm || 25}`;
+            console.log('[Dashboard] Using child coordinates:', merged.latitude, merged.longitude);
+          } else if (merged?.city) {
+            url += `&city=${encodeURIComponent(merged.city)}`;
+            if (merged.province) {
+              url += `&province=${encodeURIComponent(merged.province)}`;
+            }
+            console.log('[Dashboard] Using child city:', merged.city);
+          }
+
+          // Add age filter
+          if (merged?.ageMin !== undefined) {
+            url += `&ageMin=${merged.ageMin}`;
+          }
+          if (merged?.ageMax !== undefined) {
+            url += `&ageMax=${merged.ageMax}`;
+          }
+
+          // Add activity type filter
+          if (merged?.activityTypes && merged.activityTypes.length > 0) {
+            url += `&categories=${encodeURIComponent(merged.activityTypes.join(','))}`;
+          }
+
+          console.log('[Dashboard] Direct fetch URL:', url);
+          const directResp = await fetch(url);
+          const data = await directResp.json();
+          console.log('[Dashboard] Direct fetch result:', data?.success, data?.activities?.length, 'activities');
+
+          if (data.success && data.activities?.length > 0) {
+            response = {
+              items: data.activities,
+              total: data.activities.length,
+              limit: 6,
+              offset: 0,
+              hasMore: false,
+              pages: 1
+            };
+          }
+        } catch (fetchErr) {
+          console.error('[Dashboard] Direct fetch failed:', fetchErr);
+        }
       }
 
       if (isMountedRef.current) {
         if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
           // Shuffle results for variety on each load
           setRecommendedActivities(shuffleArray(response.items));
-          console.log('Set recommended activities (shuffled):', response.items.length);
+          console.log('[Dashboard] Set recommended activities (shuffled):', response.items.length);
         } else {
-          // Truly no activities found - set empty array to show empty state
+          // No activities found - set empty array to show empty state
           setRecommendedActivities([]);
-          console.log('Recommended activities: No activities found even with fallback');
+          console.log('[Dashboard] Recommended activities: No activities found');
         }
       }
     } catch (error) {
-      console.error('Error loading recommended activities:', error);
-      // On error, set empty to show error state
+      console.error('[Dashboard] Error loading recommended activities:', error);
       if (isMountedRef.current) {
         setRecommendedActivities([]);
       }
-      console.log('Recommended activities: Error occurred');
     } finally {
       if (isMountedRef.current) {
         setRecommendedLoading(false);

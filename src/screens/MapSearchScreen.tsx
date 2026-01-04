@@ -281,15 +281,17 @@ const MapSearchScreen = () => {
 
     // Calculate ages from birth dates
     const today = new Date();
-    const childAges = selectedChildren.map(child => {
-      const birthDate = new Date(child.dateOfBirth);
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      return age;
-    }).filter(age => age >= 0 && age <= 18);
+    const childAges = selectedChildren
+      .filter(child => child.dateOfBirth) // Filter out children without DOB
+      .map(child => {
+        const birthDate = new Date(child.dateOfBirth!);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      }).filter(age => age >= 0 && age <= 18);
 
     const childGenders = selectedChildren.map(child => child.gender ?? null);
 
@@ -491,16 +493,22 @@ const MapSearchScreen = () => {
     geocodeChildrenLocations();
   }, [children, getChildLocation, geocodedChildLocations]);
 
-  // Determine initial region based on priority: Children > GPS > Canada
+  // Determine initial region based on priority: Selected Children > All Children > GPS > Canada
   useEffect(() => {
+    // Use SELECTED children for centering - this respects user's child filter selection
+    // If none selected, fall back to all children
+    const childrenToCenter = selectedChildren.length > 0 ? selectedChildren : children;
+
     // Check for children with location data (includes geocoded city names)
-    const childrenWithLocations = children
+    const childrenWithLocations = childrenToCenter
       .map(child => getChildLocation(child))
       .filter((loc): loc is { latitude: number; longitude: number } => loc !== null);
 
     if (__DEV__) {
       console.log('[MapSearch] Children location check:', {
         total: children.length,
+        selected: selectedChildren.length,
+        centering: childrenToCenter.length,
         withCoords: childrenWithLocations.length,
         geocodedCount: geocodedChildLocations.size,
         locations: childrenWithLocations,
@@ -1150,13 +1158,35 @@ const MapSearchScreen = () => {
   }, []);
 
   // Handle child selection change from ChildFilterSelector
-  const handleChildSelectionChange = useCallback((_selectedIds: string[], _mode: ChildFilterMode) => {
-    // Trigger reload when children selection changes
-    if (locationLoaded) {
-      console.log('[MapSearch] Child selection changed, reloading activities');
-      loadActivities(region);
+  const handleChildSelectionChange = useCallback((newSelectedIds: string[], _mode: ChildFilterMode) => {
+    if (!locationLoaded) return;
+
+    console.log('[MapSearch] Child selection changed:', { newSelectedIds });
+
+    // Get locations for newly selected children
+    const newlySelectedChildren = children.filter(c => newSelectedIds.includes(c.id));
+    const childLocations = newlySelectedChildren
+      .map(child => getChildLocation(child))
+      .filter((loc): loc is { latitude: number; longitude: number } => loc !== null);
+
+    // Re-center map on selected children's locations
+    if (childLocations.length > 0) {
+      const newRegion = calculateRegionFromCoordinates(childLocations);
+      if (newRegion && mapRef.current) {
+        console.log('[MapSearch] Re-centering map on selected children:', newRegion);
+        setRegion(newRegion);
+        mapRef.current.animateToRegion(newRegion, 500);
+        // Load activities for the new region
+        loadActivities(newRegion);
+        lastFetchedRegion.current = newRegion;
+        return;
+      }
     }
-  }, [locationLoaded, region, loadActivities]);
+
+    // Fallback: just reload activities for current region
+    console.log('[MapSearch] No child locations, reloading activities for current region');
+    loadActivities(region);
+  }, [locationLoaded, region, children, getChildLocation, loadActivities]);
 
   const handleSelectPlace = useCallback(async (prediction: any) => {
     try {
