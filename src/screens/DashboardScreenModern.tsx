@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   Image,
   Animated,
-  Share,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,7 +17,6 @@ import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
 import { getActivityImageByKey, aiRobotImage } from '../assets/images';
-import { formatActivityPrice, cleanActivityName } from '../utils/formatters';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
@@ -35,22 +33,13 @@ import { ChildAvatar } from '../components/children';
 import { useSelector } from 'react-redux';
 import { selectIsTrialing, selectTrialDaysRemaining } from '../store/slices/subscriptionSlice';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, ChildFilterMode, fetchChildren } from '../store/slices/childrenSlice';
-import { getChildColor } from '../theme/childColors';
 import { useAppSelector, useAppDispatch } from '../store';
 import AddToCalendarModal from '../components/AddToCalendarModal';
-import ChildAssignmentSheet, { ActionType } from '../components/ChildAssignmentSheet';
 import ActivityCard from '../components/ActivityCard';
 import {
-  addChildFavorite,
-  removeChildFavorite,
-  joinChildWaitlist,
-  leaveChildWaitlist,
-  selectChildrenWhoFavoritedWithDetails,
-  selectChildrenOnWaitlistWithDetails,
   fetchChildFavorites,
   fetchChildWatching,
 } from '../store/slices/childFavoritesSlice';
-import { selectActivityChildren } from '../store/slices/childActivitiesSlice';
 
 const DashboardScreenModern = () => {
   const navigation = useNavigation<any>();
@@ -74,8 +63,6 @@ const DashboardScreenModern = () => {
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [waitlistAvailableCount, setWaitlistAvailableCount] = useState(0);
   const [calendarModalActivity, setCalendarModalActivity] = useState<Activity | null>(null);
-  const [childSheetActivity, setChildSheetActivity] = useState<Activity | null>(null);
-  const [childSheetAction, setChildSheetAction] = useState<ActionType>('favorite');
   const [scrollY] = useState(new Animated.Value(0));
   const dispatch = useAppDispatch();
   const activityService = ActivityService.getInstance();
@@ -106,9 +93,6 @@ const DashboardScreenModern = () => {
     waitlistLimit,
     syncWaitlistCount,
   } = useWaitlistSubscription();
-
-  // Get all activity-children mappings for calendar indicator
-  const activityChildrenMap = useAppSelector(state => state.childActivities?.activityChildren || {});
 
   // Child filter state
   const children = useAppSelector(selectAllChildren);
@@ -160,25 +144,6 @@ const DashboardScreenModern = () => {
     console.log('[Dashboard] Child filter changed:', { selectedCount: newSelectedIds.length, mode: newMode });
     // The useEffect watching selectedChildIds/filterMode will trigger the reload
   }, []);
-
-  // Get children that match an activity based on age (only from selected children)
-  const getMatchingChildren = useCallback((activity: Activity) => {
-    if (children.length === 0 || selectedChildIds.length === 0) return [];
-
-    // Only consider selected children
-    const selectedChildren = children.filter(c => selectedChildIds.includes(c.id));
-    if (selectedChildren.length === 0) return [];
-
-    // Get activity age range
-    const activityAgeMin = activity.ageRange?.min ?? activity.ageMin ?? 0;
-    const activityAgeMax = activity.ageRange?.max ?? activity.ageMax ?? 18;
-
-    return selectedChildren.filter(child => {
-      if (!child.dateOfBirth) return false;
-      const childAge = calculateAge(child.dateOfBirth);
-      return childAge >= activityAgeMin && childAge <= activityAgeMax;
-    });
-  }, [children, selectedChildIds, calculateAge]);
 
   // Get selected children for consistent filtering
   const selectedChildren = React.useMemo(() => {
@@ -392,31 +357,6 @@ const DashboardScreenModern = () => {
       setWaitlistIds(waitlistService.getWaitlistIds());
     } catch (error) {
       console.error('Error loading waitlist count:', error);
-    }
-  };
-
-  const toggleFavorite = (activity: Activity) => {
-    try {
-      const isCurrentlyFavorite = favoriteIds.has(activity.id);
-
-      if (isCurrentlyFavorite) {
-        favoritesService.removeFavorite(activity.id);
-        setFavoriteIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(activity.id);
-          return newSet;
-        });
-      } else {
-        // Check subscription limit before adding
-        if (!canAddFavorite) {
-          onFavoriteLimitReached();
-          return;
-        }
-        favoritesService.addFavorite(activity);
-        setFavoriteIds(prev => new Set([...prev, activity.id]));
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
     }
   };
 
@@ -797,459 +737,25 @@ const DashboardScreenModern = () => {
     );
   };
 
-  const renderActivityCard = (activity: Activity) => {
-    // Get image based on activityType or category
-    const activityTypeName = Array.isArray(activity.activityType)
-      ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
-      : (activity.activityType as any)?.name || activity.category || 'general';
-    const subcategory = activity.activitySubtype?.name || activity.subcategory;
-    const imageKey = getActivityImageKey(activityTypeName, subcategory, activity.name);
-    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
-    const isFavorite = favoriteIds.has(activity.id);
-    const isOnWaitlist = waitlistIds.has(activity.id);
-    const isOnCalendar = (activityChildrenMap[activity.id] || []).length > 0;
 
-    // Format date range display
-    let dateRangeText = null;
-    if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
-      const start = new Date(activity.dateRange.start);
-      const end = new Date(activity.dateRange.end);
-      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRangeText = `${startStr} - ${endStr}`;
-    } else if (activity.startDate && activity.endDate) {
-      const start = new Date(activity.startDate);
-      const end = new Date(activity.endDate);
-      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRangeText = `${startStr} - ${endStr}`;
-    } else if (activity.dates) {
-      dateRangeText = activity.dates;
-    }
+  // Render activity cards for dashboard sections using unified ActivityCard
+  // Returns a render function for use with .map()
+  const renderDashboardCard = (showGreatFor: boolean) => (activity: Activity) => (
+    <ActivityCard
+      key={activity.id}
+      activity={activity}
+      onPress={() => handleNavigate('ActivityDetail', { activity })}
+      size="dashboard"
+      containerStyle={styles.dashboardCard}
+      showOnCalendarBadge={true}
+      showGreatFor={showGreatFor}
+      canAddFavorite={canAddFavorite}
+      onFavoriteLimitReached={onFavoriteLimitReached}
+      canAddToWaitlist={canAddToWaitlist}
+      onWaitlistLimitReached={onWaitlistLimitReached}
+    />
+  );
 
-    // Check if activity is in progress
-    const isInProgress = (() => {
-      const now = new Date();
-      if (activity.dateRange && activity.dateRange.start && activity.dateRange.end) {
-        const start = new Date(activity.dateRange.start);
-        const end = new Date(activity.dateRange.end);
-        return now >= start && now <= end;
-      }
-      if (activity.startDate && activity.endDate) {
-        const start = new Date(activity.startDate);
-        const end = new Date(activity.endDate);
-        return now >= start && now <= end;
-      }
-      return false;
-    })();
-
-    // Extract days of week from sessions, schedule object, or schedule string
-    const getDaysOfWeek = (): string | null => {
-      const daysSet = new Set<string>();
-      const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-      // Extract from sessions array
-      if (activity.sessions && activity.sessions.length > 0) {
-        activity.sessions.forEach(session => {
-          if (session.dayOfWeek) {
-            const day = session.dayOfWeek.substring(0, 3);
-            const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-            if (dayOrder.includes(normalized)) {
-              daysSet.add(normalized);
-            }
-          }
-        });
-      }
-
-      // Extract from schedule object with days array
-      if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
-        const scheduleObj = activity.schedule as { days?: string[] };
-        if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
-          scheduleObj.days.forEach(day => {
-            const abbrev = day.substring(0, 3);
-            const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
-            if (dayOrder.includes(normalized)) {
-              daysSet.add(normalized);
-            }
-          });
-        }
-      }
-
-      // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
-      if (typeof activity.schedule === 'string' && activity.schedule) {
-        const dayPatterns = [
-          /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
-          /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
-          /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
-        ];
-
-        dayPatterns.forEach(pattern => {
-          let match;
-          while ((match = pattern.exec(activity.schedule as string)) !== null) {
-            const day = match[1].substring(0, 3);
-            const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-            if (dayOrder.includes(normalized)) {
-              daysSet.add(normalized);
-            }
-          }
-        });
-      }
-
-      if (daysSet.size === 0) return null;
-
-      // Sort days in order
-      const sortedDays = Array.from(daysSet).sort((a, b) =>
-        dayOrder.indexOf(a) - dayOrder.indexOf(b)
-      );
-
-      // Check for common patterns
-      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-      const weekend = ['Sat', 'Sun'];
-
-      if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) {
-        return 'Weekdays';
-      }
-      if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) {
-        return 'Weekends';
-      }
-      if (sortedDays.length === 7) {
-        return 'Daily';
-      }
-
-      return sortedDays.join(', ');
-    };
-
-    const daysOfWeekText = getDaysOfWeek();
-
-    // Format time only
-    let timeText = null;
-    if (activity.sessions && Array.isArray(activity.sessions) && activity.sessions.length > 0) {
-      const firstSession = activity.sessions[0];
-      if (firstSession.startTime || firstSession.endTime) {
-        timeText = `${firstSession.startTime || ''}${firstSession.startTime && firstSession.endTime ? ' - ' : ''}${firstSession.endTime || ''}`;
-      }
-    } else if (activity.startTime || activity.endTime) {
-      timeText = `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`;
-    }
-    
-    // Format age display
-    let ageText = 'All ages';
-    if (activity.ageRange) {
-      if (activity.ageRange.min && activity.ageRange.max) {
-        ageText = `Ages ${activity.ageRange.min}-${activity.ageRange.max}`;
-      } else if (activity.ageRange.min) {
-        ageText = `Ages ${activity.ageRange.min}+`;
-      }
-    } else if (activity.ageMin && activity.ageMax) {
-      ageText = `Ages ${activity.ageMin}-${activity.ageMax}`;
-    } else if (activity.ageMin) {
-      ageText = `Ages ${activity.ageMin}+`;
-    }
-    
-    // Get price - check both cost and price fields
-    const price = activity.cost || activity.price;
-    
-    // Format spots remaining
-    let spotsText = '';
-    if (activity.spotsAvailable !== undefined && activity.spotsAvailable !== null) {
-      if (activity.spotsAvailable === 0) {
-        spotsText = 'Full';
-      } else if (activity.spotsAvailable === 1) {
-        spotsText = 'Only 1 spot left!';
-      } else if (activity.spotsAvailable <= 5) {
-        spotsText = `Only ${activity.spotsAvailable} spots left!`;
-      } else {
-        spotsText = `${activity.spotsAvailable} spots available`;
-      }
-    }
-
-    const handleShare = async () => {
-      try {
-        const locationName = typeof activity.location === 'string'
-          ? activity.location
-          : activity.location?.name || activity.locationName || '';
-
-        const message = `Check out this activity: ${activity.name}${locationName ? ` at ${locationName}` : ''}`;
-
-        await Share.share({
-          message,
-          title: activity.name,
-        });
-      } catch (error) {
-        console.error('Error sharing activity:', error);
-      }
-    };
-
-    return (
-      <TouchableOpacity
-        key={activity.id}
-        style={styles.card}
-        onPress={() => handleNavigate('ActivityDetail', { activity })}
-      >
-        <View style={styles.cardImageContainer}>
-          <Image source={imageSource} style={styles.cardImage} />
-
-          {/* Action buttons row - favorites, waitlist, share, calendar */}
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={async (e) => {
-                e.stopPropagation();
-                // Use child-based logic if we have children
-                if (children.length === 1) {
-                  // Auto-assign to single child
-                  const child = children[0];
-                  const isCurrentlyFavorited = isFavorite;
-                  try {
-                    if (isCurrentlyFavorited) {
-                      await dispatch(removeChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
-                    } else {
-                      if (!canAddFavorite) {
-                        onFavoriteLimitReached();
-                        return;
-                      }
-                      await dispatch(addChildFavorite({ childId: child.id, activityId: activity.id })).unwrap();
-                    }
-                    // Update local favorite state
-                    setFavoriteIds(prev => {
-                      const newSet = new Set(prev);
-                      if (isCurrentlyFavorited) {
-                        newSet.delete(activity.id);
-                      } else {
-                        newSet.add(activity.id);
-                      }
-                      return newSet;
-                    });
-                  } catch (error) {
-                    console.error('Failed to toggle favorite:', error);
-                  }
-                } else if (children.length > 1) {
-                  // Show child selection sheet
-                  setChildSheetActivity(activity);
-                  setChildSheetAction('favorite');
-                } else {
-                  // No children - use legacy behavior
-                  toggleFavorite(activity);
-                }
-              }}
-            >
-              <Icon
-                name={isFavorite ? "heart" : "heart-outline"}
-                size={16}
-                color={isFavorite ? (children.length > 0 ? getChildColor(children[0].colorId || 1).hex : "#E8638B") : "#FFF"}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={async (e) => {
-                e.stopPropagation();
-                // Use child-based logic if we have children
-                if (children.length === 1) {
-                  // Auto-assign to single child
-                  const child = children[0];
-                  const isCurrentlyWatching = isOnWaitlist;
-                  try {
-                    if (isCurrentlyWatching) {
-                      await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
-                    } else {
-                      if (!canAddToWaitlist) {
-                        onWaitlistLimitReached();
-                        return;
-                      }
-                      await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
-                    }
-                    // Update local waitlist state
-                    setWaitlistIds(prev => {
-                      const newSet = new Set(prev);
-                      if (isCurrentlyWatching) {
-                        newSet.delete(activity.id);
-                      } else {
-                        newSet.add(activity.id);
-                      }
-                      return newSet;
-                    });
-                  } catch (error) {
-                    console.error('Failed to toggle waitlist:', error);
-                  }
-                } else if (children.length > 1) {
-                  // Show child selection sheet
-                  setChildSheetActivity(activity);
-                  setChildSheetAction('watching');
-                } else {
-                  // No children - use legacy behavior
-                  if (!isOnWaitlist && !canAddToWaitlist) {
-                    onWaitlistLimitReached();
-                    return;
-                  }
-                  // Optimistic update for immediate UI feedback
-                  if (isOnWaitlist) {
-                    setWaitlistIds(prev => {
-                      const newSet = new Set(prev);
-                      newSet.delete(activity.id);
-                      return newSet;
-                    });
-                  } else {
-                    setWaitlistIds(prev => new Set([...prev, activity.id]));
-                  }
-                  const result = await waitlistService.toggleWaitlist(activity);
-                  // Revert if failed
-                  if (!result.success) {
-                    if (isOnWaitlist) {
-                      setWaitlistIds(prev => new Set([...prev, activity.id]));
-                    } else {
-                      setWaitlistIds(prev => {
-                        const newSet = new Set(prev);
-                        newSet.delete(activity.id);
-                        return newSet;
-                      });
-                    }
-                  }
-                  syncWaitlistCount();
-                  loadWaitlistCount();
-                }
-              }}
-            >
-              <Icon
-                name={isOnWaitlist ? "bell-ring" : "bell-outline"}
-                size={16}
-                color={isOnWaitlist ? (children.length > 0 ? getChildColor(children[0].colorId || 1).hex : "#FFB800") : "#FFF"}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-              <Icon name="share-variant" size={16} color="#FFF" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (children.length <= 1) {
-                  // Single child or no children - use existing modal
-                  setCalendarModalActivity(activity);
-                } else {
-                  // Multiple children - show selection sheet
-                  setChildSheetActivity(activity);
-                  setChildSheetAction('calendar');
-                }
-              }}
-            >
-              <Icon
-                name={isOnCalendar ? "calendar-check" : "calendar-plus"}
-                size={16}
-                color={isOnCalendar ? (children.length > 0 ? getChildColor(children[0].colorId || 1).hex : "#4ECDC4") : "#FFF"}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Price overlay */}
-          <View style={styles.priceOverlay}>
-            <Text style={styles.priceText}>{formatActivityPrice(price)}</Text>
-            {price && price > 0 && <Text style={styles.perChildText}>per child</Text>}
-          </View>
-          
-          {/* NEW badge if recently added */}
-          {activity.isNew && (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>NEW</Text>
-            </View>
-          )}
-
-          {/* Sponsored badge for sponsored partner activities */}
-          {activity.isFeatured && (
-            <View style={styles.sponsoredBadge}>
-              <Icon name="star" size={10} color="#FFF" />
-              <Text style={styles.sponsoredBadgeText}>SPONSORED</Text>
-            </View>
-          )}
-
-          {/* On Calendar badge */}
-          {isOnCalendar && (
-            <View style={styles.calendarBadge}>
-              <Icon name="calendar-check" size={10} color="#FFF" />
-              <Text style={styles.calendarBadgeText}>ON CALENDAR</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{cleanActivityName(activity.name)}</Text>
-          
-          <View style={styles.cardLocationRow}>
-            <Icon name="map-marker" size={12} color="#717171" />
-            <Text style={styles.cardSubtitle} numberOfLines={1}>
-              {typeof activity.location === 'string' ? activity.location : activity.location?.name || activity.locationName || 'Location TBD'}
-            </Text>
-          </View>
-          
-          {isInProgress && dateRangeText && (
-            <View style={styles.cardInfoRow}>
-              <Icon name="calendar" size={12} color="#4CAF50" />
-              <Text style={[styles.cardDetails, { color: '#4CAF50', fontWeight: '600' }]}>In Progress</Text>
-              <Text style={styles.cardDetails}> • {dateRangeText}</Text>
-            </View>
-          )}
-
-          {!isInProgress && dateRangeText && (
-            <View style={styles.cardInfoRow}>
-              <Icon name="calendar" size={12} color="#717171" />
-              <Text style={styles.cardDetails}>{dateRangeText}</Text>
-            </View>
-          )}
-
-          {/* Combined days and time row */}
-          {(daysOfWeekText || timeText) && (
-            <View style={styles.daysRow}>
-              <Icon name="calendar-week" size={12} color="#E8638B" />
-              <Text style={styles.daysText}>
-                {daysOfWeekText}{daysOfWeekText && timeText ? ' • ' : ''}{timeText ? timeText : ''}
-              </Text>
-            </View>
-          )}
-          
-          <View style={styles.cardInfoRow}>
-            <Icon name="account-child" size={12} color="#717171" />
-            <Text style={styles.cardDetails}>{ageText}</Text>
-          </View>
-          
-          {/* Spots remaining */}
-          {spotsText && (
-            <View style={[styles.spotsContainer, (activity.spotsAvailable ?? 0) <= 5 ? styles.spotsUrgent : styles.spotsNormal]}>
-              <Icon
-                name={(activity.spotsAvailable ?? 0) === 0 ? "close-circle" : "information"}
-                size={12}
-                color={(activity.spotsAvailable ?? 0) <= 5 ? "#D93025" : "#717171"}
-              />
-              <Text style={[styles.spotsText, (activity.spotsAvailable ?? 0) <= 5 ? styles.spotsTextUrgent : styles.spotsTextNormal]}>
-                {spotsText}
-              </Text>
-            </View>
-          )}
-
-          {/* Matching children indicators */}
-          {(() => {
-            const matchingChildren = getMatchingChildren(activity);
-            if (matchingChildren.length === 0) return null;
-            return (
-              <View style={styles.matchingChildrenRow}>
-                <Text style={styles.matchingChildrenLabel}>Great for:</Text>
-                {matchingChildren.map(child => {
-                  const color = getChildColor(child.colorId);
-                  return (
-                    <View
-                      key={child.id}
-                      style={[styles.childMatchBadge, { backgroundColor: color.hex + '25', borderColor: color.hex }]}
-                    >
-                      <View style={[styles.childMatchDot, { backgroundColor: color.hex }]} />
-                      <Text style={[styles.childMatchName, { color: color.hex }]}>{child.name}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          })()}
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <ScreenBackground style={styles.container}>
@@ -1396,7 +902,7 @@ const DashboardScreenModern = () => {
                 {[0, 1, 2].map(renderSkeletonCard)}
               </>
             ) : recommendedActivities.length > 0 ? (
-              recommendedActivities.map(renderActivityCard)
+              recommendedActivities.map(renderDashboardCard(true))
             ) : (
               <TouchableOpacity
                 style={styles.adjustFiltersCard}
@@ -1434,7 +940,7 @@ const DashboardScreenModern = () => {
                 {[0, 1, 2].map(renderSkeletonCard)}
               </>
             ) : newActivities.length > 0 ? (
-              newActivities.map(renderActivityCard)
+              newActivities.map(renderDashboardCard(false))
             ) : (
               <View style={styles.emptyStateCard}>
                 <Icon name="calendar-star" size={32} color="#E8638B" style={styles.emptyStateIcon} />
@@ -1463,7 +969,7 @@ const DashboardScreenModern = () => {
                 {[0, 1, 2].map(renderSkeletonCard)}
               </>
             ) : budgetFriendlyActivities.length > 0 ? (
-              budgetFriendlyActivities.map(renderActivityCard)
+              budgetFriendlyActivities.map(renderDashboardCard(false))
             ) : (
               <View style={styles.emptyStateCard}>
                 <Icon name="wallet-outline" size={32} color="#E8638B" style={styles.emptyStateIcon} />
@@ -1597,36 +1103,6 @@ const DashboardScreenModern = () => {
         />
       )}
 
-      {/* Child Assignment Sheet - for favorite/watching/calendar with multiple children */}
-      {childSheetActivity && (
-        <ChildAssignmentSheet
-          visible={!!childSheetActivity}
-          actionType={childSheetAction}
-          activity={childSheetActivity}
-          onClose={() => setChildSheetActivity(null)}
-          onSuccess={(childId, childName, added) => {
-            // Update local state based on action type
-            if (childSheetAction === 'favorite') {
-              setFavoriteIds(prev => {
-                const newSet = new Set(prev);
-                if (added) {
-                  newSet.add(childSheetActivity.id);
-                }
-                // Don't remove - might still be favorited by other children
-                return newSet;
-              });
-            } else if (childSheetAction === 'watching') {
-              setWaitlistIds(prev => {
-                const newSet = new Set(prev);
-                if (added) {
-                  newSet.add(childSheetActivity.id);
-                }
-                return newSet;
-              });
-            }
-          }}
-        />
-      )}
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -1638,6 +1114,10 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  dashboardCard: {
+    width: 280,
+    marginLeft: 20,
   },
   loadingContainer: {
     flex: 1,

@@ -8,8 +8,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
-  Share,
   TextInput,
   Keyboard,
   Platform,
@@ -23,20 +21,16 @@ import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
 import PreferencesService from '../services/preferencesService';
-import FavoritesService from '../services/favoritesService';
-import WaitlistService from '../services/waitlistService';
 import childPreferencesService from '../services/childPreferencesService';
 import { ClusterMarker } from '../components/map';
 import ChildAvatar from '../components/children/ChildAvatar';
 import { Colors } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { getActivityImageKey } from '../utils/activityHelpers';
-import { getActivityImageByKey } from '../assets/images';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import AddToCalendarModal from '../components/AddToCalendarModal';
-import { formatActivityPrice } from '../utils/formatters';
+import ActivityCard from '../components/ActivityCard';
 import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
 import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
@@ -338,6 +332,8 @@ const MapSearchScreen = () => {
   const refetchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitializedRegion = useRef(false);
   const hasCenteredOnChildren = useRef(false);
+  const hasInitialLoaded = useRef(false); // Track if initial load is complete to avoid duplicate loads
+  const isFirstFocus = useRef(true); // Skip first useFocusEffect run (initial mount)
 
   // Search filters state (received from SearchScreen)
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
@@ -411,6 +407,14 @@ const MapSearchScreen = () => {
 
   // Helper to get location from child - checks multiple sources
   const getChildLocation = useCallback((child: ChildWithPreferences): { latitude: number; longitude: number } | null => {
+    if (__DEV__) {
+      console.log('[MapSearch] getChildLocation for', child.name, {
+        preferences: child.preferences,
+        locationDetails: child.locationDetails,
+        location: child.location,
+      });
+    }
+
     // 1. Check preferences.savedAddress (new location storage with coordinates)
     let savedAddress = (child.preferences as any)?.savedAddress;
     if (typeof savedAddress === 'string') {
@@ -419,19 +423,23 @@ const MapSearchScreen = () => {
       } catch (e) { /* ignore */ }
     }
     if (savedAddress && isValidCoordinate(savedAddress.latitude, savedAddress.longitude)) {
+      if (__DEV__) console.log('[MapSearch] Found coords in savedAddress:', savedAddress);
       return { latitude: savedAddress.latitude, longitude: savedAddress.longitude };
     }
 
     // 2. Check locationDetails (deprecated but may have data)
     if (child.locationDetails && isValidCoordinate(child.locationDetails.latitude, child.locationDetails.longitude)) {
+      if (__DEV__) console.log('[MapSearch] Found coords in locationDetails:', child.locationDetails);
       return { latitude: child.locationDetails.latitude!, longitude: child.locationDetails.longitude! };
     }
 
     // 3. Check geocoded cache (for city names that were geocoded)
     if (child.location && geocodedChildLocations.has(child.id)) {
+      if (__DEV__) console.log('[MapSearch] Found coords in geocoded cache');
       return geocodedChildLocations.get(child.id)!;
     }
 
+    if (__DEV__) console.log('[MapSearch] No coords found for', child.name);
     return null;
   }, [isValidCoordinate, geocodedChildLocations]);
 
@@ -501,19 +509,25 @@ const MapSearchScreen = () => {
       const childrenRegion = calculateRegionFromCoordinates(childrenWithLocations);
       if (childrenRegion) {
         // Only animate if this is a new centering (not already centered here)
-        const shouldAnimate = !hasCenteredOnChildren.current;
+        const isFirstCenter = !hasCenteredOnChildren.current;
         hasCenteredOnChildren.current = true;
         hasInitializedRegion.current = true;
 
         if (__DEV__) {
-          console.log('[MapSearch] Centering on children locations:', childrenRegion, { shouldAnimate });
+          console.log('[MapSearch] Centering on children locations:', childrenRegion, { isFirstCenter });
         }
 
         setInitialRegion(childrenRegion);
         setRegion(childrenRegion);
         setLocationLoaded(true);
 
-        if (shouldAnimate) {
+        if (isFirstCenter) {
+          // Set lastFetchedRegion BEFORE animating to prevent the region change handler
+          // from triggering another load when the animation completes
+          lastFetchedRegion.current = childrenRegion;
+          hasInitialLoaded.current = true;
+
+          // Animate to the region
           requestAnimationFrame(() => {
             setTimeout(() => {
               if (mapRef.current) {
@@ -521,38 +535,42 @@ const MapSearchScreen = () => {
               }
             }, 300);
           });
-        }
 
-        loadActivities(childrenRegion);
-        lastFetchedRegion.current = childrenRegion;
+          // Load activities for children's location
+          loadActivities(childrenRegion);
+        }
         return;
       }
     }
 
-    // If no children yet, wait briefly for data to load
+    // If no children loaded yet, wait briefly for Redux to load them
     if (children.length === 0) {
+      if (__DEV__) console.log('[MapSearch] No children loaded yet, waiting...');
       setTimeout(() => {
-        if (!hasInitializedRegion.current && !hasCenteredOnChildren.current) {
+        if (!hasInitializedRegion.current && !hasCenteredOnChildren.current && !hasInitialLoaded.current) {
+          if (__DEV__) console.log('[MapSearch] Timeout - no children, falling back to GPS');
           hasInitializedRegion.current = true;
           setLocationLoaded(true);
           loadActivities();
+          hasInitialLoaded.current = true;
         }
-      }, 2000);
+      }, 1500);
       return;
     }
 
-    // Only do fallback initialization once
+    // Children exist but none have coordinates - fall back to GPS immediately
+    // (children should have coordinates from their saved location)
     if (hasInitializedRegion.current) return;
     hasInitializedRegion.current = true;
 
-    if (__DEV__) console.log('[MapSearch] No child coordinates, falling back to GPS');
+    if (__DEV__) console.log('[MapSearch] Children have no coordinates, falling back to GPS immediately');
 
     const determineInitialRegion = async () => {
       // Priority 2: Try to get user's current GPS location
       Geolocation.getCurrentPosition(
         (position) => {
-          // Don't override if we've already centered on children
-          if (hasCenteredOnChildren.current) return;
+          // Don't override if we've already centered on children or already loaded
+          if (hasCenteredOnChildren.current || hasInitialLoaded.current) return;
 
           const userRegion: Region = {
             latitude: position.coords.latitude,
@@ -565,6 +583,10 @@ const MapSearchScreen = () => {
           setRegion(userRegion);
           setLocationLoaded(true);
 
+          // Set lastFetchedRegion BEFORE animating to prevent region change handler from triggering another load
+          lastFetchedRegion.current = userRegion;
+          hasInitialLoaded.current = true;
+
           // Animate map to region
           if (mapRef.current) {
             mapRef.current.animateToRegion(userRegion, 500);
@@ -572,11 +594,10 @@ const MapSearchScreen = () => {
 
           // Load activities asynchronously
           loadActivities(userRegion);
-          lastFetchedRegion.current = userRegion;
         },
         (error) => {
-          // Don't override if we've already centered on children
-          if (hasCenteredOnChildren.current) return;
+          // Don't override if we've already centered on children or already loaded
+          if (hasCenteredOnChildren.current || hasInitialLoaded.current) return;
 
           if (__DEV__) console.log('[MapSearch] GPS location error:', error.message);
 
@@ -595,6 +616,10 @@ const MapSearchScreen = () => {
             setRegion(prefRegion);
             setLocationLoaded(true);
 
+            // Set lastFetchedRegion BEFORE animating to prevent region change handler from triggering another load
+            lastFetchedRegion.current = prefRegion;
+            hasInitialLoaded.current = true;
+
             // Animate map to region
             if (mapRef.current) {
               mapRef.current.animateToRegion(prefRegion, 500);
@@ -602,7 +627,6 @@ const MapSearchScreen = () => {
 
             // Load activities asynchronously
             loadActivities(prefRegion);
-            lastFetchedRegion.current = prefRegion;
           } else {
             // Priority 4: Default to Canada-wide view
             if (__DEV__) console.log('[MapSearch] Using Canada default region');
@@ -612,6 +636,7 @@ const MapSearchScreen = () => {
 
             // For Canada-wide view, don't filter by location (load all)
             loadActivities();
+            hasInitialLoaded.current = true;
           }
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
@@ -728,9 +753,23 @@ const MapSearchScreen = () => {
   // Note: Initial load is now handled in the location determination effect above
 
   // Reload activities when screen comes into focus (to pick up any new global filters)
+  // Skip on initial mount since the initialization effect already loads activities
   useFocusEffect(
     useCallback(() => {
-      if (locationLoaded && !searchFilters) {
+      // Skip the first focus event (initial mount) - initialization effect handles that
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        // Still refresh child data on first focus
+        if (children.length > 0) {
+          const childIds = children.map(c => c.id);
+          dispatch(fetchChildFavorites(childIds));
+          dispatch(fetchChildWatching(childIds));
+        }
+        return;
+      }
+
+      // Only reload if we've already done the initial load
+      if (hasInitialLoaded.current && locationLoaded && !searchFilters) {
         // Reload activities for the current region
         loadActivities(region);
       }
@@ -1102,284 +1141,23 @@ const MapSearchScreen = () => {
     setShowPlaceSearch(false);
   }, []);
 
-  // Favorites and waitlist services for action buttons
-  const favoritesService = FavoritesService.getInstance();
-  const waitlistService = WaitlistService.getInstance();
-
-  // Extract days of week from activity
-  const extractDaysOfWeek = (activity: Activity): string | null => {
-    const daysSet = new Set<string>();
-    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-    // Extract from sessions array
-    if (activity.sessions && activity.sessions.length > 0) {
-      activity.sessions.forEach(session => {
-        const dayOfWeek = session?.dayOfWeek;
-        if (dayOfWeek && typeof dayOfWeek === 'string') {
-          const day = dayOfWeek.substring(0, 3);
-          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-          if (dayOrder.includes(normalized)) {
-            daysSet.add(normalized);
-          }
-        }
-      });
-    }
-
-    // Extract from schedule object
-    if (activity.schedule && typeof activity.schedule === 'object' && !Array.isArray(activity.schedule)) {
-      const scheduleObj = activity.schedule as { days?: string[] };
-      if (scheduleObj.days && Array.isArray(scheduleObj.days)) {
-        scheduleObj.days.forEach(day => {
-          const abbrev = day.substring(0, 3);
-          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
-          if (dayOrder.includes(normalized)) {
-            daysSet.add(normalized);
-          }
-        });
-      }
-    }
-
-    // Extract from schedule string (e.g., "Mon, Wed, Fri 9:00am - 10:00am")
-    if (typeof activity.schedule === 'string' && activity.schedule) {
-      const dayPatterns = [
-        /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi,
-        /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi,
-        /\b(Mons|Tues|Weds|Thurs|Fris|Sats|Suns)\b/gi
-      ];
-
-      dayPatterns.forEach(pattern => {
-        let match;
-        while ((match = pattern.exec(activity.schedule as string)) !== null) {
-          const day = match[1].substring(0, 3);
-          const normalized = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
-          if (dayOrder.includes(normalized)) {
-            daysSet.add(normalized);
-          }
-        }
-      });
-    }
-
-    // Extract from daysOfWeek array
-    const activityAny = activity as any;
-    if (activityAny.daysOfWeek && Array.isArray(activityAny.daysOfWeek)) {
-      activityAny.daysOfWeek.forEach((day: string) => {
-        const abbrev = day.substring(0, 3);
-        const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
-        if (dayOrder.includes(normalized)) {
-          daysSet.add(normalized);
-        }
-      });
-    }
-
-    if (daysSet.size === 0) return null;
-
-    const sortedDays = Array.from(daysSet).sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    const weekend = ['Sat', 'Sun'];
-
-    if (sortedDays.length === 5 && weekdays.every(d => sortedDays.includes(d))) return 'Weekdays';
-    if (sortedDays.length === 2 && weekend.every(d => sortedDays.includes(d))) return 'Weekends';
-    if (sortedDays.length === 7) return 'Daily';
-
-    return sortedDays.join(', ');
-  };
-
-  // Handle share
-  const handleShareActivity = async (activity: Activity) => {
-    try {
-      const locationName = typeof activity.location === 'string'
-        ? activity.location
-        : activity.location?.name || activity.locationName || '';
-
-      const details: string[] = [];
-      details.push(`🎯 ${activity.name}`);
-      details.push('');
-      if (locationName) details.push(`📍 ${locationName}`);
-      const price = formatActivityPrice(activity.cost);
-      if (price) details.push(`💰 ${price}`);
-      if (activity.ageMin != null && activity.ageMax != null) {
-        details.push(`👶 Ages ${activity.ageMin}-${activity.ageMax}`);
-      }
-      details.push('');
-      details.push('Found on Kids Activity Tracker 📱');
-      details.push('https://apps.apple.com/app/kids-activity-tracker');
-
-      await Share.share({
-        message: details.join('\n'),
-        title: `Check out: ${activity.name}`,
-      });
-    } catch (error) {
-      console.error('Error sharing activity:', error);
-    }
-  };
-
-  // Render horizontal activity card with action buttons
+  // Render activity card using unified ActivityCard component
   const renderActivityCard = useCallback(({ item }: { item: Activity }) => {
     const isSelected = selectedActivityId === item.id;
-    const isFavorite = favoritesService.isFavorite(item.id);
-    const isOnWaitlist = waitlistService.isOnWaitlist(item.id);
-
-    const locationName = typeof item.location === 'string'
-      ? item.location
-      : item.location?.name || item.locationName || '';
-
-    // Get activity image
-    const activityTypeName = typeof item.activityType === 'string'
-      ? item.activityType
-      : (item.activityType as any)?.name || item.category || 'general';
-    const subcategory = (item as any).activitySubtype?.name || item.subcategory;
-    const imageKey = getActivityImageKey(activityTypeName, subcategory, item.name);
-    const imageSource = getActivityImageByKey(imageKey, activityTypeName);
-
-    // Format date range
-    let dateRangeText = '';
-    if (item.dateStart && item.dateEnd) {
-      const start = new Date(item.dateStart);
-      const end = new Date(item.dateEnd);
-      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRangeText = `${startStr} - ${endStr}`;
-    } else if ((item as any).dateRange?.start && (item as any).dateRange?.end) {
-      const start = new Date((item as any).dateRange.start);
-      const end = new Date((item as any).dateRange.end);
-      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateRangeText = `${startStr} - ${endStr}`;
-    }
-
-    // Format time with days of week
-    const daysOfWeek = extractDaysOfWeek(item);
-    let timeText = '';
-    if (item.startTime && item.endTime) {
-      timeText = `${item.startTime} - ${item.endTime}`;
-    } else if (item.startTime) {
-      timeText = item.startTime;
-    }
-
-    // Format age range
-    const ageText = item.ageMin != null && item.ageMax != null
-      ? `Ages ${item.ageMin}-${item.ageMax}`
-      : item.ageMin != null
-      ? `Ages ${item.ageMin}+`
-      : '';
-
-    // Format price
-    const priceText = formatActivityPrice(item.cost);
-
-    const handleToggleFavorite = () => {
-      favoritesService.toggleFavorite(item);
-    };
-
-    const handleToggleWaitlist = async () => {
-      await waitlistService.toggleWaitlist(item);
-    };
-
-    const handleOpenCalendar = () => {
-      setSelectedActivityForCalendar(item);
-      setShowCalendarModal(true);
-    };
 
     return (
-      <TouchableOpacity
-        style={[styles.activityCard, isSelected && styles.activityCardSelected]}
-        onPress={() => handleActivityPress(item)}
-        activeOpacity={0.9}
-      >
-        {/* Image with action buttons */}
-        <View style={styles.cardImageContainer}>
-          <Image source={imageSource} style={styles.cardImage} resizeMode="cover" />
-
-          {/* Price overlay */}
-          <View style={styles.priceOverlay}>
-            <Text style={styles.priceText}>{priceText}</Text>
-            {item.cost != null && item.cost > 0 && (
-              <Text style={styles.priceLabel}>per child</Text>
-            )}
-          </View>
-
-          {/* Action buttons - all 4 matching home screen */}
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity style={styles.cardActionButton} onPress={handleToggleFavorite}>
-              <Icon
-                name={isFavorite ? 'heart' : 'heart-outline'}
-                size={16}
-                color={isFavorite ? '#E8638B' : '#FFF'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cardActionButton} onPress={handleToggleWaitlist}>
-              <Icon
-                name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
-                size={16}
-                color={isOnWaitlist ? '#FFB800' : '#FFF'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cardActionButton} onPress={() => handleShareActivity(item)}>
-              <Icon name="share-variant" size={16} color="#FFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cardActionButton} onPress={handleOpenCalendar}>
-              <Icon name="calendar-plus" size={16} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Card content */}
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-
-          {locationName ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="map-marker" size={12} color={Colors.primary} />
-              <Text style={styles.cardInfoText} numberOfLines={1}>{locationName}</Text>
-            </View>
-          ) : null}
-
-          {/* Combined days and time row - matches DashboardScreenModern */}
-          {(daysOfWeek || timeText) ? (
-            <View style={styles.daysRow}>
-              <Icon name="calendar-week" size={12} color="#E8638B" />
-              <Text style={styles.daysText}>
-                {daysOfWeek}{daysOfWeek && timeText ? ' • ' : ''}{timeText ? timeText : ''}
-              </Text>
-            </View>
-          ) : null}
-
-          {dateRangeText ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="calendar" size={12} color="#717171" />
-              <Text style={styles.cardInfoText}>{dateRangeText}</Text>
-            </View>
-          ) : null}
-
-          {ageText ? (
-            <View style={styles.cardInfoRow}>
-              <Icon name="account-child" size={12} color="#717171" />
-              <Text style={styles.cardInfoText}>{ageText}</Text>
-            </View>
-          ) : null}
-
-          {item.spotsAvailable != null && item.spotsAvailable >= 0 && item.spotsAvailable <= 10 && (
-            <View style={[
-              styles.spotsBadge,
-              item.spotsAvailable <= 3 && styles.spotsBadgeUrgent,
-              item.spotsAvailable === 0 && styles.spotsBadgeFull,
-            ]}>
-              <Icon
-                name={item.spotsAvailable === 0 ? "close-circle" : item.spotsAvailable <= 3 ? "alert-circle" : "information"}
-                size={12}
-                color={item.spotsAvailable === 0 ? "#D93025" : item.spotsAvailable <= 3 ? "#D93025" : Colors.primary}
-              />
-              <Text style={[
-                styles.spotsText,
-                item.spotsAvailable <= 3 && styles.spotsTextUrgent,
-              ]}>
-                {item.spotsAvailable === 0 ? 'FULL' : `${item.spotsAvailable} ${item.spotsAvailable === 1 ? 'spot' : 'spots'} left`}
-              </Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+      <View style={isSelected ? styles.activityCardSelected : undefined}>
+        <ActivityCard
+          activity={item}
+          onPress={() => handleActivityPress(item)}
+          size="dashboard"
+          containerStyle={styles.mapActivityCard}
+          showOnCalendarBadge={true}
+        />
+      </View>
     );
-  }, [selectedActivityId, handleActivityPress, favoritesService, waitlistService]);
+  }, [selectedActivityId, handleActivityPress]);
+
 
   const keyExtractor = useCallback((item: Activity) => item.id, []);
 
@@ -1672,6 +1450,10 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  mapActivityCard: {
+    width: CARD_WIDTH,
+    marginHorizontal: CARD_MARGIN,
   },
   header: {
     flexDirection: 'row',

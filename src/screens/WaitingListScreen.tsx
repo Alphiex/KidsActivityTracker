@@ -160,7 +160,7 @@ const WaitingListScreen: React.FC = () => {
             </Text>
             {item.activity?.provider && (
               <Text style={styles.entryProvider} numberOfLines={1}>
-                {item.activity.provider}
+                {typeof item.activity.provider === 'string' ? item.activity.provider : (item.activity.provider as any)?.name || ''}
               </Text>
             )}
           </View>

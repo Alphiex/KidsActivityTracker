@@ -843,7 +843,7 @@ const ActivityDetailScreenModern = () => {
                   <Icon name="domain" size={20} color={ModernColors.primary} />
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Provided By</Text>
-                    <Text style={styles.detailValue}>{activity.provider}</Text>
+                    <Text style={styles.detailValue}>{typeof activity.provider === 'string' ? activity.provider : (activity.provider as any)?.name || ''}</Text>
                   </View>
                 </View>
               </View>

@@ -756,7 +756,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <View style={styles.providerRow}>
             <Icon name="domain" size={14} color="#6B7280" />
             <Text style={styles.providerText} numberOfLines={1}>
-              {activity.provider}
+              {typeof activity.provider === 'string' ? activity.provider : (activity.provider as any)?.name || ''}
             </Text>
           </View>
         )}
