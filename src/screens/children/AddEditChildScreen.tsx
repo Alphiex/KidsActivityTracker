@@ -53,7 +53,7 @@ const INTERESTS = [
 const AddEditChildScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const children = useAppSelector(selectAllChildren);
   const loading = useAppSelector(selectChildrenLoading);
@@ -380,7 +380,7 @@ const AddEditChildScreen: React.FC = () => {
                 onChangeText={setName}
                 placeholder="Enter child's name"
                 placeholderTextColor={colors.textSecondary}
-                keyboardAppearance={isDark ? 'dark' : 'light'}
+                keyboardAppearance="light"
                 selectionColor={colors.primary}
               />
             </View>
@@ -453,7 +453,7 @@ const AddEditChildScreen: React.FC = () => {
                 placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={2}
-                keyboardAppearance={isDark ? 'dark' : 'light'}
+                keyboardAppearance="light"
                 selectionColor={colors.primary}
               />
             </View>
@@ -477,7 +477,7 @@ const AddEditChildScreen: React.FC = () => {
                 placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={3}
-                keyboardAppearance={isDark ? 'dark' : 'light'}
+                keyboardAppearance="light"
                 selectionColor={colors.primary}
               />
             </View>

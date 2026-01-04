@@ -56,7 +56,7 @@ interface RouteParams {
 const AIRecommendationsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const dispatch = useAppDispatch();
 
   // Ensure children are loaded into Redux on mount
@@ -379,7 +379,7 @@ const AIRecommendationsScreen = () => {
   return (
     <ScreenBackground style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle="dark-content" />
 
         {/* Top Tab Navigation */}
         <TopTabNavigation />

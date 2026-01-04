@@ -16,7 +16,7 @@ import childPreferencesService from '../services/childPreferencesService';
 import { Activity } from '../types';
 import { ActivitySearchParams } from '../types/api';
 import { getActivityImageKey } from '../utils/activityHelpers';
-import { getActivityImageByKey, aiRobotImage } from '../assets/images';
+import { getActivityImageByKey, aiRobotImage, collectionButtonImage } from '../assets/images';
 import { API_CONFIG } from '../config/api';
 import PreferencesService from '../services/preferencesService';
 import FavoritesService from '../services/favoritesService';
@@ -39,6 +39,9 @@ import ActivityCard from '../components/ActivityCard';
 import {
   fetchChildFavorites,
   fetchChildWatching,
+  fetchChildWaitlist,
+  selectWatchingByChild,
+  selectWaitlistByChild,
 } from '../store/slices/childFavoritesSlice';
 
 const DashboardScreenModern = () => {
@@ -98,6 +101,49 @@ const DashboardScreenModern = () => {
   const children = useAppSelector(selectAllChildren);
   const selectedChildIds = useAppSelector(selectSelectedChildIds);
   const filterMode = useAppSelector(selectFilterMode);
+
+  // Redux-based watching and waitlist data
+  const watchingByChild = useAppSelector(selectWatchingByChild);
+  const waitlistByChild = useAppSelector(selectWaitlistByChild);
+
+  // Compute watching and waitlist counts from Redux state
+  const watchingData = React.useMemo(() => {
+    const uniqueActivityIds = new Set<string>();
+    let availableCount = 0;
+
+    for (const childId of selectedChildIds) {
+      const childWatching = watchingByChild[childId] || [];
+      for (const entry of childWatching) {
+        if (!uniqueActivityIds.has(entry.activityId)) {
+          uniqueActivityIds.add(entry.activityId);
+          if (entry.activity?.spotsAvailable && entry.activity.spotsAvailable > 0) {
+            availableCount++;
+          }
+        }
+      }
+    }
+
+    return { count: uniqueActivityIds.size, availableCount };
+  }, [watchingByChild, selectedChildIds]);
+
+  const waitlistData = React.useMemo(() => {
+    const uniqueActivityIds = new Set<string>();
+    let availableCount = 0;
+
+    for (const childId of selectedChildIds) {
+      const childWaitlist = waitlistByChild[childId] || [];
+      for (const entry of childWaitlist) {
+        if (!uniqueActivityIds.has(entry.activityId)) {
+          uniqueActivityIds.add(entry.activityId);
+          if (entry.activity?.spotsAvailable && entry.activity.spotsAvailable > 0) {
+            availableCount++;
+          }
+        }
+      }
+    }
+
+    return { count: uniqueActivityIds.size, availableCount };
+  }, [waitlistByChild, selectedChildIds]);
 
   // Helper to calculate child age from dateOfBirth
   const calculateAge = useCallback((dateOfBirth: string): number => {
@@ -296,12 +342,13 @@ const DashboardScreenModern = () => {
 
       // Ensure children are synced from server
       dispatch(fetchChildren()).then((result) => {
-        // After children are loaded, fetch their favorites and watching data
+        // After children are loaded, fetch their favorites, watching, and waitlist data
         if (result.payload && Array.isArray(result.payload) && result.payload.length > 0) {
           const childIds = result.payload.map((c: any) => c.id);
-          console.log('[Dashboard] Fetching favorites/watching for children:', childIds.length);
+          console.log('[Dashboard] Fetching favorites/watching/waitlist for children:', childIds.length);
           dispatch(fetchChildFavorites(childIds));
           dispatch(fetchChildWatching(childIds));
+          dispatch(fetchChildWaitlist(childIds));
         }
       });
 
@@ -858,30 +905,56 @@ const DashboardScreenModern = () => {
           <Image source={aiRobotImage} style={styles.aiRobotImageOverlay} />
         </View>
 
-        {/* Waiting List Banner - only shown when user has items on waitlist */}
-        {waitlistCount > 0 && (
-          <TouchableOpacity
-            style={styles.waitlistBanner}
-            onPress={() => navigation.navigate('WaitingList')}
-          >
-            <View style={styles.waitlistBannerContent}>
-              <View style={styles.waitlistBannerLeft}>
-                <Icon name="bell-ring" size={24} color="#FFB800" />
-                <View style={styles.waitlistBannerText}>
-                  <Text style={styles.waitlistBannerTitle}>
-                    Your Waiting List
-                    {waitlistAvailableCount > 0 && (
-                      <Text style={styles.waitlistBannerAvailable}> • {waitlistAvailableCount} available!</Text>
-                    )}
-                  </Text>
-                  <Text style={styles.waitlistBannerSubtitle}>
-                    {waitlistCount} {waitlistCount === 1 ? 'activity' : 'activities'} being monitored
-                  </Text>
+        {/* Combined Collection Banner - Watching & Waiting List */}
+        {(watchingData.count > 0 || waitlistData.count > 0) && (
+          <View style={styles.collectionBannerWrapper}>
+            <TouchableOpacity
+              style={styles.collectionBanner}
+              onPress={() => navigation.navigate('Favorites', { tab: 'watching' })}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={['#5B9BD5', '#7EC8E3', '#FFFFFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.collectionBannerGradient}
+              >
+                <View style={styles.collectionBannerContent}>
+                  <View style={styles.collectionBannerLeft}>
+                    <Text style={styles.collectionBannerTitle}>Your Collection</Text>
+                    <View style={styles.collectionBannerStats}>
+                      {watchingData.count > 0 && (
+                        <Text style={styles.collectionBannerCount}>
+                          {watchingData.count} watching
+                        </Text>
+                      )}
+                      {watchingData.count > 0 && waitlistData.count > 0 && (
+                        <Text style={styles.collectionBannerCount}> · </Text>
+                      )}
+                      {waitlistData.count > 0 && (
+                        <Text style={styles.collectionBannerCount}>
+                          {waitlistData.count} waitlist
+                        </Text>
+                      )}
+                      {(watchingData.availableCount > 0 || waitlistData.availableCount > 0) && (
+                        <>
+                          <Text style={styles.collectionBannerCount}> · </Text>
+                          <View style={styles.collectionAvailableBadge}>
+                            <Text style={styles.collectionAvailableText}>
+                              {watchingData.availableCount + waitlistData.availableCount} available!
+                            </Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                  <Icon name="chevron-right" size={22} color="#1E3A5F" />
                 </View>
-              </View>
-              <Icon name="chevron-right" size={20} color="#222" />
-            </View>
-          </TouchableOpacity>
+              </LinearGradient>
+            </TouchableOpacity>
+            {/* Collection image overlay - positioned on left side */}
+            <Image source={collectionButtonImage} style={styles.collectionImageOverlay} />
+          </View>
         )}
 
         {/* Recommended Activities Section */}
@@ -1258,47 +1331,68 @@ const styles = StyleSheet.create({
     height: 75,
     resizeMode: 'contain',
   },
-  waitlistBanner: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-    borderRadius: 16,
-    backgroundColor: '#FFF',
-    borderWidth: 2,
-    borderColor: '#FFB800',
-    shadowColor: '#FFB800',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+  // Collection Banner styles (blue gradient with image)
+  collectionBannerWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    position: 'relative',
+    paddingLeft: 30, // Space for image overflow on left
   },
-  waitlistBannerContent: {
+  collectionBanner: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#5B9BD5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  collectionBannerGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingLeft: 60, // Space for overlay image on left
+  },
+  collectionBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
   },
-  waitlistBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  waitlistBannerText: {
+  collectionBannerLeft: {
     flex: 1,
   },
-  waitlistBannerTitle: {
+  collectionBannerTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
+    fontWeight: '700',
+    color: '#1E3A5F',
     marginBottom: 2,
   },
-  waitlistBannerAvailable: {
-    color: '#22C55E',
-    fontWeight: '700',
+  collectionBannerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
-  waitlistBannerSubtitle: {
+  collectionBannerCount: {
     fontSize: 13,
-    color: '#717171',
+    color: '#1E3A5F',
+  },
+  collectionAvailableBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  collectionAvailableText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  collectionImageOverlay: {
+    position: 'absolute',
+    left: -5,
+    top: -18,
+    width: 91,
+    height: 91,
+    resizeMode: 'contain',
   },
   section: {
     marginBottom: 30,

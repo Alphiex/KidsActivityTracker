@@ -26,8 +26,11 @@ import {
   removeChildFavorite,
   addChildWatching,
   removeChildWatching,
+  joinChildWaitlist,
+  leaveChildWaitlist,
   selectChildrenWhoFavoritedWithDetails,
   selectChildrenWatchingWithDetails,
+  selectChildrenOnWaitlistWithDetails,
 } from '../store/slices/childFavoritesSlice';
 import {
   linkActivity,
@@ -53,7 +56,7 @@ const calculateAge = (dateOfBirth: string): number => {
   return age;
 };
 
-export type ActionType = 'favorite' | 'watching' | 'calendar';
+export type ActionType = 'favorite' | 'watching' | 'waitlist' | 'calendar';
 
 interface ChildAssignmentSheetProps {
   visible: boolean;
@@ -73,6 +76,11 @@ const ACTION_CONFIG = {
     icon: 'bell-ring',
     title: 'Watch for Spots',
     color: '#FFB800',
+  },
+  waitlist: {
+    icon: 'account-clock',
+    title: 'Join Waiting List',
+    color: '#8B5CF6',
   },
   calendar: {
     icon: 'calendar-plus',
@@ -98,6 +106,8 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
     .map(c => c.childId);
   const watchingChildIds = useAppSelector(selectChildrenWatchingWithDetails(activity.id))
     .map(c => c.childId);
+  const waitlistChildIds = useAppSelector(selectChildrenOnWaitlistWithDetails(activity.id))
+    .map(c => c.childId);
   const calendarChildIds = useAppSelector(selectActivityChildren(activity.id));
 
   const [loadingChildId, setLoadingChildId] = useState<string | null>(null);
@@ -110,6 +120,8 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
         return favoriteChildIds;
       case 'watching':
         return watchingChildIds;
+      case 'waitlist':
+        return waitlistChildIds;
       case 'calendar':
         return calendarChildIds;
       default:
@@ -171,6 +183,16 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
           await dispatch(addChildWatching({ childId: child.id, activityId: activity.id })).unwrap();
           console.log('[ChildAssignmentSheet] Add watching SUCCESS');
         }
+      } else if (actionType === 'waitlist') {
+        if (isAssigned) {
+          console.log('[ChildAssignmentSheet] Leaving waitlist...');
+          await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Leave waitlist SUCCESS');
+        } else {
+          console.log('[ChildAssignmentSheet] Joining waitlist...');
+          await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+          console.log('[ChildAssignmentSheet] Join waitlist SUCCESS');
+        }
       } else if (actionType === 'calendar') {
         if (isAssigned) {
           console.log('[ChildAssignmentSheet] Unlinking activity...');
@@ -203,6 +225,7 @@ const ChildAssignmentSheet: React.FC<ChildAssignmentSheetProps> = ({
   console.log('[ChildAssignmentSheet] activity.id:', activity.id);
   console.log('[ChildAssignmentSheet] favoriteChildIds:', favoriteChildIds);
   console.log('[ChildAssignmentSheet] watchingChildIds:', watchingChildIds);
+  console.log('[ChildAssignmentSheet] waitlistChildIds:', waitlistChildIds);
   console.log('[ChildAssignmentSheet] calendarChildIds:', calendarChildIds);
   console.log('[ChildAssignmentSheet] assignedChildIds:', assignedChildIds);
 

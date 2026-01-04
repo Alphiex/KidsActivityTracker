@@ -220,11 +220,10 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
               <Text style={styles.childLocation}>{child.location}</Text>
             </View>
           )}
-          {child.upcomingActivities !== undefined && child.upcomingActivities > 0 && (
-            <Text style={styles.activityBadge}>
-              {child.upcomingActivities} upcoming {child.upcomingActivities === 1 ? 'activity' : 'activities'}
-            </Text>
-          )}
+          <View style={styles.viewActivitiesRow}>
+            <Text style={styles.viewActivitiesText}>View activities</Text>
+            <Icon name="chevron-right" size={16} color={ModernColors.primary} />
+          </View>
         </View>
 
         <View style={styles.childActions}>
@@ -984,6 +983,7 @@ const styles = StyleSheet.create({
   },
   heroImageStyle: {
     borderRadius: 0,
+    resizeMode: 'contain',
   },
   heroGradient: {
     flex: 1,
@@ -1096,6 +1096,17 @@ const styles = StyleSheet.create({
     color: ModernColors.primary,
     fontWeight: '500',
     marginTop: 4,
+  },
+  viewActivitiesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  viewActivitiesText: {
+    fontSize: 13,
+    color: ModernColors.primary,
+    fontWeight: '500',
+    marginRight: 2,
   },
   childActions: {
     flexDirection: 'row',

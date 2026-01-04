@@ -45,7 +45,7 @@ const SearchResultsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<SearchResultsRouteProp>();
   const { filters, searchQuery } = route.params;
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const dispatch = useAppDispatch();
 
   // Ensure children are loaded into Redux on mount

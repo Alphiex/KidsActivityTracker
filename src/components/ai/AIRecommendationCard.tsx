@@ -37,7 +37,7 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   containerStyle,
   children: childrenProp,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   // Calculate which children this activity is great for
   const matchingChildren = useMemo(() => {
@@ -415,7 +415,7 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
 
       {/* Why This Is Great Section */}
       {showExplanation && recommendation.why && recommendation.why.length > 0 && (
-        <View style={[styles.whySection, { borderTopColor: colors.border, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#F0FDF4' }]}>
+        <View style={[styles.whySection, { borderTopColor: colors.border, backgroundColor: '#F0FDF4' }]}>
           <View style={styles.whyHeader}>
             <Icon name="heart-outline" size={16} color="#10B981" />
             <Text style={[styles.whyTitle, { color: '#10B981' }]}>

@@ -58,7 +58,7 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
   initialDate,
   initialChildId,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [locationAddress, setLocationAddress] = useState<EnhancedAddress | null>(null);
@@ -320,7 +320,7 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
                 onChangeText={setTitle}
                 placeholder="Event title"
                 placeholderTextColor={colors.textSecondary}
-                keyboardAppearance={isDark ? 'dark' : 'light'}
+                keyboardAppearance="light"
                 selectionColor={colors.primary}
               />
             </View>
@@ -523,7 +523,7 @@ export const AddEventModal: React.FC<AddEventModalProps> = ({
                 placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={3}
-                keyboardAppearance={isDark ? 'dark' : 'light'}
+                keyboardAppearance="light"
                 selectionColor={colors.primary}
               />
             </View>

@@ -84,7 +84,7 @@ type SearchRouteProp = RouteProp<{
 const SearchScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<SearchRouteProp>();
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
 
   // Check if we should return to map instead of SearchResults
   const returnToMap = route.params?.returnToMap || false;
@@ -933,7 +933,7 @@ const SearchScreen = () => {
                 <Text style={styles.whatSectionTitle}>What?</Text>
               </View>
               <TextInput
-                key={`search-${isDark ? 'dark' : 'light'}`}
+                key="search-light"
                 style={[
                   styles.searchInput,
                   {
@@ -948,7 +948,7 @@ const SearchScreen = () => {
                 value={searchText}
                 onChangeText={setSearchText}
                 autoFocus={false}
-                keyboardAppearance={isDark ? 'dark' : 'light'}
+                keyboardAppearance="light"
                 selectionColor={colors.primary}
               />
             </View>

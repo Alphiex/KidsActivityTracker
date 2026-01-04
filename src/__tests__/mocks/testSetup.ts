@@ -82,7 +82,6 @@ export const mockTheme = {
     border: '#EEEEEE',
     cardBackground: '#FFFFFF',
   },
-  isDark: false,
 };
 
 jest.mock('../../contexts/ThemeContext', () => ({

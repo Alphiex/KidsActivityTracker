@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenBackground from '../components/ScreenBackground';
@@ -33,15 +33,19 @@ import { selectSelectedChildIds, selectAllChildren } from '../store/slices/child
 import {
   fetchChildFavorites,
   fetchChildWatching,
+  fetchChildWaitlist,
   removeChildFavorite,
   addChildFavorite,
   removeChildWatching,
+  leaveChildWaitlist,
   selectFavoritesByChild,
   selectWatchingByChild,
+  selectWaitlistByChild,
   selectFavoritesLoading,
   selectWatchingLoading,
+  selectWaitlistLoading,
 } from '../store/slices/childFavoritesSlice';
-import { ChildWatching } from '../services/childFavoritesService';
+import { ChildWatching, ChildWaitlistEntry } from '../services/childFavoritesService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -49,12 +53,26 @@ const FavoritesHeaderImage = require('../assets/images/favorites-header.png');
 
 type TabType = 'favorites' | 'watching' | 'available';
 
+type FavoritesRouteParams = {
+  Favorites: { tab?: TabType };
+};
+
 const FavoritesScreenModern: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<FavoritesRouteParams, 'Favorites'>>();
   const dispatch = useAppDispatch();
   const activityService = ActivityService.getInstance();
 
-  const [activeTab, setActiveTab] = useState<TabType>('favorites');
+  // Get initial tab from route params or default to 'favorites'
+  const initialTab = route.params?.tab || 'favorites';
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
+  // Update tab when route params change
+  useEffect(() => {
+    if (route.params?.tab) {
+      setActiveTab(route.params.tab);
+    }
+  }, [route.params?.tab]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Redux state for child-centric data
@@ -63,10 +81,12 @@ const FavoritesScreenModern: React.FC = () => {
   const allChildren = useAppSelector(selectAllChildren);
   const favoritesByChild = useAppSelector(selectFavoritesByChild);
   const watchingByChild = useAppSelector(selectWatchingByChild);
+  const waitlistByChild = useAppSelector(selectWaitlistByChild);
   const favoritesLoading = useAppSelector(selectFavoritesLoading);
   const watchingLoading = useAppSelector(selectWatchingLoading);
+  const waitlistLoading = useAppSelector(selectWaitlistLoading);
 
-  const loading = favoritesLoading || watchingLoading;
+  const loading = favoritesLoading || watchingLoading || waitlistLoading;
 
   // Derive watching entries from Redux watching data
   const watchingEntries = React.useMemo(() => {
@@ -86,9 +106,43 @@ const FavoritesScreenModern: React.FC = () => {
     return allWatchingEntries;
   }, [watchingByChild, selectedChildIds]);
 
-  // Placeholder for waiting list (activities with Waitlist status) - to be implemented
-  const availableEntries: ChildWatching[] = [];
-  const closedCount = 0;
+  // Derive waitlist entries from Redux waitlist data
+  const waitlistEntries = React.useMemo(() => {
+    const allWaitlistEntries: ChildWaitlistEntry[] = [];
+
+    // Collect waitlist entries from all selected children
+    for (const childId of selectedChildIds) {
+      const childWaitlist = waitlistByChild[childId] || [];
+      for (const entry of childWaitlist) {
+        // Deduplicate by activityId (activity may be on waitlist for multiple children)
+        if (!allWaitlistEntries.some(e => e.activityId === entry.activityId)) {
+          allWaitlistEntries.push(entry);
+        }
+      }
+    }
+
+    return allWaitlistEntries;
+  }, [waitlistByChild, selectedChildIds]);
+
+  // Split waitlist into available (spots opened up) and waiting
+  const { availableEntries, waitingEntries } = React.useMemo(() => {
+    const available: ChildWaitlistEntry[] = [];
+    const waiting: ChildWaitlistEntry[] = [];
+
+    for (const entry of waitlistEntries) {
+      // Check if activity now has spots available
+      if (entry.activity?.spotsAvailable && entry.activity.spotsAvailable > 0) {
+        available.push(entry);
+      } else {
+        waiting.push(entry);
+      }
+    }
+
+    return { availableEntries: available, waitingEntries: waiting };
+  }, [waitlistEntries]);
+
+  // Count of closed/unavailable waitlist activities
+  const closedCount = waitingEntries.length;
 
   // Get unique favorited activities (deduplicated across children) for flat display
   const allFavoriteActivities: Activity[] = React.useMemo(() => {
@@ -149,10 +203,11 @@ const FavoritesScreenModern: React.FC = () => {
 
   const loadData = useCallback(async (forceRefresh: boolean = false) => {
     try {
-      // Fetch child-centric favorites and watching via Redux
+      // Fetch child-centric favorites, watching, and waitlist via Redux
       if (selectedChildIds.length > 0) {
         dispatch(fetchChildFavorites(selectedChildIds));
         dispatch(fetchChildWatching(selectedChildIds));
+        dispatch(fetchChildWaitlist(selectedChildIds));
       }
     } catch (error) {
       console.error('[FavoritesScreen] Error loading data:', error);
@@ -227,11 +282,48 @@ const FavoritesScreenModern: React.FC = () => {
     );
   };
 
+  const handleRemoveFromWaitlist = async (activityId: string) => {
+    Alert.alert(
+      'Leave Waiting List',
+      'Are you sure you want to remove this activity from your waiting list?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            // Remove from waitlist for all selected children who have this activity
+            for (const childId of selectedChildIds) {
+              const childWaitlist = waitlistByChild[childId] || [];
+              if (childWaitlist.some(e => e.activityId === activityId)) {
+                dispatch(leaveChildWaitlist({ childId, activityId }));
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleActivityPress = (activity: Activity) => {
     navigation.navigate('ActivityDetail', { activity });
   };
 
   const handleWatchingActivityPress = async (entry: ChildWatching) => {
+    try {
+      const activity = await activityService.getActivityDetails(entry.activityId);
+      if (activity) {
+        navigation.navigate('ActivityDetail', { activity });
+      } else {
+        Alert.alert('Error', 'Activity not found');
+      }
+    } catch (error) {
+      console.error('[FavoritesScreen] Error loading activity:', error);
+      Alert.alert('Error', 'Failed to load activity details');
+    }
+  };
+
+  const handleWaitlistActivityPress = async (entry: ChildWaitlistEntry) => {
     try {
       const activity = await activityService.getActivityDetails(entry.activityId);
       if (activity) {
@@ -253,6 +345,17 @@ const FavoritesScreenModern: React.FC = () => {
       });
     } else {
       handleWatchingActivityPress(entry);
+    }
+  };
+
+  const handleWaitlistRegister = (entry: ChildWaitlistEntry) => {
+    const url = entry.activity?.directRegistrationUrl || entry.activity?.registrationUrl;
+    if (url) {
+      Linking.openURL(url).catch(() => {
+        handleWaitlistActivityPress(entry);
+      });
+    } else {
+      handleWaitlistActivityPress(entry);
     }
   };
 
@@ -364,10 +467,11 @@ const FavoritesScreenModern: React.FC = () => {
     </TouchableOpacity>
   );
 
-  const renderAvailableItem = ({ item }: { item: ChildWatching }) => (
+  // Render waitlist item that has spots available
+  const renderAvailableWaitlistItem = ({ item }: { item: ChildWaitlistEntry }) => (
     <TouchableOpacity
       style={[styles.watchingCard, styles.availableCard]}
-      onPress={() => handleWatchingActivityPress(item)}
+      onPress={() => handleWaitlistActivityPress(item)}
       activeOpacity={0.8}
     >
       <View style={styles.availableBanner}>
@@ -389,7 +493,7 @@ const FavoritesScreenModern: React.FC = () => {
           </View>
           <TouchableOpacity
             style={styles.removeButton}
-            onPress={() => handleRemoveFromWatching(item.activityId)}
+            onPress={() => handleRemoveFromWaitlist(item.activityId)}
           >
             <Icon name="close" size={20} color={ModernColors.textSecondary} />
           </TouchableOpacity>
@@ -417,7 +521,7 @@ const FavoritesScreenModern: React.FC = () => {
         <View style={styles.watchingFooter}>
           <TouchableOpacity
             style={styles.registerButton}
-            onPress={() => handleRegister(item)}
+            onPress={() => handleWaitlistRegister(item)}
           >
             <Icon name="open-in-new" size={16} color="#FFFFFF" />
             <Text style={styles.registerButtonText}>Register Now</Text>
@@ -427,6 +531,71 @@ const FavoritesScreenModern: React.FC = () => {
               {item.activity.spotsAvailable} spots available
             </Text>
           )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Render waitlist item that's still waiting (no spots yet)
+  const renderWaitingItem = ({ item }: { item: ChildWaitlistEntry }) => (
+    <TouchableOpacity
+      style={styles.watchingCard}
+      onPress={() => handleWaitlistActivityPress(item)}
+      activeOpacity={0.8}
+    >
+      <View style={styles.watchingContent}>
+        <View style={styles.watchingHeader}>
+          <View style={styles.watchingInfo}>
+            <Text style={styles.watchingName} numberOfLines={2}>
+              {item.activity?.name || 'Unknown Activity'}
+            </Text>
+            {item.activity?.provider && (
+              <Text style={styles.watchingProvider} numberOfLines={1}>
+                {typeof item.activity.provider === 'string' ? item.activity.provider : (item.activity.provider as any)?.name || ''}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => handleRemoveFromWaitlist(item.activityId)}
+          >
+            <Icon name="account-clock-outline" size={20} color={ModernColors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.watchingDetails}>
+          {item.activity?.location && (
+            <View style={styles.detailRow}>
+              <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
+              <Text style={styles.detailText} numberOfLines={1}>
+                {item.activity.location}
+              </Text>
+            </View>
+          )}
+          <View style={styles.detailRow}>
+            <Icon name="calendar-clock" size={14} color={ModernColors.textSecondary} />
+            <Text style={styles.detailText}>
+              On waitlist since {formatDate(item.createdAt)}
+            </Text>
+          </View>
+          {item.activity?.cost !== undefined && item.activity.cost !== null && (
+            <View style={styles.detailRow}>
+              <Icon name="tag" size={14} color={ModernColors.textSecondary} />
+              <Text style={styles.detailText}>
+                {formatActivityPrice(item.activity.cost)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.watchingFooter}>
+          <View style={styles.waitlistBadge}>
+            <Icon name="account-clock" size={14} color="#8B5CF6" />
+            <Text style={styles.waitlistBadgeText}>On waiting list</Text>
+          </View>
+          <Text style={styles.spotsText}>
+            {item.activity?.spotsAvailable === 0 ? 'Full' : `${item.activity?.spotsAvailable || 0} spots`}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -453,9 +622,9 @@ const FavoritesScreenModern: React.FC = () => {
       case 'available':
         return (
           <EmptyState
-            icon="clipboard-list-outline"
+            icon="account-clock-outline"
             title="No waiting list activities"
-            subtitle="Add activities with 'Waitlist' status to monitor when spots become available"
+            subtitle="Tap the clock icon on full or waitlisted activities to add them here"
           />
         );
     }
@@ -468,7 +637,8 @@ const FavoritesScreenModern: React.FC = () => {
       case 'watching':
         return watchingEntries.length;
       case 'available':
-        return availableEntries.length;
+        // Show total waitlist count (available + waiting)
+        return waitlistEntries.length;
     }
   };
 
@@ -524,10 +694,18 @@ const FavoritesScreenModern: React.FC = () => {
         );
 
       case 'available':
-        return availableEntries.length > 0 ? (
+        // Show all waitlist items: available ones first, then waiting ones
+        const combinedWaitlist = [...availableEntries, ...waitingEntries];
+        return combinedWaitlist.length > 0 ? (
           <FlatList
-            data={availableEntries}
-            renderItem={renderAvailableItem}
+            data={combinedWaitlist}
+            renderItem={({ item }) => {
+              // Check if this item is available or waiting
+              const isAvailable = item.activity?.spotsAvailable && item.activity.spotsAvailable > 0;
+              return isAvailable
+                ? renderAvailableWaitlistItem({ item })
+                : renderWaitingItem({ item });
+            }}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
@@ -539,6 +717,16 @@ const FavoritesScreenModern: React.FC = () => {
               />
             }
             ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ListHeaderComponent={
+              availableEntries.length > 0 ? (
+                <View style={styles.waitlistHeader}>
+                  <Icon name="check-circle" size={16} color="#22C55E" />
+                  <Text style={styles.waitlistHeaderText}>
+                    {availableEntries.length} {availableEntries.length === 1 ? 'activity' : 'activities'} now available!
+                  </Text>
+                </View>
+              ) : null
+            }
           />
         ) : (
           <View style={styles.emptyContainer}>{renderEmptyState()}</View>
@@ -566,7 +754,7 @@ const FavoritesScreenModern: React.FC = () => {
               <View style={styles.heroContent}>
                 <Text style={styles.heroTitle}>My Collection</Text>
                 <Text style={styles.heroSubtitle}>
-                  {allFavoriteActivities.length} favourites • {watchingEntries.length + availableEntries.length} watching
+                  {allFavoriteActivities.length} favourites • {watchingEntries.length} watching • {waitlistEntries.length} waitlist
                 </Text>
               </View>
             </LinearGradient>
@@ -633,17 +821,17 @@ const FavoritesScreenModern: React.FC = () => {
             onPress={() => setActiveTab('available')}
           >
             <Icon
-              name="check-circle"
+              name="account-clock"
               size={18}
-              color={activeTab === 'available' ? '#22C55E' : ModernColors.textSecondary}
+              color={activeTab === 'available' ? '#8B5CF6' : ModernColors.textSecondary}
               style={styles.tabIcon}
             />
-            <Text style={[styles.tabText, activeTab === 'available' && styles.activeTabTextGreen]}>
+            <Text style={[styles.tabText, activeTab === 'available' && styles.activeTabTextPurple]}>
               Waiting List
             </Text>
             {getTabCount('available') > 0 && (
-              <View style={[styles.tabBadge, styles.availableBadge]}>
-                <Text style={styles.availableBadgeText}>
+              <View style={[styles.tabBadge, activeTab === 'available' && styles.waitlistTabBadge]}>
+                <Text style={[styles.tabBadgeText, activeTab === 'available' && styles.waitlistTabBadgeText]}>
                   {getTabCount('available')}
                 </Text>
               </View>
@@ -952,6 +1140,46 @@ const styles = StyleSheet.create({
     color: ModernColors.primary,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  // Waitlist-specific styles
+  activeTabTextPurple: {
+    color: '#8B5CF6',
+    fontWeight: '600',
+  },
+  waitlistTabBadge: {
+    backgroundColor: '#8B5CF6' + '20',
+  },
+  waitlistTabBadgeText: {
+    color: '#8B5CF6',
+  },
+  waitlistBadge: {
+    backgroundColor: '#EDE9FE',
+    borderRadius: ModernBorderRadius.md,
+    paddingVertical: ModernSpacing.xs,
+    paddingHorizontal: ModernSpacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  waitlistBadgeText: {
+    color: '#8B5CF6',
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  waitlistHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingVertical: ModernSpacing.sm,
+    paddingHorizontal: ModernSpacing.md,
+    borderRadius: ModernBorderRadius.md,
+    marginBottom: ModernSpacing.md,
+  },
+  waitlistHeaderText: {
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '600',
+    color: '#22C55E',
+    marginLeft: ModernSpacing.xs,
   },
 });
 

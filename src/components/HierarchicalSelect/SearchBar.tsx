@@ -10,7 +10,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onChangeText,
   placeholder = 'Search locations...',
 }) => {
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.searchContainer}>
@@ -21,7 +21,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         style={styles.searchIcon}
       />
       <TextInput
-        key={`hier-search-${isDark ? 'dark' : 'light'}`}
+        key="hier-search-light"
         style={[
           styles.searchInput,
           { color: colors.text },
@@ -34,7 +34,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
-        keyboardAppearance={isDark ? 'dark' : 'light'}
+        keyboardAppearance="light"
         selectionColor={colors.primary}
       />
       {value.length > 0 && (

@@ -22,6 +22,8 @@ import { selectAllChildren } from '../store/slices/childrenSlice';
 import {
   addChildFavorite,
   removeChildFavorite,
+  addChildWatching,
+  removeChildWatching,
   joinChildWaitlist,
   leaveChildWaitlist,
 } from '../store/slices/childFavoritesSlice';
@@ -128,7 +130,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   }, [showGreatFor, children, activity]);
 
   // Get child assignment status for this activity
-  const { favoriteChildren, watchingChildren, calendarChildren } = useActivityChildStatus(activity.id);
+  const { favoriteChildren, watchingChildren, waitlistChildren, calendarChildren } = useActivityChildStatus(activity.id);
 
   // Use external state if provided, otherwise use Redux-based child favorites
   const isExternallyControlled = externalIsFavorite !== undefined;
@@ -150,7 +152,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showChildSheet, setShowChildSheet] = useState(false);
   const [currentAction, setCurrentAction] = useState<ActionType>('favorite');
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const registeredChildIds = useAppSelector(selectActivityChildren(activity.id));
 
   // Check if activity is on any child's calendar
@@ -177,6 +179,17 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     }
     return '#FFF';
   };
+
+  const getWaitlistColor = () => {
+    if (waitlistChildren.length > 0) {
+      return getChildColor(waitlistChildren[0].colorId).hex;
+    }
+    return '#FFF';
+  };
+
+  // Check if activity can be added to waitlist (full/closed activities or provider waitlist)
+  const canShowWaitlistButton = activity.spotsAvailable === 0 || activity.registrationStatus === 'Waitlist';
+  const isOnWaitlistForAnyChild = waitlistChildren.length > 0;
 
   useEffect(() => {
     // Only set internal state if not externally controlled
@@ -623,25 +636,20 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             )}
           </TouchableOpacity>
 
-          {/* Watching/Bell button with child color indicator */}
+          {/* Watching/Bell button - for notifications when spots open (child color indicator) */}
           <TouchableOpacity
             style={styles.actionButton}
             onPress={async () => {
-              // PRIORITY: If we have children, use child-based logic (ignore legacy handlers)
+              // PRIORITY: If we have children, use child-based logic
               if (children.length === 1) {
                 // Single child - auto-assign
                 const child = children[0];
                 const isCurrentlyWatching = watchingChildren.some(c => c.childId === child.id);
                 try {
                   if (isCurrentlyWatching) {
-                    await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                    await dispatch(removeChildWatching({ childId: child.id, activityId: activity.id })).unwrap();
                   } else {
-                    // Check subscription limit before adding
-                    if (!canAddToWaitlist) {
-                      onWaitlistLimitReached?.();
-                      return;
-                    }
-                    await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                    await dispatch(addChildWatching({ childId: child.id, activityId: activity.id })).unwrap();
                   }
                 } catch (error) {
                   console.error('Failed to toggle watching:', error);
@@ -673,12 +681,66 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               />
             ) : (
               <Icon
-                name={isOnWaitlist ? 'bell-ring' : 'bell-outline'}
+                name={watchingChildren.length > 0 ? 'bell-ring' : 'bell-outline'}
                 size={18}
-                color={isOnWaitlist ? getWatchingColor() : '#FFF'}
+                color={watchingChildren.length > 0 ? getWatchingColor() : '#FFF'}
               />
             )}
           </TouchableOpacity>
+
+          {/* Waitlist/Clock button - for joining provider waitlist or tracking full activities */}
+          {canShowWaitlistButton && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={async () => {
+                // PRIORITY: If we have children, use child-based logic
+                if (children.length === 1) {
+                  // Single child - auto-assign
+                  const child = children[0];
+                  const isCurrentlyOnWaitlist = waitlistChildren.some(c => c.childId === child.id);
+                  try {
+                    if (isCurrentlyOnWaitlist) {
+                      await dispatch(leaveChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                    } else {
+                      if (!canAddToWaitlist) {
+                        onWaitlistLimitReached?.();
+                        return;
+                      }
+                      await dispatch(joinChildWaitlist({ childId: child.id, activityId: activity.id })).unwrap();
+                    }
+                  } catch (error) {
+                    console.error('Failed to toggle waitlist:', error);
+                  }
+                  return;
+                }
+
+                if (children.length > 1) {
+                  // Multiple children - show selection sheet for waitlist
+                  setCurrentAction('waitlist');
+                  setShowChildSheet(true);
+                  return;
+                }
+
+                // No children - use legacy handler
+                handleWaitlistToggle();
+              }}
+            >
+              {/* Use gradient icon for multiple children, solid color for single child */}
+              {waitlistChildren.length > 1 ? (
+                <GradientIcon
+                  name="account-clock"
+                  size={18}
+                  colors={getGradientColorsForChildren(waitlistChildren.map(c => c.colorId))}
+                />
+              ) : (
+                <Icon
+                  name={isOnWaitlistForAnyChild ? 'account-clock' : 'account-clock-outline'}
+                  size={18}
+                  color={isOnWaitlistForAnyChild ? getWaitlistColor() : '#FFF'}
+                />
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Share button */}
           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>

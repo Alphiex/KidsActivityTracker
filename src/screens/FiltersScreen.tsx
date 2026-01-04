@@ -90,7 +90,7 @@ type FiltersRouteParams = {
 const FiltersScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<FiltersRouteParams, 'Filters'>>();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   // Get hidden sections from route params (default: hide AI Match on all screens)
   const hiddenSections = route.params?.hiddenSections || ['aiMatch'];

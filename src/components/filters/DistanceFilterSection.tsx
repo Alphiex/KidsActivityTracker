@@ -24,7 +24,7 @@ const DistanceFilterSection: React.FC<DistanceFilterSectionProps> = ({
   onUpdatePreferences,
   onConfigurePress,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [locationStatus, setLocationStatus] = useState<LocationPermissionStatus>('unavailable');
   const [checkingLocation, setCheckingLocation] = useState(false);
   const [showAddressInput, setShowAddressInput] = useState(false);
@@ -122,7 +122,7 @@ const DistanceFilterSection: React.FC<DistanceFilterSectionProps> = ({
       {preferences.distanceFilterEnabled && (
         <>
           {/* Current Location Source */}
-          <View style={[styles.statusRow, { backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5' }]}>
+          <View style={[styles.statusRow, { backgroundColor: '#f5f5f5' }]}>
             <Icon
               name={preferences.locationSource === 'gps' ? 'crosshairs-gps' : 'home-map-marker'}
               size={16}
@@ -186,7 +186,7 @@ const DistanceFilterSection: React.FC<DistanceFilterSectionProps> = ({
               styles.addressInput,
               {
                 color: colors.text,
-                backgroundColor: isDark ? '#1a1a1a' : '#f5f5f5',
+                backgroundColor: '#f5f5f5',
                 borderColor: colors.border,
               },
             ]}

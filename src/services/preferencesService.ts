@@ -34,7 +34,7 @@ const FILTER_PRESETS_KEY = 'filter_presets';
  *
  * ACTIVE SETTINGS (still in use):
  * - View settings: hideClosedActivities, hideFullActivities, hideClosedOrFull, maxBudgetFriendlyAmount
- * - Display: theme, viewType, useMapPreferencesFilter
+ * - Display: useMapPreferencesFilter
  * - Date filters: dateFilter, dateRange, dateMatchMode
  * - Notifications: notifications object (backend notifications)
  * - App state: hasCompletedOnboarding, schoolBreaks
@@ -107,8 +107,6 @@ class PreferencesService {
         priceDrops: true,
         weeklyDigest: true,
       },
-      theme: 'dark',
-      viewType: 'card',
       hideClosedActivities: false, // Individual filter (not used when hideClosedOrFull is set)
       hideFullActivities: false, // Individual filter (not used when hideClosedOrFull is set)
       hideClosedOrFull: false, // Default to showing all activities (since old activities might be closed)

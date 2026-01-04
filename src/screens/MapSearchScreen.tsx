@@ -242,7 +242,7 @@ function clusterActivities(activities: Activity[]): LocationCluster[] {
 const MapSearchScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<MapSearchRouteProp>();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const mapRef = useRef<MapView>(null);
   const activityService = ActivityService.getInstance();
   const preferencesService = PreferencesService.getInstance();
@@ -1152,6 +1152,7 @@ const MapSearchScreen = () => {
           activity={item}
           onPress={() => handleActivityPress(item)}
           size="dashboard"
+          imageHeight={56}
           containerStyle={styles.mapActivityCard}
           showOnCalendarBadge={true}
         />
@@ -1168,14 +1169,14 @@ const MapSearchScreen = () => {
         {/* Top Tab Navigation */}
         <TopTabNavigation />
 
-        {/* Map Section - 55% of screen */}
+        {/* Map Section - 50% of screen */}
       <View style={styles.mapSection}>
         {/* Place Search Bar */}
         <View style={styles.placeSearchContainer}>
           <View style={styles.placeSearchInputContainer}>
             <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
-              key={`place-search-${isDark ? 'dark' : 'light'}`}
+              key="place-search-light"
               style={[
                 styles.placeSearchInput,
                 {
@@ -1190,7 +1191,7 @@ const MapSearchScreen = () => {
               onChangeText={handlePlaceSearchChange}
               onFocus={() => setShowPlaceSearch(true)}
               returnKeyType="search"
-              keyboardAppearance={isDark ? 'dark' : 'light'}
+              keyboardAppearance="light"
               selectionColor={colors.primary}
             />
             {placeSearchQuery.length > 0 && (
@@ -1332,7 +1333,7 @@ const MapSearchScreen = () => {
         </View>
       </View>
 
-      {/* List Section - 45% of screen */}
+      {/* List Section - 50% of screen */}
       <View style={styles.listSection}>
         {/* List Header */}
         <View style={styles.listHeader}>
@@ -1481,9 +1482,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Map section - 55% of screen
+  // Map section - 50% of screen
   mapSection: {
-    flex: 0.55,
+    flex: 0.50,
     position: 'relative',
   },
   map: {
@@ -1602,9 +1603,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  // List section - 45% of screen
+  // List section - 50% of screen
   listSection: {
-    flex: 0.45,
+    flex: 0.50,
     backgroundColor: 'transparent',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

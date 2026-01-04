@@ -34,14 +34,14 @@ import UpgradePromptModal from '../components/UpgradePromptModal';
 // Header images with fallback
 const HeaderImages: Record<string, any> = {
   search: require('../assets/images/search-header.png'),
-  recommended: require('../assets/images/recommended-header.png'),
+  recommended: require('../assets/images/recommended-header.jpg'),
   favorites: require('../assets/images/favorites-header.png'),
   new: require('../assets/images/new-header.png'),
   browse: require('../assets/images/browse-header.png'),
-  budget: require('../assets/images/browse-header.png'),
-  activityType: require('../assets/images/browse-header.png'),
-  ageGroup: require('../assets/images/browse-header.png'),
-  ai: require('../assets/images/recommended-header.png'),
+  budget: require('../assets/images/budget-friendly-header.jpg'),
+  activityType: require('../assets/images/browse-activity-types-header.png'),
+  ageGroup: require('../assets/images/browse-age-groups-header.jpg'),
+  ai: require('../assets/images/recommended-header.jpg'),
 };
 
 // Default fallback image

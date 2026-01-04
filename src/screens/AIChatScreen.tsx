@@ -234,7 +234,7 @@ const ParsedMessageText: React.FC<ParsedTextProps> = ({ content, style, onActivi
  */
 const AIChatScreen = () => {
   const navigation = useNavigation();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const dispatch = useAppDispatch();
@@ -683,7 +683,7 @@ const AIChatScreen = () => {
               multiline
               maxLength={500}
               editable={!isLoading && (quota?.allowed !== false)}
-              keyboardAppearance={isDark ? 'dark' : 'light'}
+              keyboardAppearance="light"
               selectionColor={colors.primary}
             />
             <TouchableOpacity

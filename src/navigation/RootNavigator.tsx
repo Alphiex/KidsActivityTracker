@@ -31,7 +31,6 @@ import ActivityDetailScreen from '../screens/activities/ActivityDetailScreenMode
 import ActivityListScreen from '../screens/ActivityListScreen';
 import NewActivitiesScreen from '../screens/NewActivitiesScreen';
 import OnboardingNavigator from './OnboardingNavigator';
-import SettingsScreen from '../screens/SettingsScreen';
 import LocationBrowseScreen from '../screens/LocationBrowseScreen';
 import CityBrowseScreen from '../screens/CityBrowseScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreenModern';
@@ -54,9 +53,6 @@ import MapSearchScreen from '../screens/MapSearchScreen';
 import InvitationAcceptScreen from '../screens/InvitationAcceptScreen';
 import ChildPreferencesScreen from '../screens/ChildPreferencesScreen';
 
-// Import Preference Screens
-import DistancePreferencesScreen from '../screens/preferences/DistancePreferencesScreen';
-import ViewSettingsScreen from '../screens/preferences/ViewSettingsScreen';
 
 // Import Navigators
 import AuthNavigator from './AuthNavigator';
@@ -90,7 +86,6 @@ const HomeStack = () => (
     <Stack.Screen name="WeeklyPlanner" component={WeeklyPlannerScreen} />
     <Stack.Screen name="MapSearch" component={MapSearchScreen} />
     <Stack.Screen name="WaitingList" component={WaitingListScreen} />
-    <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
     <Stack.Screen name="ChildPreferences" component={ChildPreferencesScreen} />
   </Stack.Navigator>
@@ -120,10 +115,7 @@ const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProfileMain" component={ProfileScreen} />
     <Stack.Screen name="Children" component={ChildrenNavigator} />
-    <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
-    <Stack.Screen name="DistancePreferences" component={DistancePreferencesScreen} />
-    <Stack.Screen name="ViewSettings" component={ViewSettingsScreen} />
     <Stack.Screen name="Legal" component={LegalScreen} />
   </Stack.Navigator>
 );
@@ -349,8 +341,8 @@ const RootNavigator = () => {
   const authLoading = useAppSelector((state) => state.auth?.isLoading ?? true);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const { isDark, colors } = useTheme();
-  console.log('Theme loaded:', { isDark, hasColors: !!colors });
+  const { colors } = useTheme();
+  console.log('Theme loaded:', { hasColors: !!colors });
 
   // Navigation ref for push notification handling
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
@@ -455,7 +447,7 @@ const RootNavigator = () => {
         onReady={onNavigationReady}
         linking={linking}
         theme={{
-          dark: isDark,
+          dark: false,
           colors: {
             primary: colors.primary,
             background: colors.background,
@@ -484,8 +476,8 @@ const RootNavigator = () => {
           },
         }}
       >
-        <StatusBar 
-          barStyle={isDark ? 'light-content' : 'dark-content'} 
+        <StatusBar
+          barStyle="dark-content"
           backgroundColor={colors.background}
         />
         <Stack.Navigator

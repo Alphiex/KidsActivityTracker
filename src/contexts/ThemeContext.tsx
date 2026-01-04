@@ -1,8 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeColors {
   primary: string;
@@ -29,10 +26,7 @@ interface ThemeColors {
 }
 
 interface ThemeContextType {
-  mode: ThemeMode;
-  isDark: boolean;
   colors: ThemeColors;
-  setMode: (mode: ThemeMode) => void;
 }
 
 const lightColors: ThemeColors = {
@@ -59,30 +53,6 @@ const lightColors: ThemeColors = {
   shadowColor: '#000000',
 };
 
-const darkColors: ThemeColors = {
-  primary: '#FFB5C5',
-  primaryDark: '#E8638B',
-  background: '#0f0f0f',
-  surface: '#1a1a1a',
-  surfaceVariant: '#262626',
-  text: '#ffffff',
-  textSecondary: '#a0a0a0',
-  border: '#333333',
-  error: '#ff6b6b',
-  success: '#66d9a0',
-  warning: '#ffc947',
-  info: '#66b3ff',
-  cardBackground: '#1a1a1a',
-  headerBackground: '#1a1a1a',
-  tabBarBackground: '#1a1a1a',
-  tabBarActive: '#FFB5C5',
-  tabBarInactive: '#666666',
-  gradientStart: '#FFB5C5',
-  gradientEnd: '#E8638B',
-  inputBackground: '#262626',
-  shadowColor: '#000000',
-};
-
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const useTheme = () => {
@@ -98,41 +68,14 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _systemColorScheme = useColorScheme(); // Keep hook but ignore value
-  const [mode, setModeState] = useState<ThemeMode>('light');
+  // Keep useColorScheme hook for React Native internal consistency
+  useColorScheme();
 
-  // Force light mode - dark mode disabled
-  const isDark = false;
-  const colors = lightColors;
-
-  useEffect(() => {
-    // Load saved theme preference
-    loadThemeMode();
-  }, []);
-
-  const loadThemeMode = async () => {
-    try {
-      const savedMode = await AsyncStorage.getItem('themeMode');
-      if (savedMode && ['light', 'dark', 'system'].includes(savedMode)) {
-        setModeState(savedMode as ThemeMode);
-      }
-    } catch (error) {
-      console.error('Error loading theme mode:', error);
-    }
-  };
-
-  const setMode = async (newMode: ThemeMode) => {
-    try {
-      await AsyncStorage.setItem('themeMode', newMode);
-      setModeState(newMode);
-    } catch (error) {
-      console.error('Error saving theme mode:', error);
-    }
-  };
+  // Force light mode - state ensures proper React lifecycle
+  const [colors] = useState<ThemeColors>(lightColors);
 
   return (
-    <ThemeContext.Provider value={{ mode, isDark, colors, setMode }}>
+    <ThemeContext.Provider value={{ colors }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -33,7 +33,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   containerStyle,
   inputStyle,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const inputRef = useRef<TextInput>(null);
   const [searchText, setSearchText] = useState('');
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -292,7 +292,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           </Text>
 
           <TextInput
-            key={`street-${isDark ? 'dark' : 'light'}`}
+            key="street-light"
             style={[
               styles.manualInput,
               {
@@ -310,12 +310,12 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             autoCorrect={false}
             editable={!disabled && !isGeocodingManual}
             onFocus={onFocus}
-            keyboardAppearance={isDark ? 'dark' : 'light'}
+            keyboardAppearance="light"
             selectionColor={colors.primary}
           />
 
           <TextInput
-            key={`city-${isDark ? 'dark' : 'light'}`}
+            key="city-light"
             style={[
               styles.manualInput,
               {
@@ -333,13 +333,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             autoCorrect={false}
             editable={!disabled && !isGeocodingManual}
             onFocus={onFocus}
-            keyboardAppearance={isDark ? 'dark' : 'light'}
+            keyboardAppearance="light"
             selectionColor={colors.primary}
           />
 
           <View style={styles.manualInputRow}>
             <TextInput
-              key={`province-${isDark ? 'dark' : 'light'}`}
+              key="province-light"
               style={[
                 styles.manualInput,
                 styles.manualInputHalf,
@@ -358,11 +358,11 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               autoCorrect={false}
               editable={!disabled && !isGeocodingManual}
               onFocus={onFocus}
-              keyboardAppearance={isDark ? 'dark' : 'light'}
+              keyboardAppearance="light"
               selectionColor={colors.primary}
             />
             <TextInput
-              key={`postal-${isDark ? 'dark' : 'light'}`}
+              key="postal-light"
               style={[
                 styles.manualInput,
                 styles.manualInputHalf,
@@ -381,7 +381,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
               autoCorrect={false}
               editable={!disabled && !isGeocodingManual}
               onFocus={onFocus}
-              keyboardAppearance={isDark ? 'dark' : 'light'}
+              keyboardAppearance="light"
               selectionColor={colors.primary}
             />
           </View>
@@ -440,7 +440,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
         <TextInput
           ref={inputRef}
-          key={`search-input-${isDark ? 'dark' : 'light'}`}
+          key="search-input-light"
           style={[
             styles.textInput,
             inputStyle,
@@ -460,7 +460,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="search"
-          keyboardAppearance={isDark ? 'dark' : 'light'}
+          keyboardAppearance="light"
           selectionColor={colors.primary}
           onFocus={() => {
             if (predictions.length > 0) {

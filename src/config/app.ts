@@ -21,7 +21,6 @@ export const APP_CONFIG = {
   
   // Feature Flags
   features: {
-    darkMode: true,
     notifications: true,
     analytics: false,
   },

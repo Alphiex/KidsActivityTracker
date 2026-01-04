@@ -39,7 +39,7 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
   onChange,
   showAvatar = true,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleNameChange = (name: string) => {
@@ -108,7 +108,7 @@ const ChildProfileStep: React.FC<ChildProfileStepProps> = ({
           placeholderTextColor={colors.textSecondary}
           autoCapitalize="words"
           autoCorrect={false}
-          keyboardAppearance={isDark ? 'dark' : 'light'}
+          keyboardAppearance="light"
           selectionColor={colors.primary}
         />
       </View>

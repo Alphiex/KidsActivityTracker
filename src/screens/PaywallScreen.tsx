@@ -149,7 +149,7 @@ interface PaywallScreenProps {
 const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const currentTier = useAppSelector(selectCurrentTier);
   const isTrialing = useAppSelector(selectIsTrialing);
@@ -558,7 +558,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
       >
         {/* Hero Section with Gradient */}
         <LinearGradient
-          colors={isDark ? ['#1a1a2e', '#16213e'] : ['#FFF5F7', '#FFFFFF']}
+          colors={['#FFF5F7', '#FFFFFF']}
           style={styles.heroGradient}
         >
           <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
@@ -579,7 +579,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
           </Animated.View>
 
           {/* Billing Toggle */}
-          <View style={[styles.billingToggle, { backgroundColor: isDark ? '#2a2a3e' : '#F0F0F0' }]}>
+          <View style={[styles.billingToggle, { backgroundColor: '#F0F0F0' }]}>
             <TouchableOpacity
               style={[
                 styles.billingOption,
@@ -639,7 +639,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             What You Get with Pro
           </Text>
-          <View style={[styles.compareCard, { backgroundColor: isDark ? '#1a1a2e' : '#F8F9FA' }]}>
+          <View style={[styles.compareCard, { backgroundColor: '#F8F9FA' }]}>
             <View style={styles.compareHeader}>
               <Text style={[styles.compareHeaderText, { color: colors.textSecondary }]}>Feature</Text>
               <Text style={[styles.compareHeaderText, { color: colors.textSecondary }]}>Free</Text>
@@ -672,7 +672,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({ route }) => {
         </View>
 
         {/* Social Proof Section */}
-        <View style={[styles.socialProofSection, { backgroundColor: isDark ? '#1a1a2e' : '#FFF5F7' }]}>
+        <View style={[styles.socialProofSection, { backgroundColor: '#FFF5F7' }]}>
           <View style={styles.socialProofHeader}>
             <View style={styles.ratingStars}>
               {[1, 2, 3, 4, 5].map((star) => (

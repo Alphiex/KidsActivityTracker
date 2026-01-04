@@ -1,7 +1,12 @@
 // UI Images
 export const aiRobotImage = require('./ai-robot.png');
 export const appLogoImage = require('./app-logo.png');
-export const friendsFamilyHeaderImage = require('./friends-family-header.png');
+export const friendsFamilyHeaderImage = require('./friends-family-header.jpg');
+export const favoritesHeaderImage = require('./favorites-header.png');
+export const recommendedHeaderImage = require('./recommended-header.jpg');
+export const budgetFriendlyHeaderImage = require('./budget-friendly-header.jpg');
+export const browseAgeGroupsHeaderImage = require('./browse-age-groups-header.jpg');
+export const collectionButtonImage = require('./collection-button.png');
 
 // Activity Type fallback images (used when specific activity image not available)
 export const activityTypeImages: { [key: string]: any } = {

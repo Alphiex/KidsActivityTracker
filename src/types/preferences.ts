@@ -152,10 +152,6 @@ export interface UserPreferences {
     reminders?: boolean;
   };
   
-  // Display preferences
-  theme: 'light' | 'dark' | 'auto';
-  viewType: 'card' | 'list' | 'compact';
-  
   // Activity filtering preferences
   hideClosedActivities: boolean;
   hideFullActivities: boolean;
