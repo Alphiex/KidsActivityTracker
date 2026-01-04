@@ -555,6 +555,176 @@ export async function cancelSubscription(partnerAccountId: string): Promise<void
 }
 
 /**
+ * Change subscription tier (upgrade or downgrade)
+ * - Upgrades: Take effect immediately with prorated charge
+ * - Downgrades: Take effect at end of current billing period
+ */
+export async function changeSubscriptionTier(params: {
+  partnerAccountId: string;
+  newTier: PartnerTier;
+  billingCycle: 'monthly' | 'annual';
+}): Promise<{
+  success: boolean;
+  isUpgrade: boolean;
+  effectiveDate: Date;
+  prorationAmount?: number;
+}> {
+  const { partnerAccountId, newTier, billingCycle } = params;
+
+  const partnerAccount = await prisma.partnerAccount.findUnique({
+    where: { id: partnerAccountId },
+    include: { plan: true },
+  });
+
+  if (!partnerAccount || !partnerAccount.revenueCatCustomerId) {
+    throw new Error('No active subscription found');
+  }
+
+  // Get current subscription
+  const subscriptions = await stripe.subscriptions.list({
+    customer: partnerAccount.revenueCatCustomerId,
+    status: 'active',
+  });
+
+  if (subscriptions.data.length === 0) {
+    throw new Error('No active subscription found');
+  }
+
+  const subscription = subscriptions.data[0];
+  const subscriptionItem = subscription.items.data[0];
+  const currentTier = partnerAccount.plan?.tier || 'bronze';
+
+  // Determine if upgrade or downgrade
+  const tierOrder = ['bronze', 'silver', 'gold'];
+  const currentTierIndex = tierOrder.indexOf(currentTier);
+  const newTierIndex = tierOrder.indexOf(newTier);
+  const isUpgrade = newTierIndex > currentTierIndex;
+
+  // Get new price ID
+  const products = await initializeStripeProducts();
+  const newProductConfig = products[newTier];
+  const newPriceId = billingCycle === 'monthly'
+    ? newProductConfig.monthlyPriceId
+    : newProductConfig.yearlyPriceId;
+
+  console.log(`[Stripe] Changing tier for ${partnerAccountId}: ${currentTier} -> ${newTier} (${isUpgrade ? 'upgrade' : 'downgrade'})`);
+
+  let effectiveDate: Date;
+  let prorationAmount: number | undefined;
+
+  if (isUpgrade) {
+    // Upgrades: Apply immediately with proration
+    const updatedSubscription = await stripe.subscriptions.update(subscription.id, {
+      items: [{
+        id: subscriptionItem.id,
+        price: newPriceId,
+      }],
+      proration_behavior: 'create_prorations',
+      metadata: {
+        ...subscription.metadata,
+        tier: newTier,
+        billingCycle,
+      },
+    });
+
+    effectiveDate = new Date();
+
+    // Get proration amount from upcoming invoice
+    try {
+      const upcomingInvoice = await stripe.invoices.retrieveUpcoming({
+        customer: partnerAccount.revenueCatCustomerId,
+      });
+      prorationAmount = upcomingInvoice.amount_due / 100;
+    } catch (e) {
+      // Proration may already be charged
+    }
+
+    // Update partner account immediately
+    let plan = await prisma.partnerPlan.findFirst({ where: { tier: newTier } });
+    if (!plan) {
+      const tierConfig = PARTNER_TIERS[newTier];
+      plan = await prisma.partnerPlan.create({
+        data: {
+          name: tierConfig.name,
+          tier: newTier,
+          monthlyPrice: tierConfig.monthlyPrice / 100,
+          yearlyPrice: tierConfig.yearlyPrice / 100,
+          impressionLimit: tierConfig.impressionLimit,
+          features: tierConfig.features,
+          isActive: true,
+        },
+      });
+    }
+
+    // Get period end from subscription items
+    let periodEndTimestamp = (updatedSubscription as any).current_period_end;
+    if (!periodEndTimestamp && updatedSubscription.items?.data?.[0]) {
+      periodEndTimestamp = (updatedSubscription.items.data[0] as any).current_period_end;
+    }
+    const currentPeriodEnd = periodEndTimestamp
+      ? new Date(periodEndTimestamp * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.partnerAccount.update({
+      where: { id: partnerAccountId },
+      data: {
+        planId: plan.id,
+        subscriptionEndDate: currentPeriodEnd,
+      },
+    });
+
+    // Update featured activities
+    if (partnerAccount.providerId) {
+      await prisma.activity.updateMany({
+        where: { providerId: partnerAccount.providerId },
+        data: {
+          featuredTier: newTier,
+          featuredEndDate: currentPeriodEnd,
+        },
+      });
+    }
+
+    console.log(`[Stripe] Upgrade applied immediately for ${partnerAccountId}`);
+  } else {
+    // Downgrades: Schedule for end of billing period
+    await stripe.subscriptions.update(subscription.id, {
+      items: [{
+        id: subscriptionItem.id,
+        price: newPriceId,
+      }],
+      proration_behavior: 'none', // No proration for downgrades
+      billing_cycle_anchor: 'unchanged',
+      metadata: {
+        ...subscription.metadata,
+        tier: newTier,
+        billingCycle,
+        pendingDowngrade: 'true',
+      },
+    });
+
+    // Get period end from subscription items
+    let periodEndTimestamp = (subscription as any).current_period_end;
+    if (!periodEndTimestamp && subscription.items?.data?.[0]) {
+      periodEndTimestamp = (subscription.items.data[0] as any).current_period_end;
+    }
+    effectiveDate = periodEndTimestamp
+      ? new Date(periodEndTimestamp * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Note: The actual plan change will be handled by the subscription.updated webhook
+    // when the billing period ends. For now, we just log the scheduled change.
+    console.log(`[Stripe] Downgrade scheduled for ${effectiveDate.toISOString()} for ${partnerAccountId}`);
+  }
+
+  return {
+    success: true,
+    isUpgrade,
+    effectiveDate,
+    prorationAmount,
+  };
+}
+
+/**
  * Get subscription details for a partner
  */
 export async function getSubscriptionDetails(partnerAccountId: string): Promise<{

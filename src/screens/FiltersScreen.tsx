@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Slider from '@react-native-community/slider';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -105,6 +106,7 @@ const FiltersScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const originalPreferencesRef = useRef<UserPreferences | null>(null); // Store original for cancel
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const [sections, setSections] = useState<ExpandableSection[]>([
@@ -173,6 +175,11 @@ const FiltersScreen = () => {
         dateMatchMode: userPrefs.dateMatchMode
       });
       setPreferences(userPrefs);
+
+      // Store original preferences for cancel functionality (only on first load)
+      if (!originalPreferencesRef.current) {
+        originalPreferencesRef.current = { ...userPrefs };
+      }
 
       // Initialize date state from preferences
       if (userPrefs.dateRange?.start) {
@@ -440,6 +447,22 @@ const FiltersScreen = () => {
   const handleNavigateToCalendar = () => {
     navigation.navigate('Calendar' as never);
   };
+
+  // Cancel - restore original preferences and go back
+  const handleCancel = useCallback(() => {
+    if (originalPreferencesRef.current) {
+      // Restore original preferences
+      preferencesService.updatePreferences(originalPreferencesRef.current);
+      console.log('📋 [FiltersScreen] Cancelled - restored original preferences');
+    }
+    navigation.goBack();
+  }, [navigation, preferencesService]);
+
+  // Apply - keep current preferences and go back
+  const handleApply = useCallback(() => {
+    console.log('📋 [FiltersScreen] Applied filters');
+    navigation.goBack();
+  }, [navigation]);
 
   const getSectionSummary = (section: ExpandableSection) => {
     switch (section.id) {
@@ -1519,6 +1542,24 @@ const FiltersScreen = () => {
         <View style={styles.bottomPadding} />
       </Animated.ScrollView>
 
+      {/* Bottom Action Bar */}
+      <View style={styles.bottomActionBar}>
+        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
+          <LinearGradient
+            colors={[ModernColors.primary, '#D53F8C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.applyButtonGradient}
+          >
+            <Icon name="check" size={18} color="#FFFFFF" />
+            <Text style={styles.applyButtonText}>Apply Filters</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
       {/* Upgrade Modal */}
       <UpgradePromptModal
         visible={showUpgradeModal}
@@ -2386,6 +2427,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     marginTop: 2,
+  },
+  // Bottom action bar styles
+  bottomActionBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  cancelButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  applyButton: {
+    flex: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  applyButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    gap: 8,
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

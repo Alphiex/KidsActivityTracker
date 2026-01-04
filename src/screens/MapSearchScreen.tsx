@@ -25,6 +25,7 @@ import childPreferencesService from '../services/childPreferencesService';
 import { ClusterMarker } from '../components/map';
 import ChildAvatar from '../components/children/ChildAvatar';
 import { Colors } from '../theme';
+import { ModernColors } from '../theme/modernTheme';
 import { useTheme } from '../contexts/ThemeContext';
 import TopTabNavigation from '../components/TopTabNavigation';
 import ScreenBackground from '../components/ScreenBackground';
@@ -1287,36 +1288,35 @@ const MapSearchScreen = () => {
 
 
         {/* Filter Button - Top Right */}
-        <View style={styles.searchButtonContainer}>
+        <View style={styles.filterButtonContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, searchFilters && styles.searchButtonActive]}
+            style={[
+              styles.filterButton,
+              searchFilters ? styles.filterButtonActive : styles.filterButtonInactive,
+            ]}
             onPress={handleOpenSearch}
+            activeOpacity={0.8}
           >
             <Icon
-              name="filter-variant"
-              size={22}
-              color={searchFilters ? '#fff' : Colors.primary}
+              name="tune"
+              size={18}
+              color={searchFilters ? '#FFFFFF' : ModernColors.primary}
             />
+            <Text style={[styles.filterButtonText, searchFilters && styles.filterButtonTextActive]}>
+              {searchFilters ? 'Filtered' : 'Filters'}
+            </Text>
+            {searchFilters && (
+              <TouchableOpacity
+                style={styles.clearFilterBadge}
+                onPress={clearSearchFilters}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Icon name="close" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
-          {searchFilters && (
-            <TouchableOpacity
-              style={styles.clearSearchBadge}
-              onPress={clearSearchFilters}
-            >
-              <Icon name="close" size={12} color="#fff" />
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Filter Active Indicator */}
-        {searchFilters && (
-          <View style={styles.searchIndicator}>
-            <Icon name="filter" size={14} color="#fff" />
-            <Text style={styles.searchIndicatorText} numberOfLines={1}>
-              {searchQuery || 'Filtered'}
-            </Text>
-          </View>
-        )}
 
         {/* Action Buttons - Bottom Right */}
         <View style={styles.actionButtons}>
@@ -1481,14 +1481,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  filterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary + '15',
-  },
   // Map section - 55% of screen
   mapSection: {
     flex: 0.55,
@@ -1541,29 +1533,52 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  searchButtonContainer: {
+  filterButtonContainer: {
     position: 'absolute',
     top: 12,
     right: 12,
     zIndex: 101, // Above place search bar
   },
-  searchButtonActive: {
-    backgroundColor: Colors.primary,
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  clearSearchBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
+  filterButtonInactive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: ModernColors.primary,
+  },
+  filterButtonActive: {
+    backgroundColor: ModernColors.primary,
+    borderColor: ModernColors.primary,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ModernColors.primary,
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  clearFilterBadge: {
+    marginLeft: 4,
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#D93025',
+    backgroundColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
-  searchIndicator: {
+  searchIndicatorLegacy: { // Kept for reference but no longer used
     position: 'absolute',
     top: 12,
     left: 12,
@@ -1788,7 +1803,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    right: 60, // Leave room for filter button on right
+    right: 120, // Leave room for wider filter button on right
     zIndex: 100,
   },
   placeSearchInputContainer: {

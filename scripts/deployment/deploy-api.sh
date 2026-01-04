@@ -34,7 +34,7 @@ gcloud run deploy $SERVICE_NAME \
   --port 3000 \
   --set-env-vars "NODE_ENV=production,OPENAI_MODEL_SMALL=gpt-4o-mini,OPENAI_MODEL_LARGE=gpt-4o,AI_MAX_TOKENS=2000,AI_TEMPERATURE=0.3,AI_MAX_CANDIDATES=30,AI_RATE_LIMIT_PER_MIN=10,AI_DAILY_BUDGET_USD=10.00" \
   --add-cloudsql-instances $PROJECT_ID:$REGION:kids-activity-db-dev \
-  --set-secrets "DATABASE_URL=database-url:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest" \
+  --set-secrets "DATABASE_URL=database-url:latest,JWT_ACCESS_SECRET=jwt-access-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,OPENAI_API_KEY=openai-api-key:latest,STRIPE_SECRET_KEY=stripe-secret-key:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret:latest,FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest" \
   --project $PROJECT_ID
 
 echo "✅ Deployment complete!"

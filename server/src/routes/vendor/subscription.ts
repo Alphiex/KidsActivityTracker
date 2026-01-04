@@ -471,4 +471,95 @@ router.post('/cancel', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/vendor/:vendorId/subscription/change-tier
+ * Change subscription tier (upgrade or downgrade)
+ * - Upgrades: Take effect immediately with prorated charge
+ * - Downgrades: Take effect at end of current billing period
+ */
+router.post('/change-tier', [
+  body('newTier').isIn(['bronze', 'silver', 'gold']).withMessage('Tier must be bronze, silver, or gold'),
+  body('billingCycle').isIn(['monthly', 'annual']).withMessage('Billing cycle must be monthly or annual'),
+], async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { vendorId } = req.params;
+    const { newTier, billingCycle } = req.body;
+
+    // Verify the token belongs to this vendor
+    if (req.vendor?.id !== vendorId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+      });
+    }
+
+    // Get partner account
+    const vendor = await prisma.vendor.findUnique({
+      where: { id: vendorId },
+      include: {
+        provider: {
+          include: {
+            partnerAccount: {
+              include: { plan: true }
+            }
+          }
+        }
+      }
+    });
+
+    const partnerAccount = vendor?.provider?.partnerAccount;
+
+    if (!partnerAccount || partnerAccount.subscriptionStatus !== 'active') {
+      return res.status(400).json({
+        success: false,
+        error: 'No active subscription found. Please subscribe first.'
+      });
+    }
+
+    const currentTier = partnerAccount.plan?.tier;
+    if (currentTier === newTier) {
+      return res.status(400).json({
+        success: false,
+        error: `You are already on the ${newTier} tier`
+      });
+    }
+
+    // Import and call the change tier function
+    const { changeSubscriptionTier, PARTNER_TIERS } = await import('../../services/stripeService');
+
+    const result = await changeSubscriptionTier({
+      partnerAccountId: partnerAccount.id,
+      newTier,
+      billingCycle,
+    });
+
+    const tierConfig = PARTNER_TIERS[newTier as keyof typeof PARTNER_TIERS];
+
+    console.log(`[VendorSubscription] Tier change for vendor ${vendorId}: ${currentTier} -> ${newTier} (${result.isUpgrade ? 'upgrade' : 'downgrade'})`);
+
+    res.json({
+      success: true,
+      isUpgrade: result.isUpgrade,
+      message: result.isUpgrade
+        ? `Upgraded to ${tierConfig.name}! Your new features are now active.`
+        : `Downgrade to ${tierConfig.name} scheduled. Your current benefits will remain active until ${result.effectiveDate.toLocaleDateString()}.`,
+      effectiveDate: result.effectiveDate,
+      prorationAmount: result.prorationAmount,
+      newTier,
+      newPlan: tierConfig.name,
+    });
+  } catch (error: any) {
+    console.error('[VendorSubscription] Change tier error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to change subscription tier'
+    });
+  }
+});
+
 export default router;
