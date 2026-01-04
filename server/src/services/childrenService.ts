@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface CreateChildInput {
   userId: string;
   name: string;
-  dateOfBirth: Date;
+  dateOfBirth?: Date;  // Optional - child may not have DOB set initially
   gender?: string;
   avatarUrl?: string;
   avatarId?: number;
@@ -60,6 +60,8 @@ export class ChildrenService {
 
   /**
    * Get all children for a user (includes preferences with location data)
+   * Auto-creates default preferences for children that don't have them,
+   * inheriting location from user's profile preferences
    */
   async getChildrenByUserId(userId: string, includeInactive = false): Promise<ChildWithAge[]> {
     const children = await prisma.child.findMany({
@@ -75,11 +77,72 @@ export class ChildrenService {
       }
     });
 
-    return children.map(child => ({
-      ...child,
-      age: calculateAge(child.dateOfBirth),
-      ageInMonths: calculateAge(child.dateOfBirth, true)
-    }));
+    // Get user's preferences once (for inheriting location if needed)
+    // Check if any child needs preferences created OR needs location backfilled
+    let userPrefs: any = null;
+    const needsUserPrefs = children.some(c =>
+      !c.preferences || !c.preferences.savedAddress
+    );
+    if (needsUserPrefs) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { preferences: true }
+      });
+      userPrefs = (user?.preferences as any) || {};
+    }
+
+    // Auto-create preferences for children that don't have them
+    // Also backfill location for existing preferences that don't have it
+    const childrenWithPrefs = await Promise.all(
+      children.map(async (child) => {
+        let preferences = child.preferences;
+        if (!preferences) {
+          // Build preference data inheriting from user preferences
+          const prefsData: any = { childId: child.id };
+
+          // Inherit location from user's preferences if available
+          if (userPrefs?.savedAddress) {
+            prefsData.savedAddress = userPrefs.savedAddress;
+            prefsData.locationSource = userPrefs.locationSource || 'saved_address';
+            prefsData.distanceFilterEnabled = userPrefs.distanceFilterEnabled ?? true;
+            if (userPrefs.distanceRadiusKm) {
+              prefsData.distanceRadiusKm = userPrefs.distanceRadiusKm;
+            }
+            console.log(`[ChildrenService] Inheriting location from user prefs for child ${child.id}`);
+          }
+
+          // Inherit activity type preferences if available
+          if (userPrefs?.preferredActivityTypes?.length > 0) {
+            prefsData.preferredActivityTypes = userPrefs.preferredActivityTypes;
+          }
+
+          preferences = await prisma.childPreferences.create({
+            data: prefsData
+          });
+          console.log(`[ChildrenService] Auto-created preferences for child ${child.id}`);
+        } else if (!preferences.savedAddress && userPrefs?.savedAddress) {
+          // Backfill location for existing preferences that don't have it
+          preferences = await prisma.childPreferences.update({
+            where: { id: preferences.id },
+            data: {
+              savedAddress: userPrefs.savedAddress,
+              locationSource: userPrefs.locationSource || 'saved_address',
+              distanceFilterEnabled: userPrefs.distanceFilterEnabled ?? true,
+              distanceRadiusKm: userPrefs.distanceRadiusKm || 25
+            }
+          });
+          console.log(`[ChildrenService] Backfilled location for child ${child.id}`);
+        }
+        return {
+          ...child,
+          preferences,
+          age: calculateAge(child.dateOfBirth),
+          ageInMonths: calculateAge(child.dateOfBirth, true)
+        };
+      })
+    );
+
+    return childrenWithPrefs;
   }
 
   /**

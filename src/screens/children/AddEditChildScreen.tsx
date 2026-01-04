@@ -66,7 +66,8 @@ const AddEditChildScreen: React.FC = () => {
 
   const [name, setName] = useState(existingChild?.name || '');
 
-  // Date picker state
+  // Date picker state - track if user has explicitly set the birth date
+  const [hasBirthDate, setHasBirthDate] = useState(() => !!existingChild?.dateOfBirth);
   const [birthDate, setBirthDate] = useState(() => {
     if (existingChild?.dateOfBirth) {
       console.log('Loading existing child dateOfBirth:', existingChild.dateOfBirth);
@@ -101,7 +102,7 @@ const AddEditChildScreen: React.FC = () => {
       }
     }
 
-    // Default to 5 years ago
+    // Default to 5 years ago (used as initial picker value)
     const defaultDate = new Date(new Date().getFullYear() - 5, new Date().getMonth(), new Date().getDate());
     console.log('Using default date:', defaultDate.toString());
     return defaultDate;
@@ -143,6 +144,7 @@ const AddEditChildScreen: React.FC = () => {
         isValid: !isNaN(selectedDate.getTime())
       });
       setBirthDate(selectedDate);
+      setHasBirthDate(true);  // User explicitly set the date
     }
   };
 
@@ -228,23 +230,28 @@ const AddEditChildScreen: React.FC = () => {
       return;
     }
 
-    // Format date as YYYY-MM-DD in local timezone (not UTC)
-    console.log('birthDate object:', birthDate);
-    console.log('birthDate.getFullYear():', birthDate.getFullYear());
-    console.log('birthDate.getMonth():', birthDate.getMonth());
-    console.log('birthDate.getDate():', birthDate.getDate());
+    // Only include dateOfBirth if user has explicitly set it
+    let dateOfBirth: string | undefined;
+    if (hasBirthDate) {
+      // Format date as YYYY-MM-DD in local timezone (not UTC)
+      console.log('birthDate object:', birthDate);
+      console.log('birthDate.getFullYear():', birthDate.getFullYear());
+      console.log('birthDate.getMonth():', birthDate.getMonth());
+      console.log('birthDate.getDate():', birthDate.getDate());
 
-    const year = birthDate.getFullYear();
-    const month = String(birthDate.getMonth() + 1).padStart(2, '0');
-    const day = String(birthDate.getDate()).padStart(2, '0');
-    // Format as ISO 8601 for API validation
-    const dateOfBirth = `${year}-${month}-${day}T00:00:00.000Z`;
-
-    console.log('Formatted dateOfBirth:', dateOfBirth);
+      const year = birthDate.getFullYear();
+      const month = String(birthDate.getMonth() + 1).padStart(2, '0');
+      const day = String(birthDate.getDate()).padStart(2, '0');
+      // Format as ISO 8601 for API validation
+      dateOfBirth = `${year}-${month}-${day}T00:00:00.000Z`;
+      console.log('Formatted dateOfBirth:', dateOfBirth);
+    } else {
+      console.log('No birth date set - skipping dateOfBirth');
+    }
 
     const childData = {
       name: name.trim(),
-      dateOfBirth,
+      ...(dateOfBirth && { dateOfBirth }),
       interests: selectedInterests,
       allergies: allergies ? allergies.split(',').map(a => a.trim()) : undefined,
       medicalInfo: medicalInfo.trim() || undefined,
@@ -385,15 +392,28 @@ const AddEditChildScreen: React.FC = () => {
               />
             </View>
 
-            {/* Date of Birth */}
+            {/* Date of Birth (Optional) */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Date of Birth</Text>
+              <Text style={styles.label}>Date of Birth <Text style={styles.optionalLabel}>(optional)</Text></Text>
               <TouchableOpacity
                 style={styles.datePickerButton}
                 onPress={() => setShowDatePicker(true)}
               >
-                <Icon name="calendar-today" size={20} color="#666" />
-                <Text style={styles.datePickerText}>{formatDate(birthDate)}</Text>
+                <Icon name="calendar-today" size={20} color={hasBirthDate ? "#666" : "#999"} />
+                <Text style={[styles.datePickerText, !hasBirthDate && styles.datePickerPlaceholder]}>
+                  {hasBirthDate ? formatDate(birthDate) : 'Tap to add birth date'}
+                </Text>
+                {hasBirthDate && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setHasBirthDate(false);
+                      setShowDatePicker(false);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Icon name="close" size={18} color="#999" />
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
 
               {showDatePicker && (
@@ -617,6 +637,14 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 12,
     flex: 1,
+  },
+  datePickerPlaceholder: {
+    color: '#999',
+  },
+  optionalLabel: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '400',
   },
   interestsGrid: {
     flexDirection: 'row',

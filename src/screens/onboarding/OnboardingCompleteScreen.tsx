@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PreferencesService from '../../services/preferencesService';
 import { appEventEmitter, APP_EVENTS } from '../../utils/eventEmitter';
+import { useAppDispatch } from '../../store';
+import { fetchChildren } from '../../store/slices/childrenSlice';
+import { fetchChildFavorites, fetchChildWatching, fetchChildWaitlist } from '../../store/slices/childFavoritesSlice';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -20,14 +23,40 @@ const { width: screenWidth } = Dimensions.get('window');
 const familyImage = require('../../assets/illustrations/onboarding-3-family.png');
 
 const OnboardingCompleteScreen: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleComplete = async () => {
+    setIsLoading(true);
     try {
+      // CRITICAL: Fetch children and their data BEFORE completing onboarding
+      // This ensures Redux state is fully synced before MainTabs is shown
+      console.log('[OnboardingComplete] Fetching children before completing...');
+      const childrenResult = await dispatch(fetchChildren()).unwrap();
+
+      if (childrenResult && childrenResult.length > 0) {
+        const childIds = childrenResult.map((c: any) => c.id);
+        console.log('[OnboardingComplete] Loaded children:', childIds);
+
+        // Pre-fetch child-related data
+        await Promise.all([
+          dispatch(fetchChildFavorites(childIds)),
+          dispatch(fetchChildWatching(childIds)),
+          dispatch(fetchChildWaitlist(childIds)),
+        ]);
+        console.log('[OnboardingComplete] Loaded child favorites/watching/waitlist');
+      }
+
       await AsyncStorage.setItem('hasSeenOnboarding', 'true');
       const preferencesService = PreferencesService.getInstance();
       await preferencesService.updatePreferences({ hasCompletedOnboarding: true });
       appEventEmitter.emit(APP_EVENTS.ONBOARDING_COMPLETED);
     } catch (error) {
       console.log('Error completing onboarding:', error);
+      // Still emit completion even if fetch fails - RootNavigator will re-fetch
+      appEventEmitter.emit(APP_EVENTS.ONBOARDING_COMPLETED);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -65,12 +94,22 @@ const OnboardingCompleteScreen: React.FC = () => {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={styles.startButton}
+          style={[styles.startButton, isLoading && styles.startButtonDisabled]}
           onPress={handleComplete}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
-          <Text style={styles.startButtonText}>Start Exploring</Text>
-          <Icon name="arrow-right" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+          {isLoading ? (
+            <>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+              <Text style={[styles.startButtonText, { marginLeft: 8 }]}>Loading...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.startButtonText}>Start Exploring</Text>
+              <Icon name="arrow-right" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -148,6 +187,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  startButtonDisabled: {
+    opacity: 0.7,
   },
   startButtonText: {
     color: '#FFFFFF',

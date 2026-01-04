@@ -6,7 +6,7 @@ import { RootState } from '../index';
 export interface Child {
   id: string;
   name: string;
-  dateOfBirth: string;
+  dateOfBirth?: string;  // Optional - can be set later
   gender?: 'male' | 'female' | null; // 'male', 'female', or null for prefer not to say
   interests?: string[];
   avatar?: string;           // Legacy: URL to custom avatar image
@@ -191,9 +191,19 @@ const childrenSlice = createSlice({
       .addCase(fetchChildren.fulfilled, (state, action) => {
         state.loading = false;
         state.children = action.payload;
-        // Initialize selectedChildIds to all children if empty
-        if (state.selectedChildIds.length === 0 && action.payload.length > 0) {
-          state.selectedChildIds = action.payload.map((c: ChildWithPreferences) => c.id);
+
+        // Ensure selectedChildIds contains only valid child IDs
+        const validChildIds = action.payload.map((c: ChildWithPreferences) => c.id);
+        const currentlyValidSelected = state.selectedChildIds.filter(id => validChildIds.includes(id));
+
+        // If no valid selections remain OR selectedChildIds was empty, select all children
+        if (currentlyValidSelected.length === 0 && action.payload.length > 0) {
+          state.selectedChildIds = validChildIds;
+          console.log('[childrenSlice] Initialized selectedChildIds to all children:', validChildIds);
+        } else if (currentlyValidSelected.length !== state.selectedChildIds.length) {
+          // Remove stale IDs that no longer exist
+          state.selectedChildIds = currentlyValidSelected;
+          console.log('[childrenSlice] Cleaned up stale selectedChildIds:', currentlyValidSelected);
         }
       })
       .addCase(fetchChildren.rejected, (state, action) => {
@@ -209,8 +219,11 @@ const childrenSlice = createSlice({
         state.loading = false;
         if (action.payload) {
           state.children.push(action.payload);
-          // Add new child to selected children
-          state.selectedChildIds.push(action.payload.id);
+          // Add new child to selected children (if not already there)
+          if (!state.selectedChildIds.includes(action.payload.id)) {
+            state.selectedChildIds.push(action.payload.id);
+          }
+          console.log('[childrenSlice] Added child:', action.payload.id, 'selectedChildIds:', state.selectedChildIds);
         }
       })
       .addCase(addChild.rejected, (state, action) => {

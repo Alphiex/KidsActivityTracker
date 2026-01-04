@@ -39,13 +39,23 @@ class SharingService {
     try {
       await this.loadData();
       this.initialized = true;
+      console.log('[SharingService] Initialized successfully');
     } catch (error) {
-      console.error('Error initializing sharing service:', error);
+      console.error('[SharingService] Error initializing:', error);
+      this.initialized = true; // Still mark as initialized to prevent hanging
     }
   }
 
   private async waitForInit() {
+    const maxWaitTime = 5000; // 5 second timeout
+    const startTime = Date.now();
+
     while (!this.initialized) {
+      if (Date.now() - startTime > maxWaitTime) {
+        console.warn('[SharingService] waitForInit timeout - forcing initialization');
+        this.initialized = true;
+        break;
+      }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
   }

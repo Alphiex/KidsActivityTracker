@@ -467,139 +467,76 @@ const FavoritesScreenModern: React.FC = () => {
     </TouchableOpacity>
   );
 
-  // Render waitlist item that has spots available
-  const renderAvailableWaitlistItem = ({ item }: { item: ChildWaitlistEntry }) => (
-    <TouchableOpacity
-      style={[styles.watchingCard, styles.availableCard]}
-      onPress={() => handleWaitlistActivityPress(item)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.availableBanner}>
-        <Icon name="check-circle" size={16} color="#FFFFFF" />
-        <Text style={styles.availableBannerText}>Spots Available!</Text>
-      </View>
+  // Render waitlist item using standard ActivityCard with Register Now button and spots highlight
+  const renderWaitlistItem = ({ item }: { item: ChildWaitlistEntry }) => {
+    if (!item.activity) return null;
 
-      <View style={styles.watchingContent}>
-        <View style={styles.watchingHeader}>
-          <View style={styles.watchingInfo}>
-            <Text style={styles.watchingName} numberOfLines={2}>
-              {item.activity?.name || 'Unknown Activity'}
+    const hasSpots = item.activity.spotsAvailable && item.activity.spotsAvailable > 0;
+    const spotsCount = item.activity.spotsAvailable || 0;
+
+    return (
+      <View style={styles.waitlistCardWrapper}>
+        {/* Spots Available Banner */}
+        {hasSpots && (
+          <View style={styles.spotsAvailableBanner}>
+            <Icon name="alert-circle" size={16} color="#FFFFFF" />
+            <Text style={styles.spotsAvailableBannerText}>
+              {spotsCount} {spotsCount === 1 ? 'Spot' : 'Spots'} Available!
             </Text>
-            {item.activity?.provider && (
-              <Text style={styles.watchingProvider} numberOfLines={1}>
-                {typeof item.activity.provider === 'string' ? item.activity.provider : (item.activity.provider as any)?.name || ''}
-              </Text>
+          </View>
+        )}
+
+        {/* Standard Activity Card */}
+        <ActivityCard
+          activity={item.activity as unknown as Activity}
+          onPress={() => handleWaitlistActivityPress(item)}
+          imageHeight={100}
+          canAddToWaitlist={canAddToWaitlist}
+          onWaitlistLimitReached={onWaitlistLimitReached}
+        />
+
+        {/* Action Footer with Register Now button */}
+        <View style={[
+          styles.waitlistCardFooter,
+          hasSpots && styles.waitlistCardFooterAvailable,
+        ]}>
+          <View style={styles.waitlistCardFooterLeft}>
+            {hasSpots ? (
+              <View style={styles.spotsHighlight}>
+                <Icon name="check-circle" size={16} color="#22C55E" />
+                <Text style={styles.spotsHighlightText}>
+                  {spotsCount} {spotsCount === 1 ? 'spot' : 'spots'} remaining
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.waitlistStatusBadge}>
+                <Icon name="account-clock" size={14} color="#8B5CF6" />
+                <Text style={styles.waitlistStatusText}>On waiting list</Text>
+              </View>
             )}
           </View>
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={() => handleRemoveFromWaitlist(item.activityId)}
-          >
-            <Icon name="close" size={20} color={ModernColors.textSecondary} />
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.watchingDetails}>
-          {item.activity?.location && (
-            <View style={styles.detailRow}>
-              <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
-              <Text style={styles.detailText} numberOfLines={1}>
-                {item.activity.location}
-              </Text>
-            </View>
-          )}
-          {item.activity?.cost !== undefined && item.activity.cost !== null && (
-            <View style={styles.detailRow}>
-              <Icon name="tag" size={14} color={ModernColors.textSecondary} />
-              <Text style={styles.detailText}>
-                {formatActivityPrice(item.activity.cost)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.watchingFooter}>
-          <TouchableOpacity
-            style={styles.registerButton}
-            onPress={() => handleWaitlistRegister(item)}
-          >
-            <Icon name="open-in-new" size={16} color="#FFFFFF" />
-            <Text style={styles.registerButtonText}>Register Now</Text>
-          </TouchableOpacity>
-          {item.activity?.spotsAvailable !== undefined && (
-            <Text style={styles.spotsTextAvailable}>
-              {item.activity.spotsAvailable} spots available
-            </Text>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  // Render waitlist item that's still waiting (no spots yet)
-  const renderWaitingItem = ({ item }: { item: ChildWaitlistEntry }) => (
-    <TouchableOpacity
-      style={styles.watchingCard}
-      onPress={() => handleWaitlistActivityPress(item)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.watchingContent}>
-        <View style={styles.watchingHeader}>
-          <View style={styles.watchingInfo}>
-            <Text style={styles.watchingName} numberOfLines={2}>
-              {item.activity?.name || 'Unknown Activity'}
-            </Text>
-            {item.activity?.provider && (
-              <Text style={styles.watchingProvider} numberOfLines={1}>
-                {typeof item.activity.provider === 'string' ? item.activity.provider : (item.activity.provider as any)?.name || ''}
-              </Text>
+          <View style={styles.waitlistCardFooterRight}>
+            {hasSpots && (
+              <TouchableOpacity
+                style={styles.registerNowButton}
+                onPress={() => handleWaitlistRegister(item)}
+              >
+                <Icon name="open-in-new" size={16} color="#FFFFFF" />
+                <Text style={styles.registerNowButtonText}>Register Now</Text>
+              </TouchableOpacity>
             )}
+            <TouchableOpacity
+              style={styles.removeFromWaitlistButton}
+              onPress={() => handleRemoveFromWaitlist(item.activityId)}
+            >
+              <Icon name="close" size={18} color={ModernColors.textSecondary} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={() => handleRemoveFromWaitlist(item.activityId)}
-          >
-            <Icon name="account-clock-outline" size={20} color={ModernColors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.watchingDetails}>
-          {item.activity?.location && (
-            <View style={styles.detailRow}>
-              <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
-              <Text style={styles.detailText} numberOfLines={1}>
-                {item.activity.location}
-              </Text>
-            </View>
-          )}
-          <View style={styles.detailRow}>
-            <Icon name="calendar-clock" size={14} color={ModernColors.textSecondary} />
-            <Text style={styles.detailText}>
-              On waitlist since {formatDate(item.createdAt)}
-            </Text>
-          </View>
-          {item.activity?.cost !== undefined && item.activity.cost !== null && (
-            <View style={styles.detailRow}>
-              <Icon name="tag" size={14} color={ModernColors.textSecondary} />
-              <Text style={styles.detailText}>
-                {formatActivityPrice(item.activity.cost)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.watchingFooter}>
-          <View style={styles.waitlistBadge}>
-            <Icon name="account-clock" size={14} color="#8B5CF6" />
-            <Text style={styles.waitlistBadgeText}>On waiting list</Text>
-          </View>
-          <Text style={styles.spotsText}>
-            {item.activity?.spotsAvailable === 0 ? 'Full' : `${item.activity?.spotsAvailable || 0} spots`}
-          </Text>
         </View>
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderEmptyState = () => {
     switch (activeTab) {
@@ -699,13 +636,7 @@ const FavoritesScreenModern: React.FC = () => {
         return combinedWaitlist.length > 0 ? (
           <FlatList
             data={combinedWaitlist}
-            renderItem={({ item }) => {
-              // Check if this item is available or waiting
-              const isAvailable = item.activity?.spotsAvailable && item.activity.spotsAvailable > 0;
-              return isAvailable
-                ? renderAvailableWaitlistItem({ item })
-                : renderWaitingItem({ item });
-            }}
+            renderItem={renderWaitlistItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
@@ -1180,6 +1111,96 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#22C55E',
     marginLeft: ModernSpacing.xs,
+  },
+  // Waitlist card with ActivityCard styles
+  waitlistCardWrapper: {
+    backgroundColor: ModernColors.surface,
+    borderRadius: ModernBorderRadius.lg,
+    overflow: 'hidden',
+    ...ModernShadows.sm,
+  },
+  spotsAvailableBanner: {
+    backgroundColor: '#22C55E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: ModernSpacing.sm,
+    paddingHorizontal: ModernSpacing.md,
+    gap: 6,
+  },
+  spotsAvailableBannerText: {
+    color: '#FFFFFF',
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '700',
+  },
+  waitlistCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: ModernSpacing.sm,
+    paddingHorizontal: ModernSpacing.md,
+    backgroundColor: ModernColors.background,
+    borderTopWidth: 1,
+    borderTopColor: ModernColors.border,
+  },
+  waitlistCardFooterAvailable: {
+    backgroundColor: '#F0FDF4',
+    borderTopColor: '#BBF7D0',
+  },
+  waitlistCardFooterLeft: {
+    flex: 1,
+  },
+  waitlistCardFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ModernSpacing.sm,
+  },
+  spotsHighlight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  spotsHighlightText: {
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '700',
+    color: '#16A34A',
+  },
+  waitlistStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE9FE',
+    paddingVertical: ModernSpacing.xs,
+    paddingHorizontal: ModernSpacing.sm,
+    borderRadius: ModernBorderRadius.md,
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  waitlistStatusText: {
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '500',
+    color: '#8B5CF6',
+  },
+  registerNowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#22C55E',
+    paddingVertical: ModernSpacing.sm,
+    paddingHorizontal: ModernSpacing.md,
+    borderRadius: ModernBorderRadius.md,
+    gap: 6,
+  },
+  registerNowButtonText: {
+    color: '#FFFFFF',
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '600',
+  },
+  removeFromWaitlistButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: ModernColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

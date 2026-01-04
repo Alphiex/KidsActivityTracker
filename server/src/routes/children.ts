@@ -10,7 +10,8 @@ const router = Router();
 // Validation middleware
 const validateChild = [
   body('name').notEmpty().trim().withMessage('Name is required'),
-  body('dateOfBirth').isISO8601().withMessage('Valid date of birth is required'),
+  // dateOfBirth is optional - if provided, must be valid ISO8601
+  body('dateOfBirth').optional({ nullable: true }).isISO8601().withMessage('Valid date of birth is required'),
   // Accept null, undefined, or valid string values for gender
   body('gender').optional({ nullable: true }).custom((value) => {
     if (value === null || value === undefined || value === '') return true;
@@ -71,7 +72,7 @@ router.post('/', verifyToken, validateChild, handleValidationErrors, async (req:
     const child = await childrenService.createChild({
       userId: req.user!.id,
       name: req.body.name,
-      dateOfBirth: new Date(req.body.dateOfBirth),
+      dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : undefined,
       gender: req.body.gender,
       avatarUrl: req.body.avatarUrl,
       avatarId: req.body.avatarId,

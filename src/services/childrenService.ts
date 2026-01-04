@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Child as StoreChild } from '../store/slices/childrenSlice';
+import { Child as StoreChild, ChildWithPreferences } from '../store/slices/childrenSlice';
 import { safeMap, safeParseDate, safeString, safeNumber, isValidObject, safeFirst } from '../utils/safeAccessors';
 
 export type Child = StoreChild;
@@ -18,7 +18,8 @@ interface LocationDetails {
 
 interface ChildFormData {
   name: string;
-  dateOfBirth: string;
+  dateOfBirth?: string;  // Optional - can be set later
+  gender?: 'male' | 'female' | null;  // Optional
   location?: string;
   locationDetails?: LocationDetails;
   interests?: string[];
@@ -88,32 +89,50 @@ class ChildrenService {
 
   private async loadLocalData(): Promise<void> {
     try {
-      const [activitiesData, sharedData] = await Promise.all([
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<[string | null, string | null]>((_, reject) => {
+        setTimeout(() => reject(new Error('AsyncStorage timeout')), 3000);
+      });
+
+      const dataPromise = Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.CHILD_ACTIVITIES),
         AsyncStorage.getItem(STORAGE_KEYS.SHARED_CHILDREN),
       ]);
 
+      const [activitiesData, sharedData] = await Promise.race([dataPromise, timeoutPromise]);
+
       if (activitiesData) {
-        this.childActivities = JSON.parse(activitiesData).map((activity: any) => ({
-          ...activity,
-          addedAt: new Date(activity.addedAt),
-          startedAt: activity.startedAt ? new Date(activity.startedAt) : undefined,
-          completedAt: activity.completedAt ? new Date(activity.completedAt) : undefined,
-        }));
+        try {
+          this.childActivities = JSON.parse(activitiesData).map((activity: any) => ({
+            ...activity,
+            addedAt: new Date(activity.addedAt),
+            startedAt: activity.startedAt ? new Date(activity.startedAt) : undefined,
+            completedAt: activity.completedAt ? new Date(activity.completedAt) : undefined,
+          }));
+        } catch (parseError) {
+          console.error('[ChildrenService] Error parsing activities data:', parseError);
+          this.childActivities = [];
+        }
       }
 
       if (sharedData) {
-        this.sharedChildren = JSON.parse(sharedData).map((shared: any) => ({
-          ...shared,
-          createdAt: new Date(shared.createdAt),
-          acceptedAt: shared.acceptedAt ? new Date(shared.acceptedAt) : undefined,
-        }));
+        try {
+          this.sharedChildren = JSON.parse(sharedData).map((shared: any) => ({
+            ...shared,
+            createdAt: new Date(shared.createdAt),
+            acceptedAt: shared.acceptedAt ? new Date(shared.acceptedAt) : undefined,
+          }));
+        } catch (parseError) {
+          console.error('[ChildrenService] Error parsing shared data:', parseError);
+          this.sharedChildren = [];
+        }
       }
-      
+
+      console.log('[ChildrenService] Loaded local data successfully');
       this.initialized = true;
     } catch (error) {
-      console.error('Error loading local data:', error);
-      this.initialized = true;
+      console.error('[ChildrenService] Error loading local data:', error);
+      this.initialized = true; // Still mark as initialized to prevent hanging
     }
   }
 
@@ -128,9 +147,10 @@ class ChildrenService {
     }
   }
 
-  async getChildren(): Promise<Child[]> {
+  async getChildren(): Promise<ChildWithPreferences[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; children: Child[] }>('/api/v1/children');
+      // Server returns children with preferences included (auto-created if needed)
+      const response = await apiClient.get<{ success: boolean; children: ChildWithPreferences[] }>('/api/v1/children');
       return Array.isArray(response?.children) ? response.children : [];
     } catch (error) {
       console.error('Error fetching children:', error);
@@ -561,7 +581,15 @@ class ChildrenService {
   }
 
   private async waitForInit(): Promise<void> {
+    const maxWaitTime = 5000; // 5 second timeout
+    const startTime = Date.now();
+
     while (!this.initialized) {
+      if (Date.now() - startTime > maxWaitTime) {
+        console.warn('[ChildrenService] waitForInit timeout - forcing initialization');
+        this.initialized = true;
+        break;
+      }
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }

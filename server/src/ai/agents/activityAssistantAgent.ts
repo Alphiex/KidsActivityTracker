@@ -25,6 +25,16 @@ import {
 import { RunnableSequence } from '@langchain/core/runnables';
 import { activityTools } from '../tools/activityTools';
 import { getChatAgentModel } from '../models/chatModels';
+import { PrismaClient } from '../../../generated/prisma';
+
+// Singleton prisma instance for this module
+let _prisma: PrismaClient | null = null;
+function getPrisma(): PrismaClient {
+  if (!_prisma) {
+    _prisma = new PrismaClient();
+  }
+  return _prisma;
+}
 import { analyzeQuery, QueryUnderstanding, quickExtract } from '../utils/queryUnderstanding';
 import { determineClarification, ClarificationDecision, generateFollowUpSuggestions } from '../utils/clarificationEngine';
 import { extractOverrides, mergeOverrides, summarizeOverrides } from '../utils/conversationOverrides';
@@ -454,13 +464,102 @@ function generateFollowUpPrompts(
 }
 
 /**
- * Extract activity mentions from response
+ * Extract activity mentions from response and fetch full details from database
  */
-function extractActivitiesFromResponse(response: string): any[] {
-  // Try to extract activity IDs or names mentioned
+async function extractActivitiesFromResponse(response: string): Promise<any[]> {
+  // Try to extract activity IDs mentioned in the response text
   const activityIdPattern = /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi;
   const matches = response.match(activityIdPattern) || [];
-  return matches.map(id => ({ id }));
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  // Deduplicate IDs
+  const uniqueIds = [...new Set(matches)];
+
+  try {
+    // Fetch full activity data from database
+    const prisma = getPrisma();
+    const activities = await prisma.activity.findMany({
+      where: {
+        id: { in: uniqueIds },
+      },
+      include: {
+        location: true,
+        provider: { select: { name: true } },
+      },
+    });
+
+    // Format activities in the same format as searchActivitiesTool
+    return activities.map(a => {
+      // Smart location extraction
+      let locationDisplay = 'Various locations';
+      if (a.location) {
+        if (a.location.address && a.location.city) {
+          locationDisplay = `${a.location.address}, ${a.location.city}`;
+        } else if (a.location.name && a.location.city) {
+          locationDisplay = `${a.location.name}, ${a.location.city}`;
+        } else if (a.location.city) {
+          locationDisplay = a.location.city;
+        } else if (a.location.name) {
+          locationDisplay = a.location.name;
+        }
+      }
+
+      return {
+        id: a.id,
+        name: a.name,
+        category: a.category,
+        price: a.cost ?? 0,
+        ageRange: a.ageMin || a.ageMax ? `${a.ageMin ?? 0}-${a.ageMax ?? 18} years` : 'All ages',
+        location: locationDisplay,
+        locationName: a.location?.name,
+        locationCity: a.location?.city,
+        provider: a.provider?.name,
+        schedule: formatScheduleForResponse(a),
+        status: a.registrationStatus ?? 'Unknown',
+        spotsAvailable: a.spotsAvailable,
+        startDate: a.dateStart ? a.dateStart.toISOString().split('T')[0] : null,
+        endDate: a.dateEnd ? a.dateEnd.toISOString().split('T')[0] : null,
+        dates: a.dateStart && a.dateEnd
+          ? `${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${a.dateEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+          : a.dateStart
+            ? `Starts ${a.dateStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+            : 'Ongoing',
+      };
+    });
+  } catch (error) {
+    console.error('[extractActivitiesFromResponse] Error fetching activities:', error);
+    // Fall back to just IDs if database fetch fails
+    return uniqueIds.map(id => ({ id }));
+  }
+}
+
+/**
+ * Helper to format schedule for activity response
+ */
+function formatScheduleForResponse(activity: any): string {
+  const schedule = activity.schedule as any;
+  if (!schedule) {
+    // Fall back to activity-level time fields
+    if (activity.startTime) {
+      return activity.endTime
+        ? `${activity.startTime} - ${activity.endTime}`
+        : activity.startTime;
+    }
+    return 'Contact for schedule';
+  }
+
+  const parts: string[] = [];
+  if (schedule.daysOfWeek?.length) {
+    parts.push(schedule.daysOfWeek.join(', '));
+  }
+  if (schedule.startTime) {
+    parts.push(schedule.endTime ? `${schedule.startTime}-${schedule.endTime}` : schedule.startTime);
+  }
+
+  return parts.length > 0 ? parts.join(' @ ') : 'Contact for schedule';
 }
 
 /**
@@ -716,10 +815,10 @@ export class ActivityChatService {
         ? response!.content.map(c => ('text' in c ? c.text : '')).join('')
         : '';
 
-    // Use activities from tool results, fallback to extracting from text
+    // Use activities from tool results, fallback to extracting from text (with full data fetch)
     const activities = foundActivities.length > 0
       ? foundActivities
-      : extractActivitiesFromResponse(responseText);
+      : await extractActivitiesFromResponse(responseText);
 
     // Generate enhanced follow-up suggestions based on results
     const followUpPrompts = conversation.lastQueryUnderstanding

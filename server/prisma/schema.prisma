@@ -272,7 +272,7 @@ model Child {
   id              String                 @id @default(uuid())
   userId          String
   name            String
-  dateOfBirth     DateTime
+  dateOfBirth     DateTime?              // Optional - can be set later
   gender          String?
   avatarUrl       String?
   avatarId        Int?                   // 1-10, references bundled avatar
