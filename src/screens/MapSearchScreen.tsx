@@ -703,6 +703,29 @@ const MapSearchScreen = () => {
     );
   }, []);
 
+  // Calculate distance from activity to the nearest child location
+  // Returns Infinity if no child locations are available (falls back to map center sorting)
+  const getDistanceToNearestChild = useCallback((activity: Activity): number => {
+    if (!activity.latitude || !activity.longitude) return Infinity;
+
+    // Get all child locations
+    const childLocations = selectedChildren
+      .map(child => getChildLocation(child))
+      .filter((loc): loc is { latitude: number; longitude: number } => loc !== null);
+
+    // If no children have locations, return Infinity to use fallback sorting
+    if (childLocations.length === 0) return Infinity;
+
+    // Calculate distance to each child and return the minimum
+    const distances = childLocations.map(loc => {
+      const latDiff = Math.abs(activity.latitude! - loc.latitude);
+      const lngDiff = Math.abs(activity.longitude! - loc.longitude);
+      return latDiff + lngDiff; // Manhattan distance (good approximation for sorting)
+    });
+
+    return Math.min(...distances);
+  }, [selectedChildren, getChildLocation]);
+
   // Update visible activities when region changes (debounced)
   // Also triggers a refetch if region moved significantly
   const updateVisibleActivities = useCallback((newRegion: Region) => {
@@ -718,12 +741,24 @@ const MapSearchScreen = () => {
     regionChangeTimeout.current = setTimeout(() => {
       const visible = getVisibleActivities(filteredActivities, newRegion);
       setTotalInViewport(visible.length);
-      // Limit to 50 for performance, sorted by distance from center
+
+      // Sort activities: prioritize by distance from children's locations
+      // Falls back to map center if no child locations available
       const sorted = visible.sort((a, b) => {
+        const distToChildA = getDistanceToNearestChild(a);
+        const distToChildB = getDistanceToNearestChild(b);
+
+        // If both have valid child distances, sort by child distance
+        if (distToChildA !== Infinity && distToChildB !== Infinity) {
+          return distToChildA - distToChildB;
+        }
+
+        // Fallback: sort by distance from map center
         const distA = Math.abs(a.latitude! - newRegion.latitude) + Math.abs(a.longitude! - newRegion.longitude);
         const distB = Math.abs(b.latitude! - newRegion.latitude) + Math.abs(b.longitude! - newRegion.longitude);
         return distA - distB;
       });
+
       setVisibleActivities(sorted.slice(0, 50));
 
       // If very few activities are visible and we might have more in this area, trigger refetch
@@ -741,7 +776,7 @@ const MapSearchScreen = () => {
         loadActivities(newRegion);
       }
     }, 800);
-  }, [filteredActivities, getVisibleActivities, searchFilters]);
+  }, [filteredActivities, getVisibleActivities, getDistanceToNearestChild, searchFilters]);
 
   // Initial visible activities update when activities load
   useEffect(() => {

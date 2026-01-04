@@ -456,42 +456,56 @@ const AIChatScreen = () => {
           ]}
         >
           {/* Activity Cards - Show ABOVE text for better UX */}
-          {hasActivities && (
-            <View style={styles.activitiesContainer}>
-              <View style={styles.activitiesHeader}>
-                <Text style={styles.activitiesLabel}>
-                  Found {item.activities!.length} {item.activities!.length === 1 ? 'activity' : 'activities'}
-                </Text>
-                {item.activities!.length > 1 && (
+          {hasActivities && (() => {
+            // Filter out activities missing required fields (name) to ensure quality display
+            const validActivities = item.activities!.filter((a: any) => {
+              // Must have a name that isn't empty or a placeholder
+              const hasValidName = a.name &&
+                a.name.trim() !== '' &&
+                a.name !== 'Untitled Activity' &&
+                a.name !== 'Unknown';
+              return hasValidName;
+            });
+
+            if (validActivities.length === 0) return null;
+
+            return (
+              <View style={styles.activitiesContainer}>
+                <View style={styles.activitiesHeader}>
+                  <Text style={styles.activitiesLabel}>
+                    Found {validActivities.length} {validActivities.length === 1 ? 'activity' : 'activities'}
+                  </Text>
+                  {validActivities.length > 1 && (
+                    <TouchableOpacity
+                      style={styles.viewAllButton}
+                      onPress={() => handleViewAllActivities(validActivities.map((a: any) => a.id).filter(Boolean))}
+                    >
+                      <Text style={styles.viewAllText}>View All</Text>
+                      <Icon name="arrow-right" size={14} color="#E8638B" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {validActivities.slice(0, 3).map((activity: any, index: number) => (
+                  <ActivityCardCompact
+                    key={activity.id || index}
+                    activity={activity}
+                    onPress={() => handleActivityPress(activity)}
+                  />
+                ))}
+                {validActivities.length > 3 && (
                   <TouchableOpacity
-                    style={styles.viewAllButton}
-                    onPress={() => handleViewAllActivities(item.activities!.map((a: any) => a.id).filter(Boolean))}
+                    style={styles.viewMoreButton}
+                    onPress={() => handleViewAllActivities(validActivities.map((a: any) => a.id).filter(Boolean))}
                   >
-                    <Text style={styles.viewAllText}>View All</Text>
-                    <Icon name="arrow-right" size={14} color="#E8638B" />
+                    <Text style={styles.viewMoreText}>
+                      View {validActivities.length - 3} more activities
+                    </Text>
+                    <Icon name="chevron-right" size={16} color="#E8638B" />
                   </TouchableOpacity>
                 )}
               </View>
-              {item.activities!.slice(0, 3).map((activity: any, index: number) => (
-                <ActivityCardCompact
-                  key={activity.id || index}
-                  activity={activity}
-                  onPress={() => handleActivityPress(activity)}
-                />
-              ))}
-              {item.activities!.length > 3 && (
-                <TouchableOpacity
-                  style={styles.viewMoreButton}
-                  onPress={() => handleViewAllActivities(item.activities!.map((a: any) => a.id).filter(Boolean))}
-                >
-                  <Text style={styles.viewMoreText}>
-                    View {item.activities!.length - 3} more activities
-                  </Text>
-                  <Icon name="chevron-right" size={16} color="#E8638B" />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+            );
+          })()}
 
           {/* Show View All button for text-mentioned activities when no cards */}
           {!hasActivities && hasTextActivityIds && !isUser && (
