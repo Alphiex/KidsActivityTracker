@@ -31,14 +31,31 @@ export interface ActivitySearchParams {
 
 /**
  * Child profile for personalization
+ * Includes preferences, activity history, and favorites for comprehensive AI recommendations
  */
 export interface ChildProfile {
   child_id: string;
   name?: string;
   age: number;
+  gender?: string; // 'male', 'female', or null
   age_range: { min: number; max: number };
   interests: string[];
   schedule_constraints?: TimeWindow[];
+  // Enhanced fields for personalization
+  preferences?: {
+    activity_types?: string[];
+    days_of_week?: string[];
+    time_preferences?: { morning: boolean; afternoon: boolean; evening: boolean };
+    budget_max?: number;
+    distance_km?: number;
+    environment?: 'all' | 'indoor' | 'outdoor';
+  };
+  activity_history?: {
+    enrolled: string[];
+    completed: string[];
+    interested: string[];
+  };
+  favorites?: string[];
 }
 
 /**

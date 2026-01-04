@@ -16,6 +16,7 @@ function getPrismaEnhanced(): PrismaClient {
 /**
  * Build family context from user data
  * This fetches and normalizes child profiles and preferences
+ * Includes child-specific preferences for personalized recommendations
  */
 export async function buildFamilyContext(
   userId: string | undefined,
@@ -26,59 +27,138 @@ export async function buildFamilyContext(
   }
 
   try {
-    // Fetch user with children and preferences
+    // Fetch user with children, their preferences, activities, and favorites
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         children: {
           where: { isActive: true },
-          select: {
-            id: true,
-            name: true,
-            dateOfBirth: true,
-            interests: true,
-            gender: true
-          }
-        }
-      }
+          include: {
+            preferences: true,
+            childActivities: {
+              include: {
+                activity: {
+                  select: { id: true, name: true, category: true },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+            },
+            childFavorites: {
+              include: {
+                activity: {
+                  select: { id: true, name: true, category: true },
+                },
+              },
+              take: 10,
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
       return getDefaultFamilyContext();
     }
 
-    // Calculate ages and build child profiles
+    // Calculate ages and build child profiles with enhanced data
     const children: ChildProfile[] = (user.children || []).map((child: any) => {
       const age = calculateAge(child.dateOfBirth);
+      const childPrefs = child.preferences;
+
+      // Build activity history summary
+      const activityHistory: { enrolled: string[]; completed: string[]; interested: string[] } = {
+        enrolled: [],
+        completed: [],
+        interested: [],
+      };
+      if (child.childActivities) {
+        for (const ca of child.childActivities) {
+          if (ca.status === 'enrolled') activityHistory.enrolled.push(ca.activity.name);
+          else if (ca.status === 'completed') activityHistory.completed.push(ca.activity.name);
+          else if (ca.status === 'interested') activityHistory.interested.push(ca.activity.name);
+        }
+      }
+
+      // Build favorites list
+      const favorites = child.childFavorites?.map((f: any) => f.activity.name) || [];
+
       return {
         child_id: child.id,
         name: child.name,
         age,
+        gender: child.gender,
         age_range: { min: Math.max(0, age - 1), max: age + 1 },
-        interests: child.interests || []
+        interests: child.interests || [],
+        // Include enhanced data as additional fields
+        preferences: childPrefs ? {
+          activity_types: childPrefs.preferredActivityTypes || [],
+          days_of_week: childPrefs.daysOfWeek || [],
+          time_preferences: childPrefs.timePreferences,
+          budget_max: childPrefs.priceRangeMax,
+          distance_km: childPrefs.distanceRadiusKm,
+          environment: childPrefs.environmentFilter,
+        } : undefined,
+        activity_history: activityHistory,
+        favorites,
       };
     });
 
     // Parse user preferences (stored as JSON in preferences field)
     const prefs = parseUserPreferences(user.preferences);
 
-    // Build location from preferences
-    const rawPrefs = typeof user.preferences === 'string' 
-      ? JSON.parse(user.preferences) 
-      : user.preferences || {};
-    
-    const locationData = rawPrefs.locations && rawPrefs.locations.length > 0
-      ? { city: rawPrefs.locations[0], cities: rawPrefs.locations }
-      : rawPrefs.preferredLocation
-        ? { city: rawPrefs.preferredLocation }
-        : undefined;
+    // Merge child preferences into family preferences
+    // Use union of all children's preferred activity types
+    const allChildActivityTypes = new Set<string>();
+    const allChildDays = new Set<string>();
+    for (const child of user.children || []) {
+      if (child.preferences?.preferredActivityTypes) {
+        child.preferences.preferredActivityTypes.forEach((t: string) => allChildActivityTypes.add(t));
+      }
+      if (child.preferences?.daysOfWeek) {
+        child.preferences.daysOfWeek.forEach((d: string) => allChildDays.add(d));
+      }
+    }
+
+    // Merge child preferences with user preferences (child preferences take priority)
+    if (allChildActivityTypes.size > 0 && !prefs.preferred_categories?.length) {
+      prefs.preferred_categories = Array.from(allChildActivityTypes);
+    }
+    if (allChildDays.size > 0 && allChildDays.size < 7 && !prefs.days_of_week?.length) {
+      prefs.days_of_week = Array.from(allChildDays);
+    }
+
+    // Build location from child preferences first, then user preferences
+    const childWithLocation = user.children?.find((c: any) => c.preferences?.savedAddress);
+    let locationData;
+
+    if (childWithLocation?.preferences?.savedAddress) {
+      const addr = childWithLocation.preferences.savedAddress as any;
+      locationData = {
+        city: addr.city,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+      };
+    } else {
+      const rawPrefs = typeof user.preferences === 'string'
+        ? JSON.parse(user.preferences)
+        : user.preferences || {};
+
+      locationData = rawPrefs.locations && rawPrefs.locations.length > 0
+        ? { city: rawPrefs.locations[0], cities: rawPrefs.locations }
+        : rawPrefs.preferredLocation
+          ? { city: rawPrefs.preferredLocation }
+          : undefined;
+    }
 
     console.log('[Context Builder] Built family context:', {
       childCount: children.length,
       childAges: children.map(c => c.age),
+      childNames: children.map(c => c.name),
       hasLocation: !!locationData,
-      locationCities: locationData?.cities || [],
-      preferredCategories: prefs.preferred_categories || []
+      locationCity: locationData?.city,
+      preferredCategories: prefs.preferred_categories || [],
+      childActivityTypes: Array.from(allChildActivityTypes),
     });
 
     return {
