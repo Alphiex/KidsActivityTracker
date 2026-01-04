@@ -74,6 +74,8 @@ export interface MergedChildFilters {
   distanceRadiusKm: number;
   latitude?: number;
   longitude?: number;
+  city?: string; // Fallback city filtering when no coordinates
+  province?: string; // Fallback province filtering when no coordinates
   environmentFilter: 'all' | 'indoor' | 'outdoor';
   // Gender filtering: array of genders to show activities for
   // Activities with matching gender OR null (unisex) will be shown
@@ -349,6 +351,10 @@ class ChildPreferencesService {
     const firstWithLocation = childPreferences.find(p => p.savedAddress?.latitude);
     const latitude = firstWithLocation?.savedAddress?.latitude;
     const longitude = firstWithLocation?.savedAddress?.longitude;
+    // Also extract city/province for fallback filtering when no coordinates
+    const firstWithCity = childPreferences.find(p => p.savedAddress?.city);
+    const city = firstWithCity?.savedAddress?.city;
+    const province = firstWithCity?.savedAddress?.state; // state field holds province
 
     // Environment: 'all' if any child prefers 'all', otherwise union
     let environmentFilter: 'all' | 'indoor' | 'outdoor' = 'all';
@@ -373,6 +379,8 @@ class ChildPreferencesService {
       distanceRadiusKm,
       latitude,
       longitude,
+      city,
+      province,
       environmentFilter,
       genders,
     };
@@ -433,6 +441,10 @@ class ChildPreferencesService {
     const firstWithLocation = childPreferences.find(p => p.savedAddress?.latitude);
     const latitude = firstWithLocation?.savedAddress?.latitude;
     const longitude = firstWithLocation?.savedAddress?.longitude;
+    // Also extract city/province for fallback filtering when no coordinates
+    const firstWithCity = childPreferences.find(p => p.savedAddress?.city);
+    const city = firstWithCity?.savedAddress?.city;
+    const province = firstWithCity?.savedAddress?.state; // state field holds province
 
     // Environment: must match all (intersection)
     let environmentFilter: 'all' | 'indoor' | 'outdoor' = 'all';
@@ -470,6 +482,8 @@ class ChildPreferencesService {
       distanceRadiusKm,
       latitude,
       longitude,
+      city,
+      province,
       environmentFilter,
       genders,
     };

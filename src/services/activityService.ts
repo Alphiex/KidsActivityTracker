@@ -129,6 +129,22 @@ class ActivityService {
   }
 
   /**
+   * Get GPS location as fallback when no child location is available
+   * This is Priority 3 in the location fallback chain
+   */
+  private async getGPSLocationFallback(): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      const coords = await locationService.getCurrentLocation();
+      if (coords && coords.latitude && coords.longitude) {
+        return coords;
+      }
+    } catch (error) {
+      console.warn('[ActivityService] GPS fallback failed:', error);
+    }
+    return null;
+  }
+
+  /**
    * Apply child-based filters to API parameters
    * When mergedFilters are provided, they override user-level preferences
    */
@@ -173,12 +189,32 @@ class ActivityService {
       updatedParams.dayOfWeek = merged.daysOfWeek;
     }
 
-    // Location from merged preferences (uses first child's location in both modes)
+    // LOCATION FALLBACK CHAIN:
+    // Priority 1: Child's saved coordinates (lat/lng + radius) - most precise
     if (merged.latitude && merged.longitude && merged.distanceRadiusKm) {
       updatedParams.userLat = merged.latitude;
       updatedParams.userLon = merged.longitude;
       updatedParams.radiusKm = merged.distanceRadiusKm;
+      console.log('📍 [Location Fallback] Using child coordinates:', {
+        lat: merged.latitude,
+        lng: merged.longitude,
+        radius: merged.distanceRadiusKm
+      });
     }
+    // Priority 2: Child's city/province (fallback when no coordinates)
+    else if (merged.city || merged.province) {
+      if (merged.city) {
+        updatedParams.city = merged.city;
+      }
+      if (merged.province) {
+        updatedParams.province = merged.province;
+      }
+      console.log('📍 [Location Fallback] Using child city/province:', {
+        city: merged.city,
+        province: merged.province
+      });
+    }
+    // Priority 3 (GPS) and Priority 4 (no location) are handled in searchActivitiesPaginated
 
     // Environment filter
     if (merged.environmentFilter && merged.environmentFilter !== 'all') {
@@ -545,22 +581,35 @@ class ActivityService {
       // Merge with global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
 
-      // Get distance filter params (async) - only if not provided by child filters
-      let distanceParams: { userLat?: number; userLon?: number; radiusKm?: number } = {};
-      if (!childFilters?.mergedFilters?.latitude) {
-        distanceParams = await this.getDistanceParams();
-      }
-
       console.log('📤 [searchActivitiesPaginated] Input params:', params);
       console.log('📤 [searchActivitiesPaginated] Global filters:', globalFilters);
-      console.log('📤 [searchActivitiesPaginated] Distance params:', distanceParams);
       console.log('📤 [searchActivitiesPaginated] Child filters:', childFilters ? 'provided' : 'none');
 
-      // Convert parameters to match backend API - merge with global filters and distance
-      let apiParams = { ...params, ...globalFilters, ...distanceParams };
+      // Convert parameters to match backend API - merge with global filters
+      let apiParams = { ...params, ...globalFilters };
 
-      // Apply child-based filters (these override user-level preferences)
+      // Apply child-based filters (includes location fallback: lat/lng → city/province)
       apiParams = this.applyChildFilters(apiParams, childFilters);
+
+      // LOCATION FALLBACK CHAIN - Priority 3: GPS fallback
+      // If no child location was applied (neither coordinates nor city), try GPS
+      const hasChildLocation = apiParams.userLat || apiParams.city;
+      if (!hasChildLocation) {
+        const gpsLocation = await this.getGPSLocationFallback();
+        if (gpsLocation) {
+          apiParams.userLat = gpsLocation.latitude;
+          apiParams.userLon = gpsLocation.longitude;
+          apiParams.radiusKm = 25; // Default 25km radius for GPS fallback
+          console.log('📍 [Location Fallback] Using GPS:', {
+            lat: gpsLocation.latitude,
+            lng: gpsLocation.longitude,
+            radius: 25
+          });
+        } else {
+          // Priority 4: No location - results will be unfiltered by location
+          console.log('📍 [Location Fallback] No location available - returning unfiltered results');
+        }
+      }
 
       console.log('📤 [searchActivitiesPaginated] Final API params:', apiParams);
       

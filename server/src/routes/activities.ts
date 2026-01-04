@@ -44,6 +44,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       days_of_week,
       location,
       locations, // Support multiple locations
+      city, // Filter by city name (fallback when no coordinates)
+      province, // Filter by province/state (fallback when no coordinates)
       providerId,
       hideClosedActivities,
       hideFullActivities,
@@ -122,12 +124,15 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       // Always pass location parameters - AND logic with activity type is now supported
       location: location as string,
       locations: locations ? (
-        Array.isArray(locations) 
-          ? locations 
+        Array.isArray(locations)
+          ? locations
           : typeof locations === 'string' && locations.includes(',')
             ? locations.split(',').map(s => s.trim()).filter(s => s)
             : [locations]
       ) as string[] : undefined,
+      // City/Province fallback filtering (when no lat/lng coordinates)
+      city: city as string,
+      province: province as string,
       providerId: providerId as string,
       hideClosedActivities: hideClosedActivities === 'true',
       hideFullActivities: hideFullActivities === 'true',

@@ -9,6 +9,7 @@ import {
   Keyboard,
   FlatList,
   Platform,
+  Alert,
 } from 'react-native';
 import GooglePlacesSDK, { PLACE_FIELDS, PlacePrediction } from 'react-native-google-places-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -227,10 +228,21 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
         setShowManualEntry(false);
         Keyboard.dismiss();
       } else {
+        // Show prominent alert for failed geocoding
+        Alert.alert(
+          'Invalid Address',
+          'We couldn\'t verify this address. Please check the spelling and try again, or use the search feature to find your address.',
+          [{ text: 'OK' }]
+        );
         setApiError('Could not find this address. Please check and try again.');
       }
     } catch (err) {
       console.error('[AddressAutocomplete] Manual geocoding error:', err);
+      Alert.alert(
+        'Address Verification Failed',
+        'There was a problem verifying your address. Please try again or use the search feature.',
+        [{ text: 'OK' }]
+      );
       setApiError('Failed to verify address. Please try again.');
     } finally {
       setIsGeocodingManual(false);

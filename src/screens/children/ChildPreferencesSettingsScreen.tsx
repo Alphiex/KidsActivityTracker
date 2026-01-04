@@ -109,6 +109,19 @@ const ChildPreferencesSettingsScreen: React.FC = () => {
   const handleSave = async () => {
     if (!childId) return;
 
+    // Validate that if an address is set, it has valid coordinates
+    if (locationData.savedAddress) {
+      const { latitude, longitude } = locationData.savedAddress;
+      if (!latitude || !longitude || latitude === 0 || longitude === 0) {
+        Alert.alert(
+          'Invalid Location',
+          'The location needs valid coordinates. Please select an address from the suggestions or use the search feature.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       await dispatch(updateChildPreferences({

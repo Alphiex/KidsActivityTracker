@@ -109,7 +109,7 @@ class PreferencesService {
       },
       hideClosedActivities: false, // Individual filter (not used when hideClosedOrFull is set)
       hideFullActivities: false, // Individual filter (not used when hideClosedOrFull is set)
-      hideClosedOrFull: false, // Default to showing all activities (since old activities might be closed)
+      hideClosedOrFull: true, // Default to hiding closed/full activities for better UX
       maxBudgetFriendlyAmount: 20, // Default to $20 for budget friendly
       useMapPreferencesFilter: true, // Default to applying user preferences on map
       dateFilter: 'any', // 'any' = no date filtering, 'range' = use date range

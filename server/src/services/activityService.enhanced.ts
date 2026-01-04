@@ -21,6 +21,8 @@ interface SearchParams {
   dayOfWeek?: string[];
   location?: string;
   locations?: string[]; // Support multiple locations
+  city?: string; // Filter by city name (fallback when no coordinates)
+  province?: string; // Filter by province/state (fallback when no coordinates)
   providerId?: string;
   hideClosedActivities?: boolean; // Hide activities that are closed for registration
   hideFullActivities?: boolean; // Hide activities with no spots available
@@ -70,6 +72,8 @@ export class EnhancedActivityService {
       dayOfWeek,
       location,
       locations, // Support multiple locations
+      city, // Filter by city name
+      province, // Filter by province/state
       providerId,
       hideClosedActivities = false,
       hideFullActivities = false,
@@ -501,7 +505,7 @@ export class EnhancedActivityService {
           { location: { is: { city: { contains: location, mode: 'insensitive' } } } }
         ]
       };
-      
+
       if (where.OR) {
         // We have a search OR clause - combine with AND
         const searchCondition = { OR: where.OR };
@@ -511,6 +515,36 @@ export class EnhancedActivityService {
         console.log('📍 [ActivityService] Combined search + single location with AND');
       } else {
         where.OR = locationCondition.OR;
+      }
+    }
+
+    // City/Province filter - fallback when no coordinates available
+    // Only apply if we don't already have location filtering via locations array
+    if (!hasLocationFilter && (city || province)) {
+      const cityProvinceConditions: Prisma.ActivityWhereInput[] = [];
+
+      if (city) {
+        cityProvinceConditions.push({
+          location: { is: { city: { equals: city, mode: 'insensitive' } } }
+        });
+        console.log('📍 [ActivityService] City filter applied:', city);
+      }
+
+      if (province) {
+        cityProvinceConditions.push({
+          location: { is: { province: { equals: province, mode: 'insensitive' } } }
+        });
+        console.log('📍 [ActivityService] Province filter applied:', province);
+      }
+
+      // If both city and province specified, require both (AND)
+      if (city && province) {
+        where.AND = where.AND || [];
+        (where.AND as Prisma.ActivityWhereInput[]).push(...cityProvinceConditions);
+      } else {
+        // Single filter - add to AND conditions
+        where.AND = where.AND || [];
+        (where.AND as Prisma.ActivityWhereInput[]).push(cityProvinceConditions[0]);
       }
     }
 
