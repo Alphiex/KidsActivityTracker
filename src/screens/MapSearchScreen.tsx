@@ -32,8 +32,9 @@ import ScreenBackground from '../components/ScreenBackground';
 import UpgradePromptModal from '../components/UpgradePromptModal';
 import AddToCalendarModal from '../components/AddToCalendarModal';
 import ActivityCard from '../components/ActivityCard';
+import ChildFilterSelector from '../components/ChildFilterSelector';
 import { useAppSelector, useAppDispatch } from '../store';
-import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren, ChildWithPreferences } from '../store/slices/childrenSlice';
+import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren, ChildWithPreferences, ChildFilterMode } from '../store/slices/childrenSlice';
 import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { geocodeAddress } from '../utils/geocoding';
 
@@ -315,6 +316,8 @@ const MapSearchScreen = () => {
     return {
       filterMode,
       mergedFilters,
+      children: selectedChildren,      // Pass children for per-child location search
+      usePerChildLocation: true,       // Enable per-child search when children are in different cities
     };
   }, [selectedChildren, filterMode]);
 
@@ -968,6 +971,20 @@ const MapSearchScreen = () => {
         });
       }
 
+      // Check if the visible region contains any children's locations
+      const isNearChildren = selectedChildren.some(child => {
+        const loc = getChildLocation(child);
+        if (!loc) return false;
+
+        const inBounds = (
+          loc.latitude >= minLat &&
+          loc.latitude <= maxLat &&
+          loc.longitude >= minLng &&
+          loc.longitude <= maxLng
+        );
+        return inBounds;
+      });
+
       // Get child-based filters (age range, activity types, etc.)
       const childFilters = getChildBasedFilters();
       const mergedFilters = childFilters?.mergedFilters;
@@ -995,8 +1012,10 @@ const MapSearchScreen = () => {
         limit: 500,
       };
 
-      // Apply child-based filters
-      if (mergedFilters) {
+      // Apply child-based filters ONLY when viewing near children
+      // When user pans away, show all activities in viewport with just basic filters
+      if (isNearChildren && mergedFilters) {
+        if (__DEV__) console.log('[MapSearch] Near children - applying child filters');
         if (mergedFilters.ageMin !== undefined) boundsParams.ageMin = mergedFilters.ageMin;
         if (mergedFilters.ageMax !== undefined) boundsParams.ageMax = mergedFilters.ageMax;
         if (mergedFilters.priceRangeMin !== undefined) boundsParams.costMin = mergedFilters.priceRangeMin;
@@ -1006,9 +1025,14 @@ const MapSearchScreen = () => {
         if (mergedFilters.daysOfWeek && mergedFilters.daysOfWeek.length > 0 && mergedFilters.daysOfWeek.length < 7) {
           boundsParams.dayOfWeek = mergedFilters.daysOfWeek;
         }
+      } else if (!isNearChildren) {
+        // User panned away from children - just apply age filter for safety
+        if (__DEV__) console.log('[MapSearch] Panned away from children - showing all activities in viewport');
+        if (mergedFilters?.ageMin !== undefined) boundsParams.ageMin = mergedFilters.ageMin;
+        if (mergedFilters?.ageMax !== undefined) boundsParams.ageMax = mergedFilters.ageMax;
       }
 
-      // Apply hide closed/full settings from global preferences
+      // Apply hide closed/full settings from global preferences (always apply)
       if (preferences.hideClosedOrFull) {
         boundsParams.hideClosedOrFull = true;
       }
@@ -1125,6 +1149,15 @@ const MapSearchScreen = () => {
     }
   }, []);
 
+  // Handle child selection change from ChildFilterSelector
+  const handleChildSelectionChange = useCallback((_selectedIds: string[], _mode: ChildFilterMode) => {
+    // Trigger reload when children selection changes
+    if (locationLoaded) {
+      console.log('[MapSearch] Child selection changed, reloading activities');
+      loadActivities(region);
+    }
+  }, [locationLoaded, region, loadActivities]);
+
   const handleSelectPlace = useCallback(async (prediction: any) => {
     try {
       Keyboard.dismiss();
@@ -1203,6 +1236,15 @@ const MapSearchScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         {/* Top Tab Navigation */}
         <TopTabNavigation />
+
+        {/* Child Filter Selector - for multi-child selection */}
+        {children.length > 1 && (
+          <ChildFilterSelector
+            compact={true}
+            showModeToggle={true}
+            onSelectionChange={handleChildSelectionChange}
+          />
+        )}
 
         {/* Map Section - 50% of screen */}
       <View style={styles.mapSection}>

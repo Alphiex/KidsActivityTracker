@@ -245,6 +245,8 @@ const DashboardScreenModern = () => {
     return {
       filterMode,
       mergedFilters,
+      children: selectedChildren,      // Pass children for per-child location search
+      usePerChildLocation: true,       // Enable per-child search when children are in different cities
     };
   }, [selectedChildren, filterMode]);
 

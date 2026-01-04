@@ -11,6 +11,7 @@ import { PaginatedResponse, ActivitySearchParams } from '../types/api';
 import * as SecureStore from '../utils/secureStorage';
 import { locationService } from './locationService';
 import { MergedChildFilters } from './childPreferencesService';
+import { ChildWithPreferences } from '../store/slices/childrenSlice';
 
 /**
  * Child-based filter parameters that can be passed to search methods
@@ -19,6 +20,16 @@ export interface ChildBasedFilterParams {
   selectedChildIds?: string[];
   filterMode?: 'or' | 'and';
   mergedFilters?: MergedChildFilters;
+  children?: ChildWithPreferences[];  // Pass children for per-child location search
+  usePerChildLocation?: boolean;       // Enable per-child location search when children are in different cities
+}
+
+/**
+ * Result from searching for a single child's location
+ */
+interface PerChildSearchResult {
+  activities: Activity[];
+  childId: string;
 }
 
 /**
@@ -142,6 +153,172 @@ class ActivityService {
       console.warn('[ActivityService] GPS fallback failed:', error);
     }
     return null;
+  }
+
+  /**
+   * Check if children are in different cities (requiring per-child location search)
+   */
+  private areChildrenInDifferentCities(children: ChildWithPreferences[]): boolean {
+    const cities = new Set<string>();
+
+    for (const child of children) {
+      const savedAddress = child.preferences?.savedAddress;
+      // Handle savedAddress that might be a JSON string
+      let addr = savedAddress;
+      if (typeof savedAddress === 'string') {
+        try {
+          addr = JSON.parse(savedAddress);
+        } catch (e) { /* ignore */ }
+      }
+      const city = (addr as any)?.city;
+      if (city) {
+        cities.add(city.toLowerCase().trim());
+      }
+    }
+
+    // More than one unique city means children are in different locations
+    return cities.size > 1;
+  }
+
+  /**
+   * Search for activities near each child's location with their individual preferences.
+   * Used when children are in different locations.
+   */
+  async searchActivitiesPerChild(
+    children: ChildWithPreferences[],
+    baseParams: any,
+    defaultRadiusKm: number = 25
+  ): Promise<{ activities: Activity[]; activityChildMap: Map<string, string[]> }> {
+    // Filter to children with valid locations
+    const childrenWithLocations = children.filter(child => {
+      const savedAddress = child.preferences?.savedAddress;
+      let addr = savedAddress;
+      if (typeof savedAddress === 'string') {
+        try {
+          addr = JSON.parse(savedAddress);
+        } catch (e) { /* ignore */ }
+      }
+      return (addr as any)?.latitude && (addr as any)?.longitude;
+    });
+
+    if (childrenWithLocations.length === 0) {
+      console.log('📍 [PerChildSearch] No children with valid locations');
+      return { activities: [], activityChildMap: new Map() };
+    }
+
+    console.log(`📍 [PerChildSearch] Searching for ${childrenWithLocations.length} children with locations`);
+
+    // Make parallel API calls for each child
+    const searchPromises = childrenWithLocations.map(child =>
+      this.searchForSingleChild(child, baseParams, defaultRadiusKm)
+    );
+
+    const results = await Promise.all(searchPromises);
+
+    // Merge activities and track which children they match
+    const activityChildMap = new Map<string, string[]>();
+    const allActivities: Activity[] = [];
+    const seenIds = new Set<string>();
+
+    results.forEach(({ activities, childId }) => {
+      console.log(`📍 [PerChildSearch] Child ${childId}: ${activities.length} activities found`);
+      activities.forEach(activity => {
+        if (!seenIds.has(activity.id)) {
+          seenIds.add(activity.id);
+          allActivities.push(activity);
+          activityChildMap.set(activity.id, []);
+        }
+        activityChildMap.get(activity.id)!.push(childId);
+      });
+    });
+
+    // Tag activities with matchingChildIds
+    const taggedActivities = allActivities.map(activity => ({
+      ...activity,
+      matchingChildIds: activityChildMap.get(activity.id) || [],
+    }));
+
+    console.log(`📍 [PerChildSearch] Total: ${taggedActivities.length} unique activities from ${childrenWithLocations.length} locations`);
+
+    return { activities: taggedActivities, activityChildMap };
+  }
+
+  /**
+   * Search for activities near a single child's location with their preferences
+   */
+  private async searchForSingleChild(
+    child: ChildWithPreferences,
+    baseParams: any,
+    defaultRadiusKm: number
+  ): Promise<PerChildSearchResult> {
+    // Get saved address (handle JSON string)
+    let savedAddress = child.preferences?.savedAddress;
+    if (typeof savedAddress === 'string') {
+      try {
+        savedAddress = JSON.parse(savedAddress);
+      } catch (e) { /* ignore */ }
+    }
+
+    const addr = savedAddress as any;
+    if (!addr?.latitude || !addr?.longitude) {
+      return { activities: [], childId: child.id };
+    }
+
+    // Calculate child's age
+    const birthDate = new Date(child.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    // Build search params with THIS child's location and preferences
+    const params: any = {
+      ...baseParams,
+      userLat: addr.latitude,
+      userLon: addr.longitude,
+      radiusKm: child.preferences?.distanceRadiusKm || defaultRadiusKm,
+      ageMin: Math.max(0, age - 1),
+      ageMax: age + 1,
+    };
+
+    // Add child's preferred activity types (if set)
+    if (child.preferences?.preferredActivityTypes?.length) {
+      params.categories = child.preferences.preferredActivityTypes.join(',');
+    }
+
+    // Add child's days of week (if set)
+    if (child.preferences?.daysOfWeek?.length) {
+      params.dayOfWeek = child.preferences.daysOfWeek;
+    }
+
+    // Add child's price range (if set)
+    if (child.preferences?.priceRangeMin !== undefined) {
+      params.costMin = child.preferences.priceRangeMin;
+    }
+    if (child.preferences?.priceRangeMax !== undefined && child.preferences.priceRangeMax < 999999) {
+      params.costMax = child.preferences.priceRangeMax;
+    }
+
+    console.log(`📍 [PerChildSearch] Searching for ${child.name} (age ${age}) near ${addr.city || 'unknown city'}`);
+
+    try {
+      // Make direct API call without recursive child filters
+      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
+
+      if (response.data.success) {
+        const activities = (response.data.activities || []).map((activity: any) => ({
+          ...activity,
+          activityType: [activity.category],
+        }));
+        return { activities, childId: child.id };
+      }
+      return { activities: [], childId: child.id };
+    } catch (error) {
+      console.error(`[PerChildSearch] Error searching for ${child.name}:`, error);
+      return { activities: [], childId: child.id };
+    }
   }
 
   /**
@@ -576,6 +753,34 @@ class ActivityService {
           hasMore: false,
           pages: 0
         };
+      }
+
+      // Check if we need per-child location search (children in different cities)
+      if (childFilters?.usePerChildLocation && childFilters?.children && childFilters.children.length > 1) {
+        const locationsAreDistinct = this.areChildrenInDifferentCities(childFilters.children);
+
+        if (locationsAreDistinct) {
+          console.log('📍 [searchActivitiesPaginated] Multi-location detected, using per-child search');
+
+          // Get global filters to pass to per-child search
+          const globalFiltersForPerChild = this.getGlobalFilterParams();
+          const baseParams = { ...params, ...globalFiltersForPerChild };
+
+          const result = await this.searchActivitiesPerChild(
+            childFilters.children,
+            baseParams,
+            childFilters.mergedFilters?.distanceRadiusKm || 25
+          );
+
+          return {
+            items: result.activities,
+            total: result.activities.length,
+            limit: params.limit || 50,
+            offset: params.offset || 0,
+            hasMore: false,
+            pages: 1
+          };
+        }
       }
 
       // Merge with global filters from preferences

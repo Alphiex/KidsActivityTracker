@@ -87,6 +87,9 @@ export interface Activity {
   featuredTier?: 'gold' | 'silver' | 'bronze';
   featuredStartDate?: Date | string;
   featuredEndDate?: Date | string;
+
+  // Multi-child location matching
+  matchingChildIds?: string[]; // Children whose preferences this activity matches
 }
 
 export interface Location {
