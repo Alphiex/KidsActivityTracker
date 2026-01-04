@@ -11,7 +11,12 @@ const router = Router();
 const validateChild = [
   body('name').notEmpty().trim().withMessage('Name is required'),
   body('dateOfBirth').isISO8601().withMessage('Valid date of birth is required'),
-  body('gender').optional().isIn(['male', 'female', 'other', 'prefer_not_to_say']),
+  // Accept null, undefined, or valid string values for gender
+  body('gender').optional({ nullable: true }).custom((value) => {
+    if (value === null || value === undefined || value === '') return true;
+    if (['male', 'female', 'other', 'prefer_not_to_say'].includes(value)) return true;
+    throw new Error('Invalid gender value');
+  }),
   body('interests').optional().isArray().withMessage('Interests must be an array'),
   body('notes').optional().trim()
 ];

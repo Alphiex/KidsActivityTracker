@@ -403,9 +403,29 @@ const FriendsAndFamilyScreenModern: React.FC = () => {
             } else {
               await childrenService.createChild(childData);
             }
+            // Update local state first
             await loadChildren();
-            // Also update Redux store so other screens get the updated data
-            await dispatch(fetchChildren()).unwrap();
+
+            // Update Redux store with retry - critical for other screens
+            let reduxUpdated = false;
+            for (let attempt = 0; attempt < 3 && !reduxUpdated; attempt++) {
+              try {
+                await dispatch(fetchChildren()).unwrap();
+                reduxUpdated = true;
+                console.log('[FriendsAndFamily] Redux store updated successfully');
+              } catch (reduxError) {
+                console.warn(`[FriendsAndFamily] Redux update attempt ${attempt + 1} failed:`, reduxError);
+                if (attempt < 2) {
+                  await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retry
+                }
+              }
+            }
+
+            if (!reduxUpdated) {
+              console.error('[FriendsAndFamily] Failed to update Redux after 3 attempts');
+              // Don't fail the whole operation - local state is updated
+            }
+
             setShowAddChildModal(false);
             setEditingChild(null);
           } catch (error) {
@@ -474,7 +494,9 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
       // Load other children's addresses (for "copy from another child" feature)
       try {
         const allChildren = await childrenService.getMyChildren();
-        allChildren.forEach((c: Child) => {
+        // Defensive: ensure allChildren is an array
+        const childrenArray = Array.isArray(allChildren) ? allChildren : [];
+        childrenArray.forEach((c: Child) => {
           // Skip the current child being edited
           if (child && c.id === child.id) return;
 
@@ -553,8 +575,10 @@ const AddEditChildModal: React.FC<AddEditChildModalProps> = ({
         // New child - get unique avatar/color
         try {
           const allChildren = await childrenService.getMyChildren();
-          const usedAvatarIds = allChildren.map((c: Child) => c.avatarId).filter((id): id is number => !!id);
-          const usedColorIds = allChildren.map((c: Child) => c.colorId).filter((id): id is number => !!id);
+          // Defensive: ensure allChildren is an array
+          const childrenArray = Array.isArray(allChildren) ? allChildren : [];
+          const usedAvatarIds = childrenArray.map((c: Child) => c.avatarId).filter((id): id is number => !!id);
+          const usedColorIds = childrenArray.map((c: Child) => c.colorId).filter((id): id is number => !!id);
           setAvatarId(getNextAvailableAvatarId(usedAvatarIds));
           setColorId(getNextAvailableColorId(usedColorIds));
         } catch (err) {

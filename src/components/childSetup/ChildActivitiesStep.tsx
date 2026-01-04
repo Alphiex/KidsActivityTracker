@@ -137,7 +137,7 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
   const handleCopyFromSibling = (siblingId: string) => {
     const sibling = siblings.find(s => s.id === siblingId);
     if (sibling) {
-      onChange({ ...data, preferredActivityTypes: [...sibling.preferredActivityTypes] });
+      onChange({ ...data, preferredActivityTypes: [...(sibling.preferredActivityTypes ?? [])] });
       onCopyFromSibling?.(siblingId);
     }
   };
@@ -212,7 +212,7 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
         showsVerticalScrollIndicator={false}
       >
         {activityTypes.map((type) => {
-          const isSelected = data.preferredActivityTypes.includes(type.code);
+          const isSelected = (data.preferredActivityTypes ?? []).includes(type.code);
           const isExpanded = expandedTypes.has(type.code);
           const hasSubtypes = type.subtypes && type.subtypes.length > 0;
           const iconName = getActivityTypeIcon(type.name);
@@ -299,9 +299,9 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
       <View style={styles.selectionInfo}>
         <Icon name="check-circle" size={16} color="#E8638B" />
         <Text style={styles.selectionText}>
-          {data.preferredActivityTypes.length === 0
+          {(data.preferredActivityTypes?.length ?? 0) === 0
             ? 'No activities selected (will show all types)'
-            : `${data.preferredActivityTypes.length} ${data.preferredActivityTypes.length === 1 ? 'type' : 'types'} selected`}
+            : `${data.preferredActivityTypes?.length ?? 0} ${(data.preferredActivityTypes?.length ?? 0) === 1 ? 'type' : 'types'} selected`}
         </Text>
       </View>
     </View>

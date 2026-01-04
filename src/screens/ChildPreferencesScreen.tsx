@@ -15,10 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import Slider from '@react-native-community/slider';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
   selectAllChildren,
+  selectChildrenLoading,
   updateChildPreferences,
   copyChildPreferences,
   fetchChildPreferences,
@@ -71,16 +72,40 @@ const ChildPreferencesScreen: React.FC = () => {
   const dispatch = useAppDispatch();
 
   const children = useAppSelector(selectAllChildren);
+  const childrenLoading = useAppSelector(selectChildrenLoading);
   const subscription = useAppSelector(selectSubscription);
   const isPremium = subscription?.currentPlan?.code === 'premium';
 
-  // Ensure children are loaded into Redux on mount
+  // Track if we've done initial load
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  // Ensure children are loaded into Redux on mount AND when screen comes into focus
   // This fixes the issue where children added on physical devices don't appear
-  useEffect(() => {
-    // Always fetch to ensure we have latest data from server
-    dispatch(fetchChildren());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const loadChildren = async () => {
+        console.log('[ChildPreferences] Screen focused, fetching children...');
+        try {
+          await dispatch(fetchChildren()).unwrap();
+          console.log('[ChildPreferences] Children fetched successfully');
+        } catch (error) {
+          console.error('[ChildPreferences] Error fetching children:', error);
+          // Retry once after a short delay
+          setTimeout(async () => {
+            try {
+              await dispatch(fetchChildren()).unwrap();
+              console.log('[ChildPreferences] Children fetched on retry');
+            } catch (retryError) {
+              console.error('[ChildPreferences] Retry failed:', retryError);
+            }
+          }, 1000);
+        } finally {
+          setInitialLoadDone(true);
+        }
+      };
+      loadChildren();
+    }, [dispatch])
+  );
 
   // Selected child for editing
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -398,6 +423,23 @@ const ChildPreferencesScreen: React.FC = () => {
     }
     return Math.max(0, age);
   };
+
+  // Show loading state while fetching children (only on initial load)
+  if ((childrenLoading || !initialLoadDone) && children.length === 0) {
+    return (
+      <ScreenBackground style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <TopTabNavigation />
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color={ModernColors.primary} />
+            <Text style={[styles.emptyText, { marginTop: 16 }]}>
+              Loading children...
+            </Text>
+          </View>
+        </SafeAreaView>
+      </ScreenBackground>
+    );
+  }
 
   if (children.length === 0) {
     return (

@@ -98,11 +98,13 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const systemColorScheme = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>('system');
-  
-  const isDark = mode === 'dark' || (mode === 'system' && systemColorScheme === 'dark');
-  const colors = isDark ? darkColors : lightColors;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _systemColorScheme = useColorScheme(); // Keep hook but ignore value
+  const [mode, setModeState] = useState<ThemeMode>('light');
+
+  // Force light mode - dark mode disabled
+  const isDark = false;
+  const colors = lightColors;
 
   useEffect(() => {
     // Load saved theme preference

@@ -32,6 +32,11 @@ const ActivityListScreen = () => {
   const route = useRoute();
   const dispatch = useAppDispatch();
 
+  // Child filter state for consistent filtering - must be declared before useFocusEffect
+  const children = useAppSelector(selectAllChildren);
+  const selectedChildIds = useAppSelector(selectSelectedChildIds);
+  const filterMode = useAppSelector(selectFilterMode);
+
   // Ensure children are loaded into Redux on mount
   useEffect(() => {
     dispatch(fetchChildren());
@@ -64,11 +69,6 @@ const ActivityListScreen = () => {
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
-
-  // Child filter state for consistent filtering
-  const children = useAppSelector(selectAllChildren);
-  const selectedChildIds = useAppSelector(selectSelectedChildIds);
-  const filterMode = useAppSelector(selectFilterMode);
 
   // Get selected children for filtering
   const selectedChildren = useMemo(() => {

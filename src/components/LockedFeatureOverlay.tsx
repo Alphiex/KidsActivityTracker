@@ -57,7 +57,7 @@ const LockedFeatureOverlay: React.FC<LockedFeatureOverlayProps> = ({
   size = 'normal',
 }) => {
   const navigation = useNavigation<any>();
-  const { colors, isDarkMode } = useTheme();
+  const { colors, isDark } = useTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
@@ -114,7 +114,7 @@ const LockedFeatureOverlay: React.FC<LockedFeatureOverlayProps> = ({
   };
 
   const sizeStyles = getSizeStyles();
-  const overlayColor = isDarkMode
+  const overlayColor = isDark
     ? 'rgba(30, 30, 30, 0.85)'
     : 'rgba(255, 255, 255, 0.88)';
 
