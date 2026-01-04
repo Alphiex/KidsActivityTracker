@@ -85,6 +85,15 @@ class PreferencesService {
         afternoon: true,
         evening: true,
       },
+      dayTimeSlots: {
+        Monday: { morning: true, afternoon: true, evening: true },
+        Tuesday: { morning: true, afternoon: true, evening: true },
+        Wednesday: { morning: true, afternoon: true, evening: true },
+        Thursday: { morning: true, afternoon: true, evening: true },
+        Friday: { morning: true, afternoon: true, evening: true },
+        Saturday: { morning: true, afternoon: true, evening: true },
+        Sunday: { morning: true, afternoon: true, evening: true },
+      },
       preferredCategories: [], // DEPRECATED - use preferredActivityTypes
       preferredActivityTypes: [],
       preferredSubtypes: [],

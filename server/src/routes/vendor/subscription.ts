@@ -148,6 +148,71 @@ router.post('/checkout', [
 });
 
 /**
+ * POST /api/vendor/:vendorId/subscription/upgrade-checkout
+ * Create a Stripe Checkout session for upgrading an existing subscription
+ * This goes through Stripe Checkout for proper payment authentication
+ */
+router.post('/upgrade-checkout', [
+  body('newTier').isIn(['bronze', 'silver', 'gold']).withMessage('Tier must be bronze, silver, or gold'),
+  body('billingCycle').isIn(['monthly', 'annual']).withMessage('Billing cycle must be monthly or annual'),
+], async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { vendorId } = req.params;
+    const { newTier, billingCycle } = req.body;
+
+    // Verify the token belongs to this vendor
+    if (req.vendor?.id !== vendorId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+      });
+    }
+
+    // Get partner account
+    const partnerAccount = await getOrCreatePartnerAccount(vendorId);
+
+    // Import Stripe service
+    const { createUpgradeCheckoutSession, PARTNER_TIERS } = await import('../../services/stripeService');
+    const tierConfig = PARTNER_TIERS[newTier as keyof typeof PARTNER_TIERS];
+
+    // Determine success/cancel URLs
+    const frontendUrl = process.env.VENDOR_FRONTEND_URL || process.env.FRONTEND_URL || 'https://kidsactivitytracker.ca';
+    const successUrl = `${frontendUrl}/vendor/dashboard/plans?success=true`;
+    const cancelUrl = `${frontendUrl}/vendor/dashboard/plans?cancelled=true`;
+
+    const session = await createUpgradeCheckoutSession({
+      partnerAccountId: partnerAccount.id,
+      newTier: newTier as any,
+      billingCycle,
+      successUrl,
+      cancelUrl,
+    });
+
+    console.log(`[VendorSubscription] Upgrade checkout session created for vendor ${vendorId}, newTier: ${newTier}`);
+
+    res.json({
+      success: true,
+      checkoutUrl: session.url,
+      sessionId: session.id,
+      newTier,
+      billingCycle,
+      price: billingCycle === 'annual' ? tierConfig.yearlyPrice / 100 : tierConfig.monthlyPrice / 100,
+    });
+  } catch (error: any) {
+    console.error('[VendorSubscription] Upgrade checkout error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to create upgrade checkout session'
+    });
+  }
+});
+
+/**
  * POST /api/vendor/:vendorId/subscription/portal
  * Create a Stripe Customer Portal session for managing subscription
  */

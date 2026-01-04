@@ -251,6 +251,115 @@ export async function createCheckoutSession(params: {
 }
 
 /**
+ * Create a Stripe Checkout session for upgrading an existing subscription
+ * This goes through Checkout for proper payment authentication (3DS, etc.)
+ */
+export async function createUpgradeCheckoutSession(params: {
+  partnerAccountId: string;
+  newTier: PartnerTier;
+  billingCycle: 'monthly' | 'annual';
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<Stripe.Checkout.Session> {
+  const { partnerAccountId, newTier, billingCycle, successUrl, cancelUrl } = params;
+
+  // Get partner account with current subscription info
+  const partnerAccount = await prisma.partnerAccount.findUnique({
+    where: { id: partnerAccountId },
+    include: { provider: true, plan: true },
+  });
+
+  if (!partnerAccount) {
+    throw new Error('Partner account not found');
+  }
+
+  if (!partnerAccount.revenueCatCustomerId) {
+    throw new Error('No Stripe customer found. Please subscribe first.');
+  }
+
+  // Get current subscription
+  const subscriptions = await stripe.subscriptions.list({
+    customer: partnerAccount.revenueCatCustomerId,
+    status: 'active',
+    limit: 1,
+  });
+
+  if (subscriptions.data.length === 0) {
+    throw new Error('No active subscription found');
+  }
+
+  const currentSubscription = subscriptions.data[0];
+  const currentTier = partnerAccount.plan?.tier || 'bronze';
+
+  // Verify this is actually an upgrade
+  const tierOrder = ['bronze', 'silver', 'gold'];
+  const currentTierIndex = tierOrder.indexOf(currentTier);
+  const newTierIndex = tierOrder.indexOf(newTier);
+
+  if (newTierIndex <= currentTierIndex) {
+    throw new Error('This is not an upgrade. Use the downgrade endpoint instead.');
+  }
+
+  // Ensure products are initialized
+  const products = await initializeStripeProducts();
+  const productConfig = products[newTier];
+
+  if (!productConfig) {
+    throw new Error(`Invalid tier: ${newTier}`);
+  }
+
+  const priceId = billingCycle === 'monthly'
+    ? productConfig.monthlyPriceId
+    : productConfig.yearlyPriceId;
+
+  // Calculate prorated amount for display
+  // Get remaining time on current subscription
+  let periodEndTimestamp = (currentSubscription as any).current_period_end;
+  if (!periodEndTimestamp && currentSubscription.items?.data?.[0]) {
+    periodEndTimestamp = (currentSubscription.items.data[0] as any).current_period_end;
+  }
+
+  // Create checkout session for the upgrade
+  // We'll cancel the old subscription in the webhook when this succeeds
+  const session = await stripe.checkout.sessions.create({
+    customer: partnerAccount.revenueCatCustomerId,
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
+    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&upgraded=true`,
+    cancel_url: cancelUrl,
+    metadata: {
+      partnerAccountId,
+      tier: newTier,
+      billingCycle,
+      isUpgrade: 'true',
+      previousSubscriptionId: currentSubscription.id,
+      previousTier: currentTier,
+    },
+    subscription_data: {
+      metadata: {
+        partnerAccountId,
+        tier: newTier,
+        billingCycle,
+        isUpgrade: 'true',
+        previousSubscriptionId: currentSubscription.id,
+      },
+    },
+    allow_promotion_codes: true,
+    billing_address_collection: 'auto',
+  });
+
+  console.log(`[Stripe] Created upgrade checkout session for ${partnerAccountId}: ${currentTier} -> ${newTier}`);
+
+  return session;
+}
+
+/**
  * Create a Stripe Customer Portal session for managing subscription
  */
 export async function createCustomerPortalSession(params: {
@@ -319,17 +428,38 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   const partnerAccountId = session.metadata?.partnerAccountId;
   const tier = session.metadata?.tier as PartnerTier;
   const billingCycle = session.metadata?.billingCycle as 'monthly' | 'annual';
+  const isUpgrade = session.metadata?.isUpgrade === 'true';
+  const previousSubscriptionId = session.metadata?.previousSubscriptionId;
 
   if (!partnerAccountId || !tier) {
     console.error('[Stripe] Missing metadata in checkout session');
     return;
   }
 
-  console.log(`[Stripe] Checkout complete for partner ${partnerAccountId}, tier: ${tier}`);
+  console.log(`[Stripe] Checkout complete for partner ${partnerAccountId}, tier: ${tier}, isUpgrade: ${isUpgrade}`);
 
-  // Get the subscription
+  // Get the new subscription
   const subscriptionId = session.subscription as string;
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  // If this is an upgrade, cancel the old subscription and apply credit
+  if (isUpgrade && previousSubscriptionId) {
+    try {
+      console.log(`[Stripe] Canceling previous subscription ${previousSubscriptionId} for upgrade`);
+
+      // Cancel the old subscription immediately and prorate (gives credit)
+      await stripe.subscriptions.cancel(previousSubscriptionId, {
+        prorate: true, // This credits unused time to customer balance
+      });
+
+      console.log(`[Stripe] Previous subscription cancelled with proration credit`);
+    } catch (err: any) {
+      // If already cancelled, that's fine
+      if (err.code !== 'resource_missing') {
+        console.error(`[Stripe] Error canceling previous subscription:`, err.message);
+      }
+    }
+  }
 
   // Calculate period end - in newer Stripe API, these are on subscription items
   // Try subscription level first, then fall back to items

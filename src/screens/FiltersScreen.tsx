@@ -491,7 +491,7 @@ const FiltersScreen = () => {
         }
         return `Within ${preferences.distanceRadiusKm || 25} km`;
       case 'budget':
-        const priceRange = preferences?.priceRange || { min: 0, max: 1000 };
+        const priceRange = preferences?.priceRange || { min: 0, max: 999999 };
         const budgetIsUnlimited = priceRange.max >= 10000;
         return budgetIsUnlimited ? 'No Limit' : `Up to $${priceRange.max}`;
       case 'dayTime':
@@ -1545,6 +1545,7 @@ const FiltersScreen = () => {
       {/* Bottom Action Bar */}
       <View style={styles.bottomActionBar}>
         <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+          <Icon name="close" size={18} color="#6B7280" />
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
@@ -2441,33 +2442,35 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#6B7280',
   },
   applyButton: {
-    flex: 2,
-    borderRadius: 12,
+    flex: 1,
+    borderRadius: 25,
     overflow: 'hidden',
   },
   applyButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
+    height: 50,
     gap: 8,
   },
   applyButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
   },

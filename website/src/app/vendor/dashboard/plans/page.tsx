@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getProfile } from '@/lib/vendorApi';
 
 interface Plan {
@@ -27,6 +28,7 @@ interface CurrentSubscription {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kidsactivitytracker.ca';
 
 export default function PlansPage() {
+  const searchParams = useSearchParams();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<CurrentSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,10 +36,24 @@ export default function PlansPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeFeatureTab, setActiveFeatureTab] = useState<'priority' | 'analytics' | 'targeting'>('priority');
+  const [changingTier, setChangingTier] = useState<string | null>(null);
+  const [showDowngradeConfirm, setShowDowngradeConfirm] = useState<Plan | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showCancelledMessage, setShowCancelledMessage] = useState(false);
 
   useEffect(() => {
+    // Check for success/cancelled query params (from Stripe redirect)
+    if (searchParams.get('success') === 'true') {
+      setShowSuccessMessage(true);
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/vendor/dashboard/plans');
+    }
+    if (searchParams.get('cancelled') === 'true') {
+      setShowCancelledMessage(true);
+      window.history.replaceState({}, '', '/vendor/dashboard/plans');
+    }
     fetchData();
-  }, []);
+  }, [searchParams]);
 
   const fetchData = async () => {
     try {
@@ -120,6 +136,91 @@ export default function PlansPage() {
     });
   };
 
+  const tierOrder = ['bronze', 'silver', 'gold'];
+
+  const isUpgrade = (planTier: string) => {
+    if (!currentPlan?.plan?.tier) return true; // No current plan = any plan is an upgrade
+    const currentIndex = tierOrder.indexOf(currentPlan.plan.tier);
+    const planIndex = tierOrder.indexOf(planTier);
+    return planIndex > currentIndex;
+  };
+
+  const isDowngrade = (planTier: string) => {
+    if (!currentPlan?.plan?.tier) return false;
+    const currentIndex = tierOrder.indexOf(currentPlan.plan.tier);
+    const planIndex = tierOrder.indexOf(planTier);
+    return planIndex < currentIndex;
+  };
+
+  const handleUpgrade = async (plan: Plan) => {
+    setChangingTier(plan.tier);
+    try {
+      const token = localStorage.getItem('vendor_token');
+      const vendorId = localStorage.getItem('vendor_id');
+
+      // For upgrades, redirect to Stripe Checkout
+      const response = await fetch(`${API_URL}/api/vendor/${vendorId}/subscription/upgrade-checkout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newTier: plan.tier,
+          billingCycle: 'monthly',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.checkoutUrl) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert(data.error || 'Failed to start upgrade checkout');
+        setChangingTier(null);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to start upgrade checkout');
+      setChangingTier(null);
+    }
+  };
+
+  const handleDowngrade = async (plan: Plan) => {
+    setChangingTier(plan.tier);
+    try {
+      const token = localStorage.getItem('vendor_token');
+      const vendorId = localStorage.getItem('vendor_id');
+
+      // For downgrades, use direct API (no payment needed)
+      const response = await fetch(`${API_URL}/api/vendor/${vendorId}/subscription/change-tier`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newTier: plan.tier,
+          billingCycle: 'monthly',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message);
+        fetchData(); // Refresh data
+      } else {
+        alert(data.error || 'Failed to change plan');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to change plan');
+    } finally {
+      setChangingTier(null);
+      setShowDowngradeConfirm(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -138,6 +239,52 @@ export default function PlansPage() {
           Upgrade to a sponsor plan to boost your activities and reach more families
         </p>
       </div>
+
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+          <div className="p-2 bg-green-100 rounded-full">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium text-green-800">Plan Updated Successfully!</p>
+            <p className="text-sm text-green-700">Your new plan is now active. Enjoy your upgraded features!</p>
+          </div>
+          <button
+            onClick={() => setShowSuccessMessage(false)}
+            className="ml-auto p-1 text-green-600 hover:text-green-800"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Cancelled Message */}
+      {showCancelledMessage && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3">
+          <div className="p-2 bg-yellow-100 rounded-full">
+            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium text-yellow-800">Checkout Cancelled</p>
+            <p className="text-sm text-yellow-700">Your plan was not changed. You can try again when you&apos;re ready.</p>
+          </div>
+          <button
+            onClick={() => setShowCancelledMessage(false)}
+            className="ml-auto p-1 text-yellow-600 hover:text-yellow-800"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Current Plan Banner */}
       <div className={`rounded-xl p-6 mb-8 ${isFreeUser ? 'bg-gray-50 border border-gray-200' : 'bg-pink-50 border border-pink-200'}`}>
@@ -523,8 +670,8 @@ export default function PlansPage() {
                 <td className="px-6 py-4 text-sm text-gray-700 font-medium">Monthly Price</td>
                 <td className="px-6 py-4 text-center text-lg font-bold text-gray-900">Free</td>
                 <td className="px-6 py-4 text-center bg-orange-50 text-lg font-bold text-orange-600">$49</td>
-                <td className="px-6 py-4 text-center bg-gray-50 text-lg font-bold text-gray-700">$99</td>
-                <td className="px-6 py-4 text-center bg-yellow-50 text-lg font-bold text-yellow-600">$199</td>
+                <td className="px-6 py-4 text-center bg-gray-50 text-lg font-bold text-gray-700">$129</td>
+                <td className="px-6 py-4 text-center bg-yellow-50 text-lg font-bold text-yellow-600">$249</td>
               </tr>
             </tbody>
           </table>
@@ -609,12 +756,32 @@ export default function PlansPage() {
                   >
                     Current Plan
                   </button>
+                ) : currentPlan?.plan && currentPlan.status === 'active' ? (
+                  // Existing subscriber - show upgrade or downgrade
+                  isUpgrade(plan.tier) ? (
+                    <button
+                      onClick={() => handleUpgrade(plan)}
+                      disabled={changingTier === plan.tier}
+                      className="w-full py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {changingTier === plan.tier ? 'Redirecting...' : 'Upgrade'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowDowngradeConfirm(plan)}
+                      disabled={changingTier === plan.tier}
+                      className="w-full py-3 border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      {changingTier === plan.tier ? 'Processing...' : 'Switch to this plan'}
+                    </button>
+                  )
                 ) : (
+                  // Not subscribed - show subscribe button
                   <button
                     onClick={() => setSelectedPlan(plan)}
                     className="w-full py-3 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
                   >
-                    {currentPlan?.plan ? 'Upgrade' : 'Subscribe'}
+                    Upgrade
                   </button>
                 )}
               </div>
@@ -682,6 +849,56 @@ export default function PlansPage() {
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-[#E8638B] to-[#D53F8C] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isSubmitting ? 'Redirecting...' : 'Continue to Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Downgrade Confirmation Modal */}
+      {showDowngradeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-yellow-100 rounded-full">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Switch to {showDowngradeConfirm.name}?
+              </h3>
+            </div>
+
+            <p className="text-gray-600 mb-4">
+              You&apos;re switching to a lower-tier plan. Your current benefits will remain active until the end of your billing period, then the new plan will take effect.
+            </p>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-600">
+                <strong>New plan:</strong> {showDowngradeConfirm.name} - ${showDowngradeConfirm.monthlyPrice}/month
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                {showDowngradeConfirm.impressionLimit
+                  ? `${showDowngradeConfirm.impressionLimit.toLocaleString()} impressions/month`
+                  : 'Unlimited impressions'}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDowngradeConfirm(null)}
+                disabled={changingTier === showDowngradeConfirm.tier}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDowngrade(showDowngradeConfirm)}
+                disabled={changingTier === showDowngradeConfirm.tier}
+                className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {changingTier === showDowngradeConfirm.tier ? 'Processing...' : 'Confirm Switch'}
               </button>
             </div>
           </div>
