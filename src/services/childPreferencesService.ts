@@ -311,8 +311,13 @@ class ChildPreferencesService {
     childGenders: ('male' | 'female' | null)[]
   ): MergedChildFilters {
     // Age range: expand to cover all children (with 1 year tolerance)
-    const ageMin = Math.max(0, Math.min(...childAges) - 1);
-    const ageMax = Math.min(18, Math.max(...childAges) + 1);
+    // Guard against empty childAges array (Math.min/max on empty array returns Infinity/-Infinity)
+    let ageMin = 0;
+    let ageMax = 18;
+    if (childAges.length > 0) {
+      ageMin = Math.max(0, Math.min(...childAges) - 1);
+      ageMax = Math.min(18, Math.max(...childAges) + 1);
+    }
 
     // Activity types: union of all, BUT if ANY child has empty array (meaning "all types"),
     // return empty array to not filter by activity type
@@ -438,8 +443,13 @@ class ChildPreferencesService {
     childGenders: ('male' | 'female' | null)[]
   ): MergedChildFilters {
     // Age range: must fit all children
-    const ageMin = Math.max(...childAges) - 1; // Activity must accept oldest child
-    const ageMax = Math.min(...childAges) + 1; // Activity must accept youngest child
+    // Guard against empty childAges array (Math.min/max on empty array returns Infinity/-Infinity)
+    let ageMin = 0;
+    let ageMax = 18;
+    if (childAges.length > 0) {
+      ageMin = Math.max(...childAges) - 1; // Activity must accept oldest child
+      ageMax = Math.min(...childAges) + 1; // Activity must accept youngest child
+    }
 
     // Activity types: intersection (common to all)
     let activityTypes = childPreferences[0]?.preferredActivityTypes || [];
