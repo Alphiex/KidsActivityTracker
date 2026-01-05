@@ -367,32 +367,29 @@ class ActivityService {
       updatedParams.dayOfWeek = merged.daysOfWeek;
     }
 
-    // LOCATION FALLBACK CHAIN:
-    // Priority 1: Child's saved coordinates (lat/lng + radius) - most precise
+    // LOCATION FILTERING:
+    // Use child's saved coordinates (lat/lng + radius) for geographic filtering
     if (merged.latitude && merged.longitude) {
       updatedParams.userLat = merged.latitude;
       updatedParams.userLon = merged.longitude;
-      updatedParams.radiusKm = merged.distanceRadiusKm || 25; // Default 25km if not set
-      console.log('📍 [Location Fallback] Using child coordinates:', {
+      updatedParams.radiusKm = merged.distanceRadiusKm || 25; // Use child's preference, default 25km
+      console.log('📍 [Location] Using child coordinates:', {
         lat: merged.latitude,
         lng: merged.longitude,
         radius: updatedParams.radiusKm
       });
     }
-    // Priority 2: Child's city/province (fallback when no coordinates)
-    else if (merged.city || merged.province) {
-      if (merged.city) {
-        updatedParams.city = merged.city;
-      }
-      if (merged.province) {
-        updatedParams.province = merged.province;
-      }
-      console.log('📍 [Location Fallback] Using child city/province:', {
-        city: merged.city,
-        province: merged.province
-      });
+
+    // ALWAYS send city for same-city prioritization (even when we have coordinates)
+    // This allows the server to prioritize activities in the child's city first
+    if (merged.city) {
+      updatedParams.city = merged.city;
+      console.log('📍 [Location] Using child city for prioritization:', merged.city);
     }
-    // Priority 3 (GPS) and Priority 4 (no location) are handled in searchActivitiesPaginated
+    if (merged.province) {
+      updatedParams.province = merged.province;
+    }
+    // GPS fallback is handled in searchActivitiesPaginated if no child location
 
     // Environment filter
     if (merged.environmentFilter && merged.environmentFilter !== 'all') {

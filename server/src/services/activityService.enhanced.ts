@@ -735,31 +735,48 @@ export class EnhancedActivityService {
     });
 
     // Calculate distance for each activity if user coordinates provided
-    let activitiesWithDistance = activities as (Activity & { distance?: number })[];
+    // Also track if activity is in the same city as user for prioritization
+    let activitiesWithDistance = activities as (Activity & { distance?: number; isSameCity?: boolean })[];
+
+    // Normalize city for comparison (case-insensitive, trim whitespace)
+    const normalizeCity = (c: string | null | undefined): string =>
+      (c || '').toLowerCase().trim();
+    const userCity = normalizeCity(city);
+
     if (userLat != null && userLon != null) {
       activitiesWithDistance = activities.map(activity => {
+        // Get activity's city from location relation
+        const activityCity = normalizeCity((activity as any).location?.city);
+        const isSameCity = userCity && activityCity && activityCity === userCity;
+
         if (activity.latitude != null && activity.longitude != null) {
           const distance = calculateDistance(userLat, userLon, activity.latitude, activity.longitude);
-          return { ...activity, distance: Math.round(distance * 10) / 10 }; // Round to 1 decimal
+          return {
+            ...activity,
+            distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+            isSameCity
+          };
         }
-        return { ...activity, distance: undefined };
+        return { ...activity, distance: undefined, isSameCity };
       });
 
-      // For 'distance' sort mode - sort purely by distance
+      // For 'distance' sort mode - sort by same city first, then distance
       if (sortBy === 'distance') {
         activitiesWithDistance.sort((a, b) => {
-          // Activities without distance go to the end
+          // First: Same city activities come first
+          if (a.isSameCity && !b.isSameCity) return -1;
+          if (!a.isSameCity && b.isSameCity) return 1;
+
+          // Second: Distance (closest first)
           if (a.distance == null && b.distance == null) return 0;
           if (a.distance == null) return 1;
           if (b.distance == null) return -1;
           return a.distance - b.distance;
         });
-        console.log(`📍 [ActivityService] Sorted by distance (closest first)`);
+        console.log(`📍 [ActivityService] Sorted by city + distance (${userCity || 'no city'} first, then closest)`);
       }
-      // For 'availability' sort mode with coordinates - secondary sort by distance within each availability tier
-      // The primary availability sort was already done, now we stable-sort by distance
+      // For 'availability' sort mode - prioritize same city, then availability, then distance
       else if (sortBy === 'availability') {
-        // Group activities by their availability tier, then sort each group by distance
         const getAvailabilityTier = (activity: any): number => {
           const status = activity.registrationStatus;
           const spots = activity.spotsAvailable;
@@ -778,25 +795,29 @@ export class EnhancedActivityService {
           return 3;
         };
 
-        // Sort by: featured tier → availability tier → distance
+        // Sort by: featured tier → SAME CITY → availability tier → distance
         activitiesWithDistance.sort((a, b) => {
-          // First: Featured activities
+          // First: Featured activities always at top
           const featuredA = getFeaturedTier(a);
           const featuredB = getFeaturedTier(b);
           if (featuredA !== featuredB) return featuredA - featuredB;
 
-          // Second: Availability tier
+          // Second: Same city activities come before other cities
+          if (a.isSameCity && !b.isSameCity) return -1;
+          if (!a.isSameCity && b.isSameCity) return 1;
+
+          // Third: Availability tier (within same city/other cities)
           const availA = getAvailabilityTier(a);
           const availB = getAvailabilityTier(b);
           if (availA !== availB) return availA - availB;
 
-          // Third: Distance (closest first within same availability tier)
+          // Fourth: Distance (closest first within same availability tier)
           if (a.distance == null && b.distance == null) return 0;
           if (a.distance == null) return 1;
           if (b.distance == null) return -1;
           return a.distance - b.distance;
         });
-        console.log(`📍 [ActivityService] Sorted by availability + distance (closest first within tier)`);
+        console.log(`📍 [ActivityService] Sorted by featured → city (${userCity || 'no city'}) → availability → distance`);
       }
     }
 
