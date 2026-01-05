@@ -1,3 +1,5 @@
+import { Aggregations } from './aggregations';
+
 export interface PaginationParams {
   limit?: number;
   offset?: number;
@@ -10,6 +12,7 @@ export interface PaginatedResponse<T> {
   offset: number;
   hasMore: boolean;
   pages: number;
+  aggregations?: Aggregations;
 }
 
 export interface ActivitySearchParams extends PaginationParams {

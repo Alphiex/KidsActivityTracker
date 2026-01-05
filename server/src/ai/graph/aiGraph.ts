@@ -120,6 +120,9 @@ export async function executeAIGraph(input: Partial<AIGraphStateType>): Promise<
     user_id: input.user_id,
     parsed_filters: input.parsed_filters,
     family_context: input.family_context,
+    // NEW: Per-child profiles for independent search
+    children_profiles: input.children_profiles,
+    filter_mode: input.filter_mode,
     multi_child_mode: input.multi_child_mode,
     selected_child_ids: input.selected_child_ids,
     activity_id: input.activity_id,

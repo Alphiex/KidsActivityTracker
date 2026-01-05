@@ -66,8 +66,23 @@ router.post('/',
         filters: req.body.filters || {},
         user_id: (req as any).user?.id,
         include_explanations: req.body.include_explanations ?? true,
-        family_context: req.body.family_context
+        // Legacy family_context for backwards compatibility
+        family_context: req.body.family_context,
+        // NEW: Per-child profiles for independent search
+        children_profiles: req.body.children_profiles,
+        filter_mode: req.body.filter_mode,
       };
+
+      // Debug logging
+      console.log('[AI Route] Received request:', {
+        hasChildrenProfiles: !!req.body.children_profiles,
+        childrenProfilesCount: req.body.children_profiles?.length || 0,
+        childrenProfiles: req.body.children_profiles?.map((p: any) => ({
+          name: p.name,
+          location: p.location,
+        })),
+        filterMode: req.body.filter_mode,
+      });
 
       // Validate search intent
       if (!request.search_intent && Object.keys(request.filters).length === 0) {

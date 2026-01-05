@@ -106,6 +106,9 @@ export class AIOrchestrator {
         user_id: request.user_id,
         parsed_filters: request.filters,
         family_context: familyContext,
+        // NEW: Per-child profiles for independent search
+        children_profiles: request.children_profiles,
+        filter_mode: request.filter_mode,
         multi_child_mode: multiChildMode,
         model_tier: modelSelection.tier,
       });

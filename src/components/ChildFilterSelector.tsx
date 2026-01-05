@@ -101,10 +101,8 @@ const ChildFilterSelector: React.FC<ChildFilterSelectorProps> = ({
     let newSelection: string[];
     if (isCurrentlySelected) {
       newSelection = selectedChildIds.filter((id: string) => id !== childId);
-      // Don't allow empty selection
-      if (newSelection.length === 0) {
-        newSelection = [childId];
-      }
+      // Allow empty selection - user can disable child-based filtering
+      // When no children selected, only global filters (from FiltersScreen) apply
     } else {
       newSelection = [...selectedChildIds, childId];
     }

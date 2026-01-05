@@ -303,18 +303,6 @@ const MapSearchScreen = () => {
       filterMode
     );
 
-    if (__DEV__) {
-      console.log('[MapSearch] Child-based filters:', {
-        selectedChildrenCount: selectedChildren.length,
-        selectedChildren: selectedChildren.map(c => ({ name: c.name, dob: c.dateOfBirth, hasPrefs: !!c.preferences })),
-        childPreferencesCount: childPreferences.length,
-        childAges,
-        calculatedAgeRange: `${mergedFilters.ageMin}-${mergedFilters.ageMax}`,
-        activityTypes: mergedFilters.activityTypes || [],
-        filterMode,
-      });
-    }
-
     return {
       filterMode,
       mergedFilters,
@@ -326,6 +314,7 @@ const MapSearchScreen = () => {
   // State
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false); // False until first successful load
   const [initialRegion, setInitialRegion] = useState<Region>(CANADA_REGION);
   const [region, setRegion] = useState<Region>(CANADA_REGION);
   const [locationLoaded, setLocationLoaded] = useState(false);
@@ -414,15 +403,8 @@ const MapSearchScreen = () => {
   }, []);
 
   // Helper to get location from child - checks multiple sources
-  const getChildLocation = useCallback((child: ChildWithPreferences): { latitude: number; longitude: number } | null => {
-    if (__DEV__) {
-      console.log('[MapSearch] getChildLocation for', child.name, {
-        preferences: child.preferences,
-        locationDetails: child.locationDetails,
-        location: child.location,
-      });
-    }
-
+  // Note: This is intentionally NOT a useCallback to avoid dependency cycles with geocodedChildLocations
+  const getChildLocation = (child: ChildWithPreferences): { latitude: number; longitude: number } | null => {
     // 1. Check preferences.savedAddress (new location storage with coordinates)
     let savedAddress = (child.preferences as any)?.savedAddress;
     if (typeof savedAddress === 'string') {
@@ -431,78 +413,84 @@ const MapSearchScreen = () => {
       } catch (e) { /* ignore */ }
     }
     if (savedAddress && isValidCoordinate(savedAddress.latitude, savedAddress.longitude)) {
-      if (__DEV__) console.log('[MapSearch] Found coords in savedAddress:', savedAddress);
       return { latitude: savedAddress.latitude, longitude: savedAddress.longitude };
     }
 
-    // 2. Check locationDetails (deprecated but may have data)
+    // 2. Check preferences directly for latitude/longitude (some data structures have it here)
+    const prefs = child.preferences as any;
+    if (prefs && isValidCoordinate(prefs.latitude, prefs.longitude)) {
+      return { latitude: prefs.latitude, longitude: prefs.longitude };
+    }
+
+    // 3. Check locationDetails (deprecated but may have data)
     if (child.locationDetails && isValidCoordinate(child.locationDetails.latitude, child.locationDetails.longitude)) {
-      if (__DEV__) console.log('[MapSearch] Found coords in locationDetails:', child.locationDetails);
       return { latitude: child.locationDetails.latitude!, longitude: child.locationDetails.longitude! };
     }
 
-    // 3. Check geocoded cache (for city names that were geocoded)
+    // 4. Check geocoded cache (for city names that were geocoded)
     if (child.location && geocodedChildLocations.has(child.id)) {
-      if (__DEV__) console.log('[MapSearch] Found coords in geocoded cache');
-      return geocodedChildLocations.get(child.id)!;
+      const cached = geocodedChildLocations.get(child.id)!;
+      return cached;
     }
 
-    if (__DEV__) console.log('[MapSearch] No coords found for', child.name);
     return null;
-  }, [isValidCoordinate, geocodedChildLocations]);
+  };
 
   // Geocode children's city names if they don't have coordinates
+  // This effect only runs when children change, not on every geocodedChildLocations update
   useEffect(() => {
     const geocodeChildrenLocations = async () => {
       const childrenToGeocode = children.filter(child => {
-        // Skip if already has coordinates
-        if (getChildLocation(child)) return false;
+        // Skip if already has coordinates from preferences/locationDetails
+        const prefs = child.preferences as any;
+        let savedAddress = prefs?.savedAddress;
+        if (typeof savedAddress === 'string') {
+          try { savedAddress = JSON.parse(savedAddress); } catch (e) { /* ignore */ }
+        }
+        if (savedAddress?.latitude && savedAddress?.longitude) return false;
+        if (prefs?.latitude && prefs?.longitude) return false;
+        if (child.locationDetails?.latitude && child.locationDetails?.longitude) return false;
         // Skip if no city name to geocode
         if (!child.location) return false;
-        // Skip if already geocoded
-        if (geocodedChildLocations.has(child.id)) return false;
         return true;
       });
 
       if (childrenToGeocode.length === 0) return;
 
-      if (__DEV__) {
-        console.log('[MapSearch] Geocoding city names for children:', childrenToGeocode.map(c => ({ name: c.name, location: c.location })));
-      }
+      // Use functional update to avoid dependency on geocodedChildLocations
+      setGeocodedChildLocations(prevLocations => {
+        // Filter out children already in the cache
+        const needsGeocoding = childrenToGeocode.filter(c => !prevLocations.has(c.id));
+        if (needsGeocoding.length === 0) return prevLocations;
 
-      const newGeocodedLocations = new Map(geocodedChildLocations);
-
-      for (const child of childrenToGeocode) {
-        try {
-          // Geocode the city name (e.g., "North Vancouver" → coordinates)
-          const coords = await geocodeAddress(child.location + ', Canada');
-          if (coords) {
-            newGeocodedLocations.set(child.id, coords);
-            if (__DEV__) {
-              console.log(`[MapSearch] Geocoded ${child.name}'s location "${child.location}":`, coords);
+        // Start geocoding asynchronously
+        (async () => {
+          const newLocations = new Map(prevLocations);
+          for (const child of needsGeocoding) {
+            try {
+              const coords = await geocodeAddress(child.location + ', Canada');
+              if (coords) {
+                newLocations.set(child.id, coords);
+              }
+            } catch (e) {
+              // Silently fail - child just won't have location
             }
           }
-        } catch (e) {
-          console.warn(`[MapSearch] Failed to geocode ${child.location}:`, e);
-        }
-      }
+          if (newLocations.size > prevLocations.size) {
+            setGeocodedChildLocations(newLocations);
+          }
+        })();
 
-      if (newGeocodedLocations.size > geocodedChildLocations.size) {
-        setGeocodedChildLocations(newGeocodedLocations);
-      }
+        return prevLocations;
+      });
     };
 
     geocodeChildrenLocations();
-  }, [children, getChildLocation, geocodedChildLocations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
 
   // Determine initial region based on priority: Selected Children > All Children > GPS > Canada
   useEffect(() => {
-    // Skip if we've already done the initial load - prevents re-loading when geocoded locations update
-    if (hasInitialLoaded.current) {
-      if (__DEV__) console.log('[MapSearch] Skipping location effect - already loaded');
-      return;
-    }
-
     // Use SELECTED children for centering - this respects user's child filter selection
     // If none selected, fall back to all children
     const childrenToCenter = selectedChildren.length > 0 ? selectedChildren : children;
@@ -512,28 +500,20 @@ const MapSearchScreen = () => {
       .map(child => getChildLocation(child))
       .filter((loc): loc is { latitude: number; longitude: number } => loc !== null);
 
-    if (__DEV__) {
-      console.log('[MapSearch] Children location check:', {
-        total: children.length,
-        selected: selectedChildren.length,
-        centering: childrenToCenter.length,
-        withCoords: childrenWithLocations.length,
-        geocodedCount: geocodedChildLocations.size,
-        locations: childrenWithLocations,
-        hasInitialLoaded: hasInitialLoaded.current,
-      });
-    }
+    // Only log once during initial setup, not on every render
+    // Debug logging removed to prevent console spam
 
     // If children with locations exist, center on them
     if (childrenWithLocations.length > 0) {
       const childrenRegion = calculateRegionFromCoordinates(childrenWithLocations);
       if (childrenRegion) {
+        // Skip if we've already centered on children
+        if (hasCenteredOnChildren.current) {
+          return;
+        }
+
         hasCenteredOnChildren.current = true;
         hasInitializedRegion.current = true;
-
-        if (__DEV__) {
-          console.log('[MapSearch] Centering on children locations:', childrenRegion);
-        }
 
         setInitialRegion(childrenRegion);
         setRegion(childrenRegion);
@@ -542,7 +522,6 @@ const MapSearchScreen = () => {
         // Set lastFetchedRegion BEFORE animating to prevent the region change handler
         // from triggering another load when the animation completes
         lastFetchedRegion.current = childrenRegion;
-        hasInitialLoaded.current = true;
 
         // Animate to the region
         requestAnimationFrame(() => {
@@ -553,18 +532,25 @@ const MapSearchScreen = () => {
           }, 300);
         });
 
-        // Load activities for children's location
-        loadActivities(childrenRegion);
+        // Only load activities if we haven't already loaded (prevents double load when
+        // geocoding completes after GPS fallback already loaded activities)
+        if (!hasInitialLoaded.current) {
+          hasInitialLoaded.current = true;
+          loadActivities(childrenRegion);
+        }
         return;
       }
     }
 
+    // Skip remaining fallback logic if we've already loaded
+    if (hasInitialLoaded.current) {
+      return;
+    }
+
     // If no children loaded yet, wait briefly for Redux to load them
     if (children.length === 0) {
-      if (__DEV__) console.log('[MapSearch] No children loaded yet, waiting...');
       setTimeout(() => {
         if (!hasInitializedRegion.current && !hasCenteredOnChildren.current && !hasInitialLoaded.current) {
-          if (__DEV__) console.log('[MapSearch] Timeout - no children, falling back to GPS');
           hasInitializedRegion.current = true;
           setLocationLoaded(true);
           loadActivities();
@@ -575,11 +561,8 @@ const MapSearchScreen = () => {
     }
 
     // Children exist but none have coordinates - fall back to GPS immediately
-    // (children should have coordinates from their saved location)
     if (hasInitializedRegion.current) return;
     hasInitializedRegion.current = true;
-
-    if (__DEV__) console.log('[MapSearch] Children have no coordinates, falling back to GPS immediately');
 
     const determineInitialRegion = async () => {
       // Priority 2: Try to get user's current GPS location
@@ -594,7 +577,6 @@ const MapSearchScreen = () => {
             latitudeDelta: USER_LOCATION_DELTA,
             longitudeDelta: USER_LOCATION_DELTA,
           };
-          if (__DEV__) console.log('[MapSearch] Using GPS location:', userRegion);
           setInitialRegion(userRegion);
           setRegion(userRegion);
           setLocationLoaded(true);
@@ -615,8 +597,6 @@ const MapSearchScreen = () => {
           // Don't override if we've already centered on children or already loaded
           if (hasCenteredOnChildren.current || hasInitialLoaded.current) return;
 
-          if (__DEV__) console.log('[MapSearch] GPS location error:', error.message);
-
           // Priority 3: Check for saved address in preferences
           if (preferences.savedAddress &&
               preferences.savedAddress.latitude &&
@@ -627,7 +607,6 @@ const MapSearchScreen = () => {
               latitudeDelta: USER_LOCATION_DELTA,
               longitudeDelta: USER_LOCATION_DELTA,
             };
-            if (__DEV__) console.log('[MapSearch] Using saved address:', prefRegion);
             setInitialRegion(prefRegion);
             setRegion(prefRegion);
             setLocationLoaded(true);
@@ -665,13 +644,6 @@ const MapSearchScreen = () => {
 
   // Filter activities based on user preferences (only apply non-default filters)
   const filteredActivities = useMemo(() => {
-    if (__DEV__) {
-      console.log('[MapSearch] Filtering activities:', {
-        total: allActivities.length,
-        withCoords: allActivities.filter(a => a.latitude && a.longitude).length,
-      });
-    }
-
     return allActivities.filter((activity) => {
       // Filter out full activities if preference is set
       if (preferences.hideFullActivities && activity.spotsAvailable === 0) {
@@ -739,7 +711,8 @@ const MapSearchScreen = () => {
     });
 
     return Math.min(...distances);
-  }, [selectedChildren, getChildLocation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChildren, geocodedChildLocations]);
 
   // Update visible activities when region changes (debounced)
   // Also triggers a refetch if region moved significantly
@@ -784,14 +757,14 @@ const MapSearchScreen = () => {
     }, 300);
 
     // Debounced refetch - wait for user to stop panning/zooming
-    // Only refetch if we've moved significantly and no search filters are active
+    // Only refetch if we've moved significantly, no search filters are active,
+    // AND initial load is complete (to prevent multiple loads during startup)
     refetchTimeout.current = setTimeout(() => {
-      if (hasRegionMovedSignificantly(newRegion, lastFetchedRegion.current) && !searchFilters) {
-        if (__DEV__) console.log('[MapSearch] Region changed significantly, refetching activities');
+      if (initialLoadComplete && hasRegionMovedSignificantly(newRegion, lastFetchedRegion.current) && !searchFilters) {
         loadActivities(newRegion);
       }
     }, 800);
-  }, [filteredActivities, getVisibleActivities, getDistanceToNearestChild, searchFilters]);
+  }, [filteredActivities, getVisibleActivities, getDistanceToNearestChild, searchFilters, initialLoadComplete]);
 
   // Initial visible activities update when activities load
   useEffect(() => {
@@ -818,18 +791,6 @@ const MapSearchScreen = () => {
 
   // Process activities and set state
   const processAndSetActivities = (activities: Activity[]) => {
-    if (__DEV__) {
-      console.log('[MapSearch] API returned:', {
-        total: activities?.length || 0,
-        sample: activities?.[0] ? {
-          id: activities[0].id,
-          name: activities[0].name,
-          lat: activities[0].latitude,
-          lng: activities[0].longitude,
-        } : null,
-      });
-    }
-
     // Filter to only activities with valid coordinates
     // Check both activity-level coords and nested location object
     const activitiesWithLocation = (activities || []).map((a: Activity) => {
@@ -851,19 +812,6 @@ const MapSearchScreen = () => {
       return hasCoords;
     });
 
-    if (__DEV__) {
-      console.log('[MapSearch] Activities with valid coordinates:', activitiesWithLocation.length);
-      if (activitiesWithLocation.length === 0 && activities?.length > 0) {
-        // Log sample activity to debug
-        const sample = activities[0];
-        console.log('[MapSearch] Sample activity location data:', {
-          actLat: sample.latitude,
-          actLng: sample.longitude,
-          location: sample.location,
-        });
-      }
-    }
-
     setAllActivities(activitiesWithLocation);
 
     // Note: We intentionally do NOT auto-zoom to fit all activities.
@@ -874,10 +822,7 @@ const MapSearchScreen = () => {
   // Load activities with search filters applied
   const loadActivitiesWithFilters = async (filters: ActivitySearchParams, forRegion?: Region) => {
     // Prevent concurrent loads
-    if (isLoadingActivities.current) {
-      if (__DEV__) console.log('[MapSearch] Skipping loadActivitiesWithFilters - already loading');
-      return;
-    }
+    if (isLoadingActivities.current) return;
 
     try {
       isLoadingActivities.current = true;
@@ -891,13 +836,6 @@ const MapSearchScreen = () => {
       const maxLat = targetRegion.latitude + targetRegion.latitudeDelta / 2;
       const minLng = targetRegion.longitude - targetRegion.longitudeDelta / 2;
       const maxLng = targetRegion.longitude + targetRegion.longitudeDelta / 2;
-
-      if (__DEV__) {
-        console.log('[MapSearch] Loading filtered activities for bounds:', {
-          minLat, maxLat, minLng, maxLng,
-          filters,
-        });
-      }
 
       // Build bounds query params with search filters
       const boundsParams: {
@@ -937,8 +875,6 @@ const MapSearchScreen = () => {
       if (filters.hideClosedActivities) boundsParams.hideClosedActivities = true;
       if (filters.hideFullActivities) boundsParams.hideFullActivities = true;
 
-      if (__DEV__) console.log('[MapSearch] Bounds query with filters:', boundsParams);
-
       const result = await activityService.searchActivitiesByBounds(boundsParams);
       processAndSetActivities(result.activities);
 
@@ -946,19 +882,21 @@ const MapSearchScreen = () => {
         lastFetchedRegion.current = forRegion;
       }
     } catch (error) {
-      if (__DEV__) console.error('[MapSearch] Error loading filtered activities:', error);
+      // Silently handle errors
     } finally {
       isLoadingActivities.current = false;
-      setLoading(false);
+      // Delay longer than the debounced refetch timer (800ms) to prevent
+      // immediate refetch after initial load
+      setTimeout(() => {
+        setLoading(false);
+        setInitialLoadComplete(true);
+      }, 1000);
     }
   };
 
   const loadActivities = async (forRegion?: Region) => {
     // Prevent concurrent loads
-    if (isLoadingActivities.current) {
-      if (__DEV__) console.log('[MapSearch] Skipping loadActivities - already loading');
-      return;
-    }
+    if (isLoadingActivities.current) return;
 
     try {
       isLoadingActivities.current = true;
@@ -972,13 +910,6 @@ const MapSearchScreen = () => {
       const maxLat = targetRegion.latitude + targetRegion.latitudeDelta / 2;
       const minLng = targetRegion.longitude - targetRegion.longitudeDelta / 2;
       const maxLng = targetRegion.longitude + targetRegion.longitudeDelta / 2;
-
-      if (__DEV__) {
-        console.log('[MapSearch] Loading activities for bounds:', {
-          minLat, maxLat, minLng, maxLng,
-          center: { lat: targetRegion.latitude, lon: targetRegion.longitude },
-        });
-      }
 
       // Check if the visible region contains any children's locations
       const isNearChildren = selectedChildren.some(child => {
@@ -1024,7 +955,6 @@ const MapSearchScreen = () => {
       // Apply child-based filters ONLY when viewing near children
       // When user pans away, show all activities in viewport with just basic filters
       if (isNearChildren && mergedFilters) {
-        if (__DEV__) console.log('[MapSearch] Near children - applying child filters');
         if (mergedFilters.ageMin !== undefined) boundsParams.ageMin = mergedFilters.ageMin;
         if (mergedFilters.ageMax !== undefined) boundsParams.ageMax = mergedFilters.ageMax;
         if (mergedFilters.priceRangeMin !== undefined) boundsParams.costMin = mergedFilters.priceRangeMin;
@@ -1036,7 +966,6 @@ const MapSearchScreen = () => {
         }
       } else if (!isNearChildren) {
         // User panned away from children - just apply age filter for safety
-        if (__DEV__) console.log('[MapSearch] Panned away from children - showing all activities in viewport');
         if (mergedFilters?.ageMin !== undefined) boundsParams.ageMin = mergedFilters.ageMin;
         if (mergedFilters?.ageMax !== undefined) boundsParams.ageMax = mergedFilters.ageMax;
       }
@@ -1046,23 +975,24 @@ const MapSearchScreen = () => {
         boundsParams.hideClosedOrFull = true;
       }
 
-      if (__DEV__) console.log('[MapSearch] Bounds query params:', boundsParams);
-
       // Use the bounds API for geographic filtering
       const result = await activityService.searchActivitiesByBounds(boundsParams);
       processAndSetActivities(result.activities);
-
-      if (__DEV__) console.log('[MapSearch] Loaded', result.total, 'activities in bounds');
 
       // Track the region we just fetched for
       if (forRegion) {
         lastFetchedRegion.current = forRegion;
       }
     } catch (error) {
-      if (__DEV__) console.error('[MapSearch] Error loading activities:', error);
+      // Silently handle errors
     } finally {
       isLoadingActivities.current = false;
-      setLoading(false);
+      // Delay longer than the debounced refetch timer (800ms) to prevent
+      // immediate refetch after initial load
+      setTimeout(() => {
+        setLoading(false);
+        setInitialLoadComplete(true);
+      }, 1000);
     }
   };
 
@@ -1163,8 +1093,6 @@ const MapSearchScreen = () => {
   const handleChildSelectionChange = useCallback((newSelectedIds: string[], _mode: ChildFilterMode) => {
     if (!locationLoaded) return;
 
-    console.log('[MapSearch] Child selection changed:', { newSelectedIds });
-
     // Get locations for newly selected children
     const newlySelectedChildren = children.filter(c => newSelectedIds.includes(c.id));
     const childLocations = newlySelectedChildren
@@ -1175,20 +1103,17 @@ const MapSearchScreen = () => {
     if (childLocations.length > 0) {
       const newRegion = calculateRegionFromCoordinates(childLocations);
       if (newRegion && mapRef.current) {
-        console.log('[MapSearch] Re-centering map on selected children:', newRegion);
         setRegion(newRegion);
         mapRef.current.animateToRegion(newRegion, 500);
-        // Load activities for the new region
         loadActivities(newRegion);
         lastFetchedRegion.current = newRegion;
         return;
       }
     }
 
-    // Fallback: just reload activities for current region
-    console.log('[MapSearch] No child locations, reloading activities for current region');
+    // Fallback: reload activities for current region
     loadActivities(region);
-  }, [locationLoaded, region, children, getChildLocation, loadActivities]);
+  }, [locationLoaded, region, children, loadActivities]);
 
   const handleSelectPlace = useCallback(async (prediction: any) => {
     try {
@@ -1211,28 +1136,13 @@ const MapSearchScreen = () => {
           longitudeDelta: 0.05,
         };
 
-        if (__DEV__) {
-          console.log('[MapSearch] Place selected, navigating to:', {
-            place: prediction.primaryText || prediction.description,
-            coordinate: place.coordinate,
-            newRegion,
-          });
-        }
-
-        // Update region state
         setRegion(newRegion);
-
-        // Animate map to the new location
         mapRef.current?.animateToRegion(newRegion, 500);
-
-        // Load activities for the new region (bypass checks for explicit navigation)
         loadActivities(newRegion);
         lastFetchedRegion.current = newRegion;
-      } else {
-        if (__DEV__) console.warn('[MapSearch] No coordinates returned for place:', prediction, place);
       }
     } catch (error) {
-      if (__DEV__) console.error('[MapSearch] Error selecting place:', error);
+      // Silently handle errors
     }
   }, []);
 
@@ -1468,18 +1378,8 @@ const MapSearchScreen = () => {
         </View>
 
         {/* Horizontal Activity List */}
-        {loading && visibleActivities.length === 0 ? (
-          // Show skeleton cards while loading
-          <FlatList
-            data={Array.from({ length: SKELETON_COUNT }, (_, i) => i)}
-            renderItem={({ item }) => <SkeletonCard index={item} />}
-            keyExtractor={(item) => `skeleton-${item}`}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalListContent}
-            scrollEnabled={false}
-          />
-        ) : visibleActivities.length > 0 ? (
+        {visibleActivities.length > 0 ? (
+          // Show activity cards when we have activities
           <FlatList
             ref={listRef}
             data={visibleActivities}
@@ -1508,7 +1408,8 @@ const MapSearchScreen = () => {
               });
             }}
           />
-        ) : !loading && clusters.length === 0 ? (
+        ) : initialLoadComplete && clusters.length === 0 ? (
+          // No activities found at all - only show after initial load confirms no results
           <View style={styles.emptyListState}>
             <View style={styles.emptyIconCircle}>
               <Icon name="map-marker-question" size={32} color="#E8638B" />
@@ -1518,7 +1419,8 @@ const MapSearchScreen = () => {
               Try zooming out or changing your filters
             </Text>
           </View>
-        ) : !loading && visibleActivities.length === 0 ? (
+        ) : initialLoadComplete && clusters.length > 0 ? (
+          // Activities exist but none in current viewport - only show after initial load
           <View style={styles.emptyListState}>
             <View style={styles.emptyIconCircle}>
               <Icon name="gesture-swipe" size={32} color="#E8638B" />
@@ -1528,7 +1430,18 @@ const MapSearchScreen = () => {
               Activities will appear as they come into view
             </Text>
           </View>
-        ) : null}
+        ) : (
+          // Default: show skeleton cards while loading/processing
+          <FlatList
+            data={Array.from({ length: SKELETON_COUNT }, (_, i) => i)}
+            renderItem={({ item }) => <SkeletonCard index={item} />}
+            keyExtractor={(item) => `skeleton-${item}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}
+            scrollEnabled={false}
+          />
+        )}
       </View>
       </SafeAreaView>
 

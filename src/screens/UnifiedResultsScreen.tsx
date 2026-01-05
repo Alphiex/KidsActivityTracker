@@ -20,6 +20,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityCard from '../components/ActivityCard';
 import { Activity } from '../types';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
+import { Aggregations } from '../types/aggregations';
 import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
@@ -94,6 +95,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [aggregations, setAggregations] = useState<Aggregations | undefined>(undefined);
 
   const ITEMS_PER_PAGE = 50;
 
@@ -294,6 +296,61 @@ const UnifiedResultsScreenTest: React.FC = () => {
           Object.assign(baseParams, activeFilters);
         }
 
+        // Apply global preferences from FiltersScreen (these apply to all screens)
+        // Activity types filter (only if not already specified by screen type)
+        if (type !== 'activityType' && preferences.preferredActivityTypes?.length > 0) {
+          baseParams.categories = preferences.preferredActivityTypes.join(',');
+        }
+
+        // Age range filter (only if not already an age group screen)
+        if (type !== 'ageGroup' && preferences.ageRanges?.length > 0) {
+          const ageRange = preferences.ageRanges[0];
+          if (ageRange.min !== 0 || ageRange.max !== 18) {
+            baseParams.ageMin = ageRange.min;
+            baseParams.ageMax = ageRange.max;
+          }
+        }
+
+        // Price range filter (only if not already a budget screen)
+        if (type !== 'budget' && preferences.priceRange) {
+          if (preferences.priceRange.max < 999999) {
+            baseParams.maxCost = preferences.priceRange.max;
+          }
+        }
+
+        // Days of week filter
+        if (preferences.daysOfWeek?.length > 0 && preferences.daysOfWeek.length < 7) {
+          baseParams.dayOfWeek = preferences.daysOfWeek;
+        }
+
+        // Location filter (city from saved address)
+        if (preferences.savedAddress?.city) {
+          baseParams.city = preferences.savedAddress.city;
+          if (preferences.savedAddress.province || preferences.savedAddress.state) {
+            baseParams.province = preferences.savedAddress.province || preferences.savedAddress.state;
+          }
+        }
+
+        // Distance filter (if enabled and has coordinates)
+        if (preferences.distanceFilterEnabled && preferences.savedAddress?.latitude && preferences.savedAddress?.longitude) {
+          baseParams.userLat = preferences.savedAddress.latitude;
+          baseParams.userLon = preferences.savedAddress.longitude;
+          baseParams.radiusKm = preferences.distanceRadiusKm || 25;
+        }
+
+        // Environment filter (indoor/outdoor)
+        if (preferences.environmentFilter && preferences.environmentFilter !== 'all') {
+          baseParams.environment = preferences.environmentFilter;
+        }
+
+        // Date filter
+        if (preferences.dateFilter === 'range' && preferences.dateRange?.start) {
+          baseParams.startDateAfter = preferences.dateRange.start;
+          if (preferences.dateRange.end) {
+            baseParams.startDateBefore = preferences.dateRange.end;
+          }
+        }
+
         // Apply type-specific filters
         if (type === 'budget') {
           // Budget friendly - uses fixed max cost, don't apply price filters
@@ -328,13 +385,23 @@ const UnifiedResultsScreenTest: React.FC = () => {
         const childFilters = getChildBasedFilters();
 
         const activityService = ActivityService.getInstance();
-        const response = await activityService.searchActivitiesPaginated(baseParams, childFilters);
+        // Include aggregations on first page load for FiltersScreen
+        const includeAggregations = offset === 0;
+        const response = await activityService.searchActivitiesPaginated(
+          baseParams,
+          childFilters,
+          { includeAggregations }
+        );
 
         if (response && response.items) {
           if (isLoadMore) {
             setActivities(prev => [...prev, ...response.items]);
           } else {
             setActivities(response.items);
+            // Store aggregations from first page response
+            if (response.aggregations) {
+              setAggregations(response.aggregations);
+            }
           }
           setTotalCount(response.total || 0);
           setHasMore(response.hasMore);
@@ -366,12 +433,12 @@ const UnifiedResultsScreenTest: React.FC = () => {
     }
   };
 
-  // Use focus effect to reload favorites when screen gains focus
+  // Use focus effect to reload activities when screen gains focus
+  // This ensures filter changes from FiltersScreen are applied
   useFocusEffect(
     React.useCallback(() => {
-      if (type === 'favorites') {
-        loadActivities();
-      }
+      // Reload activities when returning to this screen (e.g., after applying filters)
+      loadActivities();
       loadFavorites();
       // Refresh child favorites/watching data for icon colors
       if (children.length > 0) {
@@ -379,6 +446,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
         dispatch(fetchChildFavorites(childIds));
         dispatch(fetchChildWatching(childIds));
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [type, children.length, dispatch])
   );
 
@@ -478,6 +546,7 @@ const UnifiedResultsScreenTest: React.FC = () => {
     navigation.navigate('Filters' as never, {
       hiddenSections: getHiddenFilterSections(),
       screenTitle: config?.title || 'Filters',
+      aggregations: aggregations, // Pass aggregations for dynamic filter options
     } as never);
   };
 

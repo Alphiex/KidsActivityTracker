@@ -782,10 +782,6 @@ export const selectChildrenOnWaitlistWithDetails = (activityId: string) => (stat
   const waitlist = allWaitlist.filter(w => w.activityId === activityId);
   const children = state.children.children;
 
-  console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] activityId:', activityId);
-  console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] total waitlist entries:', allWaitlist.length);
-  console.log('[SELECTOR selectChildrenOnWaitlistWithDetails] filtered waitlist:', waitlist.length, waitlist.map(w => w.childId));
-
   return waitlist
     .map(w => {
       const child = children.find(c => c.id === w.childId);
@@ -799,10 +795,6 @@ export const selectChildrenWatchingWithDetails = (activityId: string) => (state:
   const allWatching = state.childFavorites.watching;
   const watching = allWatching.filter(w => w.activityId === activityId);
   const children = state.children.children;
-
-  console.log('[SELECTOR selectChildrenWatchingWithDetails] activityId:', activityId);
-  console.log('[SELECTOR selectChildrenWatchingWithDetails] total watching entries:', allWatching.length);
-  console.log('[SELECTOR selectChildrenWatchingWithDetails] filtered watching:', watching.length, watching.map(w => w.childId));
 
   return watching
     .map(w => {

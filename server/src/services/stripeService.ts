@@ -761,10 +761,10 @@ export async function changeSubscriptionTier(params: {
 
     // Get proration amount from upcoming invoice
     try {
-      const upcomingInvoice = await stripe.invoices.retrieveUpcoming({
+      const previewInvoice = await stripe.invoices.createPreview({
         customer: partnerAccount.revenueCatCustomerId,
       });
-      prorationAmount = upcomingInvoice.amount_due / 100;
+      prorationAmount = previewInvoice.amount_due / 100;
     } catch (e) {
       // Proration may already be charged
     }

@@ -1,7 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
-import axiosRetry from 'axios-retry';
 import DebugLogger from '../utils/debugLogger';
-import DiagnosticInterceptor from '../utils/diagnosticInterceptor';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
@@ -62,8 +59,7 @@ function sortWithSponsoredFirst(activities: Activity[]): Activity[] {
 
 class ActivityService {
   private static instance: ActivityService;
-  private api: AxiosInstance;
-  
+
   /**
    * Get global filter parameters from user preferences
    */
@@ -309,8 +305,8 @@ class ActivityService {
     console.log(`📍 [PerChildSearch] Searching for ${child.name} (age ${age}) near ${addr.city || 'unknown city'}`);
 
     try {
-      // Make direct API call without recursive child filters
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
+      // Make direct API call without recursive child filters (using native fetch)
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
 
       if (response.data.success) {
         const activities = (response.data.activities || []).map((activity: any) => ({
@@ -407,117 +403,14 @@ class ActivityService {
   }
 
   private constructor() {
-    // Setup diagnostic interceptors in development
-    if (__DEV__) {
-      DiagnosticInterceptor.setupInterceptors();
-    }
-
     // Log the API configuration
-    console.log('=== ActivityService Configuration ===');
-    console.log('API Base URL:', API_CONFIG.BASE_URL);
-    console.log('Platform:', Platform.OS);
-    console.log('Dev Mode:', __DEV__);
-    console.log('=================================');
-
-    this.api = axios.create({
-      baseURL: API_CONFIG.BASE_URL,
-      timeout: API_CONFIG.TIMEOUT,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'KidsActivityTracker/1.0',
-      },
-      // Force JSON parsing
-      responseType: 'json',
-      // Add additional axios config for better compatibility
-      validateStatus: (status) => status < 500,
-      transformResponse: [(data) => {
-        // Handle cases where data might already be parsed
-        if (typeof data === 'string') {
-          try {
-            return JSON.parse(data);
-          } catch (e) {
-            console.error('Failed to parse JSON response:', e);
-            throw new Error('Invalid JSON response from server');
-          }
-        }
-        return data;
-      }],
-    });
-
-    // Configure retry logic
-    axiosRetry(this.api, {
-      retries: 3,
-      retryDelay: (retryCount) => {
-        return retryCount * 1000; // time interval between retries
-      },
-      retryCondition: (error) => {
-        // Retry on network errors or 5xx errors
-        const shouldRetry = axiosRetry.isNetworkOrIdempotentRequestError(error) || 
-               (error.response?.status ?? 0) >= 500;
-        if (__DEV__ && shouldRetry) {
-          console.log(`Retrying request... (attempt ${error.config?.['axios-retry']?.retryCount || 0})`);
-        }
-        return shouldRetry;
-      },
-    });
-
-    // Add request/response interceptors for debugging and auth
-    // Note: Using synchronous interceptor to avoid potential async issues
-    this.api.interceptors.request.use(
-      (config) => {
-        // Auth token is handled by api.ts middleware on the server side
-        // Skip async token retrieval here to avoid potential hanging issues
-
-        // Only log in development
-        if (__DEV__) {
-          console.log('API Request:', config.method?.toUpperCase(), config.url);
-        }
-        return config;
-      },
-      (error) => {
-        if (__DEV__) {
-          console.error('API Request Error:', error);
-        }
-        return Promise.reject(error);
-      }
-    );
-
-    this.api.interceptors.response.use(
-      (response) => {
-        if (__DEV__) {
-          console.log('API Response:', response.status, response.config.url);
-        }
-        // Ensure data is properly formatted
-        if (response.data && typeof response.data === 'object') {
-          return response;
-        }
-        // If data is a string, try to parse it
-        if (typeof response.data === 'string') {
-          try {
-            response.data = JSON.parse(response.data);
-          } catch (e) {
-            console.error('Failed to parse response data');
-          }
-        }
-        return response;
-      },
-      (error) => {
-        if (__DEV__) {
-          console.error('API Response Error:', error.message);
-          console.error('Error code:', error.code);
-          console.error('Error config:', error.config?.url);
-          if (error.response) {
-            console.error('Response status:', error.response.status);
-            console.error('Response data:', error.response.data);
-          }
-        }
-        
-        return Promise.reject(error);
-      }
-    );
-
-    // Authentication is handled by authService and Redux store
+    if (__DEV__) {
+      console.log('=== ActivityService Configuration ===');
+      console.log('API Base URL:', API_CONFIG.BASE_URL);
+      console.log('Platform:', Platform.OS);
+      console.log('Using native fetch (not axios)');
+      console.log('=================================');
+    }
   }
 
   static getInstance(): ActivityService {
@@ -554,6 +447,56 @@ class ActivityService {
       console.warn('[ActivityService] NetInfo check failed, assuming connected:', error);
       return true; // Assume connected if check fails
     }
+  }
+
+  /**
+   * Native fetch helper - more reliable than axios in React Native
+   */
+  private async nativeFetch<T = any>(
+    endpoint: string,
+    options: {
+      method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+      params?: Record<string, any>;
+      body?: any;
+    } = {}
+  ): Promise<{ data: T; status: number }> {
+    const { method = 'GET', params, body } = options;
+
+    // Build URL with query params for GET requests
+    let url = endpoint.startsWith('http') ? endpoint : `${API_CONFIG.BASE_URL}${endpoint}`;
+    if (params && Object.keys(params).length > 0) {
+      const filteredParams: Record<string, string> = {};
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            filteredParams[key] = value.join(',');
+          } else {
+            filteredParams[key] = String(value);
+          }
+        }
+      }
+      const queryString = new URLSearchParams(filteredParams).toString();
+      if (queryString) {
+        url += (url.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
+    const fetchOptions: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    };
+
+    if (body && (method === 'POST' || method === 'PUT')) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, fetchOptions);
+    const data = await response.json();
+
+    return { data, status: response.status };
   }
 
   /**
@@ -658,9 +601,9 @@ class ActivityService {
       }
 
       console.log('Searching activities with params:', params);
-      console.log('Full URL will be:', this.api.defaults.baseURL + API_CONFIG.ENDPOINTS.ACTIVITIES);
+      console.log('Full URL will be:', API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.ACTIVITIES);
 
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
 
       // Log the raw response
       console.log('🔍 API Response Status:', response.status);
@@ -747,10 +690,12 @@ class ActivityService {
    * Search activities with pagination support
    * @param params Search parameters
    * @param childFilters Optional child-based filters for multi-child selection
+   * @param options Optional options including includeAggregations
    */
   async searchActivitiesPaginated(
     params: ActivitySearchParams,
-    childFilters?: ChildBasedFilterParams
+    childFilters?: ChildBasedFilterParams,
+    options?: { includeAggregations?: boolean }
   ): Promise<PaginatedResponse<Activity>> {
     try {
       // Skip connectivity check in dev mode (unreliable on iOS simulator)
@@ -897,7 +842,12 @@ class ActivityService {
         apiParams.categories = params.activityTypes.join(',');
         delete apiParams.activityTypes;
       }
-      
+
+      // Add includeAggregations if requested
+      if (options?.includeAggregations) {
+        apiParams.includeAggregations = 'true';
+      }
+
       // Build query string for the API call
       const queryString = Object.entries(apiParams)
         .filter(([_, v]) => v !== undefined && v !== null)
@@ -987,7 +937,9 @@ class ActivityService {
           limit: limit,
           offset: offset,
           hasMore: hasMore,
-          pages: totalPages
+          pages: totalPages,
+          // Include aggregations if present in response
+          aggregations: responseData.aggregations
         };
       }
       
@@ -1034,7 +986,7 @@ class ActivityService {
     hideFullActivities?: boolean;
   }): Promise<{ activities: Activity[]; total: number }> {
     try {
-      const response = await this.api.get('/api/v1/activities/bounds', { params });
+      const response = await this.nativeFetch('/api/v1/activities/bounds', { params });
 
       if (response.data.success) {
         const activities = (response.data.activities || []).map((activity: any) => ({
@@ -1068,8 +1020,7 @@ class ActivityService {
    */
   async getActivityDetails(activityId: string): Promise<Activity | null> {
     try {
-
-      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.ACTIVITY_DETAILS}/${activityId}`);
+      const response = await this.nativeFetch(`${API_CONFIG.ENDPOINTS.ACTIVITY_DETAILS}/${activityId}`);
 
       if (response.data.success && response.data.activity) {
         const activity = response.data.activity;
@@ -1109,7 +1060,7 @@ class ActivityService {
   async getFavorites(): Promise<Activity[]> {
     try {
       // Use the correct backend endpoint /api/favorites
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.FAVORITES);
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.FAVORITES);
 
       if (response.data?.success && Array.isArray(response.data.favorites)) {
         const favorites = response.data.favorites
@@ -1148,8 +1099,9 @@ class ActivityService {
   async addFavorite(activityId: string, notes?: string): Promise<boolean> {
     try {
       // Backend expects only activityId in body, uses authenticated user context
-      await this.api.post(API_CONFIG.ENDPOINTS.FAVORITES, {
-        activityId
+      await this.nativeFetch(API_CONFIG.ENDPOINTS.FAVORITES, {
+        method: 'POST',
+        body: { activityId }
       });
 
       return true;
@@ -1165,7 +1117,7 @@ class ActivityService {
   async removeFavorite(activityId: string): Promise<boolean> {
     try {
       // Backend expects /api/favorites/:activityId format
-      await this.api.delete(`${API_CONFIG.ENDPOINTS.FAVORITES}/${activityId}`);
+      await this.nativeFetch(`${API_CONFIG.ENDPOINTS.FAVORITES}/${activityId}`, { method: 'DELETE' });
       return true;
     } catch (error: any) {
       console.error('Error removing favorite:', error);
@@ -1202,8 +1154,8 @@ class ActivityService {
   async getCategories(): Promise<any[]> {
     try {
       const params = this.getGlobalFilterParams();
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.CATEGORIES, { params });
-      
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.CATEGORIES, { params });
+
       // API returns data field, not categories
       return response.data.success ? response.data.data : [];
     } catch (error) {
@@ -1216,9 +1168,12 @@ class ActivityService {
     try {
       // Always apply global filters unless explicitly disabled
       const params = includeFilters !== false ? this.getGlobalFilterParams() : {};
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITY_TYPES, { params });
-      
-      if (response.data && response.data.success) {
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.ACTIVITY_TYPES, { params });
+
+      if (response.data?.success) {
+        if (__DEV__) {
+          console.log('[ActivityService] Activity types loaded:', response.data.data?.length || 0);
+        }
         return response.data.data || [];
       }
       return [];
@@ -1230,7 +1185,7 @@ class ActivityService {
 
   async getCities(): Promise<any[]> {
     try {
-      const response = await this.api.get('/api/v1/cities');
+      const response = await this.nativeFetch('/api/v1/cities');
       return response.data.success ? response.data.data : [];
     } catch (error) {
       console.error('Error fetching cities:', error);
@@ -1240,7 +1195,7 @@ class ActivityService {
 
   async getCitiesWithCounts(includeEmpty: boolean = true): Promise<Array<{city: string; state: string; count: number}>> {
     try {
-      const response = await this.api.get('/api/v1/cities', {
+      const response = await this.nativeFetch('/api/v1/cities', {
         params: { includeEmpty: includeEmpty ? 'true' : 'false' }
       });
       if (response.data?.success && Array.isArray(response.data.data)) {
@@ -1259,16 +1214,11 @@ class ActivityService {
 
   async getCityLocations(city: string): Promise<any[]> {
     try {
-      const url = `/api/v1/cities/${encodeURIComponent(city)}/locations`;
-      console.log('Fetching city locations from:', url);
-      
-      // Add global filters to ensure count consistency
-      const globalFilters = this.getGlobalFilterParams();
-      const response = await this.api.get(url, { params: globalFilters });
-      console.log('City locations response:', response.data);
-      
-      if (response.data && response.data.success && response.data.data && response.data.data.locations) {
-        console.log(`Found ${response.data.data.locations.length} locations for ${city}`);
+      const params = this.getGlobalFilterParams();
+      const response = await this.nativeFetch(`/api/v1/cities/${encodeURIComponent(city)}/locations`, { params });
+
+      if (response.data?.success && response.data?.data?.locations) {
+        if (__DEV__) console.log(`Found ${response.data.data.locations.length} locations for ${city}`);
         return response.data.data.locations;
       } else {
         console.error('Unexpected response structure:', response.data);
@@ -1282,8 +1232,7 @@ class ActivityService {
 
   async getLocations(): Promise<any[]> {
     try {
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.LOCATIONS);
-      
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.LOCATIONS);
       return response.data.success ? response.data.locations : [];
     } catch (error) {
       console.error('Error fetching locations:', error);
@@ -1293,8 +1242,7 @@ class ActivityService {
 
   async getProviders(): Promise<any[]> {
     try {
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.PROVIDERS);
-      
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.PROVIDERS);
       return response.data.success ? response.data.providers : [];
     } catch (error) {
       console.error('Error fetching providers:', error);
@@ -1307,8 +1255,7 @@ class ActivityService {
    */
   async getStatistics(): Promise<any> {
     try {
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.ACTIVITY_STATS);
-      
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.ACTIVITY_STATS);
       return response.data.success ? response.data.stats : null;
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -1322,8 +1269,8 @@ class ActivityService {
   async getActivityTypeDetails(activityTypeCode: string): Promise<any> {
     try {
       const params = this.getGlobalFilterParams();
-      const response = await this.api.get(`${API_CONFIG.ENDPOINTS.ACTIVITY_TYPES}/${activityTypeCode}`, { params });
-      
+      const response = await this.nativeFetch(`${API_CONFIG.ENDPOINTS.ACTIVITY_TYPES}/${activityTypeCode}`, { params });
+
       if (response.data.success) {
         return response.data.data;
       }
@@ -1354,16 +1301,16 @@ class ActivityService {
       // Merge with global filters from preferences
       const globalFilters = this.getGlobalFilterParams();
       const apiParams = { ...params, ...globalFilters };
-      
+
       console.log(`🎯 Calling venue-specific API: /api/v1/locations/${venueId}/activities with params:`, apiParams);
-      
-      const response = await this.api.get(`/api/v1/locations/${venueId}/activities`, { params: apiParams });
-      
+
+      const response = await this.nativeFetch(`/api/v1/locations/${venueId}/activities`, { params: apiParams });
+
       console.log(`📨 Venue API response status:`, response.status);
       console.log(`📨 Venue API response success:`, response.data?.success);
       console.log(`📨 Venue API response activities count:`, response.data?.activities?.length);
       console.log(`📨 Venue API response total:`, response.data?.pagination?.total);
-      
+
       if (response.data && response.data.success) {
         const activities = response.data.activities.map((activity: any) => ({
           ...activity,
@@ -1438,8 +1385,8 @@ class ActivityService {
    */
   async getActivityTypes(): Promise<string[]> {
     try {
-      const response = await this.api.get('/api/v1/preferences/activity-types');
-      
+      const response = await this.nativeFetch('/api/v1/preferences/activity-types');
+
       if (response.data.success) {
         return response.data.activityTypes || [];
       }
@@ -1478,7 +1425,7 @@ class ActivityService {
    */
   async getAgeGroups(): Promise<Array<{ code: string; label: string; minAge: number; maxAge: number }>> {
     try {
-      const response = await this.api.get(API_CONFIG.ENDPOINTS.AGE_GROUPS);
+      const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.AGE_GROUPS);
 
       if (response.data && response.data.success) {
         return response.data.data || [];

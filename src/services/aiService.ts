@@ -84,7 +84,10 @@ class AIService {
         {
           search_intent: params.search_intent,
           filters: params.filters || {},
-          include_explanations: params.include_explanations ?? true
+          include_explanations: params.include_explanations ?? true,
+          // Pass children_profiles - each child searched independently
+          children_profiles: params.children_profiles,
+          filter_mode: params.filterMode,
         },
         { timeout: 60000 } // 60 second timeout for AI calls
       );

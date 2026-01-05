@@ -35,6 +35,7 @@ import DayTimeGridSelector, {
   DAYS_OF_WEEK,
 } from '../components/DayTimeGridSelector';
 import { ModernColors } from '../theme/modernTheme';
+import { Aggregations } from '../types/aggregations';
 
 interface ExpandableSection {
   id: string;
@@ -84,6 +85,7 @@ type FiltersRouteParams = {
     hiddenSections?: string[];  // Section IDs to hide: 'locations', 'distance', 'budget', 'aiMatch', etc.
     screenTitle?: string;       // Custom title for the screen
     returnScreen?: string;      // Screen to return to after applying filters
+    aggregations?: Aggregations; // Pre-computed aggregations from search results
   };
 };
 
@@ -94,6 +96,9 @@ const FiltersScreen = () => {
 
   // Get hidden sections from route params (default: hide AI Match on all screens)
   const hiddenSections = route.params?.hiddenSections || ['aiMatch'];
+
+  // Get aggregations from route params (if provided from search results)
+  const routeAggregations = route.params?.aggregations;
 
   // Subscription state for advanced filters
   const {
@@ -146,6 +151,31 @@ const FiltersScreen = () => {
 
   const preferencesService = PreferencesService.getInstance();
   const activityService = ActivityService.getInstance();
+
+  // Helper to get count from aggregations if available
+  const getActivityTypeCount = useCallback((typeCode: string): number | undefined => {
+    if (!routeAggregations?.activityTypes) return undefined;
+    const match = routeAggregations.activityTypes.find(t => t.code === typeCode);
+    return match?.count;
+  }, [routeAggregations]);
+
+  const getCostBracketCount = useCallback((minCost: number, maxCost: number): number | undefined => {
+    if (!routeAggregations?.costBrackets) return undefined;
+    const match = routeAggregations.costBrackets.find(b => b.min === minCost && b.max === maxCost);
+    return match?.count;
+  }, [routeAggregations]);
+
+  const getDayOfWeekCount = useCallback((day: string): number | undefined => {
+    if (!routeAggregations?.daysOfWeek) return undefined;
+    const match = routeAggregations.daysOfWeek.find(d => d.day === day);
+    return match?.count;
+  }, [routeAggregations]);
+
+  const getAgeGroupCount = useCallback((minAge: number, maxAge: number): number | undefined => {
+    if (!routeAggregations?.ageGroups) return undefined;
+    const match = routeAggregations.ageGroups.find(g => g.min === minAge && g.max === maxAge);
+    return match?.count;
+  }, [routeAggregations]);
 
   useEffect(() => {
     loadPreferences();
@@ -761,6 +791,8 @@ const FiltersScreen = () => {
           const hasSubtypes = type.subtypes && type.subtypes.length > 0;
           // Use proper icon from activityTypeIcons mapping
           const iconName = getActivityTypeIcon(type.name);
+          // Get count from aggregations if available, otherwise use the type's count
+          const count = getActivityTypeCount(type.code) ?? type.activityCount;
 
           return (
             <View key={type.code} style={styles.activityTypeContainer}>
@@ -770,19 +802,23 @@ const FiltersScreen = () => {
                   style={[
                     styles.activityTypeChip,
                     isTypeSelected && styles.activityTypeChipActive,
+                    count === 0 && styles.activityTypeChipDisabled,
                   ]}
                   onPress={() => toggleActivityType(type.code)}
+                  disabled={count === 0}
                 >
                   <Icon
                     name={iconName}
                     size={20}
-                    color={isTypeSelected ? '#FFFFFF' : '#E8638B'}
+                    color={isTypeSelected ? '#FFFFFF' : count === 0 ? '#CCCCCC' : '#E8638B'}
                   />
                   <Text style={[
                     styles.activityTypeText,
                     isTypeSelected && styles.activityTypeTextActive,
+                    count === 0 && styles.activityTypeTextDisabled,
                   ]}>
                     {type.name}
+                    {count !== undefined && <Text style={styles.countText}> ({count})</Text>}
                   </Text>
                 </TouchableOpacity>
 
@@ -2277,6 +2313,19 @@ const styles = StyleSheet.create({
   },
   activityTypeTextActive: {
     color: '#FFFFFF',
+  },
+  activityTypeChipDisabled: {
+    borderColor: '#E5E5E5',
+    backgroundColor: '#FAFAFA',
+    opacity: 0.6,
+  },
+  activityTypeTextDisabled: {
+    color: '#AAAAAA',
+  },
+  countText: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#888888',
   },
   expandSubtypesButton: {
     width: 36,

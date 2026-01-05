@@ -12,12 +12,14 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
+import { Aggregations } from '../types/aggregations';
 import ActivityTypeService from '../services/activityTypeService';
 import childPreferencesService from '../services/childPreferencesService';
+import PreferencesService from '../services/preferencesService';
 import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import EmptyState from '../components/EmptyState';
@@ -63,6 +65,7 @@ const ActivityTypeDetailScreen = () => {
   const [currentOffset, setCurrentOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [consecutiveEmptyResponses, setConsecutiveEmptyResponses] = useState(0);
+  const [aggregations, setAggregations] = useState<Aggregations | undefined>(undefined);
   const MAX_EMPTY_RESPONSES = 3;
 
   const ITEMS_PER_PAGE = 50;
@@ -93,6 +96,70 @@ const ActivityTypeDetailScreen = () => {
     return { filterMode, mergedFilters };
   }, [selectedChildren, filterMode]);
 
+  // Build global filter params from FiltersScreen preferences
+  const getGlobalFilterParams = useCallback(() => {
+    const preferencesService = PreferencesService.getInstance();
+    const preferences = preferencesService.getPreferences();
+    const params: any = {};
+
+    // Age range filter
+    if (preferences.ageRanges?.length > 0) {
+      const ageRange = preferences.ageRanges[0];
+      if (ageRange.min !== 0 || ageRange.max !== 18) {
+        params.ageMin = ageRange.min;
+        params.ageMax = ageRange.max;
+      }
+    }
+
+    // Price range filter
+    if (preferences.priceRange?.max < 999999) {
+      params.maxCost = preferences.priceRange.max;
+    }
+
+    // Days of week filter
+    if (preferences.daysOfWeek?.length > 0 && preferences.daysOfWeek.length < 7) {
+      params.dayOfWeek = preferences.daysOfWeek;
+    }
+
+    // Location filter
+    if (preferences.savedAddress?.city) {
+      params.city = preferences.savedAddress.city;
+      if (preferences.savedAddress.province || preferences.savedAddress.state) {
+        params.province = preferences.savedAddress.province || preferences.savedAddress.state;
+      }
+    }
+
+    // Distance filter
+    if (preferences.distanceFilterEnabled && preferences.savedAddress?.latitude && preferences.savedAddress?.longitude) {
+      params.userLat = preferences.savedAddress.latitude;
+      params.userLon = preferences.savedAddress.longitude;
+      params.radiusKm = preferences.distanceRadiusKm || 25;
+    }
+
+    // Environment filter
+    if (preferences.environmentFilter && preferences.environmentFilter !== 'all') {
+      params.environment = preferences.environmentFilter;
+    }
+
+    // Date filter
+    if (preferences.dateFilter === 'range' && preferences.dateRange?.start) {
+      params.startDateAfter = preferences.dateRange.start;
+      if (preferences.dateRange.end) {
+        params.startDateBefore = preferences.dateRange.end;
+      }
+    }
+
+    // Hide filters
+    if (preferences.hideFullActivities) {
+      params.hideFullActivities = true;
+    }
+    if (preferences.hideClosedActivities) {
+      params.hideClosedActivities = true;
+    }
+
+    return params;
+  }, []);
+
   const {
     showUpgradeModal: showWaitlistUpgradeModal,
     hideUpgradeModal: hideWaitlistUpgradeModal,
@@ -111,6 +178,7 @@ const ActivityTypeDetailScreen = () => {
       const activityService = ActivityService.getInstance();
       const types = await activityService.getActivityTypesWithCounts();
       const childFilters = getChildBasedFilters();
+      const globalFilters = getGlobalFilterParams();
 
       const currentType = types.find(t => t.name === typeName || t.code === typeCode);
 
@@ -126,8 +194,9 @@ const ActivityTypeDetailScreen = () => {
 
         setSubtypes(subtypesWithCounts);
 
-        // Get actual filtered count using paginated search API with child filters
+        // Get actual filtered count using paginated search API with global + child filters
         const countResult = await activityService.searchActivitiesPaginated({
+          ...globalFilters,
           activityType: typeName,
           limit: 1,
           offset: 0,
@@ -149,8 +218,9 @@ const ActivityTypeDetailScreen = () => {
 
           setSubtypes(subtypesWithCounts);
 
-          // Get actual filtered count using paginated search API with child filters
+          // Get actual filtered count using paginated search API with global + child filters
           const countResult = await activityService.searchActivitiesPaginated({
+            ...globalFilters,
             activityType: typeName,
             limit: 1,
             offset: 0,
@@ -167,7 +237,7 @@ const ActivityTypeDetailScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [typeName, typeCode, getChildBasedFilters]);
+  }, [typeName, typeCode, getChildBasedFilters, getGlobalFilterParams]);
 
   const loadActivities = useCallback(async (reset = false) => {
     if (isLoadingMore && !reset) return;
@@ -185,13 +255,21 @@ const ActivityTypeDetailScreen = () => {
       const offset = reset ? 0 : currentOffset;
       const activityService = ActivityService.getInstance();
       const childFilters = getChildBasedFilters();
+      const globalFilters = getGlobalFilterParams();
 
+      // Only include aggregations on first page load (reset)
       const result = await activityService.searchActivitiesPaginated({
+        ...globalFilters,
         activityType: typeName,
         activitySubtype: selectedSubtype || undefined,
         limit: ITEMS_PER_PAGE,
         offset: offset,
-      }, childFilters);
+      }, childFilters, { includeAggregations: reset });
+
+      // Store aggregations when available (on first page load)
+      if (reset && result.aggregations) {
+        setAggregations(result.aggregations);
+      }
 
       if (result.items.length === 0) {
         const newEmptyCount = consecutiveEmptyResponses + 1;
@@ -219,11 +297,19 @@ const ActivityTypeDetailScreen = () => {
       setIsLoadingMore(false);
       setRefreshing(false);
     }
-  }, [typeName, selectedSubtype, isLoadingMore, hasMore, currentOffset, consecutiveEmptyResponses, getChildBasedFilters]);
+  }, [typeName, selectedSubtype, isLoadingMore, hasMore, currentOffset, consecutiveEmptyResponses, getChildBasedFilters, getGlobalFilterParams]);
 
   useEffect(() => {
     loadTypeDetails();
   }, [loadTypeDetails]);
+
+  // Reload type details when screen gains focus
+  // This ensures filter changes are applied when returning from other screens
+  useFocusEffect(
+    useCallback(() => {
+      loadTypeDetails();
+    }, [loadTypeDetails])
+  );
 
   useEffect(() => {
     if (selectedSubtype !== undefined && !isLoading) {

@@ -27,6 +27,15 @@ export interface ActivitySearchParams {
   offset?: number;
   sortBy?: 'cost' | 'dateStart' | 'name' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
+  // Sponsored activity options
+  sponsoredMode?: 'top' | 'section' | 'none';
+  // Location/distance filtering (client sends these, map to userLat/userLon for service)
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
+  // City-based filtering
+  city?: string;
+  province?: string;
 }
 
 /**
@@ -95,6 +104,49 @@ export interface FamilyContext {
 }
 
 /**
+ * Per-child profile with all data needed for independent search
+ * Each child is searched INDEPENDENTLY using their own location, preferences, and history
+ */
+export interface ChildAIProfile {
+  child_id: string;
+  name?: string;
+  age: number;
+  gender?: 'male' | 'female' | null;
+
+  /** Child's location - REQUIRED for geo-based search */
+  location: {
+    latitude: number;
+    longitude: number;
+    city?: string;
+  };
+
+  /** Child's individual preferences */
+  preferences: {
+    /** Search radius in km from child's location */
+    distance_radius_km: number;
+    /** Preferred activity types */
+    activity_types?: string[];
+    /** Available days of week */
+    days_of_week?: string[];
+    /** Price range */
+    price_min?: number;
+    price_max?: number;
+    /** Environment preference */
+    environment?: 'indoor' | 'outdoor' | 'all';
+  };
+
+  /** Child's activity history - used to improve recommendations */
+  history: {
+    /** Activity IDs the child is enrolled in */
+    enrolled_activity_ids: string[];
+    /** Activity IDs the child has favorited */
+    favorited_activity_ids: string[];
+    /** Activity IDs the child is watching */
+    watching_activity_ids: string[];
+  };
+}
+
+/**
  * Request for AI recommendations
  */
 export interface AIRecommendationRequest {
@@ -102,7 +154,15 @@ export interface AIRecommendationRequest {
   filters: ActivitySearchParams;
   user_id?: string;
   include_explanations?: boolean;
+  /** @deprecated Use children_profiles instead */
   family_context?: FamilyContext;
+  /**
+   * Children profiles - each child searched INDEPENDENTLY
+   * Results are merged (OR) across all children
+   */
+  children_profiles?: ChildAIProfile[];
+  /** Filter mode: 'or' (any child) or 'and' (together) */
+  filter_mode?: 'or' | 'and';
 }
 
 /**

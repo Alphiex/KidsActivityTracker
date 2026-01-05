@@ -16,6 +16,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import ActivityService, { ChildBasedFilterParams } from '../services/activityService';
+import { Aggregations } from '../types/aggregations';
 import PreferencesService from '../services/preferencesService';
 import childPreferencesService from '../services/childPreferencesService';
 import { useAppSelector, useAppDispatch } from '../store';
@@ -43,17 +44,6 @@ const ActivityListScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refresh child favorites/watching data on screen focus for icon colors
-  useFocusEffect(
-    useCallback(() => {
-      if (children.length > 0) {
-        const childIds = children.map(c => c.id);
-        dispatch(fetchChildFavorites(childIds));
-        dispatch(fetchChildWatching(childIds));
-      }
-    }, [children, dispatch])
-  );
-
   const params = route.params as { category?: string; filters?: any; isActivityType?: boolean } | undefined;
   const category = params?.category ?? 'All';
   const filters = params?.filters;
@@ -69,6 +59,7 @@ const ActivityListScreen = () => {
   const [filteredOutCount, setFilteredOutCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
+  const [aggregations, setAggregations] = useState<Aggregations | undefined>(undefined);
 
   // Get selected children for filtering
   const selectedChildren = useMemo(() => {
@@ -147,10 +138,75 @@ const ActivityListScreen = () => {
         searchParams.hideFullActivities = true;
       }
 
+      // Apply global preferences from FiltersScreen
+      // Activity types filter (only if not already specified by category)
+      if (category === 'All' && preferences.preferredActivityTypes?.length > 0) {
+        searchParams.categories = preferences.preferredActivityTypes.join(',');
+      }
+
+      // Age range filter
+      if (preferences.ageRanges?.length > 0) {
+        const ageRange = preferences.ageRanges[0];
+        if (ageRange.min !== 0 || ageRange.max !== 18) {
+          searchParams.ageMin = ageRange.min;
+          searchParams.ageMax = ageRange.max;
+        }
+      }
+
+      // Price range filter (only if not already a budget category)
+      if (category !== 'Budget Friendly' && preferences.priceRange) {
+        if (preferences.priceRange.max < 999999) {
+          searchParams.maxCost = preferences.priceRange.max;
+        }
+      }
+
+      // Days of week filter
+      if (preferences.daysOfWeek?.length > 0 && preferences.daysOfWeek.length < 7) {
+        searchParams.dayOfWeek = preferences.daysOfWeek;
+      }
+
+      // Location filter (city from saved address)
+      if (preferences.savedAddress?.city) {
+        searchParams.city = preferences.savedAddress.city;
+        if (preferences.savedAddress.province || preferences.savedAddress.state) {
+          searchParams.province = preferences.savedAddress.province || preferences.savedAddress.state;
+        }
+      }
+
+      // Distance filter (if enabled and has coordinates)
+      if (preferences.distanceFilterEnabled && preferences.savedAddress?.latitude && preferences.savedAddress?.longitude) {
+        searchParams.userLat = preferences.savedAddress.latitude;
+        searchParams.userLon = preferences.savedAddress.longitude;
+        searchParams.radiusKm = preferences.distanceRadiusKm || 25;
+      }
+
+      // Environment filter (indoor/outdoor)
+      if (preferences.environmentFilter && preferences.environmentFilter !== 'all') {
+        searchParams.environment = preferences.environmentFilter;
+      }
+
+      // Date filter
+      if (preferences.dateFilter === 'range' && preferences.dateRange?.start) {
+        searchParams.startDateAfter = preferences.dateRange.start;
+        if (preferences.dateRange.end) {
+          searchParams.startDateBefore = preferences.dateRange.end;
+        }
+      }
+
       // Child-based filters handle all filtering preferences (location, price, age, days, etc.)
       const childFilters = getChildBasedFilters();
 
-      const result = await activityService.searchActivitiesPaginated(searchParams, childFilters);
+      // Only include aggregations on first page load (reset)
+      const result = await activityService.searchActivitiesPaginated(
+        searchParams,
+        childFilters,
+        { includeAggregations: reset }
+      );
+
+      // Store aggregations when available (on first page load)
+      if (reset && result.aggregations) {
+        setAggregations(result.aggregations);
+      }
 
       if (reset) {
         setActivities(result.items);
@@ -206,10 +262,26 @@ const ActivityListScreen = () => {
 
   const loadMore = async () => {
     if (!hasMore || isLoadingMore) return;
-    
+
     setIsLoadingMore(true);
     await loadActivities(false);
   };
+
+  // Reload activities and refresh child data when screen gains focus
+  // This ensures filter changes are applied when returning from FiltersScreen
+  useFocusEffect(
+    useCallback(() => {
+      // Reload activities with current filters (will pick up any preference changes)
+      loadActivities(true);
+      // Refresh child favorites/watching data for icon colors
+      if (children.length > 0) {
+        const childIds = children.map(c => c.id);
+        dispatch(fetchChildFavorites(childIds));
+        dispatch(fetchChildWatching(childIds));
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [children.length, dispatch, category])
+  );
 
   useEffect(() => {
     let title = category;

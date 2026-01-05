@@ -168,10 +168,9 @@ const childrenSlice = createSlice({
       if (index === -1) {
         state.selectedChildIds.push(childId);
       } else {
-        // Don't allow deselecting all children
-        if (state.selectedChildIds.length > 1) {
-          state.selectedChildIds.splice(index, 1);
-        }
+        // Allow deselecting all children - this disables child-based filtering
+        // When no children selected, only global filters (from FiltersScreen) apply
+        state.selectedChildIds.splice(index, 1);
       }
     },
     selectAllChildren: (state) => {

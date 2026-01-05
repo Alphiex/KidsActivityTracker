@@ -34,6 +34,49 @@ export interface AIRecommendationResponse {
 }
 
 /**
+ * Per-child profile with all preferences and history for AI recommendations
+ * Each child is searched INDEPENDENTLY using their own preferences
+ */
+export interface ChildAIProfile {
+  child_id: string;
+  name?: string;
+  age: number;
+  gender?: 'male' | 'female' | null;
+
+  /** Child's location - REQUIRED for geo-based search */
+  location: {
+    latitude: number;
+    longitude: number;
+    city?: string;
+  };
+
+  /** Child's individual preferences */
+  preferences: {
+    /** Search radius in km from child's location */
+    distance_radius_km: number;
+    /** Preferred activity types */
+    activity_types?: string[];
+    /** Available days of week */
+    days_of_week?: string[];
+    /** Price range */
+    price_min?: number;
+    price_max?: number;
+    /** Environment preference */
+    environment?: 'indoor' | 'outdoor' | 'all';
+  };
+
+  /** Child's activity history - used to improve recommendations */
+  history: {
+    /** Activity IDs the child is enrolled in */
+    enrolled_activity_ids: string[];
+    /** Activity IDs the child has favorited */
+    favorited_activity_ids: string[];
+    /** Activity IDs the child is watching */
+    watching_activity_ids: string[];
+  };
+}
+
+/**
  * Request parameters for AI recommendations
  */
 export interface AIRecommendationRequest {
@@ -44,6 +87,11 @@ export interface AIRecommendationRequest {
   childIds?: string[];
   /** Filter mode for multi-child: 'or' (any child) or 'and' (all together) */
   filterMode?: 'or' | 'and';
+  /**
+   * Children profiles - each child searched INDEPENDENTLY
+   * Results are merged (OR) across all children
+   */
+  children_profiles?: ChildAIProfile[];
 }
 
 /**

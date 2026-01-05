@@ -1,23 +1,16 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { API_CONFIG } from '../config/api';
 import { store } from '../store';
 import { clearAuth } from '../store/slices/authSlice';
 import { firebaseAuthService } from './firebaseAuthService';
 
+/**
+ * API Client using native fetch (more reliable in React Native than axios)
+ */
 class ApiClient {
   private static instance: ApiClient;
-  private axiosInstance: AxiosInstance;
 
   private constructor() {
-    this.axiosInstance = axios.create({
-      baseURL: API_CONFIG.BASE_URL,
-      timeout: API_CONFIG.TIMEOUT,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    this.setupInterceptors();
+    // No setup needed for fetch
   }
 
   static getInstance(): ApiClient {
@@ -27,122 +20,156 @@ class ApiClient {
     return ApiClient.instance;
   }
 
-  private setupInterceptors() {
-    // Request interceptor - get Firebase ID token
-    this.axiosInstance.interceptors.request.use(
-      async (config) => {
-        try {
-          // Get Firebase ID token (automatically refreshes if needed)
-          // Use a timeout to prevent blocking on token fetch
-          const tokenPromise = firebaseAuthService.getIdToken();
-          const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+  /**
+   * Get Firebase auth token
+   */
+  private async getAuthToken(): Promise<string | null> {
+    try {
+      const tokenPromise = firebaseAuthService.getIdToken();
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+      return await Promise.race([tokenPromise, timeoutPromise]);
+    } catch (error) {
+      console.warn('[API] Token fetch failed, continuing without auth:', error);
+      return null;
+    }
+  }
 
-          const token = await Promise.race([tokenPromise, timeoutPromise]);
+  /**
+   * Handle 401 response
+   */
+  private handle401(url: string): void {
+    // Don't log out for endpoints that handle auth errors gracefully
+    const gracefulAuthEndpoints = [
+      '/api/v1/ai/chat/quota',
+      '/api/v1/ai/chat',
+      '/api/v1/ai/recommendations',
+      '/api/v1/ai/plan-week',
+    ];
 
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-          // Don't warn for missing token - many endpoints are public
-        } catch (error) {
-          // Don't block request if token fetch fails
-          console.warn('[API] Token fetch failed, continuing without auth:', error);
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
+    const shouldSkipLogout = gracefulAuthEndpoints.some(endpoint => url.includes(endpoint));
 
-    // Response interceptor - handle 401 errors
-    this.axiosInstance.interceptors.response.use(
-      (response) => response,
-      async (error: AxiosError) => {
-        // If we get a 401, check if we should log out
-        if (error.response?.status === 401) {
-          const url = error.config?.url || '';
+    if (shouldSkipLogout) {
+      console.log('[API] 401 received for graceful endpoint, not logging out:', url);
+    } else {
+      console.log('[API] 401 received, clearing auth state:', url);
+      store.dispatch(clearAuth());
+    }
+  }
 
-          // Don't log out for endpoints that handle auth errors gracefully
-          // These endpoints catch 401s and show appropriate UI instead
-          const gracefulAuthEndpoints = [
-            '/api/v1/ai/chat/quota',
-            '/api/v1/ai/chat',
-            '/api/v1/ai/recommendations',
-            '/api/v1/ai/plan-week',
-          ];
+  /**
+   * Core fetch method
+   */
+  private async request<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    url: string,
+    data?: any,
+    config?: { params?: Record<string, any> }
+  ): Promise<T> {
+    // Build full URL
+    let fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
 
-          const shouldSkipLogout = gracefulAuthEndpoints.some(endpoint => url.includes(endpoint));
-
-          if (shouldSkipLogout) {
-            console.log('[API] 401 received for graceful endpoint, not logging out:', url);
+    // Add query params for GET requests
+    if (config?.params && Object.keys(config.params).length > 0) {
+      const filteredParams: Record<string, string> = {};
+      for (const [key, value] of Object.entries(config.params)) {
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            filteredParams[key] = value.join(',');
           } else {
-            console.log('[API] 401 received, clearing auth state:', url);
-            store.dispatch(clearAuth());
+            filteredParams[key] = String(value);
           }
         }
-
-        return Promise.reject(error);
       }
-    );
+      const queryString = new URLSearchParams(filteredParams).toString();
+      if (queryString) {
+        fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
+    // Get auth token
+    const token = await this.getAuthToken();
+
+    // Build headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Build fetch options
+    const fetchOptions: RequestInit = { method, headers };
+
+    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      fetchOptions.body = JSON.stringify(data);
+    }
+
+    console.log(`[API] ${method}`, url);
+
+    try {
+      const response = await fetch(fullUrl, fetchOptions);
+      console.log(`[API] ${method}`, url, 'response:', response.status);
+
+      // Handle 401
+      if (response.status === 401) {
+        this.handle401(url);
+      }
+
+      // Parse response
+      const responseData = await response.json();
+
+      // Throw error for non-success status codes
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 404) {
+          console.log(`[API] ${method}`, url, '- endpoint not found (404)');
+        } else {
+          console.error(`[API] ${method}`, url, 'error:', {
+            status,
+            data: responseData,
+          });
+        }
+        const error: any = new Error(responseData?.error || responseData?.message || `HTTP ${status}`);
+        error.response = { status, data: responseData };
+        throw error;
+      }
+
+      return responseData as T;
+    } catch (error: any) {
+      // Re-throw if already handled
+      if (error.response) {
+        throw error;
+      }
+      // Network or other error
+      console.error(`[API] ${method}`, url, 'error:', error.message);
+      throw error;
+    }
   }
 
   // HTTP methods
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    console.log('[API] GET', url);
-    try {
-      const response = await this.axiosInstance.get<T>(url, config);
-      console.log('[API] GET', url, 'response:', response.status);
-      return response.data;
-    } catch (error: any) {
-      // Don't log 404s as errors - they're often expected (missing endpoints)
-      const status = error?.response?.status;
-      if (status === 404) {
-        console.log('[API] GET', url, '- endpoint not found (404)');
-      } else {
-        console.error('[API] GET', url, 'error:', {
-          status,
-          data: error?.response?.data,
-          message: error?.message,
-        });
-      }
-      throw error;
+  async get<T>(url: string, config?: { params?: Record<string, any> }): Promise<T> {
+    return this.request<T>('GET', url, undefined, config);
+  }
+
+  async post<T>(url: string, data?: any, config?: { params?: Record<string, any> }): Promise<T> {
+    if (__DEV__) {
+      console.log('[API] POST', url, 'data:', JSON.stringify(data, null, 2));
     }
+    return this.request<T>('POST', url, data, config);
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    console.log('[API] POST', url, 'data:', JSON.stringify(data, null, 2));
-    try {
-      const response = await this.axiosInstance.post<T>(url, data, config);
-      console.log('[API] POST', url, 'response:', response.status, JSON.stringify(response.data, null, 2));
-      return response.data;
-    } catch (error: any) {
-      console.error('[API] POST', url, 'error:', {
-        status: error?.response?.status,
-        data: error?.response?.data,
-        message: error?.message,
-      });
-      throw error;
-    }
+  async put<T>(url: string, data?: any, config?: { params?: Record<string, any> }): Promise<T> {
+    return this.request<T>('PUT', url, data, config);
   }
 
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.axiosInstance.put<T>(url, data, config);
-    return response.data;
+  async patch<T>(url: string, data?: any, config?: { params?: Record<string, any> }): Promise<T> {
+    return this.request<T>('PATCH', url, data, config);
   }
 
-  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.axiosInstance.patch<T>(url, data, config);
-    return response.data;
-  }
-
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.axiosInstance.delete<T>(url, config);
-    return response.data;
-  }
-
-  // Get the axios instance for special cases
-  getAxiosInstance(): AxiosInstance {
-    return this.axiosInstance;
+  async delete<T>(url: string, config?: { params?: Record<string, any> }): Promise<T> {
+    return this.request<T>('DELETE', url, undefined, config);
   }
 }
 

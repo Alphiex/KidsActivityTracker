@@ -6,11 +6,12 @@
  */
 
 import { Annotation } from '@langchain/langgraph';
-import { 
-  ActivitySearchParams, 
-  FamilyContext, 
+import {
+  ActivitySearchParams,
+  FamilyContext,
   CompressedActivity,
-  ModelTier
+  ModelTier,
+  ChildAIProfile
 } from '../types/ai.types';
 import { AIRecommendation } from '../schemas/recommendation.schema';
 
@@ -156,7 +157,17 @@ export const AIGraphState = Annotation.Root({
     reducer: (_, b) => b,
     default: () => undefined,
   }),
-  
+  /** NEW: Per-child profiles for independent search */
+  children_profiles: Annotation<ChildAIProfile[] | undefined>({
+    reducer: (_, b) => b,
+    default: () => undefined,
+  }),
+  /** Filter mode: 'or' (any child) or 'and' (together) */
+  filter_mode: Annotation<'or' | 'and' | undefined>({
+    reducer: (_, b) => b,
+    default: () => undefined,
+  }),
+
   // === Candidates from DB ===
   candidate_activities: Annotation<CompressedActivity[]>({
     reducer: (_, b) => b,

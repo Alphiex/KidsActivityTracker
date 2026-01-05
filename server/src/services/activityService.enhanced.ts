@@ -794,7 +794,17 @@ export class EnhancedActivityService {
       sponsored: sponsoredMode === 'top' && offset === 0 ? {
         count: sponsoredActivities.length,
         ids: sponsoredActivities.map(a => a.id)
-      } : undefined
+      } : undefined,
+      // Include where clause and filters for aggregation service
+      whereClause: finalWhere,
+      globalFilters: {
+        hideClosedActivities,
+        hideFullActivities,
+        hideClosedOrFull,
+        userLat,
+        userLon,
+        radiusKm,
+      }
     };
   }
 

@@ -96,10 +96,16 @@ export interface MergedChildFilters {
   priceRangeMin: number;
   priceRangeMax: number;
   distanceRadiusKm: number;
+  // Single location (for backward compatibility or when only one child)
   latitude?: number;
   longitude?: number;
-  city?: string; // Fallback city filtering when no coordinates
-  province?: string; // Fallback province filtering when no coordinates
+  city?: string;
+  province?: string;
+  // Multiple locations (when multiple children have different locations)
+  // OR mode: search near ANY of these locations
+  // AND mode: search for activities reachable by ALL (use intersection/bounding box)
+  cities?: string[]; // All unique cities from children's locations
+  locations?: Array<{ latitude: number; longitude: number; city?: string }>;
   environmentFilter: 'all' | 'indoor' | 'outdoor';
   // Gender filtering: array of genders to show activities for
   // Activities with matching gender OR null (unisex) will be shown
@@ -376,11 +382,14 @@ class ChildPreferencesService {
     // Distance: maximum radius (with fallback to 25km default)
     const distanceRadiusKm = Math.max(...childPreferences.map(p => p.distanceRadiusKm ?? 25)) || 25;
 
-    // Location: use first child's location (parse savedAddress which might be a JSON string)
+    // Location: collect ALL children's locations for multi-location search
+    // In OR mode, we search near ANY child's location (execute separate queries and merge)
     let latitude: number | undefined;
     let longitude: number | undefined;
     let city: string | undefined;
     let province: string | undefined;
+    const allLocations: Array<{ latitude: number; longitude: number; city?: string }> = [];
+    const allCities = new Set<string>();
 
     if (__DEV__) {
       console.log('[ChildPrefs] mergeOrMode - Processing', childPreferences.length, 'preferences for location');
@@ -398,20 +407,35 @@ class ChildPreferencesService {
         });
       }
       if (addr) {
-        if (!latitude && addr.latitude && addr.longitude) {
-          latitude = addr.latitude;
-          longitude = addr.longitude;
+        // Collect ALL locations with coordinates
+        if (addr.latitude && addr.longitude) {
+          allLocations.push({
+            latitude: addr.latitude,
+            longitude: addr.longitude,
+            city: addr.city,
+          });
+          // Also set the first one as primary for backward compatibility
+          if (!latitude) {
+            latitude = addr.latitude;
+            longitude = addr.longitude;
+          }
         }
-        if (!city && addr.city) {
-          city = addr.city;
-          province = addr.state; // state field holds province
+        // Collect ALL cities
+        if (addr.city) {
+          allCities.add(addr.city);
+          if (!city) {
+            city = addr.city;
+            province = addr.state; // state field holds province
+          }
         }
-        // Stop if we have both coordinates and city
-        if (latitude && city) break;
       }
     }
     if (__DEV__) {
-      console.log('[ChildPrefs] mergeOrMode - Final location:', { latitude, longitude, city, province });
+      console.log('[ChildPrefs] mergeOrMode - All locations:', {
+        allLocations,
+        allCities: Array.from(allCities),
+        primaryLocation: { latitude, longitude, city, province },
+      });
     }
 
     // Environment: 'all' if any child prefers 'all', otherwise union
@@ -439,6 +463,9 @@ class ChildPreferencesService {
       longitude,
       city,
       province,
+      // Include all locations for multi-location search
+      locations: allLocations.length > 0 ? allLocations : undefined,
+      cities: allCities.size > 0 ? Array.from(allCities) : undefined,
       environmentFilter,
       genders,
     };
@@ -503,26 +530,40 @@ class ChildPreferencesService {
     // Distance: minimum radius (must be reachable by all, with fallback to 25km)
     const distanceRadiusKm = Math.min(...childPreferences.map(p => p.distanceRadiusKm ?? 25)) || 25;
 
-    // Location: use first child's location (parse savedAddress which might be a JSON string)
-    // In AND mode, activity must be within this distance for all
+    // Location: collect ALL children's locations
+    // In AND mode, activity must be reachable by ALL children
+    // We collect all locations and the query logic will find activities within range of all
     let latitude: number | undefined;
     let longitude: number | undefined;
     let city: string | undefined;
     let province: string | undefined;
+    const allLocations: Array<{ latitude: number; longitude: number; city?: string }> = [];
+    const allCities = new Set<string>();
 
     for (const pref of childPreferences) {
       const addr = parseSavedAddress(pref.savedAddress);
       if (addr) {
-        if (!latitude && addr.latitude && addr.longitude) {
-          latitude = addr.latitude;
-          longitude = addr.longitude;
+        // Collect ALL locations with coordinates
+        if (addr.latitude && addr.longitude) {
+          allLocations.push({
+            latitude: addr.latitude,
+            longitude: addr.longitude,
+            city: addr.city,
+          });
+          // Set first one as primary for backward compatibility
+          if (!latitude) {
+            latitude = addr.latitude;
+            longitude = addr.longitude;
+          }
         }
-        if (!city && addr.city) {
-          city = addr.city;
-          province = addr.state; // state field holds province
+        // Collect ALL cities
+        if (addr.city) {
+          allCities.add(addr.city);
+          if (!city) {
+            city = addr.city;
+            province = addr.state; // state field holds province
+          }
         }
-        // Stop if we have both coordinates and city
-        if (latitude && city) break;
       }
     }
 
@@ -564,6 +605,10 @@ class ChildPreferencesService {
       longitude,
       city,
       province,
+      // Include all locations for multi-location filtering
+      // In AND mode, activity must be within range of ALL these locations
+      locations: allLocations.length > 0 ? allLocations : undefined,
+      cities: allCities.size > 0 ? Array.from(allCities) : undefined,
       environmentFilter,
       genders,
     };

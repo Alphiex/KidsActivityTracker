@@ -21,15 +21,18 @@ import { useTheme } from '../contexts/ThemeContext';
 import aiService from '../services/aiService';
 import PreferencesService from '../services/preferencesService';
 import locationService from '../services/locationService';
-import childPreferencesService from '../services/childPreferencesService';
+import childFavoritesService from '../services/childFavoritesService';
+import childActivityService from '../services/childActivityService';
+import { geocodeAddressWithCache } from '../utils/geocoding';
 import { useAppSelector, useAppDispatch } from '../store';
 import {
   selectAllChildren,
   selectSelectedChildIds,
   selectFilterMode,
   fetchChildren,
+  updateChildPreferences,
 } from '../store/slices/childrenSlice';
-import { AIRecommendation, AIRecommendationResponse, AISourceType } from '../types/ai';
+import { AIRecommendation, AIRecommendationResponse, AISourceType, ChildAIProfile } from '../types/ai';
 import { Activity } from '../types';
 import {
   AIRecommendButton,
@@ -59,8 +62,9 @@ const AIRecommendationsScreen = () => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
 
-  // Ensure children are loaded into Redux on mount
+  // Ensure children are loaded into Redux on mount - force refresh to get latest preferences
   useEffect(() => {
+    console.log('[AIRecommendationsScreen] Fetching fresh children data...');
     dispatch(fetchChildren());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -123,99 +127,246 @@ const AIRecommendationsScreen = () => {
   }, [selectedChildren, filterMode]);
   
   /**
+   * Calculate age from date of birth
+   */
+  const calculateAge = (dateOfBirth: string): number => {
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return Math.max(0, Math.min(18, age));
+  };
+
+  /**
    * Fetch AI recommendations
+   *
+   * NEW ARCHITECTURE:
+   * - Each child is searched INDEPENDENTLY using their own:
+   *   - Location (coordinates from saved address)
+   *   - Preferences (activity types, days, price, distance, environment)
+   *   - History (enrolled, favorites, watching)
+   * - Results are merged (OR) across all children
+   * - Sponsored activities get priority
    */
   const fetchRecommendations = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true);
       setError(null);
 
-      // Get merged child preferences (combines all selected children's preferences)
-      // Collect preferences, ages, and genders from selected children
-      const childPreferences = selectedChildren
-        .map(child => child.preferences)
-        .filter((p): p is NonNullable<typeof p> => p !== undefined);
+      if (selectedChildren.length === 0) {
+        setError('Please select at least one child');
+        setLoading(false);
+        return;
+      }
 
-      const childAges = selectedChildren.map(child => {
-        const birthDate = new Date(child.dateOfBirth);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-        }
-        return age;
-      }).filter(age => age >= 0 && age <= 18);
+      const childIds = selectedChildren.map(c => c.id);
+      console.log('[AIRecommendationsScreen] Building profiles for children:', childIds);
 
-      const childGenders = selectedChildren.map(child => child.gender ?? null);
+      // Debug: Log what location data each child has
+      for (const child of selectedChildren) {
+        console.log(`[AIRecommendationsScreen] Child ${child.name}:`, {
+          hasPreferences: !!child.preferences,
+          savedAddress: child.preferences?.savedAddress,
+          locationDetails: child.locationDetails,
+          location: child.location,
+        });
+      }
 
-      const mergedChildPrefs = childPreferencesService.getMergedFilters(
-        childPreferences,
-        childAges,
-        childGenders,
-        filterMode || 'or'
-      );
+      // Fetch history for all children in parallel
+      const [allFavorites, allWatching, allActivitiesMap] = await Promise.all([
+        childFavoritesService.getFavoritesForChildren(childIds).catch(() => []),
+        childFavoritesService.getWatchingForChildren(childIds).catch(() => []),
+        // Get enrolled activities for each child
+        Promise.all(childIds.map(id =>
+          childActivityService.getChildActivities(id).catch(() => [])
+        )).then(results => {
+          const map: Record<string, string[]> = {};
+          childIds.forEach((id, idx) => {
+            map[id] = results[idx]?.map(a => a.activityId) || [];
+          });
+          return map;
+        }),
+      ]);
 
-      // Get user preferences as fallback
-      const preferencesService = PreferencesService.getInstance();
-      const preferences = preferencesService.getPreferences();
+      // Group favorites and watching by child
+      const favoritesByChild: Record<string, string[]> = {};
+      const watchingByChild: Record<string, string[]> = {};
 
-      // Get user's effective location (GPS or saved address)
-      let locationData: { city?: string; latitude?: number; longitude?: number } = {};
+      allFavorites.forEach(f => {
+        if (!favoritesByChild[f.childId]) favoritesByChild[f.childId] = [];
+        favoritesByChild[f.childId].push(f.activityId);
+      });
+
+      allWatching.forEach(w => {
+        if (!watchingByChild[w.childId]) watchingByChild[w.childId] = [];
+        watchingByChild[w.childId].push(w.activityId);
+      });
+
+      // Get GPS location as fallback (only used if child has no saved address)
+      let gpsLocation: { latitude: number; longitude: number } | null = null;
       try {
         const effectiveLocation = await locationService.getEffectiveLocation();
-        if (effectiveLocation) {
-          locationData = {
+        if (effectiveLocation?.latitude && effectiveLocation?.longitude) {
+          gpsLocation = {
             latitude: effectiveLocation.latitude,
             longitude: effectiveLocation.longitude,
           };
         }
       } catch (locError) {
-        console.warn('[AIRecommendationsScreen] Could not get location:', locError);
+        console.warn('[AIRecommendationsScreen] Could not get GPS location:', locError);
       }
 
-      // Use children's age range (no user preference fallbacks - all filtering from child preferences)
-      const ageMin = childrenAgeRange?.min;
-      const ageMax = childrenAgeRange?.max;
+      // Build ChildAIProfile for each child
+      const childrenProfiles: ChildAIProfile[] = [];
 
-      // Get distance radius from child preferences (default 25km)
-      const radiusKm = mergedChildPrefs?.distanceRadiusKm ?? 25;
+      for (const child of selectedChildren) {
+        const age = calculateAge(child.dateOfBirth);
+        const prefs = child.preferences;
 
-      // Merge child preferences with route filters (no user preference fallbacks)
-      const enrichedFilters = {
-        ...filters,
-        // Add age range from children
-        ageMin: filters.ageMin ?? ageMin,
-        ageMax: filters.ageMax ?? ageMax,
-        // Add GPS coordinates if available with child's preferred radius
-        ...(locationData.latitude && locationData.longitude ? {
-          latitude: locationData.latitude,
-          longitude: locationData.longitude,
-          radiusKm: radiusKm,
-        } : (mergedChildPrefs?.latitude && mergedChildPrefs?.longitude ? {
-          latitude: mergedChildPrefs.latitude,
-          longitude: mergedChildPrefs.longitude,
-          radiusKm: radiusKm,
-        } : {})),
-        // Add preferred activity types from child preferences
-        activityTypes: filters.activityTypes ?? mergedChildPrefs?.activityTypes,
-        // Add day preferences from child preferences
-        dayOfWeek: filters.dayOfWeek ?? mergedChildPrefs?.daysOfWeek,
-        // Add price preferences from child preferences
-        costMax: filters.costMax ?? mergedChildPrefs?.priceRangeMax,
-        // Add environment filter from child preferences
-        environmentFilter: filters.environmentFilter ?? (mergedChildPrefs?.environmentFilter !== 'all' ? mergedChildPrefs?.environmentFilter : undefined),
-      };
+        // Get child's location - check multiple sources:
+        // 1. preferences.savedAddress with coordinates
+        // 2. child.locationDetails with coordinates
+        // 3. Geocode city name if available (preferences.savedAddress.city or child.location)
+        // 4. GPS fallback
+        let childLocation: { latitude: number; longitude: number; city?: string } | null = null;
 
-      console.log('[AIRecommendationsScreen] Enriched filters with preferences:', enrichedFilters);
+        // First try preferences.savedAddress with coordinates
+        if (prefs?.savedAddress?.latitude && prefs?.savedAddress?.longitude) {
+          childLocation = {
+            latitude: prefs.savedAddress.latitude,
+            longitude: prefs.savedAddress.longitude,
+            city: prefs.savedAddress.city,
+          };
+          console.log(`[AIRecommendationsScreen] Child ${child.name} using preferences.savedAddress:`, childLocation);
+        }
+        // Then try child.locationDetails with coordinates
+        else if (child.locationDetails?.latitude && child.locationDetails?.longitude) {
+          childLocation = {
+            latitude: child.locationDetails.latitude,
+            longitude: child.locationDetails.longitude,
+            city: child.locationDetails.city,
+          };
+          console.log(`[AIRecommendationsScreen] Child ${child.name} using locationDetails:`, childLocation);
+        }
+        // Try to geocode city name from preferences
+        else if (prefs?.savedAddress?.city) {
+          console.log(`[AIRecommendationsScreen] Child ${child.name} geocoding city: ${prefs.savedAddress.city}`);
+          const coords = await geocodeAddressWithCache(`${prefs.savedAddress.city}, Canada`);
+          if (coords) {
+            childLocation = {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              city: prefs.savedAddress.city,
+            };
+            console.log(`[AIRecommendationsScreen] Child ${child.name} geocoded to:`, childLocation);
 
-      // Get AI recommendations with child selection context
+            // SAVE the geocoded coordinates back to child preferences so we don't geocode again
+            const updatedAddress = {
+              ...prefs.savedAddress,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            };
+            dispatch(updateChildPreferences({
+              childId: child.id,
+              updates: { savedAddress: updatedAddress },
+            }));
+            console.log(`[AIRecommendationsScreen] Saved coordinates for ${child.name}`);
+          }
+        }
+        // Try to geocode from child.location (string city name)
+        else if (child.location) {
+          console.log(`[AIRecommendationsScreen] Child ${child.name} geocoding location: ${child.location}`);
+          const coords = await geocodeAddressWithCache(`${child.location}, Canada`);
+          if (coords) {
+            childLocation = {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              city: child.location,
+            };
+            console.log(`[AIRecommendationsScreen] Child ${child.name} geocoded to:`, childLocation);
+
+            // SAVE the geocoded coordinates as a new savedAddress so we don't geocode again
+            const newAddress = {
+              city: child.location,
+              province: '',
+              formattedAddress: child.location,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            };
+            dispatch(updateChildPreferences({
+              childId: child.id,
+              updates: { savedAddress: newAddress, locationSource: 'saved_address' },
+            }));
+            console.log(`[AIRecommendationsScreen] Saved new address with coordinates for ${child.name}`);
+          }
+        }
+        // Finally fall back to GPS
+        if (!childLocation && gpsLocation) {
+          childLocation = gpsLocation;
+          console.log(`[AIRecommendationsScreen] Child ${child.name} using GPS fallback:`, childLocation);
+        }
+
+        if (!childLocation) {
+          console.warn(`[AIRecommendationsScreen] Child ${child.name} has no location - skipping`);
+          continue;
+        }
+
+        const profile: ChildAIProfile = {
+          child_id: child.id,
+          name: child.name,
+          age,
+          gender: child.gender as 'male' | 'female' | null,
+          location: childLocation,
+          preferences: {
+            distance_radius_km: prefs?.distanceRadiusKm ?? 25,
+            activity_types: prefs?.preferredActivityTypes,
+            days_of_week: prefs?.daysOfWeek,
+            price_min: prefs?.priceRangeMin,
+            price_max: prefs?.priceRangeMax,
+            environment: prefs?.environmentFilter === 'all' ? undefined : prefs?.environmentFilter,
+          },
+          history: {
+            enrolled_activity_ids: allActivitiesMap[child.id] || [],
+            favorited_activity_ids: favoritesByChild[child.id] || [],
+            watching_activity_ids: watchingByChild[child.id] || [],
+          },
+        };
+
+        childrenProfiles.push(profile);
+        console.log(`[AIRecommendationsScreen] Built profile for ${child.name}:`, {
+          location: profile.location,
+          preferences: profile.preferences,
+          historyCount: {
+            enrolled: profile.history.enrolled_activity_ids.length,
+            favorited: profile.history.favorited_activity_ids.length,
+            watching: profile.history.watching_activity_ids.length,
+          },
+        });
+      }
+
+      if (childrenProfiles.length === 0) {
+        setError('No children with valid locations. Please set addresses in child profiles.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('[AIRecommendationsScreen] Sending', childrenProfiles.length, 'child profiles to AI');
+      console.log('[AIRecommendationsScreen] Profiles being sent:', JSON.stringify(childrenProfiles.map(p => ({
+        name: p.name,
+        location: p.location,
+      })), null, 2));
+
+      // Send request with children_profiles - server searches each child independently
       const result = await aiService.getRecommendations({
         search_intent: searchIntent,
-        filters: enrichedFilters,
+        filters: filters,
         include_explanations: true,
-        childIds: selectedChildIds?.length > 0 ? selectedChildIds : undefined,
+        childIds: childIds,
         filterMode: filterMode,
+        children_profiles: childrenProfiles,
       });
 
       if (!result.success && result.error) {
@@ -223,20 +374,21 @@ const AIRecommendationsScreen = () => {
         return;
       }
 
-      console.log('[AIRecommendationsScreen] Result received:', {
-        success: result.success,
-        recCount: result.recommendations?.length,
-        activitiesCount: result.activities ? Object.keys(result.activities).length : 0,
-        error: result.error,
+      const allRecommendations = result.recommendations || [];
+      const allActivities = result.activities || {};
+
+      console.log('[AIRecommendationsScreen] Final result:', {
+        recCount: allRecommendations.length,
+        activitiesCount: Object.keys(allActivities).length,
       });
 
       setResponse(result);
-      setSource(result._meta.source);
+      setSource(result._meta?.source || 'heuristic');
 
-      // Use activities included in response (avoids rate limiting from individual fetches)
-      if (result.activities && Object.keys(result.activities).length > 0) {
+      // Use activities included in response
+      if (Object.keys(allActivities).length > 0) {
         const activityMap = new Map<string, Activity>();
-        for (const [id, activity] of Object.entries(result.activities)) {
+        for (const [id, activity] of Object.entries(allActivities)) {
           activityMap.set(id, activity as Activity);
         }
         console.log('[AIRecommendationsScreen] Activities map created with', activityMap.size, 'entries');
@@ -252,7 +404,7 @@ const AIRecommendationsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchIntent, filters, childrenAgeRange, selectedChildIds, filterMode]);
+  }, [searchIntent, filters, selectedChildIds, filterMode, selectedChildren]);
   
   /**
    * Handle pull to refresh
@@ -286,10 +438,26 @@ const AIRecommendationsScreen = () => {
     navigation.goBack();
   };
   
-  // Fetch on mount
+  // Check if children have coordinates loaded
+  const childrenHaveCoordinates = useMemo(() => {
+    if (selectedChildren.length === 0) return false;
+    return selectedChildren.some(child => {
+      const prefs = child.preferences;
+      return (prefs?.savedAddress?.latitude && prefs?.savedAddress?.longitude) ||
+             (child.locationDetails?.latitude && child.locationDetails?.longitude);
+    });
+  }, [selectedChildren]);
+
+  // Fetch on mount - but only after children have valid location data
   useEffect(() => {
-    fetchRecommendations();
-  }, [fetchRecommendations]);
+    console.log('[AIRecommendationsScreen] Children ready check:', {
+      count: selectedChildren.length,
+      haveCoordinates: childrenHaveCoordinates,
+    });
+    if (childrenHaveCoordinates) {
+      fetchRecommendations();
+    }
+  }, [fetchRecommendations, childrenHaveCoordinates, selectedChildren.length]);
   
   // Render header
   const renderHeader = () => (

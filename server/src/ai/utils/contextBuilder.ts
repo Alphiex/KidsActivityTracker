@@ -129,17 +129,31 @@ export async function buildFamilyContext(
     }
 
     // Build location from child preferences first, then user preferences
+    // DEBUG: Log all child preferences to see what savedAddress looks like
+    console.log('[Context Builder] Child preferences for location:', user.children?.map((c: any) => ({
+      childName: c.name,
+      hasPreferences: !!c.preferences,
+      savedAddress: c.preferences?.savedAddress,
+      savedAddressType: typeof c.preferences?.savedAddress,
+    })));
+
     const childWithLocation = user.children?.find((c: any) => c.preferences?.savedAddress);
     let locationData;
 
     if (childWithLocation?.preferences?.savedAddress) {
       const addr = childWithLocation.preferences.savedAddress as any;
+      console.log('[Context Builder] Found child with location:', {
+        childName: childWithLocation.name,
+        rawSavedAddress: childWithLocation.preferences.savedAddress,
+        parsedAddr: addr,
+      });
       locationData = {
         city: addr.city,
         latitude: addr.latitude,
         longitude: addr.longitude,
       };
     } else {
+      console.log('[Context Builder] No child with savedAddress found, falling back to user preferences');
       const rawPrefs = typeof user.preferences === 'string'
         ? JSON.parse(user.preferences)
         : user.preferences || {};

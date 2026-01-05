@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedActivityService } from '../services/activityService.enhanced';
+import { aggregationService } from '../services/aggregationService';
 import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
@@ -66,7 +67,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       randomSeed, // Seed for consistent random ordering across pagination
       // Sponsored activity options
       sponsoredMode = 'top', // 'top' (default), 'section', or 'none'
-      sessionId // For impression tracking
+      sessionId, // For impression tracking
+      // Aggregation options
+      includeAggregations = 'false' // Include filter aggregations in response
     } = req.query;
 
     console.log('[Routes] Activities API Request:', {
@@ -180,6 +183,21 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       });
     }
 
+    // Compute aggregations if requested (typically only on first page)
+    let aggregations = undefined;
+    if (includeAggregations === 'true' && result.whereClause) {
+      try {
+        aggregations = await aggregationService.getAggregations(
+          result.whereClause,
+          result.globalFilters
+        );
+        console.log('[Routes] Aggregations computed successfully');
+      } catch (aggError) {
+        console.error('[Routes] Error computing aggregations:', aggError);
+        // Continue without aggregations if there's an error
+      }
+    }
+
     res.json({
       success: true,
       activities: result.activities,
@@ -187,7 +205,9 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       hasMore: result.pagination.offset + result.pagination.limit < result.pagination.total,
       pagination: result.pagination,
       // Include sponsored metadata if available
-      sponsored: result.sponsored
+      sponsored: result.sponsored,
+      // Include aggregations if requested
+      aggregations
     });
   } catch (error: any) {
     console.error('Activity search error:', error);
