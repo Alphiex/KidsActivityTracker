@@ -363,23 +363,26 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
 
   } else {
     // ==========================================
-    // ANY MODE: Search each child independently and merge
+    // ANY MODE: Search each child independently, ensure balanced results
     // ==========================================
     console.log(`🔍 [FetchCandidatesNode] ANY mode: searching for ${childrenProfiles.length} children independently`);
+
+    // Track activities per child for balanced selection
+    const activitiesPerChild = new Map<string, Array<{ activity: any; score: number; isSponsored: boolean }>>();
 
     for (const child of childrenProfiles) {
       console.log(`🔍 [FetchCandidatesNode] Searching for child: ${child.name} (age ${child.age})`);
       console.log(`🔍 [FetchCandidatesNode] Child location:`, child.location);
 
       const searchFilters = buildChildSearchFilters(child, state.parsed_filters || {});
+      activitiesPerChild.set(child.child_id, []);
 
       try {
         const result = await activityService.searchActivities(searchFilters);
         console.log(`🔍 [FetchCandidatesNode] Found ${result.activities.length} activities for ${child.name}`);
 
-        // Process results
+        // Process results for this child
         for (const activity of result.activities) {
-          const existing = activityMap.get(activity.id);
           const isSponsored = (activity as any).partnerId != null || (activity as any).sponsorshipLevel != null;
 
           // Calculate match score for this child
@@ -408,15 +411,24 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
             matchScore -= 5;
           }
 
+          // Store for this child
+          if (matchScore > 0) {
+            activitiesPerChild.get(child.child_id)!.push({
+              activity,
+              score: matchScore,
+              isSponsored,
+            });
+          }
+
+          // Also track in global map for union detection
+          const existing = activityMap.get(activity.id);
           if (existing) {
-            // Activity already found for another child - merge
             if (!existing.matchedChildren.includes(child.child_id)) {
               existing.matchedChildren.push(child.child_id);
             }
             existing.totalMatchScore += matchScore;
             existing.isSponsored = existing.isSponsored || isSponsored;
           } else {
-            // New activity
             activityMap.set(activity.id, {
               activity,
               matchedChildren: [child.child_id],
@@ -429,6 +441,56 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
         console.error(`🔍 [FetchCandidatesNode] Error searching for ${child.name}:`, error);
       }
     }
+
+    // Now build balanced results:
+    // 1. Activities that match MULTIPLE children (union results) - highest priority
+    // 2. Balanced selection from each child's unique results
+    const unionActivities = Array.from(activityMap.values())
+      .filter(a => a.matchedChildren.length > 1 && a.totalMatchScore > 0);
+
+    const perChildActivities = new Map<string, Array<{ activity: any; matchedChildren: string[]; isSponsored: boolean; totalMatchScore: number }>>();
+
+    for (const child of childrenProfiles) {
+      const childOnly = Array.from(activityMap.values())
+        .filter(a => a.matchedChildren.length === 1 && a.matchedChildren[0] === child.child_id && a.totalMatchScore > 0);
+      perChildActivities.set(child.child_id, childOnly);
+    }
+
+    console.log(`🔍 [FetchCandidatesNode] Union activities (multiple children): ${unionActivities.length}`);
+    for (const child of childrenProfiles) {
+      console.log(`🔍 [FetchCandidatesNode] Unique activities for ${child.name}: ${perChildActivities.get(child.child_id)?.length || 0}`);
+    }
+
+    // Clear activityMap and rebuild with balanced selection
+    activityMap.clear();
+
+    // Shuffle and add union activities first (activities both/all children can do)
+    const shuffledUnion = shuffleArray(unionActivities);
+    for (const a of shuffledUnion) {
+      activityMap.set(a.activity.id, a);
+    }
+
+    // Calculate how many per-child activities to include
+    // Target: ~50 total, with balanced representation
+    const targetTotal = 50;
+    const unionCount = Math.min(shuffledUnion.length, Math.floor(targetTotal * 0.3)); // 30% union
+    const remainingSlots = targetTotal - unionCount;
+    const slotsPerChild = Math.floor(remainingSlots / childrenProfiles.length);
+
+    // Add balanced selection from each child (randomized)
+    for (const child of childrenProfiles) {
+      const childActivities = perChildActivities.get(child.child_id) || [];
+      const shuffled = shuffleArray(childActivities);
+      const toAdd = shuffled.slice(0, slotsPerChild);
+
+      for (const a of toAdd) {
+        if (!activityMap.has(a.activity.id)) {
+          activityMap.set(a.activity.id, a);
+        }
+      }
+    }
+
+    console.log(`🔍 [FetchCandidatesNode] Balanced selection: ${activityMap.size} activities`);
   }
 
   console.log(`🔍 [FetchCandidatesNode] Total unique activities found: ${activityMap.size}`);
@@ -443,19 +505,45 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
   const sponsored = activities.filter(a => a.isSponsored);
   const regular = activities.filter(a => !a.isSponsored);
 
-  // Sort regular activities by match score (descending)
-  // In Together mode, activities matching more children rank higher
-  regular.sort((a, b) => {
-    // First by number of matched children (more is better)
-    if (b.matchedChildren.length !== a.matchedChildren.length) {
-      return b.matchedChildren.length - a.matchedChildren.length;
-    }
-    // Then by total match score
-    return b.totalMatchScore - a.totalMatchScore;
-  });
+  let finalRegular: typeof regular;
 
-  // Randomize within similar match scores
-  const shuffledRegular = shuffleWithinScoreTiers(regular);
+  if (filterMode === 'and') {
+    // TOGETHER mode: Sort by matched children count, then score
+    regular.sort((a, b) => {
+      if (b.matchedChildren.length !== a.matchedChildren.length) {
+        return b.matchedChildren.length - a.matchedChildren.length;
+      }
+      return b.totalMatchScore - a.totalMatchScore;
+    });
+    finalRegular = shuffleWithinScoreTiers(regular);
+  } else {
+    // ANY mode: More randomized, but keep union activities (matching multiple children) towards top
+    const unionRegular = regular.filter(a => a.matchedChildren.length > 1);
+    const singleChildRegular = regular.filter(a => a.matchedChildren.length === 1);
+
+    // Shuffle both groups
+    const shuffledUnion = shuffleArray(unionRegular);
+    const shuffledSingle = shuffleArray(singleChildRegular);
+
+    // Interleave: some union, then some per-child, repeat
+    // This ensures variety while keeping union activities prominent
+    finalRegular = [];
+    let unionIdx = 0;
+    let singleIdx = 0;
+
+    while (unionIdx < shuffledUnion.length || singleIdx < shuffledSingle.length) {
+      // Add 2 union activities
+      for (let i = 0; i < 2 && unionIdx < shuffledUnion.length; i++) {
+        finalRegular.push(shuffledUnion[unionIdx++]);
+      }
+      // Add 3 single-child activities (roughly balanced across children due to earlier balanced selection)
+      for (let i = 0; i < 3 && singleIdx < shuffledSingle.length; i++) {
+        finalRegular.push(shuffledSingle[singleIdx++]);
+      }
+    }
+
+    console.log(`🔍 [FetchCandidatesNode] ANY mode: ${shuffledUnion.length} union + ${shuffledSingle.length} per-child activities, interleaved`);
+  }
 
   // Randomize sponsored activities
   const shuffledSponsored = shuffleArray(sponsored);
@@ -463,13 +551,17 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
   // Combine: sponsored first, then best matches
   const sortedActivities = [
     ...shuffledSponsored,
-    ...shuffledRegular,
+    ...finalRegular,
   ].slice(0, 50); // Limit to 50 candidates for LLM
 
   console.log(`🔍 [FetchCandidatesNode] Final candidates: ${sortedActivities.length} (${shuffledSponsored.length} sponsored)`);
   if (filterMode === 'and' && sortedActivities.length > 0) {
     const avgMatched = sortedActivities.reduce((sum, a) => sum + a.matchedChildren.length, 0) / sortedActivities.length;
     console.log(`🔍 [FetchCandidatesNode] Together mode: avg ${avgMatched.toFixed(1)} children matched per activity`);
+  }
+  if (filterMode === 'or' && sortedActivities.length > 0) {
+    const unionCount = sortedActivities.filter(a => a.matchedChildren.length > 1).length;
+    console.log(`🔍 [FetchCandidatesNode] ANY mode final: ${unionCount} union activities in results`);
   }
 
   // Extract just the activities for compression

@@ -448,3 +448,149 @@ This ensures:
 | `sortOrder` | `string` | 'asc' or 'desc' |
 | `limit` | `number` | Page size |
 | `offset` | `number` | Pagination offset |
+
+---
+
+## Filter Modes (OR / AND)
+
+The app supports two filter modes when multiple children are selected:
+
+### OR Mode ("Any Child") - Default
+
+When `filterMode: 'or'`:
+- Searches each child **independently** using their own location, preferences, and age
+- Results are **merged** (union) across all children
+- An activity matches if it works for **ANY** selected child
+- Results are balanced to ensure each child gets representation
+
+**Result Distribution in OR Mode:**
+- ~30% union activities (matching multiple children)
+- ~70% balanced per-child activities (each child gets equal representation)
+- Results are randomized for variety
+
+### AND Mode ("Together")
+
+When `filterMode: 'and'`:
+- Single search with **combined constraints** that ALL children must fit
+- **Age range**: Activity must accept ALL children (from youngest to oldest)
+- **Gender**: Only unisex activities if children have different genders
+- **Days**: Intersection - all children must be available
+- **Location**: Uses first child's location (they're doing activity together)
+- Activities matching MORE children rank higher (+10 score bonus for matching ALL)
+
+---
+
+## Result Sorting and Prioritization
+
+Results are sorted by multiple factors:
+
+### Sort Order (Default - Availability Mode)
+
+```
+1. Featured/Sponsored activities (always first)
+2. SAME CITY as child (child's city activities before adjacent cities)
+3. Availability tier:
+   - Open (with spots available)
+   - Waitlist
+   - Unknown/null
+   - Full/Closed
+4. Distance (closest first within same tier)
+```
+
+### Same-City Prioritization
+
+When searching with location:
+- The server tracks which city each child is in
+- Activities in the **same city** as the child appear **before** activities in adjacent cities
+- This ensures local activities are prioritized over metro-area activities
+
+**Example:**
+- Child is in North Vancouver
+- North Vancouver activities appear first
+- Then Vancouver, Burnaby, etc. sorted by distance
+
+### Distance Calculation
+
+When `userLat`, `userLon`, and `city` are provided:
+1. Server calculates distance from user to each activity
+2. Adds `distance` field (in km) to each activity
+3. Adds `isSameCity` flag for same-city detection
+4. Sorts by distance within availability tiers
+
+---
+
+## AI Recommendations Filtering
+
+AI recommendations use the same filtering infrastructure but with additional processing:
+
+### OR Mode (Any Child) in AI
+
+```
+1. Search each child independently
+2. Track activities per child
+3. Build balanced results:
+   - Union activities (matching multiple children) - 30%
+   - Per-child activities (balanced across children) - 70%
+4. Interleave results for variety
+5. Pass to LLM for final ranking and explanations
+```
+
+### AND Mode (Together) in AI
+
+```
+1. Build combined search filters:
+   - Age: activity.ageMin <= youngest, activity.ageMax >= oldest
+   - Gender: unisex only if mixed genders
+   - Location: first child's location
+   - Days: intersection of all children's availability
+   - Activity types: union (any type any child likes)
+2. Single search with combined filters
+3. Score activities by how many children they match
+4. Big bonus (+10) for activities fitting ALL children
+5. Pass to LLM for ranking
+```
+
+### Server Logs for Debugging
+
+**OR Mode:**
+```
+🔍 [FetchCandidatesNode] Filter mode: or
+🔍 [FetchCandidatesNode] ANY mode: searching for 2 children independently
+🔍 [FetchCandidatesNode] Union activities (multiple children): 15
+🔍 [FetchCandidatesNode] Unique activities for Aiden: 20
+🔍 [FetchCandidatesNode] Unique activities for Ava: 18
+🔍 [FetchCandidatesNode] ANY mode: 15 union + 35 per-child activities, interleaved
+```
+
+**AND Mode:**
+```
+🔍 [FetchCandidatesNode] Filter mode: and
+🔍 [FetchCandidatesNode] TOGETHER mode: searching for activities ALL 2 children can do
+🔍 [FetchCandidatesNode] Together mode: ages 6-10, activity must fit ALL children
+🔍 [FetchCandidatesNode] Together mode: avg 2.0 children matched per activity
+```
+
+---
+
+## Location Fallback Chain
+
+When determining child location for search:
+
+```
+Priority 1: Child's savedAddress with coordinates
+  → preferences.savedAddress.latitude/longitude
+
+Priority 2: Child's locationDetails with coordinates (deprecated)
+  → child.locationDetails.latitude/longitude
+
+Priority 3: Geocode city name from preferences
+  → Geocode preferences.savedAddress.city
+
+Priority 4: Geocode from child.location string
+  → Geocode child.location (city name)
+
+Priority 5: GPS fallback
+  → Use device's current GPS coordinates
+```
+
+The **city** is always passed for same-city prioritization, even when coordinates are available.

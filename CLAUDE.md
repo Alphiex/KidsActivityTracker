@@ -377,7 +377,35 @@ type ActivityStatus =
 ### Child Selection Modes
 - **Manual**: User explicitly selects children for filtering
 - **Auto**: System determines based on activity age requirements
-- **Filter Mode**: OR (any child matches) vs AND (all children match)
+
+### Filter Modes (OR / AND)
+When multiple children are selected:
+
+**OR Mode ("Any Child")** - Default:
+- Searches each child **independently** using their own location/preferences
+- Results are **merged** (union) across all children
+- ~30% union activities (match multiple children), ~70% per-child (balanced)
+- Results randomized for variety
+
+**AND Mode ("Together")**:
+- Single search with **combined constraints** that ALL children must fit
+- Age range: Activity must accept ALL children (youngest to oldest)
+- Gender: Only unisex activities if children have different genders
+- Days: Intersection (all children must be available)
+- Location: Uses first child's location
+- Big score bonus (+10) for activities matching ALL children
+
+### Result Sorting and Prioritization
+When searching with location (`userLat`, `userLon`, `city`):
+
+```
+1. Featured/Sponsored activities (always first)
+2. SAME CITY as child (child's city before adjacent cities)
+3. Availability tier (Open → Waitlist → Unknown → Closed)
+4. Distance (closest first within same tier)
+```
+
+**Same-City Prioritization**: Activities in the child's city appear before activities in adjacent suburbs. E.g., North Vancouver activities appear before Vancouver/Burnaby for a North Vancouver child.
 
 ---
 
