@@ -339,7 +339,6 @@ const MapSearchScreen = () => {
   const hasInitializedRegion = useRef(false);
   const hasCenteredOnChildren = useRef(false);
   const hasInitialLoaded = useRef(false); // Track if initial load is complete to avoid duplicate loads
-  const isFirstFocus = useRef(true); // Skip first useFocusEffect run (initial mount)
   const isLoadingActivities = useRef(false); // Prevent concurrent loadActivities calls
 
   // Search filters state (received from SearchScreen)
@@ -804,35 +803,17 @@ const MapSearchScreen = () => {
 
   // Note: Initial load is now handled in the location determination effect above
 
-  // Reload activities when screen comes into focus (to pick up any new global filters)
-  // Skip on initial mount since the initialization effect already loads activities
+  // Refresh child favorites/watching data when screen comes into focus (for icon colors)
+  // Do NOT reload activities - preserve map state when switching between screens
   useFocusEffect(
     useCallback(() => {
-      // Skip the first focus event (initial mount) - initialization effect handles that
-      if (isFirstFocus.current) {
-        isFirstFocus.current = false;
-        // Still refresh child data on first focus
-        if (children.length > 0) {
-          const childIds = children.map(c => c.id);
-          dispatch(fetchChildFavorites(childIds));
-          dispatch(fetchChildWatching(childIds));
-        }
-        return;
-      }
-
-      // Only reload if we've already done the initial load
-      if (hasInitialLoaded.current && locationLoaded && !searchFilters) {
-        // Reload activities for the current region
-        loadActivities(region);
-      }
-      // Refresh child favorites/watching data for icon colors
+      // Refresh child favorites/watching data for icon colors (lightweight)
       if (children.length > 0) {
         const childIds = children.map(c => c.id);
         dispatch(fetchChildFavorites(childIds));
         dispatch(fetchChildWatching(childIds));
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locationLoaded, searchFilters, region, children.length])
+    }, [children.length, dispatch])
   );
 
   // Process activities and set state
