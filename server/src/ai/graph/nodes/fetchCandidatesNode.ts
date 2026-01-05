@@ -70,7 +70,7 @@ function buildChildSearchFilters(
     sponsoredMode: 'include', // Include sponsored but don't prioritize yet
   };
 
-  // Apply child's location (REQUIRED - use coordinates)
+  // Apply child's location (REQUIRED - use coordinates AND city for prioritization)
   if (child.location?.latitude && child.location?.longitude) {
     if (isValidCanadianLocation(child.location.latitude, child.location.longitude)) {
       filters.userLat = child.location.latitude;
@@ -79,6 +79,12 @@ function buildChildSearchFilters(
     } else {
       console.log(`🔍 [FetchCandidatesNode] Child ${child.name}: coordinates outside Canada, skipping location filter`);
     }
+  }
+
+  // ALWAYS pass city for same-city prioritization (activities in child's city appear first)
+  if (child.location?.city) {
+    filters.city = child.location.city;
+    console.log(`🔍 [FetchCandidatesNode] Child ${child.name}: using city "${child.location.city}" for prioritization`);
   }
 
   // Apply child's age filter
