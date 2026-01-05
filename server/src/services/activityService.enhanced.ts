@@ -3,6 +3,7 @@ import { prisma as sharedPrisma } from '../lib/prisma';
 const { convertToActivityTypes } = require('../constants/activityTypes');
 import { buildActivityWhereClause, GlobalActivityFilters } from '../utils/activityFilters';
 import { sponsoredActivityService } from './sponsoredActivityService';
+import { calculateDistance } from '../utils/distanceUtils';
 
 interface SearchParams {
   search?: string;
@@ -733,9 +734,75 @@ export class EnhancedActivityService {
       } : null
     });
 
+    // Calculate distance for each activity if user coordinates provided
+    let activitiesWithDistance = activities as (Activity & { distance?: number })[];
+    if (userLat != null && userLon != null) {
+      activitiesWithDistance = activities.map(activity => {
+        if (activity.latitude != null && activity.longitude != null) {
+          const distance = calculateDistance(userLat, userLon, activity.latitude, activity.longitude);
+          return { ...activity, distance: Math.round(distance * 10) / 10 }; // Round to 1 decimal
+        }
+        return { ...activity, distance: undefined };
+      });
+
+      // For 'distance' sort mode - sort purely by distance
+      if (sortBy === 'distance') {
+        activitiesWithDistance.sort((a, b) => {
+          // Activities without distance go to the end
+          if (a.distance == null && b.distance == null) return 0;
+          if (a.distance == null) return 1;
+          if (b.distance == null) return -1;
+          return a.distance - b.distance;
+        });
+        console.log(`📍 [ActivityService] Sorted by distance (closest first)`);
+      }
+      // For 'availability' sort mode with coordinates - secondary sort by distance within each availability tier
+      // The primary availability sort was already done, now we stable-sort by distance
+      else if (sortBy === 'availability') {
+        // Group activities by their availability tier, then sort each group by distance
+        const getAvailabilityTier = (activity: any): number => {
+          const status = activity.registrationStatus;
+          const spots = activity.spotsAvailable;
+          if (status === 'Open' && (spots === null || spots > 0)) return 0;
+          if (status === 'Waitlist') return 1;
+          if (status === null || status === 'Unknown') return 2;
+          return 3;
+        };
+
+        const getFeaturedTier = (activity: any): number => {
+          if (!activity.isFeatured) return 99;
+          const tier = activity.featuredTier?.toLowerCase();
+          if (tier === 'gold') return 0;
+          if (tier === 'silver') return 1;
+          if (tier === 'bronze') return 2;
+          return 3;
+        };
+
+        // Sort by: featured tier → availability tier → distance
+        activitiesWithDistance.sort((a, b) => {
+          // First: Featured activities
+          const featuredA = getFeaturedTier(a);
+          const featuredB = getFeaturedTier(b);
+          if (featuredA !== featuredB) return featuredA - featuredB;
+
+          // Second: Availability tier
+          const availA = getAvailabilityTier(a);
+          const availB = getAvailabilityTier(b);
+          if (availA !== availB) return availA - availB;
+
+          // Third: Distance (closest first within same availability tier)
+          if (a.distance == null && b.distance == null) return 0;
+          if (a.distance == null) return 1;
+          if (b.distance == null) return -1;
+          return a.distance - b.distance;
+        });
+        console.log(`📍 [ActivityService] Sorted by availability + distance (closest first within tier)`);
+      }
+    }
+
     // Handle sponsored activities (only on first page, only for 'top' mode)
     let sponsoredActivities: Activity[] = [];
-    let finalActivities = activities;
+    let finalActivities = activitiesWithDistance as Activity[];
 
     if (sponsoredMode === 'top' && offset === 0) {
       try {
@@ -753,13 +820,13 @@ export class EnhancedActivityService {
           const sponsoredIds = new Set(sponsoredActivities.map(a => a.id));
 
           // Filter out sponsored activities from regular results to avoid duplicates
-          const regularActivities = activities.filter(a => !sponsoredIds.has(a.id));
+          const regularActivities = activitiesWithDistance.filter(a => !sponsoredIds.has(a.id));
 
           // Combine: sponsored first, then regular
           // Adjust to maintain the requested limit
           const totalToShow = Math.min(limit, sponsoredActivities.length + regularActivities.length);
           const regularToShow = totalToShow - sponsoredActivities.length;
-          finalActivities = [...sponsoredActivities, ...regularActivities.slice(0, regularToShow)];
+          finalActivities = [...sponsoredActivities, ...regularActivities.slice(0, regularToShow)] as Activity[];
 
           console.log(`🎯 [ActivityService] Added ${sponsoredActivities.length} sponsored activities at top`);
 
