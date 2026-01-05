@@ -340,6 +340,7 @@ const MapSearchScreen = () => {
   const hasCenteredOnChildren = useRef(false);
   const hasInitialLoaded = useRef(false); // Track if initial load is complete to avoid duplicate loads
   const isFirstFocus = useRef(true); // Skip first useFocusEffect run (initial mount)
+  const isLoadingActivities = useRef(false); // Prevent concurrent loadActivities calls
 
   // Search filters state (received from SearchScreen)
   const [searchFilters, setSearchFilters] = useState<ActivitySearchParams | null>(null);
@@ -382,7 +383,9 @@ const MapSearchScreen = () => {
 
   // Reload activities when search filters are cleared
   useEffect(() => {
-    if (searchFilters === null && !loading && locationLoaded) {
+    // Only reload if filters were explicitly cleared (not on initial mount)
+    // and we're not already loading and location is ready
+    if (searchFilters === null && !loading && locationLoaded && hasInitialLoaded.current) {
       // Reload activities for the current region
       loadActivities(region);
     }
@@ -495,6 +498,12 @@ const MapSearchScreen = () => {
 
   // Determine initial region based on priority: Selected Children > All Children > GPS > Canada
   useEffect(() => {
+    // Skip if we've already done the initial load - prevents re-loading when geocoded locations update
+    if (hasInitialLoaded.current) {
+      if (__DEV__) console.log('[MapSearch] Skipping location effect - already loaded');
+      return;
+    }
+
     // Use SELECTED children for centering - this respects user's child filter selection
     // If none selected, fall back to all children
     const childrenToCenter = selectedChildren.length > 0 ? selectedChildren : children;
@@ -512,45 +521,41 @@ const MapSearchScreen = () => {
         withCoords: childrenWithLocations.length,
         geocodedCount: geocodedChildLocations.size,
         locations: childrenWithLocations,
+        hasInitialLoaded: hasInitialLoaded.current,
       });
     }
 
     // If children with locations exist, center on them
-    // Allow re-centering if geocoded locations just became available
     if (childrenWithLocations.length > 0) {
       const childrenRegion = calculateRegionFromCoordinates(childrenWithLocations);
       if (childrenRegion) {
-        // Only animate if this is a new centering (not already centered here)
-        const isFirstCenter = !hasCenteredOnChildren.current;
         hasCenteredOnChildren.current = true;
         hasInitializedRegion.current = true;
 
         if (__DEV__) {
-          console.log('[MapSearch] Centering on children locations:', childrenRegion, { isFirstCenter });
+          console.log('[MapSearch] Centering on children locations:', childrenRegion);
         }
 
         setInitialRegion(childrenRegion);
         setRegion(childrenRegion);
         setLocationLoaded(true);
 
-        if (isFirstCenter) {
-          // Set lastFetchedRegion BEFORE animating to prevent the region change handler
-          // from triggering another load when the animation completes
-          lastFetchedRegion.current = childrenRegion;
-          hasInitialLoaded.current = true;
+        // Set lastFetchedRegion BEFORE animating to prevent the region change handler
+        // from triggering another load when the animation completes
+        lastFetchedRegion.current = childrenRegion;
+        hasInitialLoaded.current = true;
 
-          // Animate to the region
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              if (mapRef.current) {
-                mapRef.current.animateToRegion(childrenRegion, 800);
-              }
-            }, 300);
-          });
+        // Animate to the region
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(childrenRegion, 800);
+            }
+          }, 300);
+        });
 
-          // Load activities for children's location
-          loadActivities(childrenRegion);
-        }
+        // Load activities for children's location
+        loadActivities(childrenRegion);
         return;
       }
     }
@@ -887,7 +892,14 @@ const MapSearchScreen = () => {
 
   // Load activities with search filters applied
   const loadActivitiesWithFilters = async (filters: ActivitySearchParams, forRegion?: Region) => {
+    // Prevent concurrent loads
+    if (isLoadingActivities.current) {
+      if (__DEV__) console.log('[MapSearch] Skipping loadActivitiesWithFilters - already loading');
+      return;
+    }
+
     try {
+      isLoadingActivities.current = true;
       setLoading(true);
 
       // Use the region passed or the current region state
@@ -955,12 +967,20 @@ const MapSearchScreen = () => {
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error loading filtered activities:', error);
     } finally {
+      isLoadingActivities.current = false;
       setLoading(false);
     }
   };
 
   const loadActivities = async (forRegion?: Region) => {
+    // Prevent concurrent loads
+    if (isLoadingActivities.current) {
+      if (__DEV__) console.log('[MapSearch] Skipping loadActivities - already loading');
+      return;
+    }
+
     try {
+      isLoadingActivities.current = true;
       setLoading(true);
 
       // Use the region passed or the current region state
@@ -1060,6 +1080,7 @@ const MapSearchScreen = () => {
     } catch (error) {
       if (__DEV__) console.error('[MapSearch] Error loading activities:', error);
     } finally {
+      isLoadingActivities.current = false;
       setLoading(false);
     }
   };
