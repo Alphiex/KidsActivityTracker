@@ -325,21 +325,18 @@ class ChildPreferencesService {
       ageMax = Math.min(18, Math.max(...childAges) + 1);
     }
 
-    // Activity types: union of all, BUT if ANY child has empty array (meaning "all types"),
-    // return empty array to not filter by activity type
-    let allActivityTypes: string[] = [];
-    const anyChildHasNoTypePreference = childPreferences.some(
-      p => !p.preferredActivityTypes || p.preferredActivityTypes.length === 0
-    );
-    if (!anyChildHasNoTypePreference) {
-      // All children have specific preferences, so take the union
-      const typeSet = new Set<string>();
-      childPreferences.forEach(p => {
+    // Activity types: union of all children's preferences
+    // Only include activity types from children who have explicitly set preferences
+    // If no children have set preferences, return empty array (= show all types)
+    const typeSet = new Set<string>();
+    childPreferences.forEach(p => {
+      console.log('🔍 [getMergedFilters] Child preference activity types:', p.preferredActivityTypes);
+      if (p.preferredActivityTypes && p.preferredActivityTypes.length > 0) {
         p.preferredActivityTypes.forEach(t => typeSet.add(t));
-      });
-      allActivityTypes = Array.from(typeSet);
-    }
-    // If any child has no preference, allActivityTypes stays empty (= show all types)
+      }
+    });
+    const allActivityTypes = Array.from(typeSet);
+    console.log('🔍 [getMergedFilters] Merged activity types:', allActivityTypes);
 
     // Excluded categories: intersection (only exclude if ALL children exclude)
     const excludedCounts = new Map<string, number>();
@@ -352,21 +349,19 @@ class ChildPreferencesService {
       .filter(([_, count]) => count === childPreferences.length)
       .map(([cat, _]) => cat);
 
-    // Days: union of all, BUT if ANY child has all 7 days or empty (meaning "any day"),
-    // return all days to not filter by day
+    // Days: union of all children's day preferences
+    // Only include days from children who have set specific day preferences (not all 7)
+    // If no children have specific day preferences, return all days (= no filter)
     const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    let allDays: string[] = ALL_DAYS;
-    const anyChildHasNoDayPreference = childPreferences.some(
-      p => !p.daysOfWeek || p.daysOfWeek.length === 0 || p.daysOfWeek.length >= 7
-    );
-    if (!anyChildHasNoDayPreference) {
-      // All children have specific day preferences, so take the union
-      const daySet = new Set<string>();
-      childPreferences.forEach(p => {
+    const daySet = new Set<string>();
+    childPreferences.forEach(p => {
+      // Only add days if the child has specific day preferences (not all 7 days)
+      if (p.daysOfWeek && p.daysOfWeek.length > 0 && p.daysOfWeek.length < 7) {
         p.daysOfWeek.forEach(d => daySet.add(d));
-      });
-      allDays = Array.from(daySet);
-    }
+      }
+    });
+    // If no children have specific day preferences, show all days
+    const allDays = daySet.size > 0 ? Array.from(daySet) : ALL_DAYS;
 
     // Time preferences: any true = true
     const timePreferences: TimePreferences = {

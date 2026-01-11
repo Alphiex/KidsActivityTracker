@@ -151,11 +151,25 @@ class PerfectMindScraper extends BaseScraper {
   async launchBrowserWithRetry(maxRetries = 3) {
     let lastError;
 
+    // Determine Chrome executable path - use env var, or system Chrome on macOS, or Puppeteer default
+    const getChromePath = () => {
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        return process.env.PUPPETEER_EXECUTABLE_PATH;
+      }
+      // On macOS, use system Chrome if Puppeteer's bundled Chrome is not available
+      const macOSChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      const fs = require('fs');
+      if (process.platform === 'darwin' && fs.existsSync(macOSChrome)) {
+        return macOSChrome;
+      }
+      return undefined; // Let Puppeteer find its bundled Chrome
+    };
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const browser = await puppeteer.launch({
           headless: this.config.scraperConfig.headless !== false,
-          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+          executablePath: getChromePath(),
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -1510,33 +1524,302 @@ class PerfectMindScraper extends BaseScraper {
                 const pageText = document.body.innerText;
                 const data = {};
 
-                // === LOCATION COORDINATES ===
-                const latMatch = pageHtml.match(/["']Latitude["']\s*:\s*(-?\d+\.\d+)/i);
-                const lngMatch = pageHtml.match(/["']Longitude["']\s*:\s*(-?\d+\.\d+)/i);
-                if (latMatch && lngMatch) {
-                  data.latitude = parseFloat(latMatch[1]);
-                  data.longitude = parseFloat(lngMatch[1]);
+                // ========================================================
+                // PRIORITY 1: Extract from eventInfo JSON (most reliable)
+                // PerfectMind embeds all activity data in a JS object
+                // ========================================================
+                try {
+                  // Find the eventInfo JSON using brace counting (regex fails for large nested JSON)
+                  // The data JSON starts with {"ParentEventId" and can be 10KB+
+                  const jsonStart = pageHtml.indexOf('{"ParentEventId"');
+                  let eventInfo = null;
+
+                  if (jsonStart > -1) {
+                    // Use brace counting to find matching closing brace
+                    let depth = 0;
+                    let endIdx = -1;
+                    for (let i = jsonStart; i < pageHtml.length && i < jsonStart + 60000; i++) {
+                      if (pageHtml[i] === '{') depth++;
+                      if (pageHtml[i] === '}') {
+                        depth--;
+                        if (depth === 0) {
+                          endIdx = i;
+                          break;
+                        }
+                      }
+                    }
+                    if (endIdx > -1) {
+                      const jsonStr = pageHtml.substring(jsonStart, endIdx + 1);
+                      eventInfo = JSON.parse(jsonStr);
+                    }
+                  }
+
+                  if (eventInfo) {
+
+                    // === COURSE & EVENT ID ===
+                    if (eventInfo.CourseId) data.courseId = eventInfo.CourseId;
+                    if (eventInfo.EventId) data.eventId = eventInfo.EventId;
+
+                    // === LOCATION ===
+                    if (eventInfo.ActualLocation) data.locationName = eventInfo.ActualLocation;
+                    if (eventInfo.Facility) data.facility = eventInfo.Facility;
+                    if (eventInfo.Location) data.locationName = data.locationName || eventInfo.Location;
+
+                    // === ADDRESS & COORDINATES ===
+                    if (eventInfo.Address) {
+                      const addr = eventInfo.Address;
+                      if (addr.Latitude) data.latitude = addr.Latitude;
+                      if (addr.Longitude) data.longitude = addr.Longitude;
+                      if (addr.City) data.city = addr.City;
+                      if (addr.PostalCode) data.postalCode = addr.PostalCode;
+                      if (addr.Street) data.fullAddress = addr.Street;
+                    }
+
+                    // === DATES ===
+                    // Use StartDateValue/EndDateValue for ISO format, or StartDate/EndDate for display format
+                    if (eventInfo.StartDateValue) data.dateStartStr = eventInfo.StartDateValue;
+                    else if (eventInfo.StartDate) data.dateStartStr = eventInfo.StartDate;
+                    if (eventInfo.EndDateValue) data.dateEndStr = eventInfo.EndDateValue;
+                    else if (eventInfo.EndDate) data.dateEndStr = eventInfo.EndDate;
+                    // Also capture first occurrence end for single-session activities
+                    if (eventInfo.FirstOccurrenceEndDate && !data.dateEndStr) {
+                      data.dateEndStr = eventInfo.FirstOccurrenceEndDate;
+                    }
+
+                    // === TIMES ===
+                    if (eventInfo.StartTime) data.startTime = eventInfo.StartTime;
+                    if (eventInfo.EndTime) data.endTime = eventInfo.EndTime;
+
+                    // === DAY OF WEEK ===
+                    // OccurrenceDescription contains "Every Mon", "Every Sat", "Once", etc.
+                    if (eventInfo.OccurrenceDescription) {
+                      const occDesc = eventInfo.OccurrenceDescription;
+                      const shortDayMap = { 'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday',
+                                           'Thu': 'Thursday', 'Fri': 'Friday', 'Sat': 'Saturday', 'Sun': 'Sunday' };
+                      const dayMatch = occDesc.match(/Every\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i);
+                      if (dayMatch) {
+                        data.dayOfWeek = [shortDayMap[dayMatch[1]] || dayMatch[1]];
+                      }
+                      // Handle "Once" - get day from StartDay field
+                      if (occDesc === 'Once' && eventInfo.StartDay) {
+                        data.dayOfWeek = [eventInfo.StartDay];
+                      }
+                    }
+                    // Also check Occurrences array for multiple days
+                    if (eventInfo.Occurrences && Array.isArray(eventInfo.Occurrences) && eventInfo.Occurrences.length > 0) {
+                      const days = new Set();
+                      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                      for (const occ of eventInfo.Occurrences) {
+                        if (occ.StartDateWithOffset) {
+                          const d = new Date(occ.StartDateWithOffset);
+                          if (!isNaN(d.getTime())) {
+                            days.add(dayNames[d.getDay()]);
+                          }
+                        }
+                      }
+                      if (days.size > 0) data.dayOfWeek = [...days];
+                    }
+
+                    // === AGE RANGE ===
+                    if (eventInfo.MinAge !== undefined && eventInfo.MinAge !== null) data.ageMin = eventInfo.MinAge;
+                    if (eventInfo.MaxAge !== undefined && eventInfo.MaxAge !== null) data.ageMax = eventInfo.MaxAge;
+
+                    // === GENDER RESTRICTIONS ===
+                    // GenderRestrictions: "Co-ed", "Male Only", "Female Only", etc.
+                    if (eventInfo.GenderRestrictions) {
+                      const genderStr = eventInfo.GenderRestrictions.toLowerCase();
+                      if (genderStr.includes('male') && !genderStr.includes('female') && !genderStr.includes('co-ed')) {
+                        data.gender = 'male';
+                      } else if (genderStr.includes('female') && !genderStr.includes('male') && !genderStr.includes('co-ed')) {
+                        data.gender = 'female';
+                      }
+                      // "Co-ed" or anything else remains null (all genders welcome)
+                    }
+
+                    // === TOTAL CAPACITY ===
+                    if (eventInfo.MaximumCapacity !== undefined && eventInfo.MaximumCapacity !== null) {
+                      data.totalSpots = eventInfo.MaximumCapacity;
+                    }
+
+                    // === COST / PRICE ===
+                    if (eventInfo.Prices && Array.isArray(eventInfo.Prices) && eventInfo.Prices.length > 0) {
+                      // Get the lowest price (most relevant for families)
+                      const prices = eventInfo.Prices.map(p => p.Amount).filter(p => typeof p === 'number');
+                      if (prices.length > 0) {
+                        data.cost = Math.min(...prices);
+                      }
+                    }
+
+                    // === REGISTRATION STATUS ===
+                    if (eventInfo.IsFull === true) {
+                      data.registrationStatus = eventInfo.IsWaitListAvailable ? 'Waitlist' : 'Full';
+                    } else if (eventInfo.IsRegistrationClosed === true) {
+                      data.registrationStatus = 'Closed';
+                    } else {
+                      data.registrationStatus = 'Open';
+                    }
+
+                    // === SPOTS AVAILABLE ===
+                    if (eventInfo.SpotsLeft !== undefined && eventInfo.SpotsLeft !== null) {
+                      data.spotsAvailable = eventInfo.SpotsLeft;
+                    }
+                    if (eventInfo.WaitListSpotsLeft !== undefined) {
+                      data.waitlistSpotsAvailable = eventInfo.WaitListSpotsLeft;
+                    }
+                    if (eventInfo.WaitListCapacity !== undefined && eventInfo.WaitListCapacity !== null) {
+                      data.waitlistCapacity = eventInfo.WaitListCapacity;
+                    }
+
+                    // === PROGRAM INFO ===
+                    if (eventInfo.ProgramName) {
+                      data.programName = eventInfo.ProgramName;
+                    }
+                    // Use ProgramImageUrl, falling back to ImageUrl if available
+                    if (eventInfo.ProgramImageUrl) {
+                      // PerfectMind URLs may be protocol-relative (//content.perfectmind.com/...)
+                      let imgUrl = eventInfo.ProgramImageUrl;
+                      if (imgUrl.startsWith('//')) {
+                        imgUrl = 'https:' + imgUrl;
+                      }
+                      data.imageUrl = imgUrl;
+                    } else if (eventInfo.ImageUrl && eventInfo.ImageUrl.trim()) {
+                      let imgUrl = eventInfo.ImageUrl;
+                      if (imgUrl.startsWith('//')) {
+                        imgUrl = 'https:' + imgUrl;
+                      }
+                      data.imageUrl = imgUrl;
+                    }
+
+                    // === REGISTRATION END DATE ===
+                    if (eventInfo.RegistrationEndDateUtc) {
+                      data.registrationEndDate = eventInfo.RegistrationEndDateUtc;
+                    }
+
+                    // === SESSIONS ===
+                    if (eventInfo.NumberOfSessions) {
+                      data.sessionCount = eventInfo.NumberOfSessions;
+                    }
+
+                    // === DESCRIPTION ===
+                    if (eventInfo.Details) {
+                      data.description = eventInfo.Details.substring(0, 500);
+                      data.fullDescription = eventInfo.Details.substring(0, 5000);
+                    } else if (eventInfo.ProgramDescription) {
+                      data.description = eventInfo.ProgramDescription.substring(0, 500);
+                      data.fullDescription = eventInfo.ProgramDescription.substring(0, 5000);
+                    }
+
+                    // === INSTRUCTOR ===
+                    if (eventInfo.Instructor && eventInfo.Instructor.FullName) {
+                      data.instructor = eventInfo.Instructor.FullName;
+                    }
+
+                    // === PREREQUISITES ===
+                    if (eventInfo.PrerequisiteEvents === true) {
+                      data.hasPrerequisites = true;
+                    }
+                    if (eventInfo.DisplayablePrerequisiteEventsRestrictionsForCourses) {
+                      data.prerequisites = eventInfo.DisplayablePrerequisiteEventsRestrictionsForCourses;
+                      data.hasPrerequisites = true;
+                    }
+
+                    // === FORMATTED DISPLAY STRINGS ===
+                    if (eventInfo.EventDates) {
+                      data.formattedDates = eventInfo.EventDates;
+                    }
+                    if (eventInfo.EventTimeDescription) {
+                      data.formattedTimeRange = eventInfo.EventTimeDescription;
+                    }
+                    if (eventInfo.AgeRestrictions) {
+                      data.ageRestrictions = eventInfo.AgeRestrictions;
+                    }
+
+                    // === ORGANIZATION INFO ===
+                    if (eventInfo.OrgName) {
+                      data.orgName = eventInfo.OrgName;
+                    }
+                    if (eventInfo.OrgLogo) {
+                      let logoUrl = eventInfo.OrgLogo;
+                      if (logoUrl.startsWith('//')) {
+                        logoUrl = 'https:' + logoUrl;
+                      }
+                      data.orgLogo = logoUrl;
+                    }
+
+                    // === BOOKING STATUS FLAGS ===
+                    if (eventInfo.OnlineRegistration !== undefined) {
+                      data.onlineRegistration = eventInfo.OnlineRegistration;
+                    }
+                    if (eventInfo.CanNotBook !== undefined) {
+                      data.canBook = !eventInfo.CanNotBook;
+                    }
+
+                    // === EVENT TYPE FLAGS ===
+                    if (eventInfo.IsSingleOccurrence !== undefined) {
+                      data.isSingleOccurrence = eventInfo.IsSingleOccurrence;
+                    }
+                    if (eventInfo.AllDayEvent !== undefined) {
+                      data.allDayEvent = eventInfo.AllDayEvent;
+                    }
+
+                    // === EXTRAS/ADD-ONS ===
+                    if (eventInfo.HasExtras !== undefined) {
+                      data.hasExtras = eventInfo.HasExtras;
+                    }
+                    if (eventInfo.HasRequiredExtras !== undefined) {
+                      data.hasRequiredExtras = eventInfo.HasRequiredExtras;
+                    }
+
+                    // === CONTACT INFO ===
+                    if (eventInfo.FacilitySupervisorEmails) {
+                      data.contactEmail = eventInfo.FacilitySupervisorEmails;
+                    }
+
+                    // === URL CONSTRUCTION DATA ===
+                    // These are needed to construct the correct registration URL
+                    if (eventInfo.WidgetId) data.widgetId = eventInfo.WidgetId;
+                    if (eventInfo.LocationId) data.locationId = eventInfo.LocationId;
+
+                    // Mark that we successfully extracted from eventInfo
+                    data._extractedFromEventInfo = true;
+                  }
+                } catch (e) {
+                  // JSON parsing failed, will fall back to regex extraction below
+                  console.log('eventInfo extraction failed:', e.message);
                 }
 
-                // === LOCATION NAME & ADDRESS ===
-                const cityMatch = pageHtml.match(/["']City["']\s*:\s*["']([^"']+)["']/i);
-                if (cityMatch && cityMatch[1].trim()) {
-                  data.city = cityMatch[1].trim();
-                }
+                // ========================================================
+                // FALLBACK: Use regex extraction if eventInfo not found
+                // ========================================================
+                if (!data._extractedFromEventInfo) {
+                  // === LOCATION COORDINATES ===
+                  const latMatch = pageHtml.match(/["']Latitude["']\s*:\s*(-?\d+\.\d+)/i);
+                  const lngMatch = pageHtml.match(/["']Longitude["']\s*:\s*(-?\d+\.\d+)/i);
+                  if (latMatch && lngMatch) {
+                    data.latitude = parseFloat(latMatch[1]);
+                    data.longitude = parseFloat(lngMatch[1]);
+                  }
 
-                const postalMatch = pageHtml.match(/["']PostalCode["']\s*:\s*["']([A-Z]\d[A-Z]\s?\d[A-Z]\d)[\s"']/i);
-                if (postalMatch) {
-                  data.postalCode = postalMatch[1].trim().toUpperCase();
-                }
+                  // === LOCATION NAME & ADDRESS ===
+                  const cityMatch = pageHtml.match(/["']City["']\s*:\s*["']([^"']+)["']/i);
+                  if (cityMatch && cityMatch[1].trim()) {
+                    data.city = cityMatch[1].trim();
+                  }
 
-                const streetMatch = pageHtml.match(/["']Street["']\s*:\s*["']([^"']+)["']/i);
-                if (streetMatch && streetMatch[1].trim()) {
-                  data.fullAddress = streetMatch[1].trim();
-                }
+                  const postalMatch = pageHtml.match(/["']PostalCode["']\s*:\s*["']([A-Z]\d[A-Z]\s?\d[A-Z]\d)[\s"']/i);
+                  if (postalMatch) {
+                    data.postalCode = postalMatch[1].trim().toUpperCase();
+                  }
 
-                const locMatch = pageHtml.match(/["']ActualLocation["']\s*:\s*["']([^"']+)["']/i);
-                if (locMatch && locMatch[1].trim()) {
-                  data.locationName = locMatch[1].trim();
+                  const streetMatch = pageHtml.match(/["']Street["']\s*:\s*["']([^"']+)["']/i);
+                  if (streetMatch && streetMatch[1].trim()) {
+                    data.fullAddress = streetMatch[1].trim();
+                  }
+
+                  const locMatch = pageHtml.match(/["']ActualLocation["']\s*:\s*["']([^"']+)["']/i);
+                  if (locMatch && locMatch[1].trim()) {
+                    data.locationName = locMatch[1].trim();
+                  }
                 }
 
                 // Also try to extract location from visible text (appears before "Show Map")
@@ -2057,6 +2340,46 @@ class PerfectMindScraper extends BaseScraper {
                 finalSpotsAvailable = 0;
               }
 
+              // Parse registration end date if present
+              let registrationEndDate = null;
+              if (detailData.registrationEndDate) {
+                try {
+                  registrationEndDate = new Date(detailData.registrationEndDate);
+                  if (isNaN(registrationEndDate.getTime())) registrationEndDate = null;
+                } catch { registrationEndDate = null; }
+              }
+
+              // Reconstruct the correct registration URL using EventId from eventInfo
+              // This ensures the URL uses the proper GUID (EventId) not a potentially wrong ID
+              let finalRegistrationUrl = activity.registrationUrl;
+              let finalDetailUrl = activity.detailUrl || activity.registrationUrl;
+
+              if (detailData.eventId && activity.registrationUrl) {
+                try {
+                  const url = new URL(activity.registrationUrl);
+                  const baseUrl = `${url.protocol}//${url.host}${url.pathname.split('/Clients')[0]}`;
+
+                  // Get widgetId from eventInfo or from existing URL
+                  const widgetId = detailData.widgetId || url.searchParams.get('widgetId');
+                  const locationId = detailData.locationId;
+
+                  if (widgetId) {
+                    // Construct the detail/landing page URL
+                    finalDetailUrl = `${baseUrl}/Clients/BookMe4LandingPages/CoursesLandingPage?widgetId=${widgetId}&courseId=${detailData.eventId}`;
+
+                    // Construct the direct registration URL (for "Register Now" button)
+                    if (locationId) {
+                      finalRegistrationUrl = `${baseUrl}/Clients/BookMe4EventParticipants?eventId=${detailData.eventId}&widgetId=${widgetId}&locationId=${locationId}`;
+                    } else {
+                      // Fallback: use the landing page URL for registration
+                      finalRegistrationUrl = finalDetailUrl;
+                    }
+                  }
+                } catch (urlError) {
+                  // If URL parsing fails, keep original URLs
+                }
+              }
+
               // Merge data with activity
               return {
                 index,
@@ -2064,6 +2387,8 @@ class PerfectMindScraper extends BaseScraper {
                   ...activity,
                   // Course ID (numeric ID from detail page overrides GUID from URL)
                   courseId: detailData.courseId || activity.courseId,
+                  // Event ID (GUID for registration URL construction)
+                  eventId: detailData.eventId || activity.eventId,
                   // Location
                   latitude: detailData.latitude || activity.latitude,
                   longitude: detailData.longitude || activity.longitude,
@@ -2071,6 +2396,8 @@ class PerfectMindScraper extends BaseScraper {
                   postalCode: detailData.postalCode || activity.postalCode,
                   fullAddress: detailData.fullAddress || activity.fullAddress,
                   locationName: detailData.locationName || activity.location || activity.locationName,
+                  // Facility (sub-location like room, pool, rink)
+                  facility: detailData.facility || activity.facility,
                   // Dates (using smart DD/MM detection)
                   dateStart: parsedDates.start || activity.dateStart,
                   dateEnd: parsedDates.end || activity.dateEnd,
@@ -2103,7 +2430,13 @@ class PerfectMindScraper extends BaseScraper {
                   hasMultipleSessions: (detailData.sessionCount || 0) > 1,
                   // Registration Status and Availability
                   spotsAvailable: finalSpotsAvailable,
-                  registrationStatus: finalStatus
+                  registrationStatus: finalStatus,
+                  // Registration End Date
+                  registrationEndDate: registrationEndDate || activity.registrationEndDate,
+                  // URLs (reconstructed using EventId from eventInfo for accuracy)
+                  registrationUrl: finalRegistrationUrl,
+                  detailUrl: finalDetailUrl,
+                  directRegistrationUrl: finalRegistrationUrl
                 }
               };
             } catch (error) {

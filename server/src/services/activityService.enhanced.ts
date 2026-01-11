@@ -311,33 +311,24 @@ export class EnhancedActivityService {
     }
 
     // Age range filter
-    // Logic: Find activities that overlap with the requested age range
-    // - ageMin filter: Child must be old enough (activity.ageMin <= child's age)
-    // - ageMax filter: Child must be young enough (activity.ageMax >= child's age)
-    //                  AND activity must accept children this young (activity.ageMin <= ageMax)
+    // Logic: Find activities that OVERLAP with the requested age range [ageMin, ageMax]
+    // Two ranges overlap if: activity.ageMax >= ageMin AND activity.ageMin <= ageMax
+    // Example: Filter 10-18 should include activity 12-15 (overlaps) but exclude 0-6 (no overlap)
     if (ageMin !== undefined || ageMax !== undefined) {
       const andConditions = [];
       if (ageMin !== undefined) {
-        // Activity must accept children at least as young as ageMin
-        // (activity.ageMin <= ageMin means a child of ageMin years is old enough)
+        // Activity's max age must be >= filter's min age (activity doesn't end before filter starts)
+        // Example: Filter ageMin=10 should EXCLUDE activities that end at age 6
         andConditions.push({
           OR: [
-            { ageMin: { lte: ageMin } },
-            { ageMin: null }
+            { ageMax: { gte: ageMin } },
+            { ageMax: null }
           ]
         });
       }
       if (ageMax !== undefined) {
-        // Activity must accept children as old as ageMax
-        // (activity.ageMax >= ageMax means a child of ageMax years is young enough)
-        andConditions.push({
-          OR: [
-            { ageMax: { gte: ageMax } },
-            { ageMax: null }
-          ]
-        });
-        // ALSO: Activity's minimum age must be <= ageMax
-        // (if activity requires age 12+, it shouldn't appear when searching for kids up to 8)
+        // Activity's min age must be <= filter's max age (activity doesn't start after filter ends)
+        // Example: Filter ageMax=8 should EXCLUDE activities that start at age 12
         andConditions.push({
           OR: [
             { ageMin: { lte: ageMax } },
@@ -368,16 +359,30 @@ export class EnhancedActivityService {
     }
 
     // Cost range filter
+    // Special handling for "Free" filter (costMax=0): include both cost=0 AND cost=null
     if (costMin !== undefined || costMax !== undefined) {
-      const costFilter: any = {};
-      if (costMin !== undefined) costFilter.gte = costMin;
-      if (costMax !== undefined) costFilter.lte = costMax;
-      where.cost = costFilter;
-      console.log(`💰 [ActivityService] Cost filter applied:`, {
-        costMin,
-        costMax,
-        filter: costFilter
-      });
+      if (costMax === 0 && (costMin === undefined || costMin === 0)) {
+        // Free activities: cost is 0 OR cost is null
+        const freeFilter: Prisma.ActivityWhereInput = {
+          OR: [
+            { cost: 0 },
+            { cost: null }
+          ]
+        };
+        where.AND = where.AND || [];
+        (where.AND as Prisma.ActivityWhereInput[]).push(freeFilter);
+        console.log(`💰 [ActivityService] Free activities filter applied (cost = 0 OR null)`);
+      } else {
+        const costFilter: any = {};
+        if (costMin !== undefined) costFilter.gte = costMin;
+        if (costMax !== undefined) costFilter.lte = costMax;
+        where.cost = costFilter;
+        console.log(`💰 [ActivityService] Cost filter applied:`, {
+          costMin,
+          costMax,
+          filter: costFilter
+        });
+      }
     }
 
     // Date range filter

@@ -27,6 +27,7 @@ import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChild
 import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { ActivitySearchParams } from '../types/api';
 import ActivityCard from '../components/ActivityCard';
+import SearchFilterInput from '../components/SearchFilterInput';
 import { useTheme } from '../contexts/ThemeContext';
 import { safeToISOString } from '../utils/safeAccessors';
 import useWaitlistSubscription from '../hooks/useWaitlistSubscription';
@@ -76,7 +77,28 @@ const SearchResultsScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  
+  const [filterText, setFilterText] = useState('');
+
+  // Filter activities by search text (client-side filtering)
+  const filteredActivities = useMemo(() => {
+    if (!filterText.trim()) {
+      return activities;
+    }
+    const searchLower = filterText.toLowerCase().trim();
+    return activities.filter(activity => {
+      const name = activity.name?.toLowerCase() || '';
+      const location = activity.location?.toLowerCase() || '';
+      const provider = activity.providerName?.toLowerCase() || '';
+      const description = activity.description?.toLowerCase() || '';
+      return (
+        name.includes(searchLower) ||
+        location.includes(searchLower) ||
+        provider.includes(searchLower) ||
+        description.includes(searchLower)
+      );
+    });
+  }, [activities, filterText]);
+
   const activityService = ActivityService.getInstance();
   const favoritesService = FavoritesService.getInstance();
 
@@ -403,12 +425,25 @@ const SearchResultsScreen = () => {
         {/* Fixed Header */}
         {renderHeader()}
 
+        {/* Search Filter */}
+        <SearchFilterInput
+          value={filterText}
+          onChangeText={setFilterText}
+          placeholder="Filter results..."
+        />
+
         {/* Results list */}
-        {activities.length === 0 ? (
+        {filteredActivities.length === 0 && activities.length > 0 ? (
+          <View style={styles.emptyState}>
+            <Icon name="magnify-close" size={60} color="#DDDDDD" />
+            <Text style={styles.emptyTitle}>No matching activities</Text>
+            <Text style={styles.emptySubtitle}>Try a different filter term</Text>
+          </View>
+        ) : activities.length === 0 ? (
           renderEmptyState()
         ) : (
           <FlatList
-          data={activities}
+          data={filteredActivities}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <ActivityCard

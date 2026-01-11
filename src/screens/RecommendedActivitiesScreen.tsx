@@ -75,6 +75,7 @@ const RecommendedActivitiesScreen = () => {
   // Calculate child-based filters
   const getChildBasedFilters = useCallback((): ChildBasedFilterParams | undefined => {
     if (selectedChildren.length === 0) {
+      console.log('🔍 [RecommendedScreen] No children selected');
       return undefined;
     }
 
@@ -82,6 +83,14 @@ const RecommendedActivitiesScreen = () => {
     const childPreferences = selectedChildren
       .filter(c => c.preferences)
       .map(c => c.preferences!);
+
+    console.log('🔍 [RecommendedScreen] Selected children:', JSON.stringify(selectedChildren.map(c => ({
+      name: c.name,
+      hasPreferences: !!c.preferences,
+      preferencesKeys: c.preferences ? Object.keys(c.preferences) : [],
+      activityTypes: c.preferences?.preferredActivityTypes || [],
+      rawPrefs: c.preferences,
+    })), null, 2));
 
     // Calculate ages from birth dates
     const today = new Date();
@@ -104,6 +113,13 @@ const RecommendedActivitiesScreen = () => {
       childGenders,
       filterMode
     );
+
+    console.log('🔍 [RecommendedScreen] Merged filters:', {
+      activityTypes: mergedFilters.activityTypes,
+      ageRange: `${mergedFilters.ageMin}-${mergedFilters.ageMax}`,
+      daysOfWeek: mergedFilters.daysOfWeek?.length,
+      filterMode,
+    });
 
     return {
       selectedChildIds: selectedChildren.map(c => c.id),
@@ -243,6 +259,20 @@ const RecommendedActivitiesScreen = () => {
     />
   );
 
+  // Get current filters for display
+  const currentChildFilters = getChildBasedFilters();
+  const activeActivityTypes = currentChildFilters?.mergedFilters?.activityTypes || [];
+
+  // Debug: count children with preferences and their activity types
+  const childrenWithPrefs = selectedChildren.filter(c => c.preferences);
+  const allChildActivityTypes = selectedChildren.flatMap(c => c.preferences?.preferredActivityTypes || []);
+  console.log('🔍 [RecommendedScreen] Debug:', {
+    totalChildren: selectedChildren.length,
+    childrenWithPrefs: childrenWithPrefs.length,
+    allChildActivityTypes,
+    activeActivityTypes,
+  });
+
   const renderHeader = () => (
     <LinearGradient
       colors={['#9C27B0', '#7B1FA2']}
@@ -253,8 +283,10 @@ const RecommendedActivitiesScreen = () => {
       <Text style={styles.headerSubtitle}>
         {filteredOutCount > 0 ? (
           `${totalCount} activities (${filteredOutCount} filtered out from global settings)`
+        ) : activeActivityTypes.length > 0 ? (
+          `${totalCount} activities matching ${activeActivityTypes.length} activity types`
         ) : (
-          `${totalCount} activities based on your preferences`
+          `${totalCount} activities - ${childrenWithPrefs.length}/${selectedChildren.length} children have prefs, raw types: ${allChildActivityTypes.length}`
         )}
       </Text>
       <View style={styles.preferencesInfo}>
@@ -263,6 +295,14 @@ const RecommendedActivitiesScreen = () => {
             <Icon name="child-care" size={16} color="#fff" />
             <Text style={styles.preferenceText}>
               {selectedChildren.length} {selectedChildren.length === 1 ? 'child' : 'children'}
+            </Text>
+          </View>
+        )}
+        {activeActivityTypes.length > 0 && (
+          <View style={styles.preferenceChip}>
+            <Icon name="category" size={16} color="#fff" />
+            <Text style={styles.preferenceText}>
+              {activeActivityTypes.slice(0, 2).join(', ')}{activeActivityTypes.length > 2 ? '...' : ''}
             </Text>
           </View>
         )}

@@ -654,6 +654,37 @@ class ActiveNetworkScraper extends BaseScraper {
       spotsAvailable = 0;
     }
 
+    // Calculate totalSpots from already_enrolled + total_open
+    let totalSpots = null;
+    if (item.openings === 'Unlimited') {
+      totalSpots = null; // Unlimited capacity
+    } else if (item.already_enrolled !== undefined && item.total_open !== undefined && item.total_open >= 0) {
+      totalSpots = item.already_enrolled + item.total_open;
+    }
+
+    // Handle more precise age (months for infants/toddlers)
+    // If age is 0 years but has months, convert to decimal
+    let ageMin = item.age_min_year || null;
+    let ageMax = item.age_max_year || null;
+    if (ageMin === 0 && item.age_min_month > 0) {
+      ageMin = Math.round((item.age_min_month / 12) * 10) / 10; // e.g., 6 months = 0.5
+    }
+    if (ageMax === 0 && item.age_max_month > 0) {
+      ageMax = Math.round((item.age_max_month / 12) * 10) / 10;
+    }
+
+    // Parse dates to Date objects (schema expects DateTime)
+    let dateStart = null;
+    let dateEnd = null;
+    if (item.date_range_start) {
+      const parsed = new Date(item.date_range_start);
+      if (!isNaN(parsed.getTime())) dateStart = parsed;
+    }
+    if (item.date_range_end) {
+      const parsed = new Date(item.date_range_end);
+      if (!isNaN(parsed.getTime())) dateEnd = parsed;
+    }
+
     return {
       name: item.name,
       externalId: String(item.id || item.number),
@@ -666,16 +697,19 @@ class ActiveNetworkScraper extends BaseScraper {
       startTime: this.parseAPITime(item.time_range_landing_page, 'start'),
       endTime: this.parseAPITime(item.time_range_landing_page, 'end'),
       dayOfWeek: item.days_of_week?.split(',').map(d => d.trim()) || [],
-      dateStartStr: item.date_range_start,
-      dateEndStr: item.date_range_end,
-      dates: item.date_range,
+      dateStart: dateStart,
+      dateEnd: dateEnd,
+      dates: item.date_range, // Text representation for display
       locationName: locationName,
-      ageMin: item.age_min_year || null,
-      ageMax: item.age_max_year || null,
-      ageRange: item.age_description,
+      ageMin: ageMin,
+      ageMax: ageMax,
+      ageRestrictions: item.age_description || null, // Use standard field name
       spotsAvailable: spotsAvailable,
-      availability: registrationStatus,
-      registrationStatus: registrationStatus
+      totalSpots: totalSpots,
+      registrationStatus: registrationStatus,
+      // New fields from API
+      isSingleOccurrence: item.only_one_day || false,
+      formattedDates: item.date_range_description || null // e.g., "various dates and times"
     };
   }
 
@@ -922,10 +956,21 @@ class ActiveNetworkScraper extends BaseScraper {
           const ageRange = extractAgeRange(text);
           const dateData = parseDates(text);
 
+          // Parse dates to Date objects
+          let dateStart = null;
+          let dateEnd = null;
+          if (dateData.startStr) {
+            const parsed = new Date(dateData.startStr);
+            if (!isNaN(parsed.getTime())) dateStart = parsed.toISOString();
+          }
+          if (dateData.endStr) {
+            const parsed = new Date(dateData.endStr);
+            if (!isNaN(parsed.getTime())) dateEnd = parsed.toISOString();
+          }
+
           const activity = {
             elementIndex: i,
             category: categoryInfo.name,
-            categoryId: categoryInfo.categoryId,
             rawText: text,
             name: extractActivityName(element),
             externalId: extractActivityId(element),
@@ -934,16 +979,14 @@ class ActiveNetworkScraper extends BaseScraper {
             dayOfWeek: scheduleData.days,
             startTime: scheduleData.startTime,
             endTime: scheduleData.endTime,
-            location: extractLocation(element, text),
             locationName: extractLocation(element, text),
             registrationUrl: extractRegistrationUrl(element),
-            ageRange: ageRange,
             ageMin: ageRange?.min || null,
             ageMax: ageRange?.max || null,
+            ageRestrictions: ageRange?.raw || null, // Use standard field name
             dates: dateData.raw,
-            dateStartStr: dateData.startStr,
-            dateEndStr: dateData.endStr,
-            availability: extractAvailability(element, text),
+            dateStart: dateStart,
+            dateEnd: dateEnd,
             registrationStatus: extractAvailability(element, text),
             spotsAvailable: extractSpotsAvailable(element, text)
           };
@@ -1431,7 +1474,6 @@ class ActiveNetworkScraper extends BaseScraper {
           const activity = {
             elementIndex: index,
             category: categoryInfo.name,
-            categoryId: categoryInfo.categoryId,
             rawText: text,
 
             // Extract using ActiveNet-specific structure
@@ -1439,19 +1481,18 @@ class ActiveNetworkScraper extends BaseScraper {
             externalId: extractActivityId(element),
             cost: extractCost(element, text),
             schedule: extractSchedule(text),
-            location: extractLocation(element, text),
+            locationName: extractLocation(element, text), // Use standard field name
             registrationUrl: extractRegistrationUrl(element),
-            ageRange: extractAgeRange(text),
+            ageMin: extractAgeRange(text)?.min || null,
+            ageMax: extractAgeRange(text)?.max || null,
+            ageRestrictions: extractAgeRange(text)?.raw || null, // Use standard field name
             dates: extractDates(text),
-            availability: extractAvailability(element, text),
+            registrationStatus: extractAvailability(element, text), // Use standard field name
             spotsAvailable: extractSpotsAvailable(element, text)
           };
 
-          // Add registrationStatus for consistency
-          activity.registrationStatus = activity.availability;
-
           // Override spotsAvailable to 0 if status is Full/Waitlist
-          const status = activity.availability?.toLowerCase();
+          const status = activity.registrationStatus?.toLowerCase();
           if (status === 'full' || status === 'waitlist' || status === 'closed') {
             activity.spotsAvailable = 0;
           }

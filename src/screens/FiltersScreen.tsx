@@ -36,6 +36,11 @@ import DayTimeGridSelector, {
 } from '../components/DayTimeGridSelector';
 import { ModernColors } from '../theme/modernTheme';
 import { Aggregations } from '../types/aggregations';
+import {
+  ContextualFilters,
+  FilterMode,
+  createEmptyContextualFilters,
+} from '../types/filters';
 
 interface ExpandableSection {
   id: string;
@@ -82,10 +87,22 @@ interface AgeGroup {
 // Route params for controlling which filter sections to show
 type FiltersRouteParams = {
   Filters: {
+    // Filter mode determines behavior:
+    // - 'contextual': Temporary filters for result screens (default)
+    // - 'search': Full filter UI for search screen
+    // - 'preferences': User preference settings only
+    mode?: FilterMode;
+
+    // Initial contextual filters (for contextual mode)
+    initialFilters?: ContextualFilters;
+
     hiddenSections?: string[];  // Section IDs to hide: 'locations', 'distance', 'budget', 'aiMatch', etc.
     screenTitle?: string;       // Custom title for the screen
     returnScreen?: string;      // Screen to return to after applying filters
     aggregations?: Aggregations; // Pre-computed aggregations from search results
+
+    // Return key for passing filters back to parent screen
+    returnKey?: string;
   };
 };
 
@@ -93,6 +110,16 @@ const FiltersScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<FiltersRouteParams, 'Filters'>>();
   const { colors } = useTheme();
+
+  // Get filter mode from route params (default: contextual for result screens)
+  const filterMode: FilterMode = route.params?.mode || 'contextual';
+  const isContextualMode = filterMode === 'contextual';
+  const isSearchMode = filterMode === 'search';
+  const isPreferencesMode = filterMode === 'preferences';
+
+  // Get initial contextual filters from route params
+  const initialContextualFilters = route.params?.initialFilters || createEmptyContextualFilters();
+  const returnKey = route.params?.returnKey;
 
   // Get hidden sections from route params (default: hide AI Match on all screens)
   const hiddenSections = route.params?.hiddenSections || ['aiMatch'];
@@ -112,6 +139,9 @@ const FiltersScreen = () => {
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const originalPreferencesRef = useRef<UserPreferences | null>(null); // Store original for cancel
+
+  // Contextual filter state (for contextual mode - NOT persisted)
+  const [contextualFilters, setContextualFilters] = useState<ContextualFilters>(initialContextualFilters);
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const [sections, setSections] = useState<ExpandableSection[]>([
@@ -177,6 +207,12 @@ const FiltersScreen = () => {
     return match?.count;
   }, [routeAggregations]);
 
+  const getEnvironmentCount = useCallback((envType: 'indoor' | 'outdoor'): number | undefined => {
+    if (!routeAggregations?.environments) return undefined;
+    const match = routeAggregations.environments.find(e => e.type === envType);
+    return match?.count;
+  }, [routeAggregations]);
+
   useEffect(() => {
     loadPreferences();
     loadActivityTypes();
@@ -195,6 +231,33 @@ const FiltersScreen = () => {
 
   const loadPreferences = async () => {
     try {
+      if (isContextualMode) {
+        // In contextual mode, initialize from contextual filters (not preferences)
+        console.log('📖 [FiltersScreen] Contextual mode - using initial filters:', initialContextualFilters);
+
+        // Still load preferences for reading purposes (activity types, age groups, etc.)
+        const userPrefs = preferencesService.getPreferences();
+        setPreferences(userPrefs);
+
+        // Initialize state from contextual filters
+        if (initialContextualFilters.daysOfWeek && initialContextualFilters.daysOfWeek.length > 0) {
+          const slots: DayTimeSlots = {};
+          DAYS_OF_WEEK.forEach(day => {
+            const isDayEnabled = initialContextualFilters.daysOfWeek?.includes(day) ?? true;
+            slots[day] = {
+              morning: isDayEnabled,
+              afternoon: isDayEnabled,
+              evening: isDayEnabled,
+            };
+          });
+          setDayTimeSlots(slots);
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // Non-contextual mode: load from preferences
       const userPrefs = preferencesService.getPreferences();
       console.log('📖 [FiltersScreen] Loaded preferences:', {
         hideClosedOrFull: userPrefs.hideClosedOrFull,
@@ -248,9 +311,32 @@ const FiltersScreen = () => {
   const loadActivityTypes = async () => {
     try {
       setActivityTypesLoading(true);
-      console.log('📋 [FiltersScreen] Loading activity types...');
 
-      // Use activityService which properly handles auth and global filters
+      // In contextual mode with aggregations, use the aggregations from the parent screen
+      // This ensures filter options reflect the CURRENT result set, not global counts
+      if (isContextualMode && routeAggregations?.activityTypes) {
+        console.log('📋 [FiltersScreen] Contextual mode - using aggregations for activity types');
+        const aggTypes = routeAggregations.activityTypes;
+
+        // Convert aggregations to ActivityType format, only including types with count > 0
+        const mappedTypes: ActivityType[] = aggTypes
+          .filter((agg: any) => agg.count > 0)
+          .map((agg: any) => ({
+            id: agg.code || agg.name,
+            name: agg.name,
+            code: agg.code,
+            iconName: agg.iconName,
+            activityCount: agg.count || 0,
+            subtypes: [] // Subtypes not available in aggregations
+          }));
+
+        setActivityTypes(mappedTypes);
+        console.log('📋 [FiltersScreen] Activity types from aggregations:', mappedTypes.length, 'types');
+        return;
+      }
+
+      // Non-contextual mode or no aggregations: load from API
+      console.log('📋 [FiltersScreen] Loading activity types from API...');
       const types = await activityService.getActivityTypesWithCounts(true);
       console.log('📋 [FiltersScreen] Received activity types:', types?.length || 0);
 
@@ -365,6 +451,27 @@ const FiltersScreen = () => {
 
   const loadAgeGroups = async () => {
     try {
+      // In contextual mode with aggregations, use the aggregations from the parent screen
+      if (isContextualMode && routeAggregations?.ageGroups) {
+        console.log('📋 [FiltersScreen] Contextual mode - using aggregations for age groups');
+        const aggAgeGroups = routeAggregations.ageGroups;
+
+        // Convert aggregations to AgeGroup format, only including groups with count > 0
+        const mappedAgeGroups: AgeGroup[] = aggAgeGroups
+          .filter((agg: any) => agg.count > 0)
+          .map((agg: any) => ({
+            code: `${agg.min}-${agg.max}`,
+            label: agg.label,
+            minAge: agg.min,
+            maxAge: agg.max,
+          }));
+
+        setAgeGroups(mappedAgeGroups);
+        console.log('📋 [FiltersScreen] Age groups from aggregations:', mappedAgeGroups.length, 'groups');
+        return;
+      }
+
+      // Non-contextual mode: load from API
       const ageGroupsData = await activityService.getAgeGroups();
       setAgeGroups(ageGroupsData);
     } catch (error) {
@@ -390,6 +497,26 @@ const FiltersScreen = () => {
   };
 
   const toggleActivityType = (activityTypeCode: string) => {
+    if (isContextualMode) {
+      // In contextual mode, update contextual filters
+      const currentTypes = contextualFilters.activityTypes || [];
+      const isCurrentlySelected = currentTypes.includes(activityTypeCode);
+
+      if (isCurrentlySelected) {
+        setContextualFilters(prev => ({
+          ...prev,
+          activityTypes: prev.activityTypes?.filter(code => code !== activityTypeCode) || [],
+        }));
+      } else {
+        setContextualFilters(prev => ({
+          ...prev,
+          activityTypes: [...(prev.activityTypes || []), activityTypeCode],
+        }));
+      }
+      return;
+    }
+
+    // Non-contextual mode: update preferences
     if (!preferences) return;
 
     const currentTypes = preferences.preferredActivityTypes || [];
@@ -415,6 +542,37 @@ const FiltersScreen = () => {
       updatePreferences({
         preferredActivityTypes: updatedTypes,
         preferredSubtypes: updatedSubtypes
+      });
+    }
+  };
+
+  const selectAllActivityTypes = () => {
+    const allTypeCodes = activityTypes.map(t => t.code);
+    const allSubtypeCodes = activityTypes.flatMap(t => t.subtypes?.map(s => s.code) || []);
+
+    if (isContextualMode) {
+      setContextualFilters(prev => ({
+        ...prev,
+        activityTypes: allTypeCodes,
+      }));
+    } else {
+      updatePreferences({
+        preferredActivityTypes: allTypeCodes,
+        preferredSubtypes: allSubtypeCodes,
+      });
+    }
+  };
+
+  const unselectAllActivityTypes = () => {
+    if (isContextualMode) {
+      setContextualFilters(prev => ({
+        ...prev,
+        activityTypes: [],
+      }));
+    } else {
+      updatePreferences({
+        preferredActivityTypes: [],
+        preferredSubtypes: [],
       });
     }
   };
@@ -448,15 +606,29 @@ const FiltersScreen = () => {
   }, []);
 
   const updateAgeRange = (min: number, max: number) => {
-    updatePreferences({ 
-      ageRanges: [{ min, max }] 
-    });
+    if (isContextualMode) {
+      setContextualFilters(prev => ({
+        ...prev,
+        ageRange: { min, max },
+      }));
+    } else {
+      updatePreferences({
+        ageRanges: [{ min, max }]
+      });
+    }
   };
 
   const updateBudget = (min: number, max: number) => {
-    updatePreferences({ 
-      priceRange: { min, max } 
-    });
+    if (isContextualMode) {
+      setContextualFilters(prev => ({
+        ...prev,
+        priceRange: { min, max },
+      }));
+    } else {
+      updatePreferences({
+        priceRange: { min, max }
+      });
+    }
   };
 
   const toggleDayOfWeek = (day: string) => {
@@ -478,36 +650,67 @@ const FiltersScreen = () => {
     navigation.navigate('Calendar' as never);
   };
 
-  // Cancel - restore original preferences and go back
+  // Cancel - restore original preferences (only in non-contextual mode) and go back
   const handleCancel = useCallback(() => {
-    if (originalPreferencesRef.current) {
+    if (isContextualMode) {
+      // In contextual mode, just go back - no preferences to restore
+      console.log('📋 [FiltersScreen] Cancelled contextual filters');
+    } else if (originalPreferencesRef.current) {
       // Restore original preferences
       preferencesService.updatePreferences(originalPreferencesRef.current);
       console.log('📋 [FiltersScreen] Cancelled - restored original preferences');
     }
     navigation.goBack();
-  }, [navigation, preferencesService]);
+  }, [navigation, preferencesService, isContextualMode]);
 
-  // Apply - keep current preferences and go back
+  // Apply - return filters to parent screen (contextual) or keep preferences (other modes)
   const handleApply = useCallback(() => {
-    console.log('📋 [FiltersScreen] Applied filters');
-    navigation.goBack();
-  }, [navigation]);
+    if (isContextualMode) {
+      // In contextual mode, pass filters back via navigation params
+      console.log('📋 [FiltersScreen] Applied contextual filters:', contextualFilters);
+
+      // Navigate back with filters as params
+      const returnScreen = route.params?.returnScreen;
+      if (returnScreen) {
+        (navigation as any).navigate(returnScreen, {
+          appliedFilters: contextualFilters,
+          returnKey: returnKey,
+        });
+      } else {
+        // Just go back with params
+        navigation.goBack();
+        // Use navigation state to pass params (React Navigation 6+)
+        (navigation as any).setParams?.({
+          appliedFilters: contextualFilters,
+          returnKey: returnKey,
+        });
+      }
+    } else {
+      console.log('📋 [FiltersScreen] Applied filters (preferences mode)');
+      navigation.goBack();
+    }
+  }, [navigation, isContextualMode, contextualFilters, returnKey, route.params?.returnScreen]);
 
   const getSectionSummary = (section: ExpandableSection) => {
     switch (section.id) {
       case 'activityTypes':
-        const selectedTypes = preferences?.preferredActivityTypes || [];
+        const selectedTypes = isContextualMode
+          ? (contextualFilters.activityTypes || [])
+          : (preferences?.preferredActivityTypes || []);
         return selectedTypes.length > 0
           ? `${selectedTypes.length} selected`
           : 'All types';
       case 'environment':
-        const envFilter = preferences?.environmentFilter || 'all';
+        const envFilter = isContextualMode
+          ? (contextualFilters.environment || 'all')
+          : (preferences?.environmentFilter || 'all');
         if (envFilter === 'indoor') return 'Indoor only';
         if (envFilter === 'outdoor') return 'Outdoor only';
         return 'All activities';
       case 'age':
-        const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
+        const ageRange = isContextualMode
+          ? (contextualFilters.ageRange || { min: 0, max: 18 })
+          : (preferences?.ageRanges?.[0] || { min: 0, max: 18 });
         return `${ageRange.min} - ${ageRange.max} years`;
       case 'locations':
         // Use hierarchical selection count
@@ -521,7 +724,9 @@ const FiltersScreen = () => {
         }
         return `Within ${preferences.distanceRadiusKm || 25} km`;
       case 'budget':
-        const priceRange = preferences?.priceRange || { min: 0, max: 999999 };
+        const priceRange = isContextualMode
+          ? (contextualFilters.priceRange || { min: 0, max: 999999 })
+          : (preferences?.priceRange || { min: 0, max: 999999 });
         const budgetIsUnlimited = priceRange.max >= 10000;
         return budgetIsUnlimited ? 'No Limit' : `Up to $${priceRange.max}`;
       case 'dayTime':
@@ -638,8 +843,8 @@ const FiltersScreen = () => {
   const renderEnvironmentContent = () => {
     if (!preferences) return null;
 
-    // Gate environment filter for free users
-    if (!hasAdvancedFilters) {
+    // Gate environment filter for free users (skip in contextual mode)
+    if (!hasAdvancedFilters && !isContextualMode) {
       return (
         <View style={styles.sectionContent}>
           <LockedFeature
@@ -651,28 +856,49 @@ const FiltersScreen = () => {
       );
     }
 
-    const currentEnv = preferences.environmentFilter || 'all';
+    const currentEnv = isContextualMode
+      ? (contextualFilters.environment || 'all')
+      : (preferences.environmentFilter || 'all');
 
-    const environmentOptions = [
+    // Get counts from aggregations
+    const indoorCount = getEnvironmentCount('indoor');
+    const outdoorCount = getEnvironmentCount('outdoor');
+    const totalCount = (indoorCount ?? 0) + (outdoorCount ?? 0);
+
+    // In contextual mode with aggregations, only show options with results
+    const hasAggregations = isContextualMode && routeAggregations?.environments;
+
+    const allEnvironmentOptions = [
       {
         value: 'all',
         label: 'All Activities',
         description: 'Show both indoor and outdoor activities',
-        icon: 'earth'
+        icon: 'earth',
+        count: hasAggregations ? totalCount : undefined,
+        disabled: false // "All" is never disabled
       },
       {
         value: 'indoor',
         label: 'Indoor Only',
         description: 'Swimming pools, gyms, studios, rinks',
-        icon: 'home-roof'
+        icon: 'home-roof',
+        count: indoorCount,
+        disabled: hasAggregations && (indoorCount === 0 || indoorCount === undefined)
       },
       {
         value: 'outdoor',
         label: 'Outdoor Only',
         description: 'Parks, fields, nature, adventure',
-        icon: 'pine-tree'
+        icon: 'pine-tree',
+        count: outdoorCount,
+        disabled: hasAggregations && (outdoorCount === 0 || outdoorCount === undefined)
       },
     ];
+
+    // In contextual mode, filter out disabled options (except 'all')
+    const environmentOptions = hasAggregations
+      ? allEnvironmentOptions.filter(opt => opt.value === 'all' || !opt.disabled)
+      : allEnvironmentOptions;
 
     return (
       <View style={styles.sectionContent}>
@@ -680,29 +906,44 @@ const FiltersScreen = () => {
           Filter activities by whether they take place indoors or outdoors
         </Text>
         <View style={{ marginTop: 12 }}>
-          {environmentOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.dateOption,
-                currentEnv === option.value && styles.dateOptionSelected
-              ]}
-              onPress={() => updatePreferences({ environmentFilter: option.value as 'all' | 'indoor' | 'outdoor' })}
-            >
-              <View style={styles.dateOptionContent}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Icon name={option.icon} size={20} color={currentEnv === option.value ? '#E8638B' : '#6B7280'} style={{ marginRight: 10 }} />
-                  <Text style={styles.dateOptionTitle}>{option.label}</Text>
+          {environmentOptions.map((option) => {
+            const isDisabled = option.disabled && !currentEnv;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.dateOption,
+                  currentEnv === option.value && styles.dateOptionSelected,
+                  isDisabled && styles.dateOptionDisabled
+                ]}
+                onPress={() => {
+                  if (isDisabled) return;
+                  if (isContextualMode) {
+                    setContextualFilters(prev => ({ ...prev, environment: option.value as 'all' | 'indoor' | 'outdoor' }));
+                  } else {
+                    updatePreferences({ environmentFilter: option.value as 'all' | 'indoor' | 'outdoor' });
+                  }
+                }}
+                disabled={isDisabled}
+              >
+                <View style={styles.dateOptionContent}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon name={option.icon} size={20} color={isDisabled ? '#CCCCCC' : (currentEnv === option.value ? '#E8638B' : '#6B7280')} style={{ marginRight: 10 }} />
+                    <Text style={[styles.dateOptionTitle, isDisabled && styles.dateOptionTitleDisabled]}>
+                      {option.label}
+                      {option.count !== undefined && <Text style={styles.countText}> ({option.count})</Text>}
+                    </Text>
+                  </View>
+                  <Text style={[styles.dateOptionDescription, isDisabled && styles.dateOptionDescriptionDisabled]}>
+                    {option.description}
+                  </Text>
                 </View>
-                <Text style={styles.dateOptionDescription}>
-                  {option.description}
-                </Text>
-              </View>
-              <View style={[styles.radio, currentEnv === option.value && styles.radioActive]}>
-                {currentEnv === option.value && <View style={styles.radioInner} />}
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={[styles.radio, currentEnv === option.value && styles.radioActive]}>
+                  {currentEnv === option.value && <View style={styles.radioInner} />}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -783,10 +1024,46 @@ const FiltersScreen = () => {
       );
     }
 
+    // Get selected types based on mode
+    const getSelectedTypes = () => {
+      if (isContextualMode) {
+        return contextualFilters.activityTypes || [];
+      }
+      return preferences?.preferredActivityTypes || [];
+    };
+
+    const selectedTypes = getSelectedTypes();
+    const allSelected = activityTypes.length > 0 && selectedTypes.length === activityTypes.length;
+    const noneSelected = selectedTypes.length === 0;
+
     return (
       <View style={styles.sectionContent}>
+        {/* Select All / Unselect All buttons */}
+        <View style={styles.selectAllContainer}>
+          <TouchableOpacity
+            style={[styles.selectAllButton, allSelected && styles.selectAllButtonDisabled]}
+            onPress={selectAllActivityTypes}
+            disabled={allSelected}
+          >
+            <Icon name="checkbox-multiple-marked" size={16} color={allSelected ? '#9CA3AF' : '#E8638B'} />
+            <Text style={[styles.selectAllButtonText, allSelected && styles.selectAllButtonTextDisabled]}>
+              Select All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.selectAllButton, noneSelected && styles.selectAllButtonDisabled]}
+            onPress={unselectAllActivityTypes}
+            disabled={noneSelected}
+          >
+            <Icon name="checkbox-multiple-blank-outline" size={16} color={noneSelected ? '#9CA3AF' : '#E8638B'} />
+            <Text style={[styles.selectAllButtonText, noneSelected && styles.selectAllButtonTextDisabled]}>
+              Unselect All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {activityTypes.map((type) => {
-          const isTypeSelected = preferences?.preferredActivityTypes?.includes(type.code);
+          const isTypeSelected = selectedTypes.includes(type.code);
           const isExpanded = expandedActivityTypes.has(type.code);
           const hasSubtypes = type.subtypes && type.subtypes.length > 0;
           // Use proper icon from activityTypeIcons mapping
@@ -802,20 +1079,20 @@ const FiltersScreen = () => {
                   style={[
                     styles.activityTypeChip,
                     isTypeSelected && styles.activityTypeChipActive,
-                    count === 0 && styles.activityTypeChipDisabled,
+                    count === 0 && !isTypeSelected && styles.activityTypeChipDisabled,
                   ]}
                   onPress={() => toggleActivityType(type.code)}
-                  disabled={count === 0}
+                  disabled={count === 0 && !isTypeSelected}
                 >
                   <Icon
                     name={iconName}
                     size={20}
-                    color={isTypeSelected ? '#FFFFFF' : count === 0 ? '#CCCCCC' : '#E8638B'}
+                    color={isTypeSelected ? '#FFFFFF' : (count === 0 && !isTypeSelected) ? '#CCCCCC' : '#E8638B'}
                   />
                   <Text style={[
                     styles.activityTypeText,
                     isTypeSelected && styles.activityTypeTextActive,
-                    count === 0 && styles.activityTypeTextDisabled,
+                    count === 0 && !isTypeSelected && styles.activityTypeTextDisabled,
                   ]}>
                     {type.name}
                     {count !== undefined && <Text style={styles.countText}> ({count})</Text>}
@@ -870,7 +1147,9 @@ const FiltersScreen = () => {
   };
 
   const renderAgeContent = () => {
-    const ageRange = preferences?.ageRanges?.[0] || { min: 0, max: 18 };
+    const ageRange = isContextualMode
+      ? (contextualFilters.ageRange || { min: 0, max: 18 })
+      : (preferences?.ageRanges?.[0] || { min: 0, max: 18 });
 
     return (
       <View style={styles.sectionContent}>
@@ -955,23 +1234,28 @@ const FiltersScreen = () => {
         {/* Age Group Quick Select */}
         <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>Quick Select</Text>
         <View style={styles.ageGroupQuickSelect}>
-          {ageGroups.map((group) => (
-            <TouchableOpacity
-              key={group.code}
-              style={[
-                styles.ageGroupChip,
-                ageRange.min === group.minAge && ageRange.max === group.maxAge && styles.ageGroupChipActive
-              ]}
-              onPress={() => updateAgeRange(group.minAge, group.maxAge)}
-            >
-              <Text style={[
-                styles.ageGroupChipText,
-                ageRange.min === group.minAge && ageRange.max === group.maxAge && styles.ageGroupChipTextActive
-              ]}>
-                {group.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {ageGroups.map((group) => {
+            const count = getAgeGroupCount(group.minAge, group.maxAge);
+            const isSelected = ageRange.min === group.minAge && ageRange.max === group.maxAge;
+            return (
+              <TouchableOpacity
+                key={group.code}
+                style={[
+                  styles.ageGroupChip,
+                  isSelected && styles.ageGroupChipActive
+                ]}
+                onPress={() => updateAgeRange(group.minAge, group.maxAge)}
+              >
+                <Text style={[
+                  styles.ageGroupChipText,
+                  isSelected && styles.ageGroupChipTextActive
+                ]}>
+                  {group.label}
+                  {count !== undefined && <Text style={styles.countText}> ({count})</Text>}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
           <TouchableOpacity
             style={[styles.ageGroupChip, ageRange.min === 0 && ageRange.max === 18 && styles.ageGroupChipActive]}
             onPress={() => updateAgeRange(0, 18)}
@@ -1054,8 +1338,8 @@ const FiltersScreen = () => {
   };
 
   const renderBudgetContent = () => {
-    // Gate budget filter for free users - show locked state with "Unlimited" as default
-    if (!hasAdvancedFilters) {
+    // Gate budget filter for free users - show locked state with "Unlimited" as default (skip in contextual mode)
+    if (!hasAdvancedFilters && !isContextualMode) {
       return (
         <View style={styles.sectionContent}>
           <View style={styles.freeUserBudgetInfo}>
@@ -1076,24 +1360,52 @@ const FiltersScreen = () => {
       );
     }
 
-    const priceRange = preferences?.priceRange || { min: 0, max: 999999 };
+    const priceRange = isContextualMode
+      ? (contextualFilters.priceRange || { min: 0, max: 999999 })
+      : (preferences?.priceRange || { min: 0, max: 999999 });
     const isUnlimited = priceRange.max >= 10000;
 
     const updateMaxCost = (max: number) => {
-      preferencesService.updatePreferences({
-        priceRange: { min: 0, max: max }
-      });
-      setPreferences(preferencesService.getPreferences());
+      if (isContextualMode) {
+        setContextualFilters(prev => ({
+          ...prev,
+          priceRange: { min: 0, max: max },
+        }));
+      } else {
+        preferencesService.updatePreferences({
+          priceRange: { min: 0, max: max }
+        });
+        setPreferences(preferencesService.getPreferences());
+      }
     };
 
-    const budgetPresets = [
-      { label: '$25', value: 25 },
-      { label: '$50', value: 50 },
-      { label: '$100', value: 100 },
-      { label: '$200', value: 200 },
-      { label: '$500', value: 500 },
-      { label: 'No Limit', value: 999999 },
-    ];
+    // In contextual mode with aggregations, use cost brackets from aggregations
+    const hasAggregations = isContextualMode && routeAggregations?.costBrackets;
+    const costBrackets = routeAggregations?.costBrackets || [];
+
+    // Calculate total count from aggregations for "No Limit" option
+    const totalCostCount = costBrackets.reduce((sum: number, bracket: any) => sum + (bracket.count || 0), 0);
+
+    // Build budget presets - use aggregations in contextual mode, defaults otherwise
+    const budgetPresets = hasAggregations
+      ? [
+          ...costBrackets
+            .filter((bracket: any) => bracket.count > 0)
+            .map((bracket: any) => ({
+              label: bracket.label,
+              value: bracket.max,
+              count: bracket.count,
+            })),
+          { label: 'No Limit', value: 999999, count: totalCostCount },
+        ]
+      : [
+          { label: '$25', value: 25, count: undefined },
+          { label: '$50', value: 50, count: undefined },
+          { label: '$100', value: 100, count: undefined },
+          { label: '$200', value: 200, count: undefined },
+          { label: '$500', value: 500, count: undefined },
+          { label: 'No Limit', value: 999999, count: undefined },
+        ];
 
     return (
       <View style={styles.sectionContent}>
@@ -1105,8 +1417,8 @@ const FiltersScreen = () => {
           </Text>
         </View>
 
-        {/* Cost Range Visual */}
-        {!isUnlimited && (
+        {/* Cost Range Visual - hide in contextual mode with aggregations (use chips instead) */}
+        {!isUnlimited && !hasAggregations && (
           <View style={styles.ageRangeVisual}>
             <View style={styles.ageRangeBar}>
               <View
@@ -1126,8 +1438,8 @@ const FiltersScreen = () => {
           </View>
         )}
 
-        {/* Max Cost Slider */}
-        {!isUnlimited && (
+        {/* Max Cost Slider - hide in contextual mode with aggregations */}
+        {!isUnlimited && !hasAggregations && (
           <View style={styles.sliderSection}>
             <Slider
               style={styles.slider}
@@ -1155,6 +1467,7 @@ const FiltersScreen = () => {
               const isActive = isPresetUnlimited
                 ? isUnlimited
                 : !isUnlimited && priceRange.max === preset.value;
+              const isDisabled = hasAggregations && preset.count === 0;
               return (
                 <TouchableOpacity
                   key={preset.label}
@@ -1162,14 +1475,18 @@ const FiltersScreen = () => {
                     styles.quickSelectChip,
                     isActive && styles.quickSelectChipActive,
                     isPresetUnlimited && styles.quickSelectChipUnlimited,
+                    isDisabled && styles.quickSelectChipDisabled,
                   ]}
-                  onPress={() => updateMaxCost(preset.value)}
+                  onPress={() => !isDisabled && updateMaxCost(preset.value)}
+                  disabled={isDisabled}
                 >
                   <Text style={[
                     styles.quickSelectChipText,
                     isActive && styles.quickSelectChipTextActive,
+                    isDisabled && styles.quickSelectChipTextDisabled,
                   ]}>
                     {preset.label}
+                    {preset.count !== undefined && <Text style={styles.countText}> ({preset.count})</Text>}
                   </Text>
                 </TouchableOpacity>
               );
@@ -1196,20 +1513,104 @@ const FiltersScreen = () => {
       slots[day]?.morning || slots[day]?.afternoon || slots[day]?.evening
     );
 
-    const timePrefs = {
-      morning: DAYS_OF_WEEK.some(day => slots[day]?.morning),
-      afternoon: DAYS_OF_WEEK.some(day => slots[day]?.afternoon),
-      evening: DAYS_OF_WEEK.some(day => slots[day]?.evening),
-    };
+    if (isContextualMode) {
+      // In contextual mode, update contextual filters
+      setContextualFilters(prev => ({
+        ...prev,
+        daysOfWeek: enabledDays,
+      }));
+    } else {
+      const timePrefs = {
+        morning: DAYS_OF_WEEK.some(day => slots[day]?.morning),
+        afternoon: DAYS_OF_WEEK.some(day => slots[day]?.afternoon),
+        evening: DAYS_OF_WEEK.some(day => slots[day]?.evening),
+      };
 
-    updatePreferences({
-      dayTimeSlots: slots,
-      daysOfWeek: enabledDays,
-      timePreferences: timePrefs,
-    });
-  }, [updatePreferences]);
+      updatePreferences({
+        dayTimeSlots: slots,
+        daysOfWeek: enabledDays,
+        timePreferences: timePrefs,
+      });
+    }
+  }, [updatePreferences, isContextualMode]);
 
   const renderDayTimeContent = () => {
+    // In contextual mode with aggregations, show simplified day selector with counts
+    const hasAggregations = isContextualMode && routeAggregations?.daysOfWeek;
+
+    if (hasAggregations) {
+      const dayAggregations = routeAggregations.daysOfWeek;
+      const selectedDays = contextualFilters.daysOfWeek || [];
+
+      // Get total count
+      const totalDayCount = dayAggregations.reduce((sum: number, d: any) => sum + (d.count || 0), 0);
+
+      const toggleDay = (day: string) => {
+        const currentDays = contextualFilters.daysOfWeek || [];
+        const isSelected = currentDays.includes(day);
+        if (isSelected) {
+          setContextualFilters(prev => ({
+            ...prev,
+            daysOfWeek: prev.daysOfWeek?.filter(d => d !== day) || [],
+          }));
+        } else {
+          setContextualFilters(prev => ({
+            ...prev,
+            daysOfWeek: [...(prev.daysOfWeek || []), day],
+          }));
+        }
+      };
+
+      return (
+        <View style={styles.sectionContent}>
+          <Text style={styles.helperText}>
+            Filter by days when activities are available
+          </Text>
+          <View style={[styles.quickSelectChips, { marginTop: 12 }]}>
+            {/* All Days option */}
+            <TouchableOpacity
+              style={[
+                styles.quickSelectChip,
+                selectedDays.length === 0 && styles.quickSelectChipActive,
+              ]}
+              onPress={() => setContextualFilters(prev => ({ ...prev, daysOfWeek: [] }))}
+            >
+              <Text style={[
+                styles.quickSelectChipText,
+                selectedDays.length === 0 && styles.quickSelectChipTextActive,
+              ]}>
+                All Days ({totalDayCount})
+              </Text>
+            </TouchableOpacity>
+            {/* Individual day options */}
+            {dayAggregations
+              .filter((agg: any) => agg.count > 0)
+              .map((agg: any) => {
+                const isSelected = selectedDays.includes(agg.day);
+                return (
+                  <TouchableOpacity
+                    key={agg.day}
+                    style={[
+                      styles.quickSelectChip,
+                      isSelected && styles.quickSelectChipActive,
+                    ]}
+                    onPress={() => toggleDay(agg.day)}
+                  >
+                    <Text style={[
+                      styles.quickSelectChipText,
+                      isSelected && styles.quickSelectChipTextActive,
+                    ]}>
+                      {agg.day.substring(0, 3)} ({agg.count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+          </View>
+        </View>
+      );
+    }
+
+    // Non-contextual mode: use full day/time grid
     return (
       <View style={styles.sectionContent}>
         <Text style={styles.helperText}>
@@ -1550,10 +1951,12 @@ const FiltersScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          Search Filters
+          Filters
         </Text>
         <Text style={styles.headerSubtitle}>
-          These filters apply to your activity search results in Explore
+          {isContextualMode
+            ? 'Filter down the activities in this list'
+            : 'These filters apply to your activity search results in Explore'}
         </Text>
       </View>
 
@@ -1786,6 +2189,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     marginTop: 2,
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E8638B',
+    backgroundColor: '#FFF0F5',
+    gap: 6,
+  },
+  selectAllButtonDisabled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  selectAllButtonText: {
+    fontSize: 13,
+    color: '#E8638B',
+    fontWeight: '500',
+  },
+  selectAllButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   sectionContent: {
     paddingHorizontal: 16,
@@ -2169,6 +2600,14 @@ const styles = StyleSheet.create({
   quickSelectChipTextActive: {
     color: '#E8638B',
   },
+  quickSelectChipDisabled: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    opacity: 0.6,
+  },
+  quickSelectChipTextDisabled: {
+    color: '#CCCCCC',
+  },
   unlimitedBanner: {
     marginTop: 16,
     padding: 16,
@@ -2189,6 +2628,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: -16,
     paddingHorizontal: 16,
+  },
+  dateOptionDisabled: {
+    opacity: 0.5,
+  },
+  dateOptionTitleDisabled: {
+    color: '#CCCCCC',
+  },
+  dateOptionDescriptionDisabled: {
+    color: '#DDDDDD',
   },
   dateRangeDivider: {
     height: 1,

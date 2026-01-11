@@ -73,15 +73,21 @@ class BaseScraper {
     // Valid database fields from schema
     const validFields = [
       'name', 'externalId', 'category', 'subcategory', 'description',
-      'schedule', 'dateStart', 'dateEnd', 'registrationDate', 'ageMin', 'ageMax',
-      'cost', 'spotsAvailable', 'totalSpots', 'locationId', 'locationName', 'registrationUrl',
-      'courseId', 'dayOfWeek', 'registrationEndDate', 'registrationEndTime',
+      'schedule', 'dateStart', 'dateEnd', 'registrationDate', 'ageMin', 'ageMax', 'gender',
+      'cost', 'spotsAvailable', 'totalSpots', 'waitlistCapacity', 'waitlistSpotsAvailable',
+      'locationId', 'locationName', 'registrationUrl',
+      'courseId', 'eventId', 'facility', 'programName', 'imageUrl',
+      'dayOfWeek', 'registrationEndDate', 'registrationEndTime',
       'costIncludesTax', 'taxAmount', 'startTime', 'endTime', 'courseDetails',
       'dates', 'registrationStatus', 'registrationButtonText', 'detailUrl',
       'instructor', 'hasMultipleSessions', 'sessionCount', 'hasPrerequisites',
       'fullDescription', 'whatToBring', 'prerequisites', 'directRegistrationUrl',
       'contactInfo', 'activitySubtypeId', 'activityTypeId', 'rawData',
-      'latitude', 'longitude', 'fullAddress'
+      'latitude', 'longitude', 'fullAddress',
+      // PerfectMind eventInfo fields
+      'formattedDates', 'formattedTimeRange', 'ageRestrictions', 'orgName', 'orgLogo',
+      'onlineRegistration', 'canBook', 'hasExtras', 'hasRequiredExtras',
+      'isSingleOccurrence', 'allDayEvent', 'contactEmail'
     ];
 
     const sanitized = {};

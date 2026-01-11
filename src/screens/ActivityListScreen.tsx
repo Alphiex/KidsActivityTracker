@@ -23,6 +23,7 @@ import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren } from '../store/slices/childrenSlice';
 import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import ActivityCard from '../components/ActivityCard';
+import SearchFilterInput from '../components/SearchFilterInput';
 import LoadingIndicator from '../components/LoadingIndicator';
 import { Colors, Theme } from '../theme';
 import { Activity } from '../types';
@@ -60,6 +61,27 @@ const ActivityListScreen = () => {
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [aggregations, setAggregations] = useState<Aggregations | undefined>(undefined);
+  const [filterText, setFilterText] = useState('');
+
+  // Filter activities by search text (client-side filtering)
+  const filteredActivities = useMemo(() => {
+    if (!filterText.trim()) {
+      return activities;
+    }
+    const searchLower = filterText.toLowerCase().trim();
+    return activities.filter(activity => {
+      const name = activity.name?.toLowerCase() || '';
+      const location = activity.location?.toLowerCase() || '';
+      const provider = activity.providerName?.toLowerCase() || '';
+      const description = activity.description?.toLowerCase() || '';
+      return (
+        name.includes(searchLower) ||
+        location.includes(searchLower) ||
+        provider.includes(searchLower) ||
+        description.includes(searchLower)
+      );
+    });
+  }, [activities, filterText]);
 
   // Get selected children for filtering
   const selectedChildren = useMemo(() => {
@@ -386,12 +408,17 @@ const ActivityListScreen = () => {
 
   return (
     <View style={styles.container}>
+      <SearchFilterInput
+        value={filterText}
+        onChangeText={setFilterText}
+        placeholder="Filter activities..."
+      />
       <FlatList
-        data={activities}
+        data={filteredActivities}
         renderItem={renderActivity}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        columnWrapperStyle={activities.length > 1 ? styles.columnWrapper : undefined}
+        columnWrapperStyle={filteredActivities.length > 1 ? styles.columnWrapper : undefined}
         ListHeaderComponent={renderHeader}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

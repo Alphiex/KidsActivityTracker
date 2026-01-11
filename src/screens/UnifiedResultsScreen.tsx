@@ -792,8 +792,16 @@ const UnifiedResultsScreenTest: React.FC = () => {
             </View>
             <View style={styles.countBadgeRow}>
               <View style={styles.countBadge}>
-                <Text style={styles.countNumber}>{totalCount.toLocaleString()}</Text>
-                <Text style={styles.countLabel}>activities</Text>
+                <Text style={styles.countNumber}>
+                  {filterText.trim()
+                    ? filteredActivities.length.toLocaleString()
+                    : totalCount.toLocaleString()}
+                </Text>
+                <Text style={styles.countLabel}>
+                  {filterText.trim() && filteredActivities.length !== totalCount
+                    ? `of ${totalCount.toLocaleString()}`
+                    : 'activities'}
+                </Text>
               </View>
             </View>
 {/* Debug removed - per-child search working */}

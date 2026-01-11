@@ -142,7 +142,27 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
     }
   };
 
+  const handleSelectAll = useCallback(() => {
+    const allTypeCodes = activityTypes.map(t => t.code);
+    const allSubtypeCodes = activityTypes.flatMap(t => t.subtypes?.map(s => s.code) || []);
+    onChange({
+      ...data,
+      preferredActivityTypes: allTypeCodes,
+      preferredSubtypes: allSubtypeCodes,
+    });
+  }, [activityTypes, data, onChange]);
+
+  const handleUnselectAll = useCallback(() => {
+    onChange({
+      ...data,
+      preferredActivityTypes: [],
+      preferredSubtypes: [],
+    });
+  }, [data, onChange]);
+
   const hasSiblings = siblings.length > 0;
+  const allSelected = activityTypes.length > 0 && (data.preferredActivityTypes?.length ?? 0) === activityTypes.length;
+  const noneSelected = (data.preferredActivityTypes?.length ?? 0) === 0;
 
   if (isLoading) {
     return (
@@ -184,6 +204,30 @@ const ChildActivitiesStep: React.FC<ChildActivitiesStepProps> = ({
         <Text style={styles.subtitle}>
           Select activities {childName} enjoys. This helps us show relevant activities.
         </Text>
+      </View>
+
+      {/* Select All / Unselect All buttons */}
+      <View style={styles.selectAllContainer}>
+        <TouchableOpacity
+          style={[styles.selectAllButton, allSelected && styles.selectAllButtonDisabled]}
+          onPress={handleSelectAll}
+          disabled={allSelected}
+        >
+          <Icon name="checkbox-multiple-marked" size={16} color={allSelected ? '#9CA3AF' : '#E8638B'} />
+          <Text style={[styles.selectAllButtonText, allSelected && styles.selectAllButtonTextDisabled]}>
+            Select All
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.selectAllButton, noneSelected && styles.selectAllButtonDisabled]}
+          onPress={handleUnselectAll}
+          disabled={noneSelected}
+        >
+          <Icon name="checkbox-multiple-blank-outline" size={16} color={noneSelected ? '#9CA3AF' : '#E8638B'} />
+          <Text style={[styles.selectAllButtonText, noneSelected && styles.selectAllButtonTextDisabled]}>
+            Unselect All
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Copy from sibling option */}
@@ -330,6 +374,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6B7280',
     lineHeight: 22,
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E8638B',
+    backgroundColor: '#FFF0F5',
+    gap: 6,
+  },
+  selectAllButtonDisabled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  selectAllButtonText: {
+    fontSize: 13,
+    color: '#E8638B',
+    fontWeight: '500',
+  },
+  selectAllButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   copyContainer: {
     marginBottom: 16,

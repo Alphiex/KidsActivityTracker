@@ -11,6 +11,11 @@ const AmiliaScraper = require('../platforms/AmiliaScraper');
 const QidigoScraper = require('../platforms/QidigoScraper');
 const ExtensionLoader = require('./ExtensionLoader');
 
+// NOTE: Provider-specific scrapers (like NVRCScraper) have been deprecated.
+// All PerfectMind sites now use the base PerfectMindScraper which extracts data
+// from the eventInfo JSON embedded in detail pages. Site-specific customizations
+// can be added via the extension mechanism if needed.
+
 /**
  * Factory class for creating appropriate scraper instances based on provider configuration.
  *
@@ -34,6 +39,7 @@ class ScraperFactory {
     }
 
     const platform = providerConfig.platform.toLowerCase();
+    const providerCode = providerConfig.code?.toLowerCase();
     let scraper;
 
     // Create scraper based on platform

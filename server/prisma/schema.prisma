@@ -34,10 +34,16 @@ model Activity {
   taxAmount              Float?
   spotsAvailable         Int?
   totalSpots             Int?
+  waitlistCapacity       Int?
+  waitlistSpotsAvailable Int?
   locationId             String?
   locationName           String?
   registrationUrl        String?
   courseId               String?
+  eventId                String?                // PerfectMind GUID used in registration URLs
+  facility               String?                // Specific room/pool/rink name (e.g., "Gore Pavilion Ice")
+  programName            String?                // Parent program name (e.g., "Private Swim Lessons")
+  imageUrl               String?                // Activity/program image URL
   isActive               Boolean                @default(true)
   isCustomEvent          Boolean                @default(false)
   createdByUserId        String?
@@ -65,6 +71,20 @@ model Activity {
   sessionCount           Int                    @default(0)
   hasPrerequisites       Boolean                @default(false)
   isUpdated              Boolean?               @default(false)
+
+  // PerfectMind eventInfo fields
+  formattedDates         String?                // Pre-formatted date range (e.g., "Sep 21, 2025 - Dec 14, 2025")
+  formattedTimeRange     String?                // Pre-formatted time (e.g., "11:30 am - 12:00 pm")
+  ageRestrictions        String?                // Pre-formatted age string (e.g., "6 to 13")
+  orgName                String?                // Organization name (e.g., "City of Maple Ridge")
+  orgLogo                String?                // Organization logo URL
+  onlineRegistration     Boolean?               // Whether online registration is available
+  canBook                Boolean?               // Whether booking is currently possible
+  hasExtras              Boolean?               // Whether activity has add-on items/equipment
+  hasRequiredExtras      Boolean?               // Whether activity has required add-ons
+  isSingleOccurrence     Boolean?               // Whether it's a single-session event
+  allDayEvent            Boolean?               // Whether it's an all-day event
+  contactEmail           String?                // Facility supervisor/contact email
 
   // Featured partner fields (admin-only)
   isFeatured             Boolean                @default(false)

@@ -36,10 +36,6 @@
     "useEnhancedScraper": true,
     "fetchDetailPages": true
   },
-  "legacyScraper": {
-    "file": "nvrcEnhancedParallelScraperFixed.js",
-    "notes": "Existing comprehensive scraper with detail extraction"
-  },
   "schedule": {
     "tier": "critical",
     "frequency": "every-3-days",
@@ -62,6 +58,6 @@
   "metadata": {
     "population": 88168,
     "expectedActivities": 1200,
-    "notes": "Primary provider with existing comprehensive scraper. Covers City and District of North Vancouver."
+    "notes": "Uses base PerfectMindScraper with eventInfo JSON extraction. Covers City and District of North Vancouver."
   }
 }

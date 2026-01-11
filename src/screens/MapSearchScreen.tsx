@@ -37,11 +37,19 @@ import { useAppSelector, useAppDispatch } from '../store';
 import { selectAllChildren, selectSelectedChildIds, selectFilterMode, fetchChildren, ChildWithPreferences, ChildFilterMode } from '../store/slices/childrenSlice';
 import { fetchChildFavorites, fetchChildWatching } from '../store/slices/childFavoritesSlice';
 import { geocodeAddress } from '../utils/geocoding';
+import {
+  ContextualFilters,
+  createEmptyContextualFilters,
+  hasActiveContextualFilters,
+} from '../types/filters';
 
 type MapSearchRouteProp = RouteProp<{
   MapSearch: {
     filters?: ActivitySearchParams;
     searchQuery?: string;
+    // Contextual filters returned from FiltersScreen
+    appliedFilters?: ContextualFilters;
+    returnKey?: string;
   };
 }, 'MapSearch'>;
 
@@ -349,8 +357,26 @@ const MapSearchScreen = () => {
   const [showPlaceSearch, setShowPlaceSearch] = useState(false);
   const [placePredictions, setPlacePredictions] = useState<any[]>([]);
 
+  // Contextual filters - temporary filters for map screen (NOT persisted to PreferencesService)
+  const [contextualFilters, setContextualFilters] = useState<ContextualFilters>(
+    route.params?.appliedFilters || createEmptyContextualFilters()
+  );
+
   // Cache for geocoded child locations (city names → coordinates)
   const [geocodedChildLocations, setGeocodedChildLocations] = useState<Map<string, { latitude: number; longitude: number }>>(new Map());
+
+  // Update contextual filters when returned from FiltersScreen
+  useEffect(() => {
+    if (route.params?.appliedFilters) {
+      console.log('[MapSearch] Received contextual filters from FiltersScreen:', route.params.appliedFilters);
+      setContextualFilters(route.params.appliedFilters);
+      // Reload activities with new filters
+      if (locationLoaded) {
+        loadActivities(region);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.appliedFilters]);
 
   // Handle search filters from navigation params
   useEffect(() => {
@@ -384,10 +410,13 @@ const MapSearchScreen = () => {
   // Hide distance and location sections since the map handles location visually
   const handleOpenSearch = useCallback(() => {
     (navigation as any).navigate('Filters', {
+      mode: 'contextual', // Use contextual mode - filters are NOT persisted globally
       hiddenSections: ['aiMatch', 'distance', 'locations'],
       screenTitle: 'Map Filters',
+      initialFilters: contextualFilters, // Pass current contextual filters
+      returnScreen: 'MapSearch', // Return to this screen with filters
     });
-  }, [navigation]);
+  }, [navigation, contextualFilters]);
 
   // Helper to validate coordinates are reasonable (not 0,0 which is in the ocean)
   const isValidCoordinate = useCallback((lat: any, lng: any): boolean => {
@@ -975,6 +1004,39 @@ const MapSearchScreen = () => {
         boundsParams.hideClosedOrFull = true;
       }
 
+      // Apply contextual filters (from FiltersScreen in contextual mode)
+      const hasContextual = hasActiveContextualFilters(contextualFilters);
+      if (hasContextual) {
+        console.log('[MapSearch] Applying contextual filters:', contextualFilters);
+
+        // Activity types - apply if set
+        if (contextualFilters.activityTypes && contextualFilters.activityTypes.length > 0) {
+          (boundsParams as any).activityType = contextualFilters.activityTypes[0];
+        }
+
+        // Age range - override child filters if set
+        if (contextualFilters.ageRange) {
+          if (contextualFilters.ageRange.min > 0) {
+            boundsParams.ageMin = contextualFilters.ageRange.min;
+          }
+          if (contextualFilters.ageRange.max < 18) {
+            boundsParams.ageMax = contextualFilters.ageRange.max;
+          }
+        }
+
+        // Price range
+        if (contextualFilters.priceRange) {
+          if (contextualFilters.priceRange.max < 999999) {
+            boundsParams.costMax = contextualFilters.priceRange.max;
+          }
+        }
+
+        // Days of week
+        if (contextualFilters.daysOfWeek && contextualFilters.daysOfWeek.length > 0 && contextualFilters.daysOfWeek.length < 7) {
+          boundsParams.dayOfWeek = contextualFilters.daysOfWeek;
+        }
+      }
+
       // Use the bounds API for geographic filtering
       const result = await activityService.searchActivitiesByBounds(boundsParams);
       processAndSetActivities(result.activities);
@@ -1312,7 +1374,7 @@ const MapSearchScreen = () => {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              searchFilters ? styles.filterButtonActive : styles.filterButtonInactive,
+              (searchFilters || hasActiveContextualFilters(contextualFilters)) ? styles.filterButtonActive : styles.filterButtonInactive,
             ]}
             onPress={handleOpenSearch}
             activeOpacity={0.8}
@@ -1320,10 +1382,10 @@ const MapSearchScreen = () => {
             <Icon
               name="tune"
               size={18}
-              color={searchFilters ? '#FFFFFF' : ModernColors.primary}
+              color={(searchFilters || hasActiveContextualFilters(contextualFilters)) ? '#FFFFFF' : ModernColors.primary}
             />
-            <Text style={[styles.filterButtonText, searchFilters && styles.filterButtonTextActive]}>
-              {searchFilters ? 'Filtered' : 'Filters'}
+            <Text style={[styles.filterButtonText, (searchFilters || hasActiveContextualFilters(contextualFilters)) && styles.filterButtonTextActive]}>
+              {(searchFilters || hasActiveContextualFilters(contextualFilters)) ? 'Filtered' : 'Filters'}
             </Text>
             {searchFilters && (
               <TouchableOpacity

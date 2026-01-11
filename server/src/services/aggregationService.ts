@@ -183,39 +183,40 @@ export class AggregationService {
   ): Promise<CostBracketAggregation[]> {
     const counts = await Promise.all(
       COST_BRACKETS.map(async (bracket) => {
-        let costWhere: Prisma.ActivityWhereInput;
+        try {
+          let count: number;
 
-        if (bracket.min === 0 && bracket.max === 0) {
-          // Free: cost = 0 or cost = null
-          costWhere = {
-            OR: [
-              { cost: 0 },
-              { cost: null }
-            ]
-          };
-        } else if (bracket.max === 999999) {
-          // $200+: cost > 200
-          costWhere = { cost: { gt: 200 } };
-        } else {
-          // Range: min <= cost <= max
-          costWhere = {
-            cost: {
-              gte: bracket.min,
-              lte: bracket.max
-            }
-          };
-        }
-
-        const count = await prisma.activity.count({
-          where: {
-            ...baseWhere,
-            AND: [
-              ...(Array.isArray(baseWhere.AND) ? baseWhere.AND : baseWhere.AND ? [baseWhere.AND] : []),
-              costWhere
-            ]
+          if (bracket.min === 0 && bracket.max === 0) {
+            // Free: cost = 0 or cost is null - do two separate counts
+            const [zeroCount, nullCount] = await Promise.all([
+              prisma.activity.count({
+                where: { ...baseWhere, cost: 0 }
+              }),
+              prisma.activity.count({
+                where: { ...baseWhere, cost: null }
+              })
+            ]);
+            count = zeroCount + nullCount;
+          } else if (bracket.max === 999999) {
+            // $200+: cost > 200
+            count = await prisma.activity.count({
+              where: { ...baseWhere, cost: { gt: 200 } }
+            });
+          } else {
+            // Range: min <= cost <= max
+            count = await prisma.activity.count({
+              where: {
+                ...baseWhere,
+                cost: { gte: bracket.min, lte: bracket.max }
+              }
+            });
           }
-        });
-        return { ...bracket, count };
+
+          return { ...bracket, count };
+        } catch (error) {
+          console.error(`[AggregationService] Error counting cost bracket ${bracket.label}:`, error);
+          return { ...bracket, count: 0 };
+        }
       })
     );
     return counts;
@@ -361,6 +362,120 @@ export class AggregationService {
       { type: 'indoor', count: indoorCount },
       { type: 'outdoor', count: outdoorCount },
     ];
+  }
+
+  /**
+   * Compute aggregations from an array of activities (for accurate result-based counts)
+   * This is more accurate than WHERE-clause based aggregations since it reflects
+   * post-query filtering (location radius, etc.)
+   */
+  computeFromActivities(activities: any[]): Aggregations {
+    console.log(`[AggregationService] Computing aggregations from ${activities.length} activities`);
+
+    // Activity Types aggregation
+    const activityTypeMap = new Map<string, { code: string; name: string; iconName: string; count: number }>();
+    for (const activity of activities) {
+      const type = activity.activityType;
+      if (type) {
+        const key = type.code || type.id;
+        const existing = activityTypeMap.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          activityTypeMap.set(key, {
+            code: type.code || key,
+            name: type.name || 'Unknown',
+            iconName: type.iconName || 'tag',
+            count: 1
+          });
+        }
+      }
+    }
+    const activityTypes = Array.from(activityTypeMap.values())
+      .filter(t => t.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    // Age Groups aggregation
+    const ageGroups: AgeGroupAggregation[] = AGE_BRACKETS.map(bracket => {
+      const count = activities.filter(activity => {
+        const ageMin = activity.ageMin ?? 0;
+        const ageMax = activity.ageMax ?? 99;
+        // Activity overlaps with bracket if: activity.ageMin <= bracket.max AND activity.ageMax >= bracket.min
+        return ageMin <= bracket.max && ageMax >= bracket.min;
+      }).length;
+      return { ...bracket, count };
+    });
+
+    // Cost Brackets aggregation
+    const costBrackets: CostBracketAggregation[] = COST_BRACKETS.map(bracket => {
+      const count = activities.filter(activity => {
+        const cost = activity.cost;
+        if (bracket.min === 0 && bracket.max === 0) {
+          // Free: cost = 0 or cost is null
+          return cost === 0 || cost === null || cost === undefined;
+        } else if (bracket.max === 999999) {
+          // $200+
+          return cost !== null && cost !== undefined && cost > 200;
+        } else {
+          // Range: min <= cost <= max
+          return cost !== null && cost !== undefined && cost >= bracket.min && cost <= bracket.max;
+        }
+      }).length;
+      return { ...bracket, count };
+    });
+
+    // Days of Week aggregation
+    const daysOfWeek: DayOfWeekAggregation[] = DAYS_OF_WEEK.map(day => {
+      const abbreviatedDay = DAY_NAME_MAP[day];
+      const count = activities.filter(activity => {
+        // Check Activity.dayOfWeek array
+        if (activity.dayOfWeek && Array.isArray(activity.dayOfWeek)) {
+          if (activity.dayOfWeek.includes(abbreviatedDay)) return true;
+        }
+        // Check sessions
+        if (activity.sessions && Array.isArray(activity.sessions)) {
+          if (activity.sessions.some((s: any) => s.dayOfWeek === abbreviatedDay)) return true;
+        }
+        return false;
+      }).length;
+      return { day, count };
+    });
+
+    // Cities aggregation
+    const cityMap = new Map<string, { city: string; province: string; count: number }>();
+    for (const activity of activities) {
+      const city = activity.location?.city;
+      const province = activity.location?.province;
+      if (city) {
+        const key = `${city.toLowerCase()}|${(province || '').toLowerCase()}`;
+        const existing = cityMap.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          cityMap.set(key, { city, province: province || '', count: 1 });
+        }
+      }
+    }
+    const cities = Array.from(cityMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 50);
+
+    // Environments aggregation
+    const indoorCount = activities.filter(a => a.isIndoor === true).length;
+    const outdoorCount = activities.filter(a => a.isIndoor === false).length;
+    const environments: EnvironmentAggregation[] = [
+      { type: 'indoor', count: indoorCount },
+      { type: 'outdoor', count: outdoorCount },
+    ];
+
+    return {
+      ageGroups,
+      costBrackets,
+      daysOfWeek,
+      activityTypes,
+      cities,
+      environments,
+    };
   }
 }
 

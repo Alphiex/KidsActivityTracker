@@ -129,6 +129,23 @@ npm run typecheck   # Check for TypeScript errors
 - Database: PostgreSQL on Google Cloud SQL
 - Geocoding: Google Maps Geocoding API (server-side key in `.env`)
 
+### API Gotchas
+
+1. **Province Parameter Format**
+   - API expects province **abbreviations**: `BC`, `ON`, `AB`, `QC`, etc.
+   - Full names like `British Columbia` will return 0 results
+   - **Best practice**: Don't send `province` parameter - city name alone is sufficient
+
+2. **City-Based vs Coordinate-Based Search**
+   - `city=Vancouver` - searches by city name (province optional)
+   - `userLat=49.28&userLon=-123.12&radiusKm=25` - searches by coordinates + radius
+   - Cannot mix both - use one or the other
+
+3. **Categories Parameter**
+   - Comma-separated activity type codes: `categories=skating-wheels,swimming-aquatics`
+   - If omitted, returns all activity types
+   - See `src/utils/activityTypeIcons.ts` for valid category codes
+
 ---
 
 ## Environment Variables (react-native-config)
@@ -394,6 +411,57 @@ When multiple children are selected:
 - Days: Intersection (all children must be available)
 - Location: Uses first child's location
 - Big score bonus (+10) for activities matching ALL children
+
+### Per-Child Search Implementation (OR Mode)
+
+**Key Files:**
+- `src/services/activityService.ts` - `searchActivitiesPerChild()`, `searchForSingleChild()`
+- `src/screens/UnifiedResultsScreen.tsx` - Triggers per-child search for "Recommended for You"
+
+**How It Works:**
+1. `areChildrenInDifferentCities()` checks if children have different locations
+2. If true, `searchActivitiesPerChild()` is called instead of merged search
+3. Each child's search uses their OWN:
+   - Location (coordinates OR city name)
+   - Activity types (`preferredActivityTypes`)
+   - Age range (child's age ± 1 year)
+4. Results are unioned (deduplicated by activity ID)
+5. Results are randomized for variety
+6. Activities are tagged with `matchingChildIds` array
+
+**CRITICAL: Known Gotchas**
+
+1. **Province Naming Mismatch**
+   - **Problem**: API expects province abbreviations (`BC`, `ON`, `AB`) but saved addresses may contain full names (`British Columbia`, `Ontario`, `Alberta`)
+   - **Solution**: Do NOT send `province` parameter for city-based searches - the API filters by city name alone
+   - **Location**: `searchForSingleChild()` in `activityService.ts`
+
+2. **Children Without Activity Types**
+   - If a child has no `preferredActivityTypes` set, their search returns ALL activity types in their area
+   - This can result in thousands of results drowning out other children's specific preferences
+   - Ensure children have activity type preferences configured for meaningful recommendations
+
+3. **Location Detection Priority**
+   - Coordinates (`latitude`, `longitude`) take priority over city name
+   - If child has coordinates, city-based search is NOT used
+   - Check `hasCoords` vs `hasCity` in `searchForSingleChild()`
+
+4. **baseParams Contamination**
+   - Per-child search must NOT inherit merged filters (categories, age, days, cost) from screen
+   - `baseParams` for per-child search should only contain: `limit`, `offset`, `sortBy`, `hideClosedOrFull`
+   - Each child's preferences are added individually in `searchForSingleChild()`
+
+**Testing Per-Child Search:**
+```bash
+# Test city-based search (without province)
+curl "https://kids-activity-api-4ev6yi22va-uc.a.run.app/api/v1/activities?city=North%20Vancouver&categories=skating-wheels&limit=5"
+
+# This will return 0 results due to province mismatch - DO NOT USE
+curl "https://kids-activity-api-4ev6yi22va-uc.a.run.app/api/v1/activities?city=North%20Vancouver&province=British%20Columbia&categories=skating-wheels&limit=5"
+
+# Province abbreviation works - but prefer not sending province at all
+curl "https://kids-activity-api-4ev6yi22va-uc.a.run.app/api/v1/activities?city=North%20Vancouver&province=BC&categories=skating-wheels&limit=5"
+```
 
 ### Result Sorting and Prioritization
 When searching with location (`userLat`, `userLon`, `city`):

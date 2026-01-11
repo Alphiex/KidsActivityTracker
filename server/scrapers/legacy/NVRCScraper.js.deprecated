@@ -1,6 +1,6 @@
 const PerfectMindScraper = require('../platforms/PerfectMindScraper');
 const DataNormalizer = require('../base/DataNormalizer');
-const { extractComprehensiveDetails } = require('../nvrcComprehensiveDetailScraper');
+const { extractComprehensiveDetails } = require('../legacy/nvrcComprehensiveDetailScraper');
 const puppeteer = require('puppeteer');
 
 /**
@@ -15,6 +15,7 @@ class NVRCScraper extends PerfectMindScraper {
 
   /**
    * Enhanced scraping method that includes NVRC-specific features
+   * Must override parent completely to ensure enhancement happens BEFORE saving
    * @returns {Promise<{activities: Array, stats: Object, report: String}>}
    */
   async scrape() {
@@ -22,23 +23,41 @@ class NVRCScraper extends PerfectMindScraper {
     this.logProgress('Starting NVRC Enhanced Scraper');
 
     try {
-      // Use the base PerfectMind scraper flow but with NVRC enhancements
-      const baseResult = await super.scrape();
-      
-      // Enhance activities with NVRC-specific details if configured
+      this.validateConfig();
+      const provider = await this.getOrCreateProvider();
+
+      // Step 1: Extract raw activities using parent's extraction (which calls our overridden extractActivitiesFromPage)
+      const rawActivities = await this.extractPerfectMindActivities();
+
+      // Step 2: Enhance with location data (parent method)
+      const locationEnhanced = await this.enhanceWithLocationData(rawActivities);
+
+      // Step 3: NVRC-specific enhancement with detail pages (gets dates, instructor, etc.)
+      // This MUST happen BEFORE normalization so dates get parsed properly
+      let enhancedActivities = locationEnhanced;
       if (this.config.scraperConfig.enableDetailEnhancement !== false) {
-        this.logProgress('Enhancing activities with detailed information...');
-        baseResult.activities = await this.enhanceActivitiesWithNVRCDetails(baseResult.activities);
+        this.logProgress('Enhancing activities with NVRC detail page information...');
+        enhancedActivities = await this.enhanceActivitiesWithNVRCDetails(locationEnhanced);
       }
 
+      // Step 4: Normalize activities (this parses dates like "9/08/25" to Date objects)
+      const normalizedActivities = await this.normalizeActivities(enhancedActivities);
+
+      // Step 5: Save to database
+      const stats = await this.saveActivitiesToDatabase(normalizedActivities, provider.id);
+
       const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+      const report = this.generateReport(stats, duration);
+
       this.logProgress(`NVRC scraping completed in ${duration} minutes`);
 
-      return baseResult;
+      return { activities: normalizedActivities, stats, report };
 
     } catch (error) {
       this.handleError(error, 'NVRC scrape');
       throw error;
+    } finally {
+      await this.cleanup();
     }
   }
 
@@ -49,7 +68,7 @@ class NVRCScraper extends PerfectMindScraper {
    * @param {String} activityType - Activity type
    * @returns {Promise<Array>} Enhanced NVRC activities
    */
-  async extractActivitiesFromPerfectMindPage(page, sectionName, activityType) {
+  async extractActivitiesFromPage(page, sectionName, activityType) {
     // First expand all "Show" buttons
     const showLinks = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a, button, span'));

@@ -184,18 +184,45 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     }
 
     // Compute aggregations if requested (typically only on first page)
+    // Use computeFromActivities to get accurate counts based on actual matching results
+    // (not WHERE clause, which doesn't account for post-query filtering like location radius)
     let aggregations = undefined;
-    if (includeAggregations === 'true' && result.whereClause) {
+    const totalResults = result.pagination.total;
+    console.log('[Routes] includeAggregations:', includeAggregations, 'activities count:', result.activities.length, 'total:', totalResults);
+
+    if (includeAggregations === 'true' && totalResults > 0) {
       try {
-        aggregations = await aggregationService.getAggregations(
-          result.whereClause,
-          result.globalFilters
-        );
-        console.log('[Routes] Aggregations computed successfully');
+        let activitiesForAggregation = result.activities;
+
+        // If we have more total results than returned (due to pagination),
+        // fetch all matching activities for accurate aggregation
+        if (totalResults > result.activities.length && totalResults <= 1000) {
+          console.log('[Routes] Fetching all', totalResults, 'activities for aggregation');
+          const allParams = {
+            ...params,
+            limit: totalResults,
+            offset: 0,
+          };
+          const allResult = await activityService.searchActivities(allParams);
+          activitiesForAggregation = allResult.activities;
+          console.log('[Routes] Fetched', activitiesForAggregation.length, 'activities for aggregation');
+        }
+
+        console.log('[Routes] Computing aggregations from', activitiesForAggregation.length, 'activities');
+        aggregations = aggregationService.computeFromActivities(activitiesForAggregation);
+        console.log('[Routes] Aggregations computed successfully:', {
+          activityTypes: aggregations.activityTypes.length,
+          ageGroups: aggregations.ageGroups.filter((g: any) => g.count > 0).length,
+          costBrackets: aggregations.costBrackets.filter((c: any) => c.count > 0).length,
+          daysOfWeek: aggregations.daysOfWeek.filter((d: any) => d.count > 0).length,
+          environments: aggregations.environments.filter((e: any) => e.count > 0).length,
+        });
       } catch (aggError) {
         console.error('[Routes] Error computing aggregations:', aggError);
         // Continue without aggregations if there's an error
       }
+    } else {
+      console.log('[Routes] Skipping aggregations - includeAggregations:', includeAggregations, 'total:', totalResults);
     }
 
     res.json({

@@ -20,8 +20,13 @@ export interface Activity {
   cost: number;
   spotsAvailable: number;
   totalSpots?: number;
+  waitlistCapacity?: number;
+  waitlistSpotsAvailable?: number;
   registrationUrl?: string;
   courseId?: string;
+  eventId?: string; // PerfectMind GUID used in registration URLs
+  programName?: string; // Parent program name (e.g., "Private Swim Lessons")
+  imageUrl?: string; // Activity/program image URL
   provider: string;
   scrapedAt: Date;
   dateRange?: {
@@ -90,6 +95,20 @@ export interface Activity {
 
   // Multi-child location matching
   matchingChildIds?: string[]; // Children whose preferences this activity matches
+
+  // PerfectMind eventInfo fields
+  formattedDates?: string; // Pre-formatted date range (e.g., "Sep 21, 2025 - Dec 14, 2025")
+  formattedTimeRange?: string; // Pre-formatted time (e.g., "11:30 am - 12:00 pm")
+  ageRestrictions?: string; // Pre-formatted age string (e.g., "6 to 13")
+  orgName?: string; // Organization name (e.g., "City of Maple Ridge")
+  orgLogo?: string; // Organization logo URL
+  onlineRegistration?: boolean; // Whether online registration is available
+  canBook?: boolean; // Whether booking is currently possible
+  hasExtras?: boolean; // Whether activity has add-on items/equipment
+  hasRequiredExtras?: boolean; // Whether activity has required add-ons
+  isSingleOccurrence?: boolean; // Whether it's a single-session event
+  allDayEvent?: boolean; // Whether it's an all-day event
+  contactEmail?: string; // Facility supervisor/contact email
 }
 
 export interface Location {

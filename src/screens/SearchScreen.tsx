@@ -341,6 +341,18 @@ const SearchScreen = () => {
     });
   };
 
+  const selectAllActivityTypes = () => {
+    const allTypeCodes = activityTypes.map(t => t.code);
+    const allSubtypeCodes = activityTypes.flatMap(t => t.subtypes?.map(s => s.code) || []);
+    setSelectedActivityTypes(allTypeCodes);
+    setSelectedSubtypes(allSubtypeCodes);
+  };
+
+  const unselectAllActivityTypes = () => {
+    setSelectedActivityTypes([]);
+    setSelectedSubtypes([]);
+  };
+
   const toggleCity = (city: string) => {
     setSelectedCities(prev =>
       prev.includes(city)
@@ -548,8 +560,35 @@ const SearchScreen = () => {
       );
     }
 
+    const allSelected = activityTypes.length > 0 && selectedActivityTypes.length === activityTypes.length;
+    const noneSelected = selectedActivityTypes.length === 0;
+
     return (
       <View style={styles.sectionContentInner}>
+        {/* Select All / Unselect All buttons */}
+        <View style={styles.selectAllContainer}>
+          <TouchableOpacity
+            style={[styles.selectAllButton, allSelected && styles.selectAllButtonDisabled]}
+            onPress={selectAllActivityTypes}
+            disabled={allSelected}
+          >
+            <Icon name="checkbox-multiple-marked" size={16} color={allSelected ? '#9CA3AF' : '#E8638B'} />
+            <Text style={[styles.selectAllButtonText, allSelected && styles.selectAllButtonTextDisabled]}>
+              Select All
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.selectAllButton, noneSelected && styles.selectAllButtonDisabled]}
+            onPress={unselectAllActivityTypes}
+            disabled={noneSelected}
+          >
+            <Icon name="checkbox-multiple-blank-outline" size={16} color={noneSelected ? '#9CA3AF' : '#E8638B'} />
+            <Text style={[styles.selectAllButtonText, noneSelected && styles.selectAllButtonTextDisabled]}>
+              Unselect All
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {activityTypes.map((type) => {
           const isTypeSelected = selectedActivityTypes.includes(type.code);
           const isExpanded = expandedActivityTypes.has(type.code);
@@ -1169,6 +1208,35 @@ const styles = StyleSheet.create({
     color: '#717171',
     textAlign: 'center',
     marginTop: 8,
+  },
+  // Select All / Unselect All
+  selectAllContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E8638B',
+    backgroundColor: '#FFF0F5',
+    gap: 6,
+  },
+  selectAllButtonDisabled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  selectAllButtonText: {
+    fontSize: 13,
+    color: '#E8638B',
+    fontWeight: '500',
+  },
+  selectAllButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   // Activity types
   activityTypeContainer: {

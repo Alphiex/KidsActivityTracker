@@ -506,7 +506,7 @@ class WebTracScraper extends BaseScraper {
               dateText: null,
               timeText: null,
               locationName: null,
-              availability: null,
+              registrationStatus: 'Unknown', // Use standard field name
               registrationUrl: null
             });
           } else {
@@ -586,7 +586,7 @@ class WebTracScraper extends BaseScraper {
                 timeText: times,
                 dayOfWeek: days,
                 locationName: location,
-                availability: availability,
+                registrationStatus: availability || 'Unknown', // Use standard field name
                 registrationUrl: link || null
               });
             });

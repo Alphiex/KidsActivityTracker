@@ -529,17 +529,19 @@ const ActivityDetailScreenModern = () => {
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* Hero Section with Image */}
         <ImageBackground
-          source={getActivityImageByKey(
-            getActivityImageKey(
-              activity.category || '',
-              activity.subcategory,
-              activity.name
-            ),
-            // Pass activity type for fallback
-            Array.isArray(activity.activityType)
-              ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
-              : (activity.activityType as any)?.name
-          ) || require('../../assets/images/activities/multi_sport/sports_general.jpg')}
+          source={activity.imageUrl
+            ? { uri: activity.imageUrl }
+            : getActivityImageByKey(
+                getActivityImageKey(
+                  activity.category || '',
+                  activity.subcategory,
+                  activity.name
+                ),
+                // Pass activity type for fallback
+                Array.isArray(activity.activityType)
+                  ? (typeof activity.activityType[0] === 'string' ? activity.activityType[0] : (activity.activityType[0] as any)?.name)
+                  : (activity.activityType as any)?.name
+              ) || require('../../assets/images/activities/multi_sport/sports_general.jpg')}
           style={styles.heroImage}
           resizeMode="cover"
         >
@@ -836,19 +838,100 @@ const ActivityDetailScreenModern = () => {
               </View>
             )}
 
-            {/* Provider Row */}
-            {activity.provider && (
+            {/* Provider Row with optional org logo */}
+            {(activity.provider || activity.orgName) && (
               <View style={styles.detailRow}>
                 <View style={styles.detailItem}>
-                  <Icon name="domain" size={20} color={ModernColors.primary} />
+                  {activity.orgLogo ? (
+                    <Image
+                      source={{ uri: activity.orgLogo }}
+                      style={styles.orgLogo}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Icon name="domain" size={20} color={ModernColors.primary} />
+                  )}
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Provided By</Text>
-                    <Text style={styles.detailValue}>{typeof activity.provider === 'string' ? activity.provider : (activity.provider as any)?.name || ''}</Text>
+                    <Text style={styles.detailValue}>
+                      {activity.orgName || (typeof activity.provider === 'string' ? activity.provider : (activity.provider as any)?.name || '')}
+                    </Text>
                   </View>
                 </View>
               </View>
             )}
+
+            {/* Waitlist Info Row */}
+            {(activity.waitlistCapacity !== undefined && activity.waitlistCapacity !== null && activity.waitlistCapacity > 0) && (
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Icon name="clipboard-list-outline" size={20} color={ModernColors.primary} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Waitlist</Text>
+                    <Text style={styles.detailValue}>
+                      {activity.waitlistSpotsAvailable !== undefined && activity.waitlistSpotsAvailable !== null
+                        ? `${activity.waitlistSpotsAvailable}/${activity.waitlistCapacity} spots`
+                        : `${activity.waitlistCapacity} spots total`}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Contact Email Row */}
+            {activity.contactEmail && (
+              <View style={styles.detailRow}>
+                <TouchableOpacity
+                  style={styles.detailItem}
+                  onPress={() => Linking.openURL(`mailto:${activity.contactEmail}`)}
+                >
+                  <Icon name="email-outline" size={20} color={ModernColors.primary} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Contact</Text>
+                    <Text style={[styles.detailValue, { color: ModernColors.primary }]}>{activity.contactEmail}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Activity Flags Row */}
+            {(activity.hasExtras || activity.hasRequiredExtras || activity.isSingleOccurrence || activity.allDayEvent) && (
+              <View style={styles.flagsRow}>
+                {activity.hasRequiredExtras && (
+                  <View style={[styles.flagBadge, styles.flagRequired]}>
+                    <Icon name="alert-circle-outline" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Required Add-ons</Text>
+                  </View>
+                )}
+                {activity.hasExtras && !activity.hasRequiredExtras && (
+                  <View style={[styles.flagBadge, styles.flagOptional]}>
+                    <Icon name="plus-circle-outline" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Optional Add-ons</Text>
+                  </View>
+                )}
+                {activity.isSingleOccurrence && (
+                  <View style={[styles.flagBadge, styles.flagInfo]}>
+                    <Icon name="calendar-check" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Single Session</Text>
+                  </View>
+                )}
+                {activity.allDayEvent && (
+                  <View style={[styles.flagBadge, styles.flagInfo]}>
+                    <Icon name="weather-sunny" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>All Day</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
+
+          {/* Program Name Section */}
+          {activity.programName && activity.programName !== activity.name && (
+            <View style={styles.programNameBanner}>
+              <Icon name="folder-outline" size={18} color={ModernColors.textSecondary} />
+              <Text style={styles.programNameText}>Part of: {activity.programName}</Text>
+            </View>
+          )}
 
           {/* Description */}
           {(activity.fullDescription || activity.description) && (
@@ -955,6 +1038,11 @@ const ActivityDetailScreenModern = () => {
                   <Text style={styles.locationName}>
                     {activity.locationName || activity.facility || 'Activity Location'}
                   </Text>
+                  {activity.facility && activity.locationName && activity.facility !== activity.locationName && (
+                    <Text style={styles.facilityName}>
+                      {activity.facility}
+                    </Text>
+                  )}
                   <Text style={styles.locationAddress}>
                     {getFullAddress(activity)}
                   </Text>
@@ -1598,6 +1686,12 @@ const styles = StyleSheet.create({
     color: ModernColors.text,
     marginBottom: 2,
   },
+  facilityName: {
+    fontSize: ModernTypography.sizes.sm,
+    fontWeight: '500',
+    color: ModernColors.primary,
+    marginBottom: 2,
+  },
   locationAddress: {
     fontSize: ModernTypography.sizes.sm,
     color: ModernColors.textSecondary,
@@ -1674,6 +1768,56 @@ const styles = StyleSheet.create({
   },
   waitlistPromptButtonText: {
     color: '#FFFFFF',
+  },
+  // New styles for eventInfo fields
+  flagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: ModernSpacing.md,
+    gap: ModernSpacing.sm,
+  },
+  flagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: ModernSpacing.sm,
+    paddingVertical: 4,
+    borderRadius: ModernBorderRadius.sm,
+    gap: 4,
+  },
+  flagRequired: {
+    backgroundColor: '#EF4444',
+  },
+  flagOptional: {
+    backgroundColor: '#3B82F6',
+  },
+  flagInfo: {
+    backgroundColor: '#6366F1',
+  },
+  flagText: {
+    color: ModernColors.white,
+    fontSize: ModernTypography.sizes.xs,
+    fontWeight: '600',
+  },
+  programNameBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ModernColors.surfaceSecondary,
+    paddingVertical: ModernSpacing.sm,
+    paddingHorizontal: ModernSpacing.md,
+    marginHorizontal: ModernSpacing.md,
+    marginBottom: ModernSpacing.md,
+    borderRadius: ModernBorderRadius.md,
+    gap: ModernSpacing.sm,
+  },
+  programNameText: {
+    fontSize: ModernTypography.sizes.sm,
+    color: ModernColors.textSecondary,
+    fontStyle: 'italic',
+  },
+  orgLogo: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
   },
 });
 
