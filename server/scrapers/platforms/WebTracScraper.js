@@ -92,10 +92,23 @@ class WebTracScraper extends BaseScraper {
     const activities = [];
     let browser;
 
+    // Get Chrome executable path - use env var, or system Chrome on macOS, or Puppeteer default
+    const getChromePath = () => {
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        return process.env.PUPPETEER_EXECUTABLE_PATH;
+      }
+      const macOSChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      const fs = require('fs');
+      if (process.platform === 'darwin' && fs.existsSync(macOSChrome)) {
+        return macOSChrome;
+      }
+      return undefined;
+    };
+
     try {
       browser = await puppeteer.launch({
         headless: this.config.scraperConfig.headless !== false,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        executablePath: getChromePath(),
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
 
