@@ -27,6 +27,160 @@ export interface ChildBasedFilterParams {
 interface PerChildSearchResult {
   activities: Activity[];
   childId: string;
+  total?: number;           // Total count from API response for pagination
+  apiStatus?: number;       // HTTP status from API response
+  apiSuccess?: boolean;     // Whether API returned success=true
+  apiMsg?: string;          // Error message from API if success=false
+  paramKeys?: string[];     // Keys of params sent to API (for debugging)
+  queryString?: string;     // Full query string sent to API (for debugging)
+  error?: string;           // Error message if request failed
+}
+
+/**
+ * Compute aggregations from an array of activities client-side
+ * Used when server doesn't return aggregations (e.g., per-child search)
+ */
+function computeAggregationsFromActivities(activities: Activity[]): any {
+  // Activity Types aggregation
+  const activityTypeMap = new Map<string, { code: string; name: string; iconName: string; count: number }>();
+
+  // Debug: Log first few activities to see activityType structure
+  if (activities.length > 0) {
+    console.log('📊 [computeAggregations] Sample activity.activityType:', {
+      first: activities[0]?.activityType,
+      second: activities[1]?.activityType,
+      third: activities[2]?.activityType,
+    });
+  }
+
+  for (const activity of activities) {
+    const type = activity.activityType as any;
+    if (type) {
+      const key = type.code || type.id || type.name;
+      if (key) {
+        const existing = activityTypeMap.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          activityTypeMap.set(key, {
+            code: type.code || key,
+            name: type.name || key || 'Unknown',
+            iconName: type.iconName || 'tag',
+            count: 1
+          });
+        }
+      }
+    }
+  }
+  const activityTypes = Array.from(activityTypeMap.values())
+    .filter(t => t.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  console.log('📊 [computeAggregations] Activity types found:', activityTypes.length, activityTypes.slice(0, 5).map(t => `${t.name}(${t.count})`));
+
+  // Age brackets
+  const AGE_BRACKETS = [
+    { label: '0-3 years', min: 0, max: 3 },
+    { label: '4-6 years', min: 4, max: 6 },
+    { label: '7-9 years', min: 7, max: 9 },
+    { label: '10-12 years', min: 10, max: 12 },
+    { label: '13-15 years', min: 13, max: 15 },
+    { label: '16-18 years', min: 16, max: 18 },
+  ];
+  const ageGroups = AGE_BRACKETS.map(bracket => {
+    const count = activities.filter(activity => {
+      // Handle both ageRange object and direct ageMin/ageMax properties
+      const actAny = activity as any;
+      const ageMin = activity.ageRange?.min ?? actAny.ageMin ?? 0;
+      const ageMax = activity.ageRange?.max ?? actAny.ageMax ?? 99;
+      return ageMin <= bracket.max && ageMax >= bracket.min;
+    }).length;
+    return { ...bracket, count };
+  });
+
+  // Cost brackets
+  const COST_BRACKETS = [
+    { label: 'Free', min: 0, max: 0 },
+    { label: '$1-25', min: 1, max: 25 },
+    { label: '$26-50', min: 26, max: 50 },
+    { label: '$51-100', min: 51, max: 100 },
+    { label: '$101-200', min: 101, max: 200 },
+    { label: '$200+', min: 201, max: 999999 },
+  ];
+  const costBrackets = COST_BRACKETS.map(bracket => {
+    const count = activities.filter(activity => {
+      const cost = activity.cost;
+      if (bracket.min === 0 && bracket.max === 0) {
+        return cost === 0 || cost === null || cost === undefined;
+      } else if (bracket.max === 999999) {
+        return cost !== null && cost !== undefined && cost > 200;
+      } else {
+        return cost !== null && cost !== undefined && cost >= bracket.min && cost <= bracket.max;
+      }
+    }).length;
+    return { ...bracket, count };
+  });
+
+  // Days of week
+  const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const DAY_NAME_MAP: Record<string, string> = {
+    'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed', 'Thursday': 'Thu',
+    'Friday': 'Fri', 'Saturday': 'Sat', 'Sunday': 'Sun',
+  };
+  const daysOfWeek = DAYS_OF_WEEK.map(day => {
+    const abbreviatedDay = DAY_NAME_MAP[day];
+    const count = activities.filter(activity => {
+      // Check Activity.dayOfWeek array
+      const activityDays = (activity as any).dayOfWeek;
+      if (activityDays && Array.isArray(activityDays)) {
+        if (activityDays.includes(abbreviatedDay)) return true;
+      }
+      // Also check sessions table (consistent with server-side aggregation)
+      const sessions = (activity as any).sessions;
+      if (sessions && Array.isArray(sessions)) {
+        if (sessions.some((s: any) => s.dayOfWeek === abbreviatedDay)) return true;
+      }
+      return false;
+    }).length;
+    return { day, count };
+  });
+
+  // Environments
+  const indoorCount = activities.filter(a => (a as any).isIndoor === true).length;
+  const outdoorCount = activities.filter(a => (a as any).isIndoor === false).length;
+  const environments = [
+    { type: 'indoor', count: indoorCount },
+    { type: 'outdoor', count: outdoorCount },
+  ];
+
+  // Cities
+  const cityMap = new Map<string, { city: string; province: string; count: number }>();
+  for (const activity of activities) {
+    const loc = activity.location as any;
+    const city = loc?.city;
+    const province = loc?.province;
+    if (city) {
+      const key = `${city.toLowerCase()}|${(province || '').toLowerCase()}`;
+      const existing = cityMap.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        cityMap.set(key, { city, province: province || '', count: 1 });
+      }
+    }
+  }
+  const cities = Array.from(cityMap.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 50);
+
+  return {
+    activityTypes,
+    ageGroups,
+    costBrackets,
+    daysOfWeek,
+    environments,
+    cities,
+  };
 }
 
 /**
@@ -152,11 +306,102 @@ class ActivityService {
   }
 
   /**
+   * Extract location from a single child's savedAddress
+   */
+  private parseSavedAddressFromChild(child: ChildWithPreferences): { latitude?: number; longitude?: number; city?: string; province?: string; radiusKm?: number } | null {
+    const savedAddress = child.preferences?.savedAddress;
+    if (!savedAddress) return null;
+
+    // Handle savedAddress that might be a JSON string
+    let addr = savedAddress;
+    if (typeof savedAddress === 'string') {
+      try {
+        addr = JSON.parse(savedAddress);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    const addrObj = addr as any;
+    if (!addrObj) return null;
+
+    return {
+      latitude: addrObj.latitude,
+      longitude: addrObj.longitude,
+      city: addrObj.city,
+      province: addrObj.state || addrObj.province,
+      radiusKm: child.preferences?.distanceRadiusKm,
+    };
+  }
+
+  /**
+   * Extract location from children array (first child with valid location)
+   * This is a fallback when getMergedFilters doesn't return location
+   */
+  private extractLocationFromChildren(children: ChildWithPreferences[]): { latitude?: number; longitude?: number; city?: string; province?: string; radiusKm?: number } {
+    console.log('📍 [Location Fallback] Extracting location from', children.length, 'children');
+
+    for (const child of children) {
+      const location = this.parseSavedAddressFromChild(child);
+      console.log('📍 [Location Fallback] Child:', child.name, '- parsed location:', {
+        hasPreferences: !!child.preferences,
+        hasSavedAddress: !!child.preferences?.savedAddress,
+        savedAddressType: typeof child.preferences?.savedAddress,
+        parsedLat: location?.latitude,
+        parsedLng: location?.longitude,
+        parsedCity: location?.city,
+      });
+      if (location?.latitude && location?.longitude) {
+        console.log('📍 [Location Fallback] ✅ Found coordinates from child:', child.name);
+        return location;
+      }
+    }
+    // Try city-only fallback
+    for (const child of children) {
+      const location = this.parseSavedAddressFromChild(child);
+      if (location?.city) {
+        console.log('📍 [Location Fallback] ✅ Found city from child:', child.name, '-', location.city);
+        return location;
+      }
+    }
+    console.log('📍 [Location Fallback] ❌ No location found from any child!');
+    return {};
+  }
+
+  /**
+   * Apply child location as fallback when mergedFilters is not available
+   */
+  private applyChildLocationFallback(params: any, children: ChildWithPreferences[]): any {
+    const location = this.extractLocationFromChildren(children);
+    const updatedParams = { ...params };
+
+    if (location.latitude && location.longitude) {
+      updatedParams.userLat = location.latitude;
+      updatedParams.userLon = location.longitude;
+      updatedParams.radiusKm = location.radiusKm || 25;
+      console.log('📍 [Location Fallback] Applied coordinates:', {
+        lat: location.latitude,
+        lng: location.longitude,
+        radius: updatedParams.radiusKm
+      });
+    }
+    if (location.city) {
+      updatedParams.city = location.city;
+      if (location.province) {
+        updatedParams.province = location.province;
+      }
+      console.log('📍 [Location Fallback] Applied city:', location.city);
+    }
+
+    return updatedParams;
+  }
+
+  /**
    * Check if children are in different cities AND have valid coordinates
    * (requiring per-child location search)
    */
   private areChildrenInDifferentCities(children: ChildWithPreferences[]): boolean {
-    const cityCoordMap = new Map<string, boolean>(); // city -> has coordinates
+    const citySet = new Set<string>();
 
     for (const child of children) {
       const savedAddress = child.preferences?.savedAddress;
@@ -171,14 +416,19 @@ class ActivityService {
       const city = (addr as any)?.city;
       const hasCoords = !!(addr as any)?.latitude && !!(addr as any)?.longitude;
 
-      // Only count cities that have coordinates (needed for per-child search)
-      if (city && hasCoords) {
-        cityCoordMap.set(city.toLowerCase().trim(), true);
+      console.log(`📍 [areChildrenInDifferentCities] ${child.name}: city="${city}", hasCoords=${hasCoords}`);
+
+      // Count any city that has a name (we can search by city name even without coordinates)
+      if (city) {
+        citySet.add(city.toLowerCase().trim());
       }
     }
 
-    // More than one unique city with coordinates means children are in different locations
-    return cityCoordMap.size > 1;
+    const uniqueCities = Array.from(citySet);
+    console.log(`📍 [areChildrenInDifferentCities] Unique cities: [${uniqueCities.join(', ')}], different=${citySet.size > 1}`);
+
+    // More than one unique city means children are in different locations
+    return citySet.size > 1;
   }
 
   /**
@@ -189,8 +439,8 @@ class ActivityService {
     children: ChildWithPreferences[],
     baseParams: any,
     defaultRadiusKm: number = 25
-  ): Promise<{ activities: Activity[]; activityChildMap: Map<string, string[]> }> {
-    // Filter to children with valid locations
+  ): Promise<{ activities: Activity[]; activityChildMap: Map<string, string[]>; totalCount: number }> {
+    // Filter to children with valid locations (coordinates OR city name)
     const childrenWithLocations = children.filter(child => {
       const savedAddress = child.preferences?.savedAddress;
       let addr = savedAddress;
@@ -199,30 +449,83 @@ class ActivityService {
           addr = JSON.parse(savedAddress);
         } catch (e) { /* ignore */ }
       }
-      return (addr as any)?.latitude && (addr as any)?.longitude;
+      const hasCoords = !!(addr as any)?.latitude && !!(addr as any)?.longitude;
+      const hasCity = !!(addr as any)?.city;
+      return hasCoords || hasCity;
     });
 
     if (childrenWithLocations.length === 0) {
-      console.log('📍 [PerChildSearch] No children with valid locations');
-      return { activities: [], activityChildMap: new Map() };
+      console.log('📍 [PerChildSearch] No children with valid locations (need coords or city)');
+      return { activities: [], activityChildMap: new Map(), totalCount: 0 };
     }
 
     console.log(`📍 [PerChildSearch] Searching for ${childrenWithLocations.length} children with locations`);
 
-    // Make parallel API calls for each child
-    const searchPromises = childrenWithLocations.map(child =>
-      this.searchForSingleChild(child, baseParams, defaultRadiusKm)
-    );
+    // Make parallel API calls for each child and capture debug info
+    const perChildDebugResults: any[] = [];
+    const searchPromises = childrenWithLocations.map(async child => {
+      const result = await this.searchForSingleChild(child, baseParams, defaultRadiusKm);
+      const savedAddress = child.preferences?.savedAddress;
+      let addr: any = savedAddress;
+      if (typeof savedAddress === 'string') {
+        try { addr = JSON.parse(savedAddress); } catch (e) {}
+      }
+      // Calculate age for debug
+      let age: number | string = 'N/A';
+      if (child.dateOfBirth) {
+        const birthDate = new Date(child.dateOfBirth);
+        if (!isNaN(birthDate.getTime())) {
+          const today = new Date();
+          age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            (age as number)--;
+          }
+        }
+      }
+      // Get the actual categories sent to API
+      let sentCategories = 'NONE';
+      if (child.preferences?.preferredActivityTypes?.length) {
+        sentCategories = child.preferences.preferredActivityTypes.join(',');
+      }
+      const hasCoords = !!(addr?.latitude && addr?.longitude);
+      perChildDebugResults.push({
+        name: child.name,
+        count: result.activities.length,
+        apiTotal: (result as any).total || 0,
+        actTypes: child.preferences?.preferredActivityTypes || [],
+        sentCats: sentCategories,
+        city: addr?.city || 'NONE',
+        hasCoords,
+        lat: addr?.latitude?.toFixed(2),
+        age,
+        apiStatus: (result as any).apiStatus,
+        apiSuccess: (result as any).apiSuccess,
+        apiMsg: (result as any).apiMsg,
+        paramKeys: (result as any).paramKeys || [],
+        qs: (result as any).queryString || '',
+        error: (result as any).error || null,
+      });
+      return result;
+    });
 
     const results = await Promise.all(searchPromises);
+
+    // Store debug info on class for later retrieval
+    (this as any)._lastPerChildDebug = perChildDebugResults;
 
     // Merge activities and track which children they match
     const activityChildMap = new Map<string, string[]>();
     const allActivities: Activity[] = [];
     const seenIds = new Set<string>();
+    let combinedTotal = 0;
 
-    results.forEach(({ activities, childId }) => {
-      console.log(`📍 [PerChildSearch] Child ${childId}: ${activities.length} activities found`);
+    results.forEach(({ activities, childId, total }) => {
+      console.log(`📍 [PerChildSearch] Child ${childId}: ${activities.length} activities found (total: ${total || 'unknown'})`);
+      // Track the total count from each child's API response
+      if (total) {
+        combinedTotal += total;
+      }
       activities.forEach(activity => {
         if (!seenIds.has(activity.id)) {
           seenIds.add(activity.id);
@@ -239,9 +542,51 @@ class ActivityService {
       matchingChildIds: activityChildMap.get(activity.id) || [],
     }));
 
-    console.log(`📍 [PerChildSearch] Total: ${taggedActivities.length} unique activities from ${childrenWithLocations.length} locations`);
+    // Sort activities with sponsored placement and distance-based ordering:
+    // 1. Top 3 sponsored activities (sorted by tier: gold > silver > bronze)
+    // 2. Non-sponsored activities sorted by distance (closest first)
+    // 3. Remaining sponsored activities mixed randomly throughout
 
-    return { activities: taggedActivities, activityChildMap };
+    const tierOrder: Record<string, number> = { gold: 0, silver: 1, bronze: 2 };
+
+    // Separate sponsored and non-sponsored activities
+    const sponsoredActivities = taggedActivities.filter(a => a.isFeatured);
+    const nonSponsoredActivities = taggedActivities.filter(a => !a.isFeatured);
+
+    // Sort sponsored by tier
+    sponsoredActivities.sort((a, b) => {
+      const aTier = (a.featuredTier?.toLowerCase() || 'bronze');
+      const bTier = (b.featuredTier?.toLowerCase() || 'bronze');
+      return (tierOrder[aTier] ?? 3) - (tierOrder[bTier] ?? 3);
+    });
+
+    // Take top 3 sponsored for the header
+    const topSponsored = sponsoredActivities.slice(0, 3);
+    const remainingSponsored = sponsoredActivities.slice(3);
+
+    // Sort non-sponsored by distance (API returns distance field when searching with coordinates)
+    nonSponsoredActivities.sort((a, b) => {
+      const distA = (a as any).distance ?? Infinity;
+      const distB = (b as any).distance ?? Infinity;
+      return distA - distB;
+    });
+
+    // Mix remaining sponsored activities randomly into non-sponsored results
+    // Insert each remaining sponsored activity at a random position
+    const mixedNonSponsored = [...nonSponsoredActivities];
+    remainingSponsored.forEach(sponsored => {
+      // Insert at random position (but not at the very beginning to keep distance ordering)
+      const minPos = Math.min(10, Math.floor(mixedNonSponsored.length * 0.1)); // At least 10% down
+      const randomPos = minPos + Math.floor(Math.random() * (mixedNonSponsored.length - minPos + 1));
+      mixedNonSponsored.splice(randomPos, 0, sponsored);
+    });
+
+    // Combine: top 3 sponsored first, then distance-sorted with mixed sponsored
+    const sortedActivities = [...topSponsored, ...mixedNonSponsored];
+
+    console.log(`📍 [PerChildSearch] Total: ${sortedActivities.length} unique activities (${topSponsored.length} top sponsored, ${remainingSponsored.length} mixed sponsored, ${nonSponsoredActivities.length} by distance), combinedTotal: ${combinedTotal}`);
+
+    return { activities: sortedActivities, activityChildMap, totalCount: combinedTotal };
   }
 
   /**
@@ -261,64 +606,120 @@ class ActivityService {
     }
 
     const addr = savedAddress as any;
-    if (!addr?.latitude || !addr?.longitude) {
+    const hasCoords = !!(addr?.latitude && addr?.longitude);
+    const hasCity = !!addr?.city;
+
+    // Need either coordinates or city to search
+    if (!hasCoords && !hasCity) {
+      console.log(`📍 [PerChildSearch] ${child.name}: No location data, skipping`);
       return { activities: [], childId: child.id };
     }
 
     // Calculate child's age
-    const birthDate = new Date(child.dateOfBirth);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+    let age: number | null = null;
+    if (child.dateOfBirth) {
+      const birthDate = new Date(child.dateOfBirth);
+      if (!isNaN(birthDate.getTime())) {
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      }
     }
+
+    console.log(`📍 [PerChildSearch] ${child.name}: dateOfBirth=${child.dateOfBirth}, calculated age=${age}`);
 
     // Build search params with THIS child's location and preferences
+    // Contextual filters (from baseParams) take precedence over child preferences
     const params: any = {
       ...baseParams,
-      userLat: addr.latitude,
-      userLon: addr.longitude,
-      radiusKm: child.preferences?.distanceRadiusKm || defaultRadiusKm,
-      ageMin: Math.max(0, age - 1),
-      ageMax: age + 1,
     };
 
-    // Add child's preferred activity types (if set)
+    // Add location - prefer coordinates, fall back to city name
+    if (hasCoords) {
+      params.userLat = addr.latitude;
+      params.userLon = addr.longitude;
+      params.radiusKm = child.preferences?.distanceRadiusKm || defaultRadiusKm;
+    } else if (hasCity) {
+      params.city = addr.city;
+      // Note: Province is intentionally NOT sent - the API filters by city name alone
+      // and province values like "British Columbia" vs "BC" cause mismatches
+    }
+
+    // For per-child search, use child's preferences:
+    // - Location (city or coordinates)
+    // - Activity types (from child's preferences)
+    // - Age range (from child's age)
+    // User can further filter the results using the filter panel
+
+    // Age range: use child's age ± 1 year to find age-appropriate activities
+    if (age !== null) {
+      params.ageMin = Math.max(0, age - 1);
+      params.ageMax = age + 1;
+    }
+
+    // Add THIS child's preferred activity types
     if (child.preferences?.preferredActivityTypes?.length) {
       params.categories = child.preferences.preferredActivityTypes.join(',');
+      console.log(`📍 [PerChildSearch] ${child.name}: Using activity types:`, params.categories);
     }
 
-    // Add child's days of week (if set)
-    if (child.preferences?.daysOfWeek?.length) {
-      params.dayOfWeek = child.preferences.daysOfWeek;
-    }
+    console.log(`📍 [PerChildSearch] ${child.name} FINAL params:`, {
+      city: params.city,
+      userLat: params.userLat,
+      userLon: params.userLon,
+      categories: params.categories,
+      ageMin: params.ageMin,
+      ageMax: params.ageMax,
+      limit: params.limit,
+    });
 
-    // Add child's price range (if set)
-    if (child.preferences?.priceRangeMin !== undefined) {
-      params.costMin = child.preferences.priceRangeMin;
-    }
-    if (child.preferences?.priceRangeMax !== undefined && child.preferences.priceRangeMax < 999999) {
-      params.costMax = child.preferences.priceRangeMax;
-    }
-
-    console.log(`📍 [PerChildSearch] Searching for ${child.name} (age ${age}) near ${addr.city || 'unknown city'}`);
+    // Log ALL params being sent
+    const paramKeys = Object.keys(params).filter(k => params[k] !== undefined && params[k] !== null);
+    console.log(`📍 [PerChildSearch] ${child.name} ALL params:`, params);
+    console.log(`📍 [PerChildSearch] ${child.name} param keys:`, paramKeys);
 
     try {
+      // Build URL manually to capture for debug
+      const filteredParams: Record<string, string> = {};
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            filteredParams[key] = value.join(',');
+          } else {
+            filteredParams[key] = String(value);
+          }
+        }
+      }
+      const queryString = new URLSearchParams(filteredParams).toString();
+      const debugUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ACTIVITIES}?${queryString}`;
+      console.log(`📍 [PerChildSearch] ${child.name} URL:`, debugUrl);
+
       // Make direct API call without recursive child filters (using native fetch)
       const response = await this.nativeFetch(API_CONFIG.ENDPOINTS.ACTIVITIES, { params });
 
+      console.log(`📍 [PerChildSearch] ${child.name} response:`, {
+        status: response.status,
+        success: response.data?.success,
+        activitiesCount: response.data?.activities?.length || 0,
+        total: response.data?.total || 0,
+        errorMessage: response.data?.message || 'NONE',
+      });
+
       if (response.data.success) {
-        const activities = (response.data.activities || []).map((activity: any) => ({
-          ...activity,
-          activityType: [activity.category],
-        }));
-        return { activities, childId: child.id };
+        // Keep activityType as-is from API (object with code, name, iconName)
+        // Don't override it - needed for aggregations to work correctly
+        const activities = response.data.activities || [];
+        return { activities, childId: child.id, apiStatus: response.status, apiSuccess: true, paramKeys, total: response.data?.total, queryString };
       }
-      return { activities: [], childId: child.id };
-    } catch (error) {
-      console.error(`[PerChildSearch] Error searching for ${child.name}:`, error);
-      return { activities: [], childId: child.id };
+      // API returned success=false
+      console.log(`📍 [PerChildSearch] ${child.name} API returned success=false:`, response.data);
+      return { activities: [], childId: child.id, apiStatus: response.status, apiSuccess: false, apiMsg: response.data?.message, paramKeys, queryString };
+    } catch (error: any) {
+      console.error(`[PerChildSearch] Error searching for ${child.name}:`, error?.message || error);
+      return { activities: [], childId: child.id, error: error?.message, paramKeys };
     }
   }
 
@@ -328,6 +729,10 @@ class ActivityService {
    */
   private applyChildFilters(params: any, childFilters?: ChildBasedFilterParams): any {
     if (!childFilters?.mergedFilters) {
+      // Even without mergedFilters, try to extract location from children directly
+      if (childFilters?.children && childFilters.children.length > 0) {
+        return this.applyChildLocationFallback(params, childFilters.children);
+      }
       return params;
     }
 
@@ -337,33 +742,45 @@ class ActivityService {
     console.log('👶 [ActivityService] Applying child-based filters:', {
       filterMode: childFilters.filterMode,
       ageRange: `${merged.ageMin}-${merged.ageMax}`,
-      activityTypes: merged.activityTypes?.length || 0,
-      distanceKm: merged.distanceRadiusKm
+      activityTypesCount: merged.activityTypes?.length || 0,
+      activityTypesRaw: merged.activityTypes,
+      distanceKm: merged.distanceRadiusKm,
+      hasLocationInMerged: !!(merged.latitude && merged.longitude),
+      hasCity: !!merged.city,
+      existingCategories: params.categories,
     });
 
     // Age range from merged child preferences
-    if (merged.ageMin !== undefined) {
+    // Only apply child age if contextual filters didn't set it (contextual takes precedence)
+    if (merged.ageMin !== undefined && params.ageMin === undefined) {
       updatedParams.ageMin = merged.ageMin;
     }
-    if (merged.ageMax !== undefined) {
+    if (merged.ageMax !== undefined && params.ageMax === undefined) {
       updatedParams.ageMax = merged.ageMax;
     }
 
-    // Activity types from merged preferences (union in OR mode, intersection in AND mode)
-    if (merged.activityTypes && merged.activityTypes.length > 0) {
+    // Activity types from merged preferences (only if contextual didn't set)
+    if (merged.activityTypes && merged.activityTypes.length > 0 && !params.categories) {
       updatedParams.categories = merged.activityTypes.join(',');
+      console.log('👶 [ActivityService] ✅ Applied activity types filter:', updatedParams.categories);
+    } else {
+      console.log('👶 [ActivityService] ❌ Activity types NOT applied:', {
+        hasActivityTypes: !!merged.activityTypes,
+        activityTypesLength: merged.activityTypes?.length || 0,
+        existingCategories: params.categories,
+      });
     }
 
-    // Price range from merged preferences
-    if (merged.priceRangeMin !== undefined) {
+    // Price range from merged preferences (only if contextual didn't set)
+    if (merged.priceRangeMin !== undefined && params.costMin === undefined) {
       updatedParams.costMin = merged.priceRangeMin;
     }
-    if (merged.priceRangeMax !== undefined && merged.priceRangeMax < 999999) {
+    if (merged.priceRangeMax !== undefined && merged.priceRangeMax < 999999 && params.costMax === undefined && params.maxCost === undefined) {
       updatedParams.costMax = merged.priceRangeMax;
     }
 
-    // Days of week from merged preferences
-    if (merged.daysOfWeek && merged.daysOfWeek.length > 0 && merged.daysOfWeek.length < 7) {
+    // Days of week from merged preferences (only if contextual didn't set)
+    if (merged.daysOfWeek && merged.daysOfWeek.length > 0 && merged.daysOfWeek.length < 7 && !params.dayOfWeek) {
       updatedParams.dayOfWeek = merged.daysOfWeek;
     }
 
@@ -373,26 +790,48 @@ class ActivityService {
       updatedParams.userLat = merged.latitude;
       updatedParams.userLon = merged.longitude;
       updatedParams.radiusKm = merged.distanceRadiusKm || 25; // Use child's preference, default 25km
-      console.log('📍 [Location] Using child coordinates:', {
+      console.log('📍 [Location] Using child coordinates from merged:', {
         lat: merged.latitude,
         lng: merged.longitude,
         radius: updatedParams.radiusKm
       });
+    } else if (childFilters?.children && childFilters.children.length > 0) {
+      // FALLBACK: Extract location directly from children if not in mergedFilters
+      // This handles cases where getMergedFilters didn't extract location properly
+      const locationFromChildren = this.extractLocationFromChildren(childFilters.children);
+      if (locationFromChildren.latitude && locationFromChildren.longitude) {
+        updatedParams.userLat = locationFromChildren.latitude;
+        updatedParams.userLon = locationFromChildren.longitude;
+        updatedParams.radiusKm = locationFromChildren.radiusKm || 25;
+        console.log('📍 [Location] Using fallback coordinates from children:', {
+          lat: locationFromChildren.latitude,
+          lng: locationFromChildren.longitude,
+          radius: updatedParams.radiusKm
+        });
+      }
+      // Also apply city if available from fallback
+      if (!merged.city && locationFromChildren.city) {
+        updatedParams.city = locationFromChildren.city;
+        if (locationFromChildren.province) {
+          updatedParams.province = locationFromChildren.province;
+        }
+        console.log('📍 [Location] Using fallback city from children:', locationFromChildren.city);
+      }
     }
 
     // ALWAYS send city for same-city prioritization (even when we have coordinates)
     // This allows the server to prioritize activities in the child's city first
-    if (merged.city) {
+    if (merged.city && !updatedParams.city) {
       updatedParams.city = merged.city;
       console.log('📍 [Location] Using child city for prioritization:', merged.city);
     }
-    if (merged.province) {
+    if (merged.province && !updatedParams.province) {
       updatedParams.province = merged.province;
     }
     // GPS fallback is handled in searchActivitiesPaginated if no child location
 
-    // Environment filter
-    if (merged.environmentFilter && merged.environmentFilter !== 'all') {
+    // Environment filter (only if contextual didn't set)
+    if (merged.environmentFilter && merged.environmentFilter !== 'all' && !params.environment) {
       updatedParams.environment = merged.environmentFilter;
     }
 
@@ -476,6 +915,8 @@ class ActivityService {
       if (queryString) {
         url += (url.includes('?') ? '&' : '?') + queryString;
       }
+      // Debug: Log the final URL with all params
+      console.log('🌐 [nativeFetch] Final URL:', url);
     }
 
     const fetchOptions: RequestInit = {
@@ -687,12 +1128,12 @@ class ActivityService {
    * Search activities with pagination support
    * @param params Search parameters
    * @param childFilters Optional child-based filters for multi-child selection
-   * @param options Optional options including includeAggregations
+   * @param options Optional options including includeAggregations and skipLocationFallback
    */
   async searchActivitiesPaginated(
     params: ActivitySearchParams,
     childFilters?: ChildBasedFilterParams,
-    options?: { includeAggregations?: boolean }
+    options?: { includeAggregations?: boolean; skipLocationFallback?: boolean }
   ): Promise<PaginatedResponse<Activity>> {
     try {
       // Skip connectivity check in dev mode (unreliable on iOS simulator)
@@ -709,15 +1150,66 @@ class ActivityService {
       }
 
       // Check if we need per-child location search (children in different cities with coordinates)
+      // Build debug info to return in response
+      const debugInfo: any = {
+        usePerChildLoc: !!childFilters?.usePerChildLocation,
+        childrenLen: childFilters?.children?.length || 0,
+        childPrefsStatus: childFilters?.children?.map(c => {
+          const addr = c.preferences?.savedAddress;
+          let parsed: any = addr;
+          if (typeof addr === 'string') {
+            try { parsed = JSON.parse(addr); } catch (e) {}
+          }
+          return {
+            name: c.name,
+            hasPrefs: !!c.preferences,
+            addrType: typeof addr,
+            city: (parsed as any)?.city || 'NONE',
+          };
+        }) || [],
+      };
+      console.log('📍 [searchActivitiesPaginated] Per-child check:', debugInfo);
+
       if (childFilters?.usePerChildLocation && childFilters?.children && childFilters.children.length > 1) {
         const locationsAreDistinct = this.areChildrenInDifferentCities(childFilters.children);
+        debugInfo.locationsAreDistinct = locationsAreDistinct;
+        console.log('📍 [searchActivitiesPaginated] Multi-location check:', {
+          childrenCount: childFilters.children.length,
+          locationsAreDistinct,
+        });
 
         if (locationsAreDistinct) {
           console.log('📍 [searchActivitiesPaginated] Multi-location detected, using per-child search');
+          console.log('📍 [searchActivitiesPaginated] Each child will use their OWN location + activity types');
 
           // Get global filters to pass to per-child search
+          // IMPORTANT: For per-child search, ONLY keep non-child-specific params
+          // Child-specific params (location, age, categories, days, cost) come from each child's preferences
           const globalFiltersForPerChild = this.getGlobalFilterParams();
-          const baseParams = { ...params, ...globalFiltersForPerChild };
+
+          // Start fresh with only the essential non-child-specific params
+          // Use a high limit to fetch all matching activities for accurate count
+          // (each child's search uses this limit, results are merged and deduplicated)
+          const perChildLimit = 5000;  // High limit to get all matching activities
+          const baseParams: any = {
+            limit: perChildLimit,
+            offset: 0,  // Always start from 0 for per-child search (no pagination)
+            sortBy: params.sortBy,
+            sortOrder: params.sortOrder,
+            // Global user preferences (not child-specific)
+            hideClosedOrFull: globalFiltersForPerChild.hideClosedOrFull,
+            hideClosedActivities: globalFiltersForPerChild.hideClosedActivities,
+            hideFullActivities: globalFiltersForPerChild.hideFullActivities,
+          };
+
+          console.log('📍 [searchActivitiesPaginated] Per-child baseParams (cleaned):', baseParams);
+
+          debugInfo.perChildSearchAttempted = true;
+          debugInfo.perChildBaseParams = {
+            limit: baseParams.limit,
+            sortBy: baseParams.sortBy,
+            categories: baseParams.categories || 'NONE'
+          };
 
           const result = await this.searchActivitiesPerChild(
             childFilters.children,
@@ -725,15 +1217,37 @@ class ActivityService {
             childFilters.mergedFilters?.distanceRadiusKm || 25
           );
 
+          debugInfo.perChildResultCount = result.activities.length;
+          debugInfo.perChildDetails = (this as any)._lastPerChildDebug || [];
+
           // Only use per-child results if we got activities; otherwise fall through to normal search
           if (result.activities.length > 0) {
+            // Compute aggregations client-side since per-child search doesn't use the API aggregations
+            const aggregations = computeAggregationsFromActivities(result.activities);
+            const limit = params.limit || 50;
+            const offset = params.offset || 0;
+
+            // For per-child search, use the actual unique count of activities we fetched
+            // Note: result.totalCount is the sum of each child's API total, which double-counts
+            // activities that match multiple children and includes unfetched results.
+            // The accurate count is the deduplicated activities we actually have.
+            const uniqueActivitiesCount = result.activities.length;
+
+            console.log('📊 [searchActivitiesPaginated] Per-child search result:', {
+              uniqueActivities: uniqueActivitiesCount,
+              combinedApiTotal: result.totalCount,
+              activityTypesInAggregations: aggregations.activityTypes?.length || 0,
+              activityTypesSample: aggregations.activityTypes?.slice(0, 5).map((t: any) => t.name) || [],
+            });
+
             return {
               items: result.activities,
-              total: result.activities.length,
-              limit: params.limit || 50,
-              offset: params.offset || 0,
-              hasMore: false,
-              pages: 1
+              total: uniqueActivitiesCount,
+              limit: limit,
+              offset: offset,
+              hasMore: false,  // Per-child search fetches all at once, no pagination
+              pages: 1,
+              aggregations, // Include computed aggregations
             };
           } else {
             console.log('📍 [searchActivitiesPaginated] Per-child search returned no results, falling through to normal search');
@@ -745,7 +1259,6 @@ class ActivityService {
       const globalFilters = this.getGlobalFilterParams();
 
       console.log('📤 [searchActivitiesPaginated] Input params:', params);
-      console.log('📤 [searchActivitiesPaginated] Global filters:', globalFilters);
       console.log('📤 [searchActivitiesPaginated] Child filters:', childFilters ? 'provided' : 'none');
 
       // Convert parameters to match backend API - merge with global filters
@@ -754,10 +1267,35 @@ class ActivityService {
       // Apply child-based filters (includes location fallback: lat/lng → city/province)
       apiParams = this.applyChildFilters(apiParams, childFilters);
 
+      console.log('🔍 [searchActivitiesPaginated] After applyChildFilters:', {
+        userLat: apiParams.userLat,
+        userLon: apiParams.userLon,
+        city: apiParams.city,
+        radiusKm: apiParams.radiusKm,
+        ageMin: apiParams.ageMin,
+        ageMax: apiParams.ageMax,
+        categories: apiParams.categories,
+        hasLocationApplied: !!(apiParams.userLat || apiParams.city),
+        hasCategoriesApplied: !!apiParams.categories,
+      });
+
+      // CRITICAL: Verify location is applied - log warning if missing
+      if (!apiParams.userLat && !apiParams.city) {
+        console.warn('⚠️ [searchActivitiesPaginated] NO LOCATION FILTER APPLIED - results may be unfiltered!');
+        console.warn('⚠️ [searchActivitiesPaginated] childFilters:', {
+          exists: !!childFilters,
+          mergedFiltersExists: !!childFilters?.mergedFilters,
+          mergedLat: childFilters?.mergedFilters?.latitude,
+          mergedCity: childFilters?.mergedFilters?.city,
+          childrenCount: childFilters?.children?.length || 0,
+        });
+      }
+
       // LOCATION FALLBACK CHAIN - Priority 3: GPS fallback
       // If no child location was applied (neither coordinates nor city), try GPS
+      // Skip location fallback if explicitly requested (e.g., for recommended/new screens)
       const hasChildLocation = apiParams.userLat || apiParams.city;
-      if (!hasChildLocation) {
+      if (!hasChildLocation && !options?.skipLocationFallback) {
         const gpsLocation = await this.getGPSLocationFallback();
         if (gpsLocation) {
           apiParams.userLat = gpsLocation.latitude;
@@ -772,6 +1310,8 @@ class ActivityService {
           // Priority 4: No location - results will be unfiltered by location
           console.log('📍 [Location Fallback] No location available - returning unfiltered results');
         }
+      } else if (options?.skipLocationFallback) {
+        console.log('📍 [Location Fallback] Skipped - returning results without location filter');
       }
 
       console.log('📤 [searchActivitiesPaginated] Final API params:', apiParams);
@@ -838,6 +1378,12 @@ class ActivityService {
       if (params.activityTypes && Array.isArray(params.activityTypes)) {
         apiParams.categories = params.activityTypes.join(',');
         delete apiParams.activityTypes;
+      }
+
+      // Handle environment filter - client sends 'environment', server expects 'environmentFilter'
+      if (params.environment && params.environment !== 'all') {
+        apiParams.environmentFilter = params.environment;
+        delete apiParams.environment;
       }
 
       // Add includeAggregations if requested
@@ -936,7 +1482,7 @@ class ActivityService {
           hasMore: hasMore,
           pages: totalPages,
           // Include aggregations if present in response
-          aggregations: responseData.aggregations
+          aggregations: responseData.aggregations,
         };
       }
       
