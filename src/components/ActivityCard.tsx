@@ -947,6 +947,19 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               return `Ages ${min}-${max}`;
             })()}
           </Text>
+          {/* Gender badge for gender-specific activities */}
+          {activity.gender === 'male' && (
+            <View style={styles.genderBadge}>
+              <Icon name="gender-male" size={12} color="#3B82F6" />
+              <Text style={styles.genderBadgeText}>Boys</Text>
+            </View>
+          )}
+          {activity.gender === 'female' && (
+            <View style={styles.genderBadge}>
+              <Icon name="gender-female" size={12} color="#EC4899" />
+              <Text style={styles.genderBadgeText}>Girls</Text>
+            </View>
+          )}
         </View>
 
         {activity.hasPrerequisites && activity.prerequisites && (
@@ -979,14 +992,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                 <View style={styles.limitedBadge}>
                   <Icon name="alert-circle" size={14} color={Colors.warning} />
                   <Text style={styles.limitedText}>
-                    Only {activity.spotsAvailable} spots left!
+                    Only {activity.spotsAvailable}{activity.totalSpots ? `/${activity.totalSpots}` : ''} spots left!
                   </Text>
                 </View>
               ) : (
                 <View style={styles.availableBadge}>
                   <Icon name="check-circle" size={14} color={Colors.success} />
                   <Text style={styles.availableText}>
-                    {activity.spotsAvailable} spots available
+                    {activity.spotsAvailable}{activity.totalSpots ? `/${activity.totalSpots}` : ''} spots
                   </Text>
                 </View>
               )
@@ -1353,6 +1366,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: Theme.spacing.sm,
+  },
+  genderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+    gap: 3,
+  },
+  genderBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   bottomSection: {
     flexDirection: 'row',

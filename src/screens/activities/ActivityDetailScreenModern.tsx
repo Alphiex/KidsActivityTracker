@@ -895,8 +895,20 @@ const ActivityDetailScreenModern = () => {
             )}
 
             {/* Activity Flags Row */}
-            {(activity.hasExtras || activity.hasRequiredExtras || activity.isSingleOccurrence || activity.allDayEvent) && (
+            {(activity.gender || activity.hasExtras || activity.hasRequiredExtras || activity.isSingleOccurrence || activity.allDayEvent || activity.onlineRegistration === false) && (
               <View style={styles.flagsRow}>
+                {activity.gender === 'male' && (
+                  <View style={[styles.flagBadge, styles.flagGender]}>
+                    <Icon name="gender-male" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Boys Only</Text>
+                  </View>
+                )}
+                {activity.gender === 'female' && (
+                  <View style={[styles.flagBadge, styles.flagGender]}>
+                    <Icon name="gender-female" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Girls Only</Text>
+                  </View>
+                )}
                 {activity.hasRequiredExtras && (
                   <View style={[styles.flagBadge, styles.flagRequired]}>
                     <Icon name="alert-circle-outline" size={14} color={ModernColors.white} />
@@ -919,6 +931,12 @@ const ActivityDetailScreenModern = () => {
                   <View style={[styles.flagBadge, styles.flagInfo]}>
                     <Icon name="weather-sunny" size={14} color={ModernColors.white} />
                     <Text style={styles.flagText}>All Day</Text>
+                  </View>
+                )}
+                {activity.onlineRegistration === false && (
+                  <View style={[styles.flagBadge, styles.flagWarning]}>
+                    <Icon name="phone" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Phone/In-Person Only</Text>
                   </View>
                 )}
               </View>
@@ -1792,6 +1810,12 @@ const styles = StyleSheet.create({
   },
   flagInfo: {
     backgroundColor: '#6366F1',
+  },
+  flagGender: {
+    backgroundColor: '#8B5CF6', // Purple for gender-specific
+  },
+  flagWarning: {
+    backgroundColor: '#F59E0B', // Amber for warnings
   },
   flagText: {
     color: ModernColors.white,
