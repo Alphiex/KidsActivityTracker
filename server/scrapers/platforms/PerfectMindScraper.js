@@ -200,6 +200,10 @@ class PerfectMindScraper extends BaseScraper {
     let activities = [];
     const { entryPoints, maxConcurrency = 10 } = this.config.scraperConfig;
 
+    // Initialize visited subcategories tracking to prevent infinite recursion
+    // This is shared across all browsers and all recursive calls
+    this.visitedSubcategories = new Set();
+
     const entryPoint = entryPoints[0];
     const widgetUrl = entryPoint.startsWith('http')
       ? entryPoint
@@ -217,6 +221,12 @@ class PerfectMindScraper extends BaseScraper {
       : this.filterActivityLinks(discoveredLinks);
 
     this.logProgress(`Found ${activityLinks.length} activity links to process`);
+
+    // Mark all top-level links as visited to prevent recursive re-entry
+    // This handles the case where a subcategory link matches a top-level link
+    for (const link of activityLinks) {
+      this.visitedSubcategories.add(link.text);
+    }
 
     // Use browser pool for parallelization (multiple browsers with multiple tabs each)
     const browserPoolSize = this.config.scraperConfig.browserPoolSize || 3;
@@ -645,21 +655,36 @@ class PerfectMindScraper extends BaseScraper {
       const subcategoryLinks = await this.findKidsSubcategories(page);
 
       if (subcategoryLinks.length > 0 && depth < MAX_DEPTH) {
-        this.logProgress(`    Found ${subcategoryLinks.length} subcategories in "${linkText}", recursing...`);
-        await page.close();
+        // Filter out already-visited subcategories to prevent infinite recursion
+        // Use GLOBAL tracking (just the link text) because some sites have global navigation
+        // that appears on every page (not actual subcategories)
+        const unvisitedSubcategories = subcategoryLinks.filter(subLink => {
+          return !this.visitedSubcategories.has(subLink);
+        });
 
-        // Recursively process each subcategory
-        for (const subLink of subcategoryLinks) {
-          const subActivities = await this.extractActivitiesFromLink(
-            widgetUrl,
-            { text: subLink, section: linkInfo.text }, // Parent category becomes the section
-            browser,
-            depth + 1
-          );
-          activities = activities.concat(subActivities);
+        if (unvisitedSubcategories.length > 0) {
+          this.logProgress(`    Found ${subcategoryLinks.length} subcategories in "${linkText}", ${unvisitedSubcategories.length} unvisited, recursing...`);
+          await page.close();
+
+          // Recursively process each unvisited subcategory
+          for (const subLink of unvisitedSubcategories) {
+            // Mark as visited GLOBALLY before recursing to prevent any other path from visiting it
+            this.visitedSubcategories.add(subLink);
+
+            const subActivities = await this.extractActivitiesFromLink(
+              widgetUrl,
+              { text: subLink, section: linkInfo.text }, // Parent category becomes the section
+              browser,
+              depth + 1
+            );
+            activities = activities.concat(subActivities);
+          }
+
+          return activities;
+        } else {
+          this.logProgress(`    Found ${subcategoryLinks.length} subcategories in "${linkText}", all already visited, extracting from current page`);
+          // Fall through to extract from current page instead of recursing
         }
-
-        return activities;
       }
 
       // Check for hierarchical subcategory structure (like Port Moody's category pages)
