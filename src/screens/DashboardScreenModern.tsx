@@ -77,6 +77,7 @@ const DashboardScreenModern = () => {
   const isLoadingRef = useRef(false);
   const hasInitialLoadRef = useRef(false);
 
+
   // Subscription-aware favorites
   const {
     canAddFavorite,
@@ -290,12 +291,18 @@ const DashboardScreenModern = () => {
 
   // Reload activities when child selection changes (after initial load)
   useEffect(() => {
+    // CRITICAL: Don't run until initial load has completed
+    // This prevents race conditions with useFocusEffect
+    if (!hasInitialLoadRef.current) {
+      console.log('[Dashboard] useEffect skipped - initial load not complete');
+      return;
+    }
+
     const currentKey = `${selectedChildIds.join(',')}-${filterMode}`;
     const prevKey = `${prevSelectionRef.current.ids.join(',')}-${prevSelectionRef.current.mode}`;
 
-    // Skip on first render or if nothing changed
-    if (prevKey === '-or' || currentKey === prevKey) {
-      prevSelectionRef.current = { ids: selectedChildIds, mode: filterMode };
+    // Skip if nothing changed
+    if (currentKey === prevKey) {
       return;
     }
 
@@ -303,7 +310,10 @@ const DashboardScreenModern = () => {
     prevSelectionRef.current = { ids: selectedChildIds, mode: filterMode };
 
     // Don't reload if already loading
-    if (isLoadingRef.current) return;
+    if (isLoadingRef.current) {
+      console.log('[Dashboard] useEffect skipped - already loading');
+      return;
+    }
 
     const reloadActivities = async () => {
       console.log('[Dashboard] Reloading due to child selection change:', currentKey);
@@ -350,6 +360,9 @@ const DashboardScreenModern = () => {
         } finally {
           isLoadingRef.current = false;
           hasInitialLoadRef.current = true; // Mark initial load as complete
+          // Initialize prevSelectionRef so useEffect doesn't immediately trigger
+          prevSelectionRef.current = { ids: selectedChildIds, mode: filterMode };
+          console.log('[Dashboard] Initial load complete, prevSelectionRef set');
         }
       };
 
@@ -373,20 +386,6 @@ const DashboardScreenModern = () => {
       // runs on blur, not unmount. The useEffect above handles unmount.
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
-
-  // Reload activity data when children change (handles async child loading)
-  useEffect(() => {
-    // Skip if initial load hasn't completed yet (useFocusEffect will handle it)
-    if (!hasInitialLoadRef.current) {
-      return;
-    }
-    // Reload recommended/budget/new when children change
-    console.log('[Dashboard] Children changed, reloading activity data...');
-    loadRecommendedActivities();
-    loadBudgetFriendlyActivities();
-    loadNewActivities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChildren.length]);
 
   // Check if any section is still loading (for shimmer animation)
   const isAnyLoading = recommendedLoading || newLoading || budgetLoading || typesLoading || ageGroupsLoading;
@@ -491,6 +490,7 @@ const DashboardScreenModern = () => {
   }, [dispatch, children]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRecommendedActivities = async () => {
+    console.log('[Dashboard] loadRecommendedActivities starting');
     try {
       setRecommendedLoading(true);
 
@@ -567,15 +567,17 @@ const DashboardScreenModern = () => {
         }
       }
 
+      console.log('[Dashboard] Setting activities:', response?.items?.length, 'isMounted:', isMountedRef.current);
       if (isMountedRef.current) {
         if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
           // Shuffle results for variety on each load
-          setRecommendedActivities(shuffleArray(response.items));
-          console.log('[Dashboard] Set recommended activities (shuffled):', response.items.length);
+          const shuffled = shuffleArray(response.items);
+          setRecommendedActivities(shuffled);
+          console.log('[Dashboard] Set', shuffled.length, 'recommended activities');
         } else {
           // No activities found - set empty array to show empty state
           setRecommendedActivities([]);
-          console.log('[Dashboard] Recommended activities: No activities found');
+          console.log('[Dashboard] No recommended activities found');
         }
       }
     } catch (error) {
@@ -584,8 +586,10 @@ const DashboardScreenModern = () => {
         setRecommendedActivities([]);
       }
     } finally {
+      // ALWAYS set loading to false when done, regardless of success/failure
       if (isMountedRef.current) {
         setRecommendedLoading(false);
+        console.log('[Dashboard] recommendedLoading set to FALSE');
       }
     }
   };

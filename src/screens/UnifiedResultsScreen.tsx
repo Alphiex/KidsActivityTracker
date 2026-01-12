@@ -643,12 +643,11 @@ const UnifiedResultsScreenTest: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtersChangedTrigger]);
 
-  // Initial load - also reload when children change (handles async child loading)
+  // Initial load
   useEffect(() => {
     loadActivities();
     loadFavorites();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, selectedChildren.length]);
+  }, [type]);
 
   const loadFavorites = async () => {
     if (!user) return;
