@@ -2061,30 +2061,71 @@ class ActiveNetworkScraper extends BaseScraper {
       return undefined;
     };
 
-    let browser;
-    try {
-      browser = await puppeteer.launch({
-        headless: this.config.scraperConfig.headless !== false,
-        executablePath: getChromePath(),
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      });
+    // Use browser pool for large datasets (500+ activities) - similar to PerfectMind
+    const browserCount = activitiesWithUrls.length >= 500 ? 3 : activitiesWithUrls.length >= 200 ? 2 : 1;
+    const batchSize = activitiesWithUrls.length >= 500 ? 15 : 10; // Parallel pages per browser
+    const browserRestartInterval = 50; // Restart browser every N pages to prevent memory issues
 
-      const batchSize = 20; // Increased for better parallelization
+    this.logProgress(`  Using ${browserCount} browser(s), batch size ${batchSize}`);
+
+    // Initialize browser pool
+    const browsers = [];
+    const pageCounters = [];
+    try {
+      for (let i = 0; i < browserCount; i++) {
+        const browser = await puppeteer.launch({
+          headless: this.config.scraperConfig.headless !== false,
+          executablePath: getChromePath(),
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        });
+        browsers.push(browser);
+        pageCounters.push(0);
+      }
+
       let enhanced = 0;
       let withDates = 0;
       let withTimes = 0;
       let withLocation = 0;
 
-      for (let i = 0; i < activitiesWithUrls.length; i += batchSize) {
-        const batch = activitiesWithUrls.slice(i, i + batchSize);
-        const progress = ((i / activitiesWithUrls.length) * 100).toFixed(0);
-        this.logProgress(`  Processing detail batch ${Math.floor(i/batchSize)+1}/${Math.ceil(activitiesWithUrls.length/batchSize)} (${progress}%)`);
+      // Create work queue
+      const queue = activitiesWithUrls.map((a, i) => ({ activity: a, index: i }));
+      const results = new Map();
 
-        const batchResults = await Promise.all(
-          batch.map(async (activity) => {
-            let page;
+      // Worker function for each browser
+      const processWithBrowser = async (browserIndex) => {
+        while (queue.length > 0) {
+          // Get next batch of work
+          const workBatch = [];
+          for (let i = 0; i < Math.ceil(batchSize / browserCount) && queue.length > 0; i++) {
+            workBatch.push(queue.shift());
+          }
+          if (workBatch.length === 0) break;
+
+          // Check if browser needs restart
+          if (pageCounters[browserIndex] >= browserRestartInterval) {
             try {
-              page = await browser.newPage();
+              await browsers[browserIndex].close();
+            } catch (e) { /* ignore */ }
+            browsers[browserIndex] = await puppeteer.launch({
+              headless: this.config.scraperConfig.headless !== false,
+              executablePath: getChromePath(),
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+            pageCounters[browserIndex] = 0;
+            this.logProgress(`  Browser ${browserIndex + 1} restarted`);
+          }
+
+          const browser = browsers[browserIndex];
+          const totalProcessed = activitiesWithUrls.length - queue.length - workBatch.length;
+          const progress = ((totalProcessed / activitiesWithUrls.length) * 100).toFixed(0);
+          this.logProgress(`  B${browserIndex + 1} processing batch (${progress}% complete)`);
+
+          // Process batch
+          const batchResults = await Promise.all(
+            workBatch.map(async ({ activity, index }) => {
+              let page;
+              try {
+                page = await browser.newPage();
               await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
               await page.goto(activity.registrationUrl, { waitUntil: 'networkidle2', timeout: 45000 });
 
@@ -2651,7 +2692,7 @@ class ActiveNetworkScraper extends BaseScraper {
               }
 
               // Merge detail data with activity
-              return {
+              return { index, result: {
                 ...activity,
                 // Course ID (numeric activity number from detail page)
                 courseId: detailData.courseId || activity.courseId,
@@ -2695,32 +2736,43 @@ class ActiveNetworkScraper extends BaseScraper {
                 // Registration Dates (when registration opens/closes)
                 registrationDate: parseDate(detailData.registrationStartDateStr) || parseDate(detailData.registrationDateStr) || activity.registrationDate,
                 registrationEndDate: parseDate(detailData.registrationEndDateStr) || activity.registrationEndDate
-              };
-            } catch (error) {
-              return activity; // Return original on error
-            } finally {
-              // Always close the page safely (ignore errors if browser already closed)
-              try {
-                if (page) await page.close();
-              } catch (e) { /* ignore - page/browser already closed */ }
-            }
-          })
-        );
+              }};
+              } catch (error) {
+                return { index, result: activity }; // Return original on error
+              } finally {
+                // Always close the page safely (ignore errors if browser already closed)
+                try {
+                  if (page) await page.close();
+                } catch (e) { /* ignore - page/browser already closed */ }
+                pageCounters[browserIndex]++;
+              }
+            })
+          );
 
-        // Update activities in original array
-        batchResults.forEach(result => {
-          const idx = activities.findIndex(a => a.registrationUrl === result.registrationUrl);
-          if (idx >= 0) {
-            activities[idx] = result;
+          // Store results for later processing
+          for (const { index, result } of batchResults) {
+            results.set(index, result);
             enhanced++;
             if (result.dateStart) withDates++;
             if (result.startTime) withTimes++;
             if (result.locationName) withLocation++;
           }
-        });
 
-        // Rate limit between batches (optimized)
-        await new Promise(r => setTimeout(r, 500));
+          // Small delay between batches to prevent overwhelming the server
+          await new Promise(r => setTimeout(r, 300));
+        }
+      };
+
+      // Start all browser workers in parallel
+      const workerPromises = browsers.map((_, idx) => processWithBrowser(idx));
+      await Promise.all(workerPromises);
+
+      // Update activities in original array from results map
+      for (const [index, result] of results) {
+        const origIdx = activities.findIndex(a => a.registrationUrl === result.registrationUrl);
+        if (origIdx >= 0) {
+          activities[origIdx] = result;
+        }
       }
 
       this.logProgress(`Detail enhancement complete:`);
@@ -2729,7 +2781,12 @@ class ActiveNetworkScraper extends BaseScraper {
       this.logProgress(`  - ${withTimes} with times`);
       this.logProgress(`  - ${withLocation} with location`);
     } finally {
-      if (browser) await browser.close();
+      // Close all browsers in pool
+      for (const browser of browsers) {
+        try {
+          await browser.close();
+        } catch (e) { /* ignore */ }
+      }
     }
 
     return activities;

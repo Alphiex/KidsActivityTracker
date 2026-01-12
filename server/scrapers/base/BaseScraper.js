@@ -584,6 +584,7 @@ class BaseScraper {
       }
 
       // Execute batch operations using transaction
+      // Use longer timeout for large batches (default 5s is too short)
       try {
         await this.prisma.$transaction(async (tx) => {
           // Batch create new activities
@@ -621,6 +622,9 @@ class BaseScraper {
             });
             stats.unchanged += toUnchange.length;
           }
+        }, {
+          timeout: 30000, // 30 seconds for large batch operations
+          maxWait: 60000  // Wait up to 60 seconds to acquire connection
         });
 
         // Get IDs of newly created activities
