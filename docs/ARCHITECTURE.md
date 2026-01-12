@@ -570,16 +570,22 @@ Cloud Run Job Start
 ┌───────────────────────────────────────────┐
 │          For each Provider:               │
 │  1. Load provider config (JSON)           │
-│  2. Initialize Puppeteer browser          │
+│  2. Initialize Puppeteer browser(s)       │
+│     • 500+ activities: 3 browsers         │
+│     • 200-500: 2 browsers                 │
+│     • <200: 1 browser                     │
 │  3. Navigate to recreation website        │
-│  4. Extract activity data                 │
-│  5. Transform & normalize                 │
-│  6. Create/update locations               │
-│  7. Geocode new locations (Google Maps)   │
-│  8. Upsert activities to database         │
-│  9. Propagate coordinates to activities   │
-│  10. Deactivate stale records             │
-│  11. Record metrics                       │
+│  4. Extract activity list                 │
+│  5. Detail enhancement (parallel)         │
+│     • Work queue distributed to browsers  │
+│     • Browser restart every 50 pages      │
+│  6. Transform & normalize                 │
+│  7. Create/update locations               │
+│  8. Geocode new locations (Google Maps)   │
+│  9. Upsert activities (30s tx timeout)    │
+│  10. Propagate coordinates to activities  │
+│  11. Deactivate stale records             │
+│  12. Record metrics                       │
 └───────────────────────────────────────────┘
         │
         ▼

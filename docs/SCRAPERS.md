@@ -473,6 +473,78 @@ Each provider is configured with rate limits:
 | `retries` | 3 | Retry attempts on failure |
 | `initialWait` | 5000ms | Browser startup wait |
 
+## Performance Optimizations
+
+### Multi-Browser Parallelization
+
+Large scrapers (500+ activities) use browser pools for parallel processing during the detail enhancement phase:
+
+| Platform | 500+ Activities | 200-500 Activities | <200 Activities |
+|----------|-----------------|--------------------|-----------------|
+| ActiveNetwork | 3 browsers | 2 browsers | 1 browser |
+| PerfectMind | 3 browsers | 1 browser | 1 browser |
+
+**How it works:**
+- Multiple browser instances process detail pages concurrently
+- Work is distributed via a shared queue pattern
+- Each browser processes 10-15 pages in parallel batches
+- Results are aggregated after all workers complete
+
+**Expected speedups for large providers:**
+- Burnaby (~5,500 activities): ~120 min → ~40-50 min
+- Mississauga (~7,800 activities): ~150 min → ~50-60 min
+- Toronto (~12,000 activities): ~200 min → ~70-80 min
+
+### Browser Restart Logic
+
+To prevent memory leaks and browser crashes during long scraping sessions:
+
+```javascript
+// Browser restarts every 50 pages processed
+const browserRestartInterval = 50;
+
+if (pageCounters[browserIndex] >= browserRestartInterval) {
+  await browsers[browserIndex].close();
+  browsers[browserIndex] = await puppeteer.launch({...});
+  pageCounters[browserIndex] = 0;
+}
+```
+
+This prevents the "Protocol error: Connection closed" errors that occurred when browsers accumulated too many pages without restart.
+
+### Transaction Timeout Configuration
+
+Database batch saves use extended transaction timeouts to handle large datasets:
+
+```javascript
+await prisma.$transaction(async (tx) => {
+  // Batch operations...
+}, {
+  timeout: 30000,  // 30 seconds (up from 5s default)
+  maxWait: 60000   // 60 seconds to acquire connection
+});
+```
+
+### Chrome Executable Path Fallback
+
+Scrapers automatically detect Chrome installation:
+
+```javascript
+const getChromePath = () => {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  // macOS fallback to system Chrome
+  const macOSChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  if (process.platform === 'darwin' && fs.existsSync(macOSChrome)) {
+    return macOSChrome;
+  }
+  return undefined; // Use Puppeteer's bundled Chrome
+};
+```
+
+This fixes "Could not find Chrome" errors when Puppeteer's bundled Chrome is unavailable.
+
 ## Data Transformation
 
 ### Input (from website)
@@ -699,6 +771,22 @@ node scrapers/scripts/runByTier.js --tier=critical
 **Browser crashes**
 - Reduce `concurrentRequests`
 - Increase memory allocation
+- Browser restarts automatically every 50 pages to prevent memory buildup
+
+**Protocol error: Connection closed**
+- Pages now properly closed in `finally` blocks
+- Browser restart logic prevents stale connections
+- Multi-browser pool distributes load across instances
+
+**Transaction timeout errors**
+- Transaction timeout increased to 30 seconds
+- Connection acquisition timeout set to 60 seconds
+- Large batches processed in smaller chunks
+
+**Chrome not found errors**
+- Scrapers now fall back to system Chrome on macOS
+- Set `PUPPETEER_EXECUTABLE_PATH` environment variable if needed
+- Verify Chrome is installed at `/Applications/Google Chrome.app`
 
 **High validation discrepancy**
 - Check if selectors need updating
@@ -714,10 +802,11 @@ DEBUG=scraper:* node scrapers/scripts/runSingleScraper.js --provider=vancouver
 
 ---
 
-**Document Version**: 7.0
+**Document Version**: 8.0
 **Last Updated**: January 2026
 
 ### Changelog
+- v8.0: Added Performance Optimizations section (multi-browser parallelization, browser restart logic, transaction timeouts, Chrome fallback)
 - v7.0: Added AI-Powered Auto-Fix Pipeline documentation
 - v6.0: Added Claude Vision validation system documentation
 - v5.0: Added External ID Generation section with guidelines for stable IDs

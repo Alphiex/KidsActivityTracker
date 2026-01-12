@@ -214,6 +214,28 @@ Each provider config (`server/scrapers/configs/providers/*.json`) has a `schedul
 ### Geocoding Integration
 New locations are automatically geocoded during scraping via `BaseScraper.geocodeNewLocations()`.
 
+### Scraper Performance Optimizations
+Large scrapers (500+ activities) use performance optimizations to reduce runtime:
+
+**Multi-Browser Parallelization:**
+- ActiveNetwork: 3 browsers for 500+ activities, 2 for 200-500
+- PerfectMind: 3 browsers for 500+ activities
+- Work distributed via shared queue pattern
+
+**Browser Restart Logic:**
+- Browsers restart every 50 pages to prevent memory leaks
+- Prevents "Protocol error: Connection closed" crashes
+
+**Transaction Timeouts:**
+- Prisma transactions: 30 second timeout (up from 5s default)
+- Connection wait: 60 seconds for large batches
+
+**Chrome Path Fallback:**
+- Automatic fallback to system Chrome on macOS
+- Set `PUPPETEER_EXECUTABLE_PATH` to override
+
+See `docs/SCRAPERS.md` for detailed performance documentation.
+
 ---
 
 ## Scripts Reference
