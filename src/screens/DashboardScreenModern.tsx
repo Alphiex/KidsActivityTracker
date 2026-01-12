@@ -374,6 +374,20 @@ const DashboardScreenModern = () => {
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // Reload activity data when children change (handles async child loading)
+  useEffect(() => {
+    // Skip if initial load hasn't completed yet (useFocusEffect will handle it)
+    if (!hasInitialLoadRef.current) {
+      return;
+    }
+    // Reload recommended/budget/new when children change
+    console.log('[Dashboard] Children changed, reloading activity data...');
+    loadRecommendedActivities();
+    loadBudgetFriendlyActivities();
+    loadNewActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChildren.length]);
+
   // Check if any section is still loading (for shimmer animation)
   const isAnyLoading = recommendedLoading || newLoading || budgetLoading || typesLoading || ageGroupsLoading;
 
