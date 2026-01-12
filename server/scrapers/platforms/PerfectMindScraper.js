@@ -1535,8 +1535,9 @@ class PerfectMindScraper extends BaseScraper {
           // Process batch
           const batchResults = await Promise.all(
             workBatch.map(async ({ activity, index }) => {
-              const page = await browser.newPage();
-            try {
+              let page;
+              try {
+                page = await browser.newPage();
               await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
               await page.goto(activity.registrationUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
@@ -2465,8 +2466,12 @@ class PerfectMindScraper extends BaseScraper {
                 }
               };
             } catch (error) {
-              await page.close();
               return { index, result: activity }; // Return original on error
+            } finally {
+              // Always close the page safely (ignore errors if browser already closed)
+              try {
+                if (page) await page.close();
+              } catch (e) { /* ignore - page/browser already closed */ }
             }
           })
         );

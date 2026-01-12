@@ -2082,8 +2082,9 @@ class ActiveNetworkScraper extends BaseScraper {
 
         const batchResults = await Promise.all(
           batch.map(async (activity) => {
-            const page = await browser.newPage();
+            let page;
             try {
+              page = await browser.newPage();
               await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
               await page.goto(activity.registrationUrl, { waitUntil: 'networkidle2', timeout: 45000 });
 
@@ -2524,8 +2525,6 @@ class ActiveNetworkScraper extends BaseScraper {
                 return data;
               });
 
-              await page.close();
-
               // Parse dates
               const parseDate = (dateStr) => {
                 if (!dateStr) return null;
@@ -2698,8 +2697,12 @@ class ActiveNetworkScraper extends BaseScraper {
                 registrationEndDate: parseDate(detailData.registrationEndDateStr) || activity.registrationEndDate
               };
             } catch (error) {
-              await page.close();
               return activity; // Return original on error
+            } finally {
+              // Always close the page safely (ignore errors if browser already closed)
+              try {
+                if (page) await page.close();
+              } catch (e) { /* ignore - page/browser already closed */ }
             }
           })
         );
