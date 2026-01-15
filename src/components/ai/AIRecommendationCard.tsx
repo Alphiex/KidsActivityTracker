@@ -133,9 +133,10 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
     const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const activityAny = activity as any;
 
-    // Extract from dayOfWeek array (e.g., ["Monday", "Wednesday"])
-    if (activityAny.dayOfWeek && Array.isArray(activityAny.dayOfWeek)) {
-      activityAny.dayOfWeek.forEach((day: string) => {
+    // Extract from dayOfWeek (can be array or single string)
+    if (activityAny.dayOfWeek) {
+      const days = Array.isArray(activityAny.dayOfWeek) ? activityAny.dayOfWeek : [activityAny.dayOfWeek];
+      days.forEach((day: string) => {
         if (day && typeof day === 'string') {
           const abbrev = day.substring(0, 3);
           const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
@@ -306,22 +307,15 @@ const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
           </View>
         )}
 
-        {/* Time with Days */}
-        {formatTime() && (
-          <View style={[styles.infoRow, styles.timeRow]}>
-            <Icon name="clock-outline" size={16} color={Colors.primary} />
-            <Text style={[styles.infoText, styles.timeText, { color: colors.text }]}>
-              {extractDaysOfWeek() ? `${extractDaysOfWeek()} • ` : ''}{formatTime()}
-            </Text>
-          </View>
-        )}
-
-        {/* Days of Week (only shown if no time info) */}
-        {extractDaysOfWeek() && !formatTime() && (
+        {/* ALWAYS show days of the week and time prominently - critical information */}
+        {!!(extractDaysOfWeek() || formatTime()) && (
           <View style={[styles.infoRow, styles.daysRow]}>
             <Icon name="calendar-week" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.daysText, { color: Colors.primary }]}>
-              {extractDaysOfWeek()}
+              {[
+                extractDaysOfWeek(),
+                formatTime()
+              ].filter(Boolean).join(' - ')}
             </Text>
           </View>
         )}

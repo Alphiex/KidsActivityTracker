@@ -931,10 +931,22 @@ class ActivityService {
       fetchOptions.body = JSON.stringify(body);
     }
 
-    const response = await fetch(url, fetchOptions);
-    const data = await response.json();
+    // Add timeout to prevent hanging forever (30 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    return { data, status: response.status };
+    try {
+      const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+      clearTimeout(timeoutId);
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+      throw fetchError;
+    }
   }
 
   /**

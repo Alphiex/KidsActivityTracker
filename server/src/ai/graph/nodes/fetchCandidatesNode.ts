@@ -578,11 +578,11 @@ export async function fetchCandidatesNode(state: AIGraphStateType): Promise<Part
 /**
  * Shuffle activities within same score tiers
  */
-function shuffleWithinScoreTiers(activities: Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any }>): Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any }> {
+function shuffleWithinScoreTiers(activities: Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any; isSponsored: boolean }>): Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any; isSponsored: boolean }> {
   if (activities.length === 0) return [];
 
   // Group by score (including matched children count)
-  const tiers = new Map<string, Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any }>>();
+  const tiers = new Map<string, Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any; isSponsored: boolean }>>();
   for (const a of activities) {
     const tierKey = `${a.matchedChildren.length}-${Math.floor(a.totalMatchScore)}`;
     if (!tiers.has(tierKey)) tiers.set(tierKey, []);
@@ -597,7 +597,7 @@ function shuffleWithinScoreTiers(activities: Array<{ totalMatchScore: number; ma
     return bScore - aScore;
   });
 
-  const result: Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any }> = [];
+  const result: Array<{ totalMatchScore: number; matchedChildren: string[]; activity: any; isSponsored: boolean }> = [];
 
   for (const key of sortedKeys) {
     const tier = tiers.get(key)!;

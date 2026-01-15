@@ -732,6 +732,27 @@ const ActivityDetailScreenModern = () => {
                 <Text style={styles.statusValue}>{activity.registrationStatus || 'Open'}</Text>
               </View>
             </View>
+            {/* Registration Deadline */}
+            {!!activity.registrationEndDate && (
+              <View style={[styles.statusIndicator, { marginTop: 12 }]}>
+                <Icon name="clock-alert-outline" size={20} color={ModernColors.warning} />
+                <View style={styles.statusTextContainer}>
+                  <Text style={styles.statusLabel}>Registration Closes</Text>
+                  <Text style={styles.statusValue}>
+                    {(() => {
+                      const endDate = typeof activity.registrationEndDate === 'string'
+                        ? new Date(activity.registrationEndDate)
+                        : activity.registrationEndDate;
+                      if (!endDate || isNaN(endDate.getTime())) return 'TBD';
+                      const formatted = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                      return activity.registrationEndTime
+                        ? `${formatted} at ${activity.registrationEndTime}`
+                        : formatted;
+                    })()}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Key Details Grid */}
@@ -753,7 +774,7 @@ const ActivityDetailScreenModern = () => {
 
             {/* Day of Week and Duration Row */}
             <View style={styles.detailRow}>
-              {getDayOfWeek() && (
+              {!!getDayOfWeek() && (
                 <View style={styles.detailItem}>
                   <Icon name="calendar-today" size={20} color={ModernColors.primary} />
                   <View style={styles.detailContent}>
@@ -778,7 +799,7 @@ const ActivityDetailScreenModern = () => {
 
             {/* Ages and Cost Row */}
             <View style={styles.detailRow}>
-              {getAgeRange() && (
+              {!!getAgeRange() && (
                 <View style={styles.detailItem}>
                   <Icon name="account-child" size={20} color={ModernColors.primary} />
                   <View style={styles.detailContent}>
@@ -826,7 +847,7 @@ const ActivityDetailScreenModern = () => {
             </View>
 
             {/* Course ID Row */}
-            {activity.courseId && (
+            {!!activity.courseId && (
               <View style={styles.detailRow}>
                 <View style={styles.detailItem}>
                   <Icon name="identifier" size={20} color={ModernColors.primary} />
@@ -839,7 +860,7 @@ const ActivityDetailScreenModern = () => {
             )}
 
             {/* Provider Row with optional org logo */}
-            {(activity.provider || activity.orgName) && (
+            {!!(activity.provider || activity.orgName) && (
               <View style={styles.detailRow}>
                 <View style={styles.detailItem}>
                   {activity.orgLogo ? (
@@ -879,7 +900,7 @@ const ActivityDetailScreenModern = () => {
             )}
 
             {/* Contact Email Row */}
-            {activity.contactEmail && (
+            {!!activity.contactEmail && (
               <View style={styles.detailRow}>
                 <TouchableOpacity
                   style={styles.detailItem}
@@ -895,7 +916,7 @@ const ActivityDetailScreenModern = () => {
             )}
 
             {/* Activity Flags Row */}
-            {(activity.gender || activity.hasExtras || activity.hasRequiredExtras || activity.isSingleOccurrence || activity.allDayEvent || activity.onlineRegistration === false) && (
+            {!!(activity.gender || activity.hasExtras || activity.hasRequiredExtras || activity.isSingleOccurrence || activity.allDayEvent || activity.onlineRegistration === false || (activity.isIndoor !== null && activity.isIndoor !== undefined) || (activity.sessionCount && activity.sessionCount > 1)) && (
               <View style={styles.flagsRow}>
                 {activity.gender === 'male' && (
                   <View style={[styles.flagBadge, styles.flagGender]}>
@@ -907,6 +928,24 @@ const ActivityDetailScreenModern = () => {
                   <View style={[styles.flagBadge, styles.flagGender]}>
                     <Icon name="gender-female" size={14} color={ModernColors.white} />
                     <Text style={styles.flagText}>Girls Only</Text>
+                  </View>
+                )}
+                {activity.isIndoor === true && (
+                  <View style={[styles.flagBadge, styles.flagInfo]}>
+                    <Icon name="home" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Indoor</Text>
+                  </View>
+                )}
+                {activity.isIndoor === false && (
+                  <View style={[styles.flagBadge, styles.flagInfo]}>
+                    <Icon name="tree" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>Outdoor</Text>
+                  </View>
+                )}
+                {!!(activity.sessionCount && activity.sessionCount > 1) && (
+                  <View style={[styles.flagBadge, styles.flagInfo]}>
+                    <Icon name="calendar-multiple" size={14} color={ModernColors.white} />
+                    <Text style={styles.flagText}>{activity.sessionCount} Sessions</Text>
                   </View>
                 )}
                 {activity.hasRequiredExtras && (
@@ -944,7 +983,7 @@ const ActivityDetailScreenModern = () => {
           </View>
 
           {/* Program Name Section */}
-          {activity.programName && activity.programName !== activity.name && (
+          {!!(activity.programName && activity.programName !== activity.name) && (
             <View style={styles.programNameBanner}>
               <Icon name="folder-outline" size={18} color={ModernColors.textSecondary} />
               <Text style={styles.programNameText}>Part of: {activity.programName}</Text>
@@ -952,11 +991,34 @@ const ActivityDetailScreenModern = () => {
           )}
 
           {/* Description */}
-          {(activity.fullDescription || activity.description) && (
+          {!!(activity.fullDescription || activity.description) && (
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>About this Activity</Text>
               <Text style={styles.descriptionText}>
                 {activity.fullDescription || activity.description}
+              </Text>
+            </View>
+          )}
+
+          {/* Course Details */}
+          {!!(activity.courseDetails && activity.courseDetails.trim()) && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Course Details</Text>
+              <Text style={styles.descriptionText}>
+                {activity.courseDetails}
+              </Text>
+            </View>
+          )}
+
+          {/* Contact Information */}
+          {!!(activity.contactInfo && activity.contactInfo.trim()) && (
+            <View style={styles.sectionCard}>
+              <View style={styles.contactInfoHeader}>
+                <Icon name="phone-outline" size={20} color={ModernColors.primary} />
+                <Text style={styles.sectionTitle}>Contact Information</Text>
+              </View>
+              <Text style={styles.descriptionText}>
+                {activity.contactInfo}
               </Text>
             </View>
           )}
@@ -984,17 +1046,17 @@ const ActivityDetailScreenModern = () => {
                       {activity.sessions!.length > 1 ? `Session ${session.sessionNumber || index + 1}` : 'Date & Time'}
                     </Text>
                   </View>
-                  {(session.date || session.dayOfWeek) && (
+                  {!!(session.date || session.dayOfWeek) && (
                     <Text style={styles.sessionDate}>
                       {session.dayOfWeek ? `${session.dayOfWeek}${session.date ? ', ' : ''}` : ''}{session.date || ''}
                     </Text>
                   )}
-                  {(session.startTime || session.endTime) && (
+                  {!!(session.startTime || session.endTime) && (
                     <Text style={styles.sessionTime}>
                       {session.startTime}{session.endTime && ` - ${session.endTime}`}
                     </Text>
                   )}
-                  {session.location && (
+                  {!!session.location && (
                     <View style={styles.sessionLocation}>
                       <Icon name="map-marker" size={14} color={ModernColors.textSecondary} />
                       <Text style={styles.sessionLocationText}>
@@ -1009,11 +1071,11 @@ const ActivityDetailScreenModern = () => {
           )}
 
           {/* Requirements */}
-          {(activity.prerequisites || activity.whatToBring || activity.requiredExtras) && (
+          {!!(activity.prerequisites || activity.whatToBring || activity.requiredExtras) && (
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Requirements & Information</Text>
 
-              {activity.prerequisites && (
+              {!!activity.prerequisites && (
                 <View style={styles.requirementSection}>
                   <Text style={styles.requirementTitle}>Prerequisites</Text>
                   <Text style={styles.requirementText}>
@@ -1024,14 +1086,14 @@ const ActivityDetailScreenModern = () => {
                 </View>
               )}
 
-              {activity.whatToBring && (
+              {!!activity.whatToBring && (
                 <View style={styles.requirementSection}>
                   <Text style={styles.requirementTitle}>What to Bring</Text>
                   <Text style={styles.requirementText}>{activity.whatToBring}</Text>
                 </View>
               )}
 
-              {activity.requiredExtras && activity.requiredExtras.length > 0 && (
+              {!!(activity.requiredExtras && activity.requiredExtras.length > 0) && (
                 <View style={styles.requirementSection}>
                   <Text style={styles.requirementTitle}>Required Extras</Text>
                   {activity.requiredExtras.map((extra: any, index: number) => (
@@ -1046,7 +1108,7 @@ const ActivityDetailScreenModern = () => {
           )}
 
           {/* Location & Map */}
-          {getFullAddress(activity) && (
+          {!!getFullAddress(activity) && (
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Location</Text>
 
@@ -1056,7 +1118,7 @@ const ActivityDetailScreenModern = () => {
                   <Text style={styles.locationName}>
                     {activity.locationName || activity.facility || 'Activity Location'}
                   </Text>
-                  {activity.facility && activity.locationName && activity.facility !== activity.locationName && (
+                  {!!(activity.facility && activity.locationName && activity.facility !== activity.locationName) && (
                     <Text style={styles.facilityName}>
                       {activity.facility}
                     </Text>
@@ -1097,7 +1159,7 @@ const ActivityDetailScreenModern = () => {
                 </TouchableOpacity>
               </View>
 
-              {activity.contactInfo && (
+              {!!activity.contactInfo && (
                 <View style={styles.contactInfo}>
                   <Icon name="phone" size={16} color={ModernColors.textSecondary} />
                   <Text style={styles.contactText}>{activity.contactInfo}</Text>
@@ -1108,7 +1170,7 @@ const ActivityDetailScreenModern = () => {
 
           {/* Additional Actions */}
           <View style={styles.additionalActions}>
-            {activity.detailUrl && (
+            {!!activity.detailUrl && (
               <TouchableOpacity
                 style={styles.linkButton}
                 onPress={() => activity.detailUrl && Linking.openURL(activity.detailUrl)}
@@ -1614,6 +1676,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: ModernColors.text,
     marginBottom: ModernSpacing.md,
+  },
+  contactInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: ModernSpacing.sm,
   },
   descriptionText: {
     fontSize: ModernTypography.sizes.base,

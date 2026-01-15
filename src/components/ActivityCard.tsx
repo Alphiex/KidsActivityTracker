@@ -309,10 +309,24 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     return null;
   };
 
-  // Extract days of week from sessions, schedule object, or schedule string
+  // Extract days of week from activity.dayOfWeek, sessions, schedule object, or schedule string
   const extractDaysOfWeek = (): string | null => {
     const daysSet = new Set<string>();
     const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // First check activity.dayOfWeek (primary source) - can be array or string
+    if (activity.dayOfWeek) {
+      const days = Array.isArray(activity.dayOfWeek) ? activity.dayOfWeek : [activity.dayOfWeek];
+      days.forEach((day: string) => {
+        if (day && typeof day === 'string') {
+          const abbrev = day.substring(0, 3);
+          const normalized = abbrev.charAt(0).toUpperCase() + abbrev.slice(1).toLowerCase();
+          if (dayOrder.includes(normalized)) {
+            daysSet.add(normalized);
+          }
+        }
+      });
+    }
 
     // Extract from sessions array
     if (activity.sessions && activity.sessions.length > 0) {
@@ -832,23 +846,16 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           </View>
         )}
 
-        {/* Display time prominently - ALWAYS show if we have any time data */}
-        {(activity.startTime || activity.endTime) && (
-          <View style={[styles.infoRow, styles.timeRow]}>
-            <Icon name="clock-outline" size={16} color={Colors.primary} />
-            <Text style={[styles.infoText, styles.timeText, { color: colors.text, fontWeight: '500' }]}>
-              {extractDaysOfWeek() ? `${extractDaysOfWeek()} • ` : ''}
-              {`${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`}
-            </Text>
-          </View>
-        )}
-
-        {/* Only show days of the week separately if we don't have start/end time */}
-        {extractDaysOfWeek() && !activity.startTime && !activity.endTime && (
+        {/* ALWAYS show days of the week and time prominently - critical information */}
+        {!!(extractDaysOfWeek() || activity.startTime || activity.endTime) && (
           <View style={[styles.infoRow, styles.daysRow]}>
             <Icon name="calendar-week" size={16} color={Colors.primary} />
             <Text style={[styles.infoText, styles.daysText, { color: Colors.primary }]}>
-              {extractDaysOfWeek()}
+              {[
+                extractDaysOfWeek(),
+                (activity.startTime || activity.endTime) &&
+                  `${activity.startTime || ''}${activity.startTime && activity.endTime ? ' - ' : ''}${activity.endTime || ''}`
+              ].filter(Boolean).join(' - ')}
             </Text>
           </View>
         )}

@@ -416,6 +416,31 @@ cd ios && pod install && cd ..
 ./run-ios-18-6.sh
 ```
 
+### iOS Simulator Slow Network (API calls taking 30-60+ seconds)
+
+If API calls are extremely slow in the iOS Simulator (30-60 seconds instead of 1-2 seconds), the simulator's network state may be corrupted. This is a known iOS Simulator issue.
+
+**Symptoms:**
+- API calls take 30-60+ seconds instead of <3 seconds
+- Images fail to load or load very slowly
+- The same API responds quickly when tested via `curl` from terminal
+
+**Solution - Reset the Simulator:**
+```bash
+# Find your simulator UDID
+xcrun simctl list devices
+
+# Shutdown and erase the simulator
+xcrun simctl shutdown "A8661E75-FE3E-483F-8F13-AC87110E8EE2"
+xcrun simctl erase "A8661E75-FE3E-483F-8F13-AC87110E8EE2"
+
+# Boot and run again
+xcrun simctl boot "A8661E75-FE3E-483F-8F13-AC87110E8EE2"
+npx react-native run-ios --simulator="iPhone 16 Pro"
+```
+
+**Note:** Erasing the simulator will remove all app data including login state. You'll need to log in again after the reset.
+
 ---
 
 ## Documentation
